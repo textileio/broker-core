@@ -11,6 +11,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -45,7 +46,7 @@ func NewServer(listenAddr string, s storage.Storage) (*http.Server, error) {
 func createMux(s storage.Storage) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/upload", uploadHandler(s))
+	mux.Handle("/upload", otelhttp.NewHandler(http.HandlerFunc(uploadHandler(s)), "upload"))
 	return mux
 }
 
