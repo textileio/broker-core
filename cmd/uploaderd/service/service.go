@@ -6,10 +6,16 @@ import (
 	"strings"
 
 	"github.com/textileio/broker-core/cmd/uploaderd/httpapi"
+	"github.com/textileio/broker-core/cmd/uploaderd/storage"
+	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage"
+	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/auth/brokerauth"
+	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/broker/texbroker"
+	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/uploader/ipfsuploader"
 )
 
 type Config struct {
-	HttpListenAddr string
+	HttpListenAddr        string
+	UploaderIPFSMultiaddr string
 }
 
 type Service struct {
@@ -19,8 +25,13 @@ type Service struct {
 }
 
 func New(config Config) (*Service, error) {
+	storage, err := createStorage(config)
+	if err != nil {
+		return nil, fmt.Errorf("creating storage component: %s", err)
+	}
+
 	// Bootstrap HTTP API server.
-	httpAPIServer, err := httpapi.NewServer(config.HttpListenAddr)
+	httpAPIServer, err := httpapi.NewServer(config.HttpListenAddr, storage)
 	if err != nil {
 		return nil, fmt.Errorf("creating http server: %s", err)
 	}
@@ -32,6 +43,30 @@ func New(config Config) (*Service, error) {
 		httpAPIServer: httpAPIServer,
 	}
 	return s, nil
+}
+
+func createStorage(config Config) (storage.Storage, error) {
+	auth, err := brokerauth.New()
+	if err != nil {
+		return nil, fmt.Errorf("creating broker auth: %s", err)
+	}
+
+	up, err := ipfsuploader.New(config.UploaderIPFSMultiaddr)
+	if err != nil {
+		return nil, fmt.Errorf("creating broker uploader: %s", err)
+	}
+
+	brok, err := texbroker.New()
+	if err != nil {
+		return nil, fmt.Errorf("creating broker service: %s", err)
+	}
+
+	bs, err := brokerstorage.New(auth, up, brok)
+	if err != nil {
+		return nil, fmt.Errorf("creating broker storage: %s", err)
+	}
+
+	return bs, nil
 }
 
 func (s *Service) Close() error {

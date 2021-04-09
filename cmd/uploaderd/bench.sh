@@ -6,10 +6,10 @@ if [ "$#" -ne 2 ]; then
 	exit -1
 fi
 
-TARGET=$1
+TARGET="${1}/upload"
 SIZE=$2
 
 echo $TARGET
-curl -v -F region=europe -F upload=@<(head -c ${SIZE}M < /dev/urandom) $TARGET
+curl -v -F region=europe -F file=@<(head -c ${SIZE}M < /dev/urandom) $TARGET
 
 

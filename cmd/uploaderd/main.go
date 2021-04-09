@@ -10,9 +10,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/uploaderd/httpapi"
 	"github.com/textileio/broker-core/cmd/uploaderd/service"
-	"github.com/textileio/go-threads/util"
 )
 
 var (
@@ -26,7 +24,8 @@ var flags = []struct {
 	defValue    interface{}
 	description string
 }{
-	{name: "http.listen.addr", defValue: ":8080", description: "HTTP API listen address"},
+	{name: "http.listen.addr", defValue: ":8888", description: "HTTP API listen address"},
+	{name: "uploader.ipfs.multiaddr", defValue: "/ip4/127.0.0.1/tcp/5001", description: "Uploader IPFS API pool"},
 }
 
 func init() {
@@ -53,11 +52,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
-			err := util.SetLogLevels(map[string]logging.LogLevel{
-				daemonName:      logging.LevelDebug,
-				httpapi.LogName: logging.LevelDebug,
-			})
-			checkErr(err)
+			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},
 	Run: func(c *cobra.Command, args []string) {
@@ -66,7 +61,8 @@ var rootCmd = &cobra.Command{
 		log.Infof("loaded config: %s", string(settings))
 
 		serviceConfig := service.Config{
-			HttpListenAddr: v.GetString("http.listen.addr"),
+			HttpListenAddr:        v.GetString("http.listen.addr"),
+			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
 		checkErr(err)
