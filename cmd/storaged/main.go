@@ -67,7 +67,7 @@ var rootCmd = &cobra.Command{
 		serv, err := service.New(serviceConfig)
 		checkErr(err)
 
-		log.Info("Startup executed successfully, ready to rock...")
+		log.Info("Listening to requests...")
 		quit := make(chan os.Signal)
 		signal.Notify(quit, os.Interrupt)
 		<-quit
