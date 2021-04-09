@@ -3,13 +3,20 @@ package storage
 import (
 	"context"
 	"io"
+
+	"github.com/ipfs/go-cid"
 )
 
 // Storage contains handles raw-files uploads of data to be
 // stored with the Broker service.
 type Storage interface {
 	IsStorageAuthorized(ctx context.Context, identity string) (bool, string, error)
-	CreateStorageRequest(ctx context.Context, r io.Reader, meta Metadata) (StorageRequest, error)
+	CreateStorageRequestFromReader(ctx context.Context, r io.Reader, meta Metadata) (StorageRequest, error)
+}
+
+// Metadata contains extra data to be considered by the Broker.
+type Metadata struct {
+	Region string
 }
 
 // StorageRequestStatus is the status of a StorageRequest
@@ -32,10 +39,6 @@ const (
 // StorageRequest is a request for storing data in a Broker.
 type StorageRequest struct {
 	ID         string               `json:"id"`
+	Cid        cid.Cid              `json:"cid"`
 	StatusCode StorageRequestStatus `json:"status_code"`
-}
-
-// Metadata contains extra data to be considered by the Broker.
-type Metadata struct {
-	Region string
 }

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/textileio/broker-core/cmd/uploaderd/storage"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/auth"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/broker"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/uploader"
+	"github.com/textileio/broker-core/cmd/storaged/storage"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/auth"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/broker"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader"
 )
 
 type BrokerStorage struct {
@@ -33,7 +33,7 @@ func (bs *BrokerStorage) IsStorageAuthorized(ctx context.Context, identity strin
 }
 
 // CreateStorageRequest creates a StorageRequest using data from a stream.
-func (bs *BrokerStorage) CreateStorageRequest(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.StorageRequest, error) {
+func (bs *BrokerStorage) CreateStorageRequestFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.StorageRequest, error) {
 	c, err := bs.up.Store(ctx, r)
 	if err != nil {
 		return storage.StorageRequest{}, fmt.Errorf("storing stream: %s", err)

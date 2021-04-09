@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,15 +10,11 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage"
+	"github.com/textileio/broker-core/cmd/storaged/storage"
 )
 
 const (
 	LogName = "http-api"
-
-	httpErrMalformedRequest = "malformed request"
-	httpErrWrongMethodName  = "wrong method name"
-	httpErrMissingData      = "no data was provided"
 
 	gib         = 1024 * 1024 * 1024
 	maxBodySize = 32 * gib
@@ -55,53 +52,21 @@ func createMux(s storage.Storage) *http.ServeMux {
 func uploadHandler(s storage.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			httpError(w, httpErrWrongMethodName, http.StatusBadRequest)
+			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 
 		}
 
-		// Be safe.
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 
-		mr, err := r.MultipartReader()
+		region, file, err := parseMultipart(r)
 		if err != nil {
-			httpError(w, "opening multipart reader", http.StatusBadRequest)
-			return
-		}
-
-		var (
-			region string
-			file   io.Reader
-		)
-		for {
-			part, err := mr.NextPart()
-			if err == io.EOF {
-				break
-			}
-			switch part.FormName() {
-			case "region":
-				buf := &strings.Builder{}
-				if _, err := io.Copy(buf, part); err != nil {
-					httpError(w, "reading part", http.StatusBadRequest)
-					return
-				}
-				region = buf.String()
-			case "file":
-				file = part
-				break
-			default:
-				httpError(w, httpErrMalformedRequest, http.StatusBadRequest)
-				return
-			}
-		}
-		if file == nil {
-			httpError(w, httpErrMissingData, http.StatusBadRequest)
-			return
+			httpError(w, fmt.Sprintf("parsing multipart: %s", err), http.StatusBadRequest)
 		}
 
 		meta := storage.Metadata{
 			Region: region,
 		}
-		storageRequest, err := s.CreateStorageRequest(r.Context(), file, meta)
+		storageRequest, err := s.CreateStorageRequestFromReader(r.Context(), file, meta)
 		if err != nil {
 			httpError(w, fmt.Sprintf("uploading data: %s", err), http.StatusInternalServerError)
 			return
@@ -113,6 +78,44 @@ func uploadHandler(s storage.Storage) func(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
+}
+
+func parseMultipart(r *http.Request) (string, io.Reader, error) {
+	mr, err := r.MultipartReader()
+	if err != nil {
+		return "", nil, fmt.Errorf("opening multipart reader: %s", err)
+	}
+
+	var region string
+	var file io.Reader
+Loop:
+	for {
+		part, err := mr.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", nil, fmt.Errorf("getting next part: %s", err)
+		}
+		switch part.FormName() {
+		case "region":
+			buf := &strings.Builder{}
+			if _, err := io.Copy(buf, part); err != nil {
+				return "", nil, fmt.Errorf("getting region part: %s", err)
+			}
+			region = buf.String()
+		case "file":
+			file = part
+			break Loop
+		default:
+			return "", nil, errors.New("malformed request")
+		}
+	}
+	if file == nil {
+		return "", nil, fmt.Errorf("missing file part: %s", err)
+	}
+
+	return region, file, nil
 }
 
 func httpError(w http.ResponseWriter, err string, status int) {

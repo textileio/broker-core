@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/broker"
+	"github.com/textileio/broker-core/cmd/storaged/storage"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/broker"
 )
 
 type TexBroker struct {
@@ -24,6 +24,7 @@ func (tb *TexBroker) CreateStorageRequest(ctx context.Context, c cid.Cid, meta s
 
 	return storage.StorageRequest{
 		ID:         uuid.New().String(),
+		Cid:        c,
 		StatusCode: storage.StorageRequestStatusPendingPrepare,
 	}, nil
 

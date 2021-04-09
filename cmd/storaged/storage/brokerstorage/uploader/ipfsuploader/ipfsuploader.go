@@ -8,8 +8,13 @@ import (
 	"github.com/ipfs/go-cid"
 	ipfsfiles "github.com/ipfs/go-ipfs-files"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	logger "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/multiformats/go-multiaddr"
+)
+
+var (
+	log = logger.Logger("ipfs-uploader")
 )
 
 type IpfsUploader struct {

@@ -10,11 +10,11 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/uploaderd/service"
+	"github.com/textileio/broker-core/cmd/storaged/service"
 )
 
 var (
-	daemonName = "uploaderd"
+	daemonName = "storagerd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
@@ -47,8 +47,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "uploaderd provides a synchronous data uploader endpoint to store data in a Broker",
-	Long:  `uploaderd provides a synchronous data uploader endpoint to store data in a Broker`,
+	Short: "storaged provides a synchronous data uploader endpoint to store data in a Broker",
+	Long:  `storaged provides a synchronous data uploader endpoint to store data in a Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {

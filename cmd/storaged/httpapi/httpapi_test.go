@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage"
+	"github.com/textileio/broker-core/cmd/storaged/storage"
 )
 
 func TestSuccess(t *testing.T) {
@@ -89,7 +89,7 @@ type uploaderMock struct {
 	mock.Mock
 }
 
-func (um *uploaderMock) CreateStorageRequest(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.StorageRequest, error) {
+func (um *uploaderMock) CreateStorageRequestFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.StorageRequest, error) {
 	args := um.Called(ctx, r, meta)
 
 	return args.Get(0).(storage.StorageRequest), args.Error(1)

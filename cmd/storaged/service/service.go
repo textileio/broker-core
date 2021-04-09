@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/textileio/broker-core/cmd/uploaderd/httpapi"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/auth/brokerauth"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/broker/texbroker"
-	"github.com/textileio/broker-core/cmd/uploaderd/storage/brokerstorage/uploader/ipfsuploader"
+	"github.com/textileio/broker-core/cmd/storaged/httpapi"
+	"github.com/textileio/broker-core/cmd/storaged/storage"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/auth/brokerauth"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/broker/texbroker"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader/ipfsuploader"
 )
 
 type Config struct {
