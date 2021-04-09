@@ -22,7 +22,7 @@ func TestSuccess(t *testing.T) {
 
 	expectedSR := storage.StorageRequest{ID: "ID1", StatusCode: storage.StorageRequestStatusPendingPrepare}
 	usm := &uploaderMock{}
-	usm.On("CreateStorageRequest", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("CreateStorageRequestFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
 
 	mux := createMux(usm)
 	mux.ServeHTTP(res, req)
@@ -55,7 +55,7 @@ func TestFail(t *testing.T) {
 		req, res := makeRequestWithFile(t)
 
 		usm := &uploaderMock{}
-		usm.On("CreateStorageRequest", mock.Anything, mock.Anything, mock.Anything).Return(storage.StorageRequest{}, fmt.Errorf("oops"))
+		usm.On("CreateStorageRequestFromReader", mock.Anything, mock.Anything, mock.Anything).Return(storage.StorageRequest{}, fmt.Errorf("oops"))
 
 		mux := createMux(usm)
 		mux.ServeHTTP(res, req)

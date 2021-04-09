@@ -53,7 +53,7 @@ func uploadHandler(s storage.Storage) func(w http.ResponseWriter, r *http.Reques
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
-
+			return
 		}
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
@@ -61,6 +61,7 @@ func uploadHandler(s storage.Storage) func(w http.ResponseWriter, r *http.Reques
 		region, file, err := parseMultipart(r)
 		if err != nil {
 			httpError(w, fmt.Sprintf("parsing multipart: %s", err), http.StatusBadRequest)
+			return
 		}
 
 		meta := storage.Metadata{
