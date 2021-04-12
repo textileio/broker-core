@@ -11,10 +11,11 @@ SIZE=$2
 
 echo $TARGET
 echo "Generating random file..."
-head -c ${SIZE} < /dev/urandom > foo.bin
+TMPFILE=$(mktemp)
+head -c ${SIZE} < /dev/urandom > $TMPFILE
 echo "Uploading file..."
-curl -v -F "region=europe" -F "file=@$(pwd)/foo.bin" $TARGET
+curl -v -F "region=europe" -F "file=@$TMPFILE" $TARGET
 echo "Cleaning..."
-rm foo.bin
+rm $TMPFILE
 
 
