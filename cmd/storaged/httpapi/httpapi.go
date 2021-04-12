@@ -25,7 +25,7 @@ var (
 	log = logging.Logger(LogName)
 )
 
-func NewServer(listenAddr string, s storage.Storage) (*http.Server, error) {
+func NewServer(listenAddr string, s storage.StorageRequester) (*http.Server, error) {
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
@@ -43,14 +43,14 @@ func NewServer(listenAddr string, s storage.Storage) (*http.Server, error) {
 	return httpServer, nil
 }
 
-func createMux(s storage.Storage) *http.ServeMux {
+func createMux(s storage.StorageRequester) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.Handle("/upload", otelhttp.NewHandler(http.HandlerFunc(uploadHandler(s)), "upload"))
 	return mux
 }
 
-func uploadHandler(s storage.Storage) func(w http.ResponseWriter, r *http.Request) {
+func uploadHandler(s storage.StorageRequester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
@@ -68,7 +68,7 @@ func uploadHandler(s storage.Storage) func(w http.ResponseWriter, r *http.Reques
 		meta := storage.Metadata{
 			Region: region,
 		}
-		storageRequest, err := s.CreateStorageRequestFromReader(r.Context(), file, meta)
+		storageRequest, err := s.CreateFromReader(r.Context(), file, meta)
 		if err != nil {
 			httpError(w, fmt.Sprintf("uploading data: %s", err), http.StatusInternalServerError)
 			return

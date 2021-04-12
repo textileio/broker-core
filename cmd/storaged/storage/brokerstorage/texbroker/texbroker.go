@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
-	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/broker"
 )
 
 type TexBroker struct {
@@ -18,14 +18,13 @@ func New() (*TexBroker, error) {
 	return &TexBroker{}, nil
 }
 
-func (tb *TexBroker) CreateStorageRequest(ctx context.Context, c cid.Cid, meta storage.Metadata) (storage.StorageRequest, error) {
+func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta storage.Metadata) (broker.BrokerRequest, error) {
 	// TODO: Make the implementation once we have the Broker API to call.
 	// For now, just fake it.
 
-	return storage.StorageRequest{
-		ID:         uuid.New().String(),
-		Cid:        c,
-		StatusCode: storage.StorageRequestStatusPendingPrepare,
+	return broker.BrokerRequest{
+		ID:     uuid.New().String(),
+		Status: broker.StatusBatching,
 	}, nil
 
 }

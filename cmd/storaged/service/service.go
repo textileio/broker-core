@@ -8,8 +8,8 @@ import (
 	"github.com/textileio/broker-core/cmd/storaged/httpapi"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage"
-	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/auth/brokerauth"
-	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/broker/texbroker"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/brokerauth"
+	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/texbroker"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader/ipfsuploader"
 )
 
@@ -45,7 +45,7 @@ func New(config Config) (*Service, error) {
 	return s, nil
 }
 
-func createStorage(config Config) (storage.Storage, error) {
+func createStorage(config Config) (storage.StorageRequester, error) {
 	auth, err := brokerauth.New()
 	if err != nil {
 		return nil, fmt.Errorf("creating broker auth: %s", err)

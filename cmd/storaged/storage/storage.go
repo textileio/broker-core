@@ -7,11 +7,14 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-// Storage contains handles raw-files uploads of data to be
+// StorageRequester contains handles raw-files uploads of data to be
 // stored with the Broker service.
-type Storage interface {
-	IsStorageAuthorized(ctx context.Context, identity string) (bool, string, error)
-	CreateStorageRequestFromReader(ctx context.Context, r io.Reader, meta Metadata) (StorageRequest, error)
+type StorageRequester interface {
+	IsAuthorized(ctx context.Context, identity string) (bool, string, error)
+	CreateFromReader(ctx context.Context, r io.Reader, meta Metadata) (StorageRequest, error)
+	// Potentially other future methods here to cover other use-cases like:
+	// - CreateFromCid(context.Context, cid.Cid, Metadata) // Fetch from IPFS network
+	// - CreateFromRemote(context.Context, RemoteOrigin, Metadata) // Fetch from some remote origin.
 }
 
 // Metadata contains extra data to be considered by the Broker.
@@ -23,17 +26,12 @@ type Metadata struct {
 type StorageRequestStatus int
 
 const (
-	// StorageRequestUnkown is the default value to an unitialized
+	// StatusUnknown is the default value to an unitialized
 	// StorageRequest. This status must be considered invalid in any
 	// real StorageRequest instance.
-	StorageRequestUnkown StorageRequestStatus = iota
-	StorageRequestStatusPendingPrepare
-	// TODO: There's a high chance that the status shouldn't be
-	// needed here. This daemon only create StorageRequests, so
-	// doesn't need to know all status codes. This can simplify
-	// having things up to date with the Broker which is the source of truth.
-	// If for some reason we need all status here, we should move
-	// this statuses to some shared library.
+	StatusUnknown StorageRequestStatus = iota
+	StatusFetchingData
+	StatusBatching
 )
 
 // StorageRequest is a request for storing data in a Broker.

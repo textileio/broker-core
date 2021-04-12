@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/textileio/broker-core/auth"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
-	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/auth"
-	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/broker"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader"
 )
 
@@ -17,7 +17,7 @@ type BrokerStorage struct {
 	broker broker.Broker
 }
 
-var _ storage.Storage = (*BrokerStorage)(nil)
+var _ storage.StorageRequester = (*BrokerStorage)(nil)
 
 func New(auth auth.Authorizer, up uploader.Uploader, broker broker.Broker) (*BrokerStorage, error) {
 	return &BrokerStorage{
@@ -28,21 +28,25 @@ func New(auth auth.Authorizer, up uploader.Uploader, broker broker.Broker) (*Bro
 
 }
 
-func (bs *BrokerStorage) IsStorageAuthorized(ctx context.Context, identity string) (bool, string, error) {
+func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {
 	return bs.auth.IsAuthorized(identity)
 }
 
 // CreateStorageRequest creates a StorageRequest using data from a stream.
-func (bs *BrokerStorage) CreateStorageRequestFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.StorageRequest, error) {
+func (bs *BrokerStorage) CreateFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.StorageRequest, error) {
 	c, err := bs.up.Store(ctx, r)
 	if err != nil {
 		return storage.StorageRequest{}, fmt.Errorf("storing stream: %s", err)
 	}
 
-	sr, err := bs.broker.CreateStorageRequest(ctx, c, meta)
+	sr, err := bs.broker.Create(ctx, c, meta)
 	if err != nil {
 		return storage.StorageRequest{}, fmt.Errorf("creating storage request: %s", err)
 	}
 
-	return sr, nil
+	return storage.StorageRequest{
+		ID:         sr.ID,
+		Cid:        c,
+		StatusCode: storage.StatusBatching,
+	}, nil
 }
