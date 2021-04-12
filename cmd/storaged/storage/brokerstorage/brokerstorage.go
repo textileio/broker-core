@@ -29,7 +29,7 @@ func New(auth auth.Authorizer, up uploader.Uploader, broker broker.Broker) (*Bro
 }
 
 func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {
-	return bs.auth.IsAuthorized(identity)
+	return bs.auth.IsAuthorized(ctx, identity)
 }
 
 // CreateStorageRequest creates a StorageRequest using data from a stream.
