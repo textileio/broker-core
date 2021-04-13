@@ -91,13 +91,13 @@ func authenticateHandler(h http.Handler, s storage.StorageRequester) http.Handle
 
 func uploadHandler(s storage.StorageRequester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if origin := req.Header.Get("Origin"); origin != "" {
-			rw.Header().Set("Access-Control-Allow-Origin", origin)
-			rw.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-			rw.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
 		}
 		// Preflight OPTIONS request
-		if req.Method == "OPTIONS" {
+		if r.Method == "OPTIONS" {
 			return
 		}
 		if r.Method != "POST" {
