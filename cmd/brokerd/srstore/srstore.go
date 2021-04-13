@@ -10,12 +10,15 @@ import (
 )
 
 var (
-	// Namespace "/storage-request/{id}" contains
-	// the current `StorageRequest` data for an `id`.
-	prefixStorageRequest = datastore.NewKey("storage-request")
+	// ErrNotFound is returned if the broker request doesn't exist.
+	ErrNotFound = fmt.Errorf("broker request not found")
+
+	// Namespace "/broker-request/{id}" contains
+	// the current `BrokerRequest` data for an `id`.
+	prefixBrokerRequest = datastore.NewKey("broker-request")
 )
 
-// Store provides a persistent layer for StorageRequests.
+// Store provides a persistent layer for broker requests.
 type Store struct {
 	ds datastore.TxnDatastore
 }
@@ -35,7 +38,7 @@ func (s *Store) Save(ctx context.Context, sr broker.BrokerRequest) error {
 		return fmt.Errorf("marshaling broker request: %s", err)
 	}
 
-	srKey := keyStorageRequest(sr.ID)
+	srKey := keyBrokerRequest(sr.ID)
 	if err := s.ds.Put(srKey, buf); err != nil {
 		return fmt.Errorf("put in datastore: %s", err)
 	}
@@ -43,10 +46,13 @@ func (s *Store) Save(ctx context.Context, sr broker.BrokerRequest) error {
 	return nil
 }
 
-// Get gets a BrokerRequest with the specified `id`.
-func (s *Store) Get(ctx context.Context, id string) (broker.BrokerRequest, error) {
-	key := keyStorageRequest(id)
+// Get gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
+func (s *Store) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
+	key := keyBrokerRequest(id)
 	buf, err := s.ds.Get(key)
+	if err == datastore.ErrNotFound {
+		return broker.BrokerRequest{}, ErrNotFound
+	}
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("get broker request from datstore: %s", err)
 	}
@@ -59,6 +65,6 @@ func (s *Store) Get(ctx context.Context, id string) (broker.BrokerRequest, error
 	return sr, nil
 }
 
-func keyStorageRequest(ID string) datastore.Key {
-	return prefixStorageRequest.ChildString(ID)
+func keyBrokerRequest(ID broker.BrokerRequestID) datastore.Key {
+	return prefixBrokerRequest.ChildString(string(ID))
 }
