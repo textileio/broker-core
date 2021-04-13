@@ -6,6 +6,7 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/google/uuid v1.2.0
 	github.com/ipfs/go-cid v0.0.7
+	github.com/ipfs/go-datastore v0.3.1
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
 	github.com/ipfs/go-log/v2 v2.1.3
