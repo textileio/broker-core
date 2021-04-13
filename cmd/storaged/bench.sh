@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
-	echo "use $0 <target-url> <size-mb>"
+	echo "use $0 <target-url> <size>"
 	exit -1
 fi
 
