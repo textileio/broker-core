@@ -14,13 +14,13 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/storaged/service"
+	"github.com/textileio/broker-core/cmd/brokerd/service"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
 
 var (
-	daemonName = "storagerd"
+	daemonName = "brokerd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
@@ -30,14 +30,13 @@ var flags = []struct {
 	defValue    interface{}
 	description string
 }{
-	{name: "http.listen.addr", defValue: ":8888", description: "HTTP API listen address"},
-	{name: "uploader.ipfs.multiaddr", defValue: "/ip4/127.0.0.1/tcp/5001", description: "Uploader IPFS API pool"},
+	{name: "grpc.listen.addr", defValue: ":8888", description: "HTTP API listen address"},
 	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
 	{name: "log.debug", defValue: false, description: "Enable debug level logs"},
 }
 
 func init() {
-	v.SetEnvPrefix("STORAGE")
+	v.SetEnvPrefix("BROKER")
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -55,8 +54,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "storaged provides a synchronous data uploader endpoint to store data in a Broker",
-	Long:  `storaged provides a synchronous data uploader endpoint to store data in a Broker`,
+	Short: "brokerd is a broker to store data in Filecoin",
+	Long:  `brokerd is a broker to store data in Filecion`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
@@ -73,8 +72,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			HttpListenAddr:        v.GetString("http.listen.addr"),
-			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
+			GrpcListenAddress: v.GetString("grpc.listen.addr"),
 		}
 		serv, err := service.New(serviceConfig)
 		checkErr(err)
