@@ -30,9 +30,13 @@ var flags = []struct {
 	defValue    interface{}
 	description string
 }{
-	{name: "grpc.listen.addr", defValue: ":8888", description: "HTTP API listen address"},
 	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
 	{name: "log.debug", defValue: false, description: "Enable debug level logs"},
+
+	{name: "grpc.listen.addr", defValue: ":5000", description: "gRPC API listen address"},
+
+	{name: "mongo.uri", defValue: "", description: "MongoDB URI backing go-datastore"},
+	{name: "mongo.dbname", defValue: "", description: "MongoDB database name backing go-datastore"},
 }
 
 func init() {
@@ -55,7 +59,7 @@ func init() {
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
 	Short: "brokerd is a broker to store data in Filecoin",
-	Long:  `brokerd is a broker to store data in Filecion`,
+	Long:  `brokerd is a broker to store data in Filecoin`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
@@ -73,6 +77,9 @@ var rootCmd = &cobra.Command{
 
 		serviceConfig := service.Config{
 			GrpcListenAddress: v.GetString("grpc.listen.addr"),
+
+			MongoURI:    v.GetString("mongo.uri"),
+			MongoDBName: v.GetString("mongo.dbname"),
 		}
 		serv, err := service.New(serviceConfig)
 		checkErr(err)

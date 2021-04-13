@@ -27,3 +27,14 @@ func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata
 	}, nil
 
 }
+
+func (tb *TexBroker) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
+	// TODO: Make the implementation once we have the Broker API to call.
+	// For now, just fake it.
+
+	return broker.BrokerRequest{
+		ID:     id,
+		Status: broker.StatusUnkown,
+	}, nil
+
+}

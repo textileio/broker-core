@@ -9,6 +9,7 @@ import (
 // Broker allows to create and track BrokerRequest.
 type Broker interface {
 	Create(ctx context.Context, c cid.Cid, meta Metadata) (BrokerRequest, error)
+	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
 }
 
 type BrokerRequestID string

@@ -17,7 +17,7 @@ import (
 
 func init() {
 	if err := util.SetLogLevels(map[string]logging.LogLevel{
-		"auth/service": logging.LevelDebug,
+		"auth-service": logging.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
