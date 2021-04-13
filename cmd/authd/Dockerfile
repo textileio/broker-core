@@ -9,9 +9,9 @@ COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
-  BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-storaged
+  BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-authd
 
 FROM alpine
-COPY --from=builder /app/storaged /app/storaged
-WORKDIR /app 
-ENTRYPOINT ["./storaged"]
+COPY --from=builder /app/authd /app/authd
+WORKDIR /app
+ENTRYPOINT ["./authd"]

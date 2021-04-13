@@ -1,0 +1,17 @@
+syntax = "proto3";
+package cmd.authd.pb.auth;
+option go_package = "github.com/textileio/broker-core/cmd/authd/pb/auth";
+
+message AuthRequest {
+    // token comes in with header
+}
+
+message AuthResponse {
+    // return error if not authorized
+}
+
+service APIService {
+    rpc Auth(AuthRequest) returns (AuthResponse) {}
+}
+
+
