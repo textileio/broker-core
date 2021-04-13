@@ -38,11 +38,22 @@ type BrokerRequestStatus int
 
 const (
 	StatusUnkown BrokerRequestStatus = iota
-	StatusIdle
-	StatusFetchingData
 	StatusBatching
 	StatusPreparing
 	StatusBidding
 	StatusMonitoring
 	StatusSuccess
 )
+
+type EventType int
+
+const (
+	StorageRequestReadyToBatch EventType = iota
+	BatchCreated
+)
+
+type Event struct {
+	ID      BrokerRequestID
+	Type    EventType
+	Payload interface{}
+}
