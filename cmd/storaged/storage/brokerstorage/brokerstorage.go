@@ -29,7 +29,7 @@ func New(auth auth.Authorizer, up uploader.Uploader, broker broker.Broker) (*Bro
 }
 
 func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {
-	return bs.auth.IsAuthorized(identity)
+	return bs.auth.IsAuthorized(ctx, identity)
 }
 
 // CreateStorageRequest creates a StorageRequest using data from a stream.
@@ -39,7 +39,10 @@ func (bs *BrokerStorage) CreateFromReader(ctx context.Context, r io.Reader, meta
 		return storage.StorageRequest{}, fmt.Errorf("storing stream: %s", err)
 	}
 
-	sr, err := bs.broker.Create(ctx, c, meta)
+	brokerMeta := broker.Metadata{
+		Region: meta.Region,
+	}
+	sr, err := bs.broker.Create(ctx, c, brokerMeta)
 	if err != nil {
 		return storage.StorageRequest{}, fmt.Errorf("creating storage request: %s", err)
 	}

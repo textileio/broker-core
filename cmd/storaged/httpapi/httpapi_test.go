@@ -23,9 +23,11 @@ func TestSuccess(t *testing.T) {
 	expectedSR := storage.StorageRequest{ID: "ID1", StatusCode: storage.StatusBatching}
 	usm := &uploaderMock{}
 	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
 
 	mux := createMux(usm)
 	mux.ServeHTTP(res, req)
+	require.Equal(t, http.StatusOK, res.Code)
 
 	var responseSR storage.StorageRequest
 	err := json.Unmarshal(res.Body.Bytes(), &responseSR)
@@ -38,16 +40,63 @@ func TestSuccess(t *testing.T) {
 func TestFail(t *testing.T) {
 	t.Parallel()
 
-	t.Run("wrong-method", func(t *testing.T) {
-		t.Parallel()
+	tests := []struct {
+		name               string
+		method             string
+		authHeader         []string
+		expectedStatusCode int
+	}{
+		{
+			name:               "wrong method",
+			method:             "GET",
+			authHeader:         []string{"valid-auth"},
+			expectedStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:               "required auth",
+			method:             "POST",
+			authHeader:         nil,
+			expectedStatusCode: http.StatusUnauthorized,
+		},
+		{
+			name:               "invalid auth",
+			method:             "POST",
+			authHeader:         []string{"i", "am", "playing", "with", "auth", "headers"},
+			expectedStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:               "wrong auth",
+			method:             "POST",
+			authHeader:         []string{"invalid-auth"},
+			expectedStatusCode: http.StatusUnauthorized,
+		},
+	}
 
-		req := httptest.NewRequest("GET", "/upload", nil)
-		res := httptest.NewRecorder()
-		mux := createMux(nil)
-		mux.ServeHTTP(res, req)
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(tc.method, "/upload", nil)
+			req.Header["Authorization"] = tc.authHeader
+			res := httptest.NewRecorder()
 
-		require.Equal(t, http.StatusBadRequest, res.Code)
-	})
+			usm := &uploaderMock{}
+			call := usm.On("IsAuthorized", mock.Anything, mock.Anything)
+			call.Run(func(args mock.Arguments) {
+				auth := args.String(1)
+				if auth == "valid-auth" {
+					call.Return(true, "", nil)
+					return
+				}
+				call.Return(false, "sorry, you're unauthorized", nil)
+			})
+
+			mux := createMux(usm)
+			mux.ServeHTTP(res, req)
+
+			require.Equal(t, tc.expectedStatusCode, res.Code)
+		})
+	}
 
 	t.Run("uploader-failed", func(t *testing.T) {
 		t.Parallel()
@@ -56,6 +105,7 @@ func TestFail(t *testing.T) {
 
 		usm := &uploaderMock{}
 		usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(storage.StorageRequest{}, fmt.Errorf("oops"))
+		usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
 
 		mux := createMux(usm)
 		mux.ServeHTTP(res, req)
@@ -79,6 +129,7 @@ func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 
 	req := httptest.NewRequest("POST", "/upload", pr)
 	req.Header.Add("Content-Type", writer.FormDataContentType())
+	req.Header.Add("Authorization", "foo")
 	res := httptest.NewRecorder()
 
 	return req, res

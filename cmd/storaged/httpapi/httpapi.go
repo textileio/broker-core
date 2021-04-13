@@ -46,8 +46,47 @@ func NewServer(listenAddr string, s storage.StorageRequester) (*http.Server, err
 func createMux(s storage.StorageRequester) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.Handle("/upload", otelhttp.NewHandler(http.HandlerFunc(uploadHandler(s)), "upload"))
+	uh := wrapMiddlewares(s, uploadHandler(s), "upload")
+	mux.Handle("/upload", uh)
+
 	return mux
+}
+
+func wrapMiddlewares(s storage.StorageRequester, h http.HandlerFunc, name string) http.Handler {
+	handler := instrumentHandler(h, name)
+	handler = authenticateHandler(h, s)
+
+	return handler
+}
+
+func instrumentHandler(h http.HandlerFunc, name string) http.Handler {
+	return otelhttp.NewHandler(http.HandlerFunc(h), name)
+}
+
+func authenticateHandler(h http.Handler, s storage.StorageRequester) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader, ok := r.Header["Authorization"]
+		if !ok || len(authHeader) == 0 {
+			httpError(w, "Authorization header is required", http.StatusUnauthorized)
+			return
+		}
+		if len(authHeader) > 1 {
+			httpError(w, "there should only be one authorization value", http.StatusBadRequest)
+			return
+		}
+
+		ok, authErr, err := s.IsAuthorized(r.Context(), authHeader[0])
+		if err != nil {
+			httpError(w, fmt.Sprintf("calling authorizer: %s", err), http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			httpError(w, fmt.Sprintf("unauthorized: %s", authErr), http.StatusUnauthorized)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
 }
 
 func uploadHandler(s storage.StorageRequester) func(w http.ResponseWriter, r *http.Request) {
