@@ -1,4 +1,4 @@
-package brocker
+package broker
 
 import (
 	"context"
@@ -16,6 +16,8 @@ import (
 var (
 	// ErrNotFound is returned when the broker request doesn't exist.
 	ErrNotFound = fmt.Errorf("broker request not found")
+	// ErrInvalidCid is returned when the Cid is undefined.
+	ErrInvalidCid = fmt.Errorf("the cid can't be undefined")
 )
 
 // Broker creates and tracks request to store Cids in
@@ -45,7 +47,7 @@ var _ broker.Broker = (*Broker)(nil)
 // Metadata configuration.
 func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
 	if !c.Defined() {
-		return broker.BrokerRequest{}, fmt.Errorf("cid is undefined")
+		return broker.BrokerRequest{}, ErrInvalidCid
 	}
 
 	if err := meta.Validate(); err != nil {
