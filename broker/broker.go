@@ -11,9 +11,11 @@ type Broker interface {
 	Create(ctx context.Context, c cid.Cid, meta Metadata) (BrokerRequest, error)
 }
 
+type BrokerRequestID string
+
 // BrokerRequest references a storage request for a Cid.
 type BrokerRequest struct {
-	ID       string              `json:"id"`
+	ID       BrokerRequestID     `json:"id"`
 	Status   BrokerRequestStatus `json:"status"`
 	Metadata Metadata            `json:"metadata"`
 }
@@ -21,6 +23,13 @@ type BrokerRequest struct {
 // Metadata provides storage and bidding configuration.
 type Metadata struct {
 	Region string `json:"region"`
+}
+
+// Validate validates if the instance is valid.
+func (m Metadata) Validate() error {
+	// TODO: we can validate regions, or any other
+	// fields that might exist.
+	return nil
 }
 
 // BrokerRequestStatus describe the current status of a
