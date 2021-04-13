@@ -14,7 +14,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/storaged/service"
+	"github.com/textileio/broker-core/cmd/authd/service"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -30,8 +30,7 @@ var flags = []struct {
 	defValue    interface{}
 	description string
 }{
-	{name: "http.listen.addr", defValue: ":8888", description: "HTTP API listen address"},
-	{name: "uploader.ipfs.multiaddr", defValue: "/ip4/127.0.0.1/tcp/5001", description: "Uploader IPFS API pool"},
+	{name: "grpc.listen.addr", defValue: ":5000", description: "gRPC API listen address"},
 	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
 }
 
@@ -54,8 +53,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "authd provides an endpoint for authorizing a data storage request",
-	Long:  `authd provides an endpoint for authorizing a data storage request`,
+	Short: "todo",
+	Long:  `todo`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
@@ -71,20 +70,15 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		serviceConfig := service.Config{
-			HttpListenAddr:        v.GetString("http.listen.addr"),
-			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
-		}
-		serv, err := service.New(serviceConfig)
+		serv, err := service.New(v.GetString("grpc.listen.addr"))
 		checkErr(err)
 
-		log.Info("Listening to requests...")
 		quit := make(chan os.Signal)
 		signal.Notify(quit, os.Interrupt)
 		<-quit
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 		if err := serv.Close(); err != nil {
-			log.Errorf("closing http endpoint: %s", err)
+			log.Errorf("closing service: %s", err)
 		}
 	},
 }

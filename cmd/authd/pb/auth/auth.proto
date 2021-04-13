@@ -1,6 +1,6 @@
 syntax = "proto3";
-package auth.pb.auth;
-option go_package = "github.com/textileio/broker-core/auth/pb/auth";
+package cmd.authd.pb.auth;
+option go_package = "github.com/textileio/broker-core/cmd/authd/pb/auth";
 
 message AuthRequest {
     // token comes in with header

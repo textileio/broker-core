@@ -19,6 +19,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.19.0
 	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0
 	go.opentelemetry.io/otel/metric v0.19.0
+	go.uber.org/zap v1.16.0
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
 )

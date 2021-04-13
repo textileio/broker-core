@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	pb "github.com/textileio/broker-core/auth/pb/auth"
+	pb "github.com/textileio/broker-core/cmd/authd/pb/auth"
 	"google.golang.org/grpc"
 )
 
