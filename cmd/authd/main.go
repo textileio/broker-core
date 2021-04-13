@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	daemonName = "storagerd"
+	daemonName = "authd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
@@ -36,7 +36,7 @@ var flags = []struct {
 }
 
 func init() {
-	v.SetEnvPrefix("STORAGE")
+	v.SetEnvPrefix("AUTH")
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -54,8 +54,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "storaged provides a synchronous data uploader endpoint to store data in a Broker",
-	Long:  `storaged provides a synchronous data uploader endpoint to store data in a Broker`,
+	Short: "authd provides an endpoint for authorizing a data storage request",
+	Long:  `authd provides an endpoint for authorizing a data storage request`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {

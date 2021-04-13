@@ -30,8 +30,6 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// Create initializes a new bucket.
-// The bucket name is only meant to help identify a bucket in a UI and is not unique.
 func (c *Client) Auth(ctx context.Context) (*pb.AuthResponse, error) {
 	return c.c.Auth(ctx, &pb.AuthRequest{})
 }

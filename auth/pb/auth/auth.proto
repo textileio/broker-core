@@ -10,7 +10,6 @@ message AuthResponse {
     // return error if not authorized
 }
 
-
 service APIService {
     rpc Auth(AuthRequest) returns (AuthResponse) {}
 }
