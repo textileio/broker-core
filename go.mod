@@ -6,7 +6,7 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/google/uuid v1.2.0
 	github.com/ipfs/go-cid v0.0.7
-	github.com/ipfs/go-datastore v0.3.1
+	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
 	github.com/ipfs/go-log/v2 v2.1.3
@@ -16,11 +16,12 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
+	github.com/textileio/powergate/v2 v2.4.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.19.0
 	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0
 	go.opentelemetry.io/otel/metric v0.19.0
 	go.uber.org/zap v1.16.0
-	google.golang.org/grpc v1.35.0
+	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 )

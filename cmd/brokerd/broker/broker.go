@@ -10,6 +10,12 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/srstore"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
+	"github.com/textileio/powergate/v2/deals/module/store"
+)
+
+var (
+	// ErrNotFound is returned when the broker request doesn't exist.
+	ErrNotFound = fmt.Errorf("broker request not found")
 )
 
 // Broker creates and tracks request to store Cids in
@@ -39,12 +45,12 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	if !c.Defined() {
 		return broker.BrokerRequest{}, fmt.Errorf("cid is undefined")
 	}
-	if err := validMetadata(meta); err != nil {
+	if err := meta.Validate(); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("invalid metadata: %s", err)
 	}
 
 	br := broker.BrokerRequest{
-		ID:       uuid.New().String(),
+		ID:       broker.BrokerRequestID(uuid.New().String()),
 		Status:   broker.StatusIdle,
 		Metadata: meta,
 	}
@@ -58,10 +64,18 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	return br, nil
 }
 
-// TODO: move to other place.
-func validMetadata(meta broker.Metadata) error {
-	// TODO: place logic here to validate
-	// metadata attributes. e.g: `region` is valid
-	// if isn't empty.
-	return nil
+// Get gets a BrokerRequest by id. If doesn't exist, it returns ErrNotFound.
+func (b *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
+	br, err := b.store.Get(ctx, ID)
+	if err == store.ErrNotFound {
+		return broker.BrokerRequest{}, ErrNotFound
+	}
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
+	}
+
+	// The `Idle` broker request will be detected
+	// by `batcherd` to continue the process.
+
+	return br, nil
 }
