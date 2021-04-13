@@ -48,7 +48,7 @@ func (bs *BrokerStorage) CreateFromReader(ctx context.Context, r io.Reader, meta
 	}
 
 	return storage.StorageRequest{
-		ID:         sr.ID,
+		ID:         string(sr.ID),
 		Cid:        c,
 		StatusCode: storage.StatusBatching,
 	}, nil

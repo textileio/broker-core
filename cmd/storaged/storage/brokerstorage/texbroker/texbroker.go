@@ -22,7 +22,7 @@ func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata
 	// For now, just fake it.
 
 	return broker.BrokerRequest{
-		ID:     uuid.New().String(),
+		ID:     broker.BrokerRequestID(uuid.New().String()),
 		Status: broker.StatusBatching,
 	}, nil
 
