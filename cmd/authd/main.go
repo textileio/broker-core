@@ -32,6 +32,7 @@ var flags = []struct {
 }{
 	{name: "grpc.listen.addr", defValue: ":5000", description: "gRPC API listen address"},
 	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
+	{name: "log.debug", defValue: false, description: "Enable debug level logs"},
 }
 
 func init() {
@@ -53,8 +54,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "todo",
-	Long:  `todo`,
+	Short: "authd provides authentication services for the broker",
+	Long:  `authd provides authentication services for the broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {

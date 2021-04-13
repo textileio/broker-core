@@ -12,12 +12,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	LogName = "auth/service"
-)
-
 var (
-	log = logging.Logger(LogName)
+	log = logging.Logger("auth-service")
 )
 
 // Service is a gRPC service for buckets.
