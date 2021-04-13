@@ -16,7 +16,6 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/powergate/v2 v2.4.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.19.0
 	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0

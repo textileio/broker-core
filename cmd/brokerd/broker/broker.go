@@ -10,7 +10,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/srstore"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
-	"github.com/textileio/powergate/v2/deals/module/store"
 )
 
 var (
@@ -67,7 +66,7 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 // Get gets a BrokerRequest by id. If doesn't exist, it returns ErrNotFound.
 func (b *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	br, err := b.store.Get(ctx, ID)
-	if err == store.ErrNotFound {
+	if err == srstore.ErrNotFound {
 		return broker.BrokerRequest{}, ErrNotFound
 	}
 	if err != nil {
