@@ -21,12 +21,12 @@ issues:
     - path: cmd/powbench/runner/runner_test.go
       linters:
         - unused
+  exclude:
+   - stutters
 
 run:
   timeout: 30m
-  skip-files:
-    - gateway/assets.go
 
 service:
-  golangci-lint-version: 1.27.x # use the fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.39.x # use the fixed version to not introduce new linters unexpectedly
     

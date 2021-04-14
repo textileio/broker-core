@@ -13,17 +13,22 @@ import (
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader/ipfsuploader"
 )
 
+// Config provides configuration parameters for a service.
 type Config struct {
-	HttpListenAddr        string
+	// HTTPListenAddr is the binding address for the public REST API.
+	HTTPListenAddr string
+	// UploaderIPFSMultiaddr is the multiaddress of the IPFS layer.
 	UploaderIPFSMultiaddr string
 }
 
+// Service provides an implementation of the Storage API.
 type Service struct {
 	config Config
 
 	httpAPIServer *http.Server
 }
 
+// New returns a new Service.
 func New(config Config) (*Service, error) {
 	storage, err := createStorage(config)
 	if err != nil {
@@ -31,7 +36,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	// Bootstrap HTTP API server.
-	httpAPIServer, err := httpapi.NewServer(config.HttpListenAddr, storage)
+	httpAPIServer, err := httpapi.NewServer(config.HTTPListenAddr, storage)
 	if err != nil {
 		return nil, fmt.Errorf("creating http server: %s", err)
 	}
@@ -45,7 +50,7 @@ func New(config Config) (*Service, error) {
 	return s, nil
 }
 
-func createStorage(config Config) (storage.StorageRequester, error) {
+func createStorage(config Config) (storage.Requester, error) {
 	auth, err := brokerauth.New()
 	if err != nil {
 		return nil, fmt.Errorf("creating broker auth: %s", err)
@@ -69,6 +74,7 @@ func createStorage(config Config) (storage.StorageRequester, error) {
 	return bs, nil
 }
 
+// Close gracefully closes the service.
 func (s *Service) Close() error {
 	var errors []string
 

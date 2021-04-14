@@ -35,6 +35,7 @@ type Config struct {
 	MongoURI    string
 }
 
+// Service provides an implementation of the broker API.
 type Service struct {
 	pb.UnimplementedAPIServiceServer
 
@@ -45,6 +46,7 @@ type Service struct {
 
 var _ pb.APIServiceServer = (*Service)(nil)
 
+// New returns a new Service.
 func New(config Config) (*Service, error) {
 	listener, err := net.Listen("tcp", config.GrpcListenAddress)
 	if err != nil {
@@ -88,6 +90,7 @@ func New(config Config) (*Service, error) {
 	return s, nil
 }
 
+// CreateBR creates a new BrokerRequest.
 func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBRRequest) (*pb.CreateBRResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
@@ -118,6 +121,7 @@ func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBRRequest) (*pb.Crea
 	return res, nil
 }
 
+// GetBR gets an existing broker request.
 func (s *Service) GetBR(ctx context.Context, r *pb.GetBRRequest) (*pb.GetBRResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
@@ -135,6 +139,7 @@ func (s *Service) GetBR(ctx context.Context, r *pb.GetBRRequest) (*pb.GetBRRespo
 	return res, nil
 }
 
+// Close gracefully closes the service.
 func (s *Service) Close() error {
 	var errors []string
 	defer log.Info("service was shutdown with %d errors", len(errors))

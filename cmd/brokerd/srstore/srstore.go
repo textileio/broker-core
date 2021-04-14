@@ -14,9 +14,9 @@ import (
 var (
 	// ErrNotFound is returned if the broker request doesn't exist.
 	ErrNotFound = fmt.Errorf("broker request not found")
-	// ErrStorageDealContainsUnkownBrokerRequest is returned if a storage deal contains an
-	// unkown broker request.
-	ErrStorageDealContainsUnkownBrokerRequest = fmt.Errorf("storage deal contains an unkown broker request")
+	// ErrStorageDealContainsUnknownBrokerRequest is returned if a storage deal contains an
+	// unknown broker request.
+	ErrStorageDealContainsUnknownBrokerRequest = fmt.Errorf("storage deal contains an unknown broker request")
 
 	// Namespace "/broker-request/{id}" contains
 	// the current `BrokerRequest` data for an `id`.
@@ -38,7 +38,7 @@ func New(ds datastore.TxnDatastore) (*Store, error) {
 	return s, nil
 }
 
-// Save saves the provided BrokerRequest.
+// SaveBrokerRequest saves the provided BrokerRequest.
 func (s *Store) SaveBrokerRequest(ctx context.Context, br broker.BrokerRequest) error {
 	buf, err := json.Marshal(br)
 	if err != nil {
@@ -53,11 +53,12 @@ func (s *Store) SaveBrokerRequest(ctx context.Context, br broker.BrokerRequest) 
 	return nil
 }
 
-// Get gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
+// GetBrokerRequest gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
 func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	return s.getBrokerRequest(ctx, id)
 }
 
+// CreateStorageDeal persists a storage deal.
 func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) error {
 	start := time.Now()
 	defer log.Debugf("creating storage deal %s with group size %d took %dms", sd.ID, len(sd.BrokerRequestIDs), time.Since(start).Milliseconds())
@@ -69,12 +70,12 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) er
 	for i, brID := range sd.BrokerRequestIDs {
 		br, err := s.getBrokerRequest(ctx, brID)
 		if err == ErrNotFound {
-			return fmt.Errorf("unknown broker request id %s: %w", brID, ErrStorageDealContainsUnkownBrokerRequest)
+			return fmt.Errorf("unknown broker request id %s: %w", brID, ErrStorageDealContainsUnknownBrokerRequest)
 		}
 
 		// 2- Link all BrokerRequests with the StorageDeal, and change their status
 		// to `Preparing`, since they should mirror the StorageDeal status.
-		br.Status = broker.StatusPreparing
+		br.Status = broker.BrokerRequestPreparing
 		br.UpdatedAt = now
 		br.StorageDealID = sd.ID
 
@@ -130,7 +131,7 @@ func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (br
 	return sd, nil
 }
 
-func (s *Store) getBrokerRequest(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
+func (s *Store) getBrokerRequest(_ context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	key := keyBrokerRequest(id)
 	buf, err := s.ds.Get(key)
 	if err == datastore.ErrNotFound {

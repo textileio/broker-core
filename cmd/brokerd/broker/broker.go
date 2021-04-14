@@ -64,7 +64,7 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	now := time.Now()
 	br := broker.BrokerRequest{
 		ID:        broker.BrokerRequestID(uuid.New().String()),
-		Status:    broker.StatusBatching,
+		Status:    broker.BrokerRequestBatching,
 		Metadata:  meta,
 		CreatedAt: now,
 		UpdatedAt: now,

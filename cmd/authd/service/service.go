@@ -25,7 +25,7 @@ type Service struct {
 
 // Go trick
 // this service struct is implementing the interface pb.API...
-// if it's not, will see errors
+// if it's not, will see errors.
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new service.
@@ -68,6 +68,7 @@ func (s *Service) Close() error {
 	return nil
 }
 
+// Auth provides an API endpoint to resolve authorization for users.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	// check expiration
 	// call s.indexer.

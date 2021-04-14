@@ -15,17 +15,16 @@ import (
 )
 
 const (
-	LogName = "http-api"
-
 	gib         = 1024 * 1024 * 1024
 	maxBodySize = 32 * gib
 )
 
 var (
-	log = logging.Logger(LogName)
+	log = logging.Logger("http-api")
 )
 
-func NewServer(listenAddr string, s storage.StorageRequester) (*http.Server, error) {
+// NewServer returns a new http server exposing the storage API.
+func NewServer(listenAddr string, s storage.Requester) (*http.Server, error) {
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
@@ -43,7 +42,7 @@ func NewServer(listenAddr string, s storage.StorageRequester) (*http.Server, err
 	return httpServer, nil
 }
 
-func createMux(s storage.StorageRequester) *http.ServeMux {
+func createMux(s storage.Requester) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	uh := wrapMiddlewares(s, uploadHandler(s), "upload")
@@ -52,18 +51,18 @@ func createMux(s storage.StorageRequester) *http.ServeMux {
 	return mux
 }
 
-func wrapMiddlewares(s storage.StorageRequester, h http.HandlerFunc, name string) http.Handler {
+func wrapMiddlewares(s storage.Requester, h http.HandlerFunc, name string) http.Handler {
 	handler := instrumentHandler(h, name)
-	handler = authenticateHandler(h, s)
+	handler = authenticateHandler(handler, s)
 
 	return handler
 }
 
 func instrumentHandler(h http.HandlerFunc, name string) http.Handler {
-	return otelhttp.NewHandler(http.HandlerFunc(h), name)
+	return otelhttp.NewHandler(h, name)
 }
 
-func authenticateHandler(h http.Handler, s storage.StorageRequester) http.Handler {
+func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader, ok := r.Header["Authorization"]
 		if !ok || len(authHeader) == 0 {
@@ -89,7 +88,7 @@ func authenticateHandler(h http.Handler, s storage.StorageRequester) http.Handle
 	})
 }
 
-func uploadHandler(s storage.StorageRequester) func(w http.ResponseWriter, r *http.Request) {
+func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if origin := r.Header.Get("Origin"); origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)

@@ -2,4 +2,4 @@ package metrics
 
 import "go.opentelemetry.io/otel/metric/global"
 
-var meter = global.Meter("authd")
+var _ = global.Meter("authd")

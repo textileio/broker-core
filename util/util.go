@@ -48,6 +48,7 @@ type RPCCredentials struct {
 	Secure bool
 }
 
+// GetRequestMetadata returns a map with all the metadata present in the RPC call.
 func (c RPCCredentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
 	md := map[string]string{}
 	// // token, ok := TokenFromContext(ctx)
@@ -56,6 +57,8 @@ func (c RPCCredentials) GetRequestMetadata(ctx context.Context, _ ...string) (ma
 	// }
 	return md, nil
 }
+
+// RequireTransportSecurity returns if security is enabled.
 func (c RPCCredentials) RequireTransportSecurity() bool {
 	return c.Secure
 }

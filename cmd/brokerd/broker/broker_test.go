@@ -26,7 +26,7 @@ func TestCreateSuccess(t *testing.T) {
 	br, err := b.Create(context.Background(), c, meta)
 	require.NoError(t, err)
 	require.NotEmpty(t, br.ID)
-	require.Equal(t, broker.StatusBatching, br.Status)
+	require.Equal(t, broker.BrokerRequestBatching, br.Status)
 	require.Equal(t, meta, br.Metadata)
 	require.True(t, time.Since(br.CreatedAt).Seconds() < 5)
 	require.True(t, time.Since(br.UpdatedAt).Seconds() < 5)
@@ -58,12 +58,12 @@ func TestCreateStorageDeal(t *testing.T) {
 	c := createCidFromString("BrokerRequest1")
 	br1, err := b.Create(ctx, c, broker.Metadata{})
 	require.NoError(t, err)
-	require.Equal(t, broker.StatusBatching, br1.Status)
+	require.Equal(t, broker.BrokerRequestBatching, br1.Status)
 
 	c = createCidFromString("BrokerRequest2")
 	br2, err := b.Create(ctx, c, broker.Metadata{})
 	require.NoError(t, err)
-	require.Equal(t, broker.StatusBatching, br1.Status)
+	require.Equal(t, broker.BrokerRequestBatching, br1.Status)
 
 	// 2- Create a StorageDeal with both storage requests.
 	brgCid := createCidFromString("StorageDeal")
@@ -84,11 +84,11 @@ func TestCreateStorageDeal(t *testing.T) {
 	// 2- Are linked to the StorageDeal they are now part of.
 	br1, err = b.Get(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.StatusPreparing, br1.Status)
+	require.Equal(t, broker.BrokerRequestPreparing, br1.Status)
 	require.Equal(t, sd.ID, br1.StorageDealID)
 	br2, err = b.Get(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.StatusPreparing, br2.Status)
+	require.Equal(t, broker.BrokerRequestPreparing, br2.Status)
 	require.Equal(t, sd.ID, br2.StorageDealID)
 
 	// Check that the StorageDeal was persisted correctly.
@@ -132,7 +132,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		brgCid := createCidFromString("StorageDeal")
 		srb := broker.BrokerRequestGroup{Cid: brgCid, GroupedStorageRequests: []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")}}
 		_, err := b.CreateStorageDeal(ctx, srb)
-		require.True(t, errors.Is(err, srstore.ErrStorageDealContainsUnkownBrokerRequest))
+		require.True(t, errors.Is(err, srstore.ErrStorageDealContainsUnknownBrokerRequest))
 	})
 }
 

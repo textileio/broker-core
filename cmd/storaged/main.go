@@ -45,10 +45,12 @@ func init() {
 		switch defval := flag.defValue.(type) {
 		case string:
 			rootCmd.Flags().String(flag.name, defval, flag.description)
-			v.BindPFlag(flag.name, rootCmd.Flags().Lookup(flag.name))
+			if err := v.BindPFlag(flag.name, rootCmd.Flags().Lookup(flag.name)); err != nil {
+				log.Fatalf("binding flag %s: %s", flag.name, err)
+			}
 			v.SetDefault(flag.name, defval)
 		default:
-			log.Fatalf("unkown flag type: %T", flag)
+			log.Fatalf("unknown flag type: %T", flag)
 		}
 	}
 }
@@ -73,14 +75,14 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			HttpListenAddr:        v.GetString("http.listen.addr"),
+			HTTPListenAddr:        v.GetString("http.listen.addr"),
 			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
 		checkErr(err)
 
 		log.Info("Listening to requests...")
-		quit := make(chan os.Signal)
+		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, os.Interrupt)
 		<-quit
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
