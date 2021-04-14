@@ -17,10 +17,6 @@ linters:
 issues:
   exclude-use-default: false
 
-  exclude-rules:
-    - path: cmd/powbench/runner/runner_test.go
-      linters:
-        - unused
   exclude:
    - stutters
 
