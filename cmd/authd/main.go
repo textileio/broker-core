@@ -10,7 +10,7 @@ import (
 
 	_ "net/http/pprof"
 
-	logging "github.com/ipfs/go-log/v2"
+	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/authd/service"
@@ -21,7 +21,7 @@ import (
 
 var (
 	daemonName = "authd"
-	log        = logging.Logger(daemonName)
+	log        = golog.Logger(daemonName)
 	v          = viper.New()
 )
 
@@ -40,9 +40,9 @@ var rootCmd = &cobra.Command{
 	Short: "authd provides authentication services for the broker",
 	Long:  `authd provides authentication services for the broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		logging.SetAllLoggers(logging.LevelInfo)
+		golog.SetAllLoggers(golog.LevelInfo)
 		if v.GetBool("log.debug") {
-			logging.SetAllLoggers(logging.LevelDebug)
+			golog.SetAllLoggers(golog.LevelDebug)
 		}
 	},
 	Run: func(c *cobra.Command, args []string) {

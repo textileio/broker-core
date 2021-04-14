@@ -12,9 +12,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var (
-	log = logging.Logger("auth/service")
-)
+var log = logging.Logger("auth/service")
 
 // Service is a gRPC service for buckets.
 type Service struct {

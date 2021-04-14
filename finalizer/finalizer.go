@@ -1,7 +1,8 @@
-package util
+package finalizer
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/hashicorp/go-multierror"
@@ -30,6 +31,10 @@ func (r *Finalizer) Cleanup(err error) error {
 		}
 	}
 	return multierror.Append(err, errs...).ErrorOrNil()
+}
+
+func (r *Finalizer) Cleanupf(format string, err error) error {
+	return r.Cleanup(fmt.Errorf(format, err))
 }
 
 // NewContextCloser transforms context cancellation function to be used with finalizer.

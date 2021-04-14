@@ -2,261 +2,173 @@ package service
 
 import (
 	"context"
-	"errors"
+	"crypto/rand"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/docker/distribution/registry"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	badger "github.com/ipfs/go-ds-badger2"
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	cconnmgr "github.com/libp2p/go-libp2p-core/connmgr"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
-	"github.com/textileio/broker-core/util"
-	mongods "github.com/textileio/go-ds-mongo"
-	"github.com/textileio/go-threads/core/app"
-	"github.com/textileio/go-threads/logstore/lstoreds"
-	"github.com/textileio/go-threads/logstore/lstorehybrid"
-	"github.com/textileio/go-threads/logstore/lstoremem"
-	"github.com/textileio/go-threads/net"
-	"google.golang.org/grpc"
+	ps "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/textileio/broker-core/finalizer"
+	"github.com/textileio/broker-core/market"
+	"github.com/textileio/broker-core/pubsub"
+	badger "github.com/textileio/go-ds-badger3"
 )
 
-type Config struct {
-	DownloaderIPFSMultiaddr string
+type config struct {
+	HostAddr    multiaddr.Multiaddr
+	ConnManager cconnmgr.ConnManager
+	RepoPath    string
 }
 
-type Service struct {
-	config Config
+type Option func(c *config) error
+
+func WithHostAddr(addr multiaddr.Multiaddr) Option {
+	return func(c *config) error {
+		c.HostAddr = addr
+		return nil
+	}
 }
 
-func New(config Config) (*Service, error) {
-
+func WithRepoPath(path string) Option {
+	return func(c *config) error {
+		c.RepoPath = path
+		return nil
+	}
 }
 
-func (s *Service) Close() error {
-	var errors []string
+func WithConnectionManager(manager cconnmgr.ConnManager) Option {
+	return func(c *config) error {
+		c.ConnManager = manager
+		return nil
+	}
+}
 
-	// if err := s.httpAPIServer.Close(); err != nil {
-	// 	errors = append(errors, fmt.Sprintf("closing http api server: %s", err))
-	// }
-
-	if errors != nil {
-		return fmt.Errorf(strings.Join(errors, "\n"))
+func setDefaults(conf *config) error {
+	if conf.HostAddr == nil {
+		addr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+		if err != nil {
+			return err
+		}
+		conf.HostAddr = addr
+	}
+	if conf.ConnManager == nil {
+		conf.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
 	}
 	return nil
 }
 
-type NetBoostrapper interface {
-	app.Net
-	GetIpfsLite() *ipfslite.Peer
-	Bootstrap(addrs []peer.AddrInfo)
+type Service struct {
+	peer      *ipfslite.Peer
+	deals     *pubsub.Topic
+	finalizer *finalizer.Finalizer
 }
 
-// DefaultNetwork is a boostrapable default Net with sane defaults.
-func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
+func New(opts ...Option) (*Service, error) {
 	var (
-		config NetConfig
-		fin    = util.NewFinalizer()
+		conf config
+		fin  = finalizer.NewFinalizer()
 	)
 
 	for _, opt := range opts {
-		if err := opt(&config); err != nil {
+		if err := opt(&conf); err != nil {
 			return nil, err
 		}
 	}
-
-	if err := setDefaults(&config); err != nil {
-		return nil, err
+	if err := setDefaults(&conf); err != nil {
+		return nil, fmt.Errorf("setting defaults: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	fin.Add(util.NewContextCloser(cancel))
+	fin.Add(finalizer.NewContextCloser(cancel))
 
-	litestore, err := persistentStore(ctx, config, "ipfslite", fin)
+	// Setup ipfslite peerstore
+	lstore, err := badgerStore(filepath.Join(conf.RepoPath, "ipfslite"), fin)
 	if err != nil {
-		return nil, fin.Cleanup(err)
+		return nil, fin.Cleanupf("creating repo: %v", err)
 	}
-	fin.Add(litestore)
-
-	pstore, err := pstoreds.NewPeerstore(ctx, litestore, pstoreds.DefaultOpts())
+	fin.Add(lstore)
+	pstore, err := pstoreds.NewPeerstore(ctx, lstore, pstoreds.DefaultOpts())
 	if err != nil {
-		return nil, fin.Cleanup(err)
+		return nil, fin.Cleanupf("creating peerstore: %v", err)
 	}
 	fin.Add(pstore)
 
-	hostKey, err := getIPFSHostKey(config, litestore)
+	// Setup libp2p
+	hostKey, err := getHostKey(conf)
 	if err != nil {
-		return nil, fin.Cleanup(err)
+		return nil, fin.Cleanupf("getting host key: %v", err)
 	}
-
-	h, d, err := ipfslite.SetupLibp2p(
+	host, dht, err := ipfslite.SetupLibp2p(
 		ctx,
 		hostKey,
 		nil,
-		[]ma.Multiaddr{config.HostAddr},
-		litestore,
+		[]multiaddr.Multiaddr{conf.HostAddr},
+		lstore,
 		libp2p.Peerstore(pstore),
-		libp2p.ConnectionManager(config.ConnManager),
+		libp2p.ConnectionManager(conf.ConnManager),
 		libp2p.DisableRelay(),
 	)
 	if err != nil {
-		return nil, fin.Cleanup(err)
+		return nil, fin.Cleanupf("setting up libp2p", err)
 	}
 
-	lite, err := ipfslite.New(ctx, litestore, h, d, nil)
+	// Create ipfslite peer
+	lpeer, err := ipfslite.New(ctx, lstore, host, dht, nil)
 	if err != nil {
-		return nil, fin.Cleanup(err)
+		return nil, fin.Cleanupf("creating ipfslite peer", err)
 	}
 
-	tstore, err := buildLogstore(ctx, config, fin)
+	// Setup pubsub
+	gps, err := ps.NewGossipSub(ctx, host)
 	if err != nil {
-		return nil, fin.Cleanup(err)
+		return nil, fin.Cleanupf("starting libp2p pubsub: %v", err)
 	}
 
-	regcache, err := persistentStore(ctx, config, "registry", fin)
+	// Subscribe to market deals
+	deals, err := pubsub.NewTopic(ctx, gps, host.ID(), string(market.ProtocolDeals), true)
 	if err != nil {
-		return nil, fin.Cleanup(err)
+		cancel()
+		return nil, fin.Cleanupf("creating deals topic: %v", err)
 	}
-	fin.Add(regcache)
-	reg, err := registry.NewRegistry(h, tstore, regcache)
-	if err != nil {
-		return nil, fin.Cleanup(err)
-	}
-	fin.Add(reg)
 
-	// Build a network
-	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, reg, net.Config{
-		Debug:  config.Debug,
-		PubSub: config.PubSub,
-	}, config.GRPCServerOptions, config.GRPCDialOptions)
-	if err != nil {
-		return nil, fin.Cleanup(err)
-	}
-	fin.Add(h, d, api)
-
-	return &netBoostrapper{
-		Net:       api,
-		litepeer:  lite,
+	s := &Service{
+		peer:      lpeer,
+		deals:     deals,
 		finalizer: fin,
-	}, nil
-}
-
-func buildLogstore(ctx context.Context, config NetConfig, fin *util.Finalizer) (core.Logstore, error) {
-	switch config.LSType {
-	case LogstoreInMemory:
-		return lstoremem.NewLogstore(), nil
-
-	case LogstoreHybrid:
-		pls, err := persistentLogstore(ctx, config, fin)
-		if err != nil {
-			return nil, err
-		}
-		mls := lstoremem.NewLogstore()
-		return lstorehybrid.NewLogstore(pls, mls)
-
-	case LogstorePersistent:
-		return persistentLogstore(ctx, config, fin)
-
-	default:
-		return nil, fmt.Errorf("unsupported logstore type: %s", config.LSType)
-	}
-}
-
-func persistentLogstore(ctx context.Context, config NetConfig, fin *util.Finalizer) (core.Logstore, error) {
-	pds, err := persistentStore(ctx, config, "logstore", fin)
-	if err != nil {
-		return nil, err
-	}
-	return lstoreds.NewLogstore(ctx, pds, lstoreds.DefaultOpts())
-}
-
-func persistentStore(ctx context.Context, config NetConfig, name string, fin *util.Finalizer) (ds.Batching, error) {
-	if len(config.MongoUri) != 0 {
-		return mongoStore(ctx, config.MongoUri, config.MongoDB, name, fin)
-	} else {
-		return badgerStore(filepath.Join(config.BadgerRepoPath, name), fin)
-	}
-}
-
-func badgerStore(repoPath string, fin *util.Finalizer) (ds.Batching, error) {
-	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
-		return nil, err
 	}
 
-	dstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
-	if err != nil {
-		return nil, err
-	}
-	fin.Add(dstore)
+	// deals.SetEventHandler(s.eventHandler)
+	// deals.SetMessageHandler(s.messageHandler)
 
-	return dstore, nil
+	return s, nil
 }
 
-func mongoStore(ctx context.Context, uri, db, collection string, fin *util.Finalizer) (ds.Batching, error) {
-	dstore, err := mongods.New(ctx, uri, db, mongods.WithCollName(collection))
-	if err != nil {
-		return nil, err
-	}
-	fin.Add(dstore)
-
-	return dstore, nil
+func (s *Service) Bootstrap(addrs []peer.AddrInfo) {
+	s.peer.Bootstrap(addrs)
 }
 
-func getIPFSHostKey(config NetConfig, store ds.Datastore) (crypto.PrivKey, error) {
-	if len(config.MongoUri) != 0 {
-		k := ds.NewKey("key")
-		bytes, err := store.Get(k)
-		if errors.Is(err, ds.ErrNotFound) {
-			key, bytes, err := newIPFSHostKey()
-			if err != nil {
-				return nil, err
-			}
-			if err = store.Put(k, bytes); err != nil {
-				return nil, err
-			}
-			return key, nil
-		} else if err != nil {
-			return nil, err
-		}
-		return crypto.UnmarshalPrivateKey(bytes)
-	} else {
-		// If a local datastore is used, the key is written to a file
-		dir := filepath.Join(config.BadgerRepoPath, "ipfslite")
-		pth := filepath.Join(dir, "key")
-		_, err := os.Stat(pth)
-		if os.IsNotExist(err) {
-			key, bytes, err := newIPFSHostKey()
-			if err != nil {
-				return nil, err
-			}
-			if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-				return nil, err
-			}
-			if err = ioutil.WriteFile(pth, bytes, 0400); err != nil {
-				return nil, err
-			}
-			return key, nil
-		} else if err != nil {
-			return nil, err
-		} else {
-			bytes, err := ioutil.ReadFile(pth)
-			if err != nil {
-				return nil, err
-			}
-			return crypto.UnmarshalPrivateKey(bytes)
-		}
-	}
+func (s *Service) GetPeer() *ipfslite.Peer {
+	return s.peer
 }
 
-func newIPFSHostKey() (crypto.PrivKey, []byte, error) {
-	priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 0)
+func (s *Service) Close() error {
+	err := s.deals.Close()
+	return s.finalizer.Cleanup(err)
+}
+
+func newHostKey() (crypto.PrivKey, []byte, error) {
+	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -267,132 +179,41 @@ func newIPFSHostKey() (crypto.PrivKey, []byte, error) {
 	return priv, key, nil
 }
 
-func setDefaults(config *NetConfig) error {
-	if config.HostAddr == nil {
-		addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+func getHostKey(conf config) (crypto.PrivKey, error) {
+	dir := filepath.Join(conf.RepoPath, "ipfslite")
+	pth := filepath.Join(dir, "key")
+	_, err := os.Stat(pth)
+	if os.IsNotExist(err) {
+		key, bytes, err := newHostKey()
 		if err != nil {
-			return err
+			return nil, err
 		}
-		config.HostAddr = addr
-	}
-
-	if config.ConnManager == nil {
-		config.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
-	}
-
-	if len(config.LSType) == 0 {
-		config.LSType = LogstorePersistent
-	}
-
-	if len(config.MongoDB) == 0 {
-		config.MongoDB = "threadnet"
-	}
-
-	return nil
-}
-
-type LogstoreType string
-
-const (
-	LogstoreInMemory   LogstoreType = "in-memory"
-	LogstorePersistent LogstoreType = "persistent"
-	LogstoreHybrid     LogstoreType = "hybrid"
-)
-
-type NetConfig struct {
-	HostAddr          ma.Multiaddr
-	ConnManager       cconnmgr.ConnManager
-	GRPCServerOptions []grpc.ServerOption
-	GRPCDialOptions   []grpc.DialOption
-	LSType            LogstoreType
-	BadgerRepoPath    string
-	MongoUri          string
-	MongoDB           string
-	PubSub            bool
-	Debug             bool
-}
-
-type NetOption func(c *NetConfig) error
-
-func WithNetHostAddr(addr ma.Multiaddr) NetOption {
-	return func(c *NetConfig) error {
-		c.HostAddr = addr
-		return nil
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return nil, err
+		}
+		if err = ioutil.WriteFile(pth, bytes, 0400); err != nil {
+			return nil, err
+		}
+		return key, nil
+	} else if err != nil {
+		return nil, err
+	} else {
+		bytes, err := ioutil.ReadFile(pth)
+		if err != nil {
+			return nil, err
+		}
+		return crypto.UnmarshalPrivateKey(bytes)
 	}
 }
 
-func WithConnectionManager(cm cconnmgr.ConnManager) NetOption {
-	return func(c *NetConfig) error {
-		c.ConnManager = cm
-		return nil
+func badgerStore(repoPath string, fin *finalizer.Finalizer) (datastore.Batching, error) {
+	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
+		return nil, err
 	}
-}
-
-func WithNetDebug(enabled bool) NetOption {
-	return func(c *NetConfig) error {
-		c.Debug = enabled
-		return nil
+	dstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
+	if err != nil {
+		return nil, err
 	}
-}
-
-func WithNetGRPCServerOptions(opts ...grpc.ServerOption) NetOption {
-	return func(c *NetConfig) error {
-		c.GRPCServerOptions = opts
-		return nil
-	}
-}
-
-func WithNetGRPCDialOptions(opts ...grpc.DialOption) NetOption {
-	return func(c *NetConfig) error {
-		c.GRPCDialOptions = opts
-		return nil
-	}
-}
-
-func WithNetPubSub(enabled bool) NetOption {
-	return func(c *NetConfig) error {
-		c.PubSub = enabled
-		return nil
-	}
-}
-
-func WithNetLogstore(lt LogstoreType) NetOption {
-	return func(c *NetConfig) error {
-		c.LSType = lt
-		return nil
-	}
-}
-
-func WithNetBadgerPersistence(repoPath string) NetOption {
-	return func(c *NetConfig) error {
-		c.BadgerRepoPath = repoPath
-		return nil
-	}
-}
-
-func WithNetMongoPersistence(uri, db string) NetOption {
-	return func(c *NetConfig) error {
-		c.MongoUri = uri
-		c.MongoDB = db
-		return nil
-	}
-}
-
-type netBoostrapper struct {
-	litepeer  *ipfslite.Peer
-	finalizer *util.Finalizer
-}
-
-var _ NetBoostrapper = (*netBoostrapper)(nil)
-
-func (tsb *netBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
-	tsb.litepeer.Bootstrap(addrs)
-}
-
-func (tsb *netBoostrapper) GetIpfsLite() *ipfslite.Peer {
-	return tsb.litepeer
-}
-
-func (tsb *netBoostrapper) Close() error {
-	return tsb.finalizer.Cleanup(nil)
+	fin.Add(dstore)
+	return dstore, nil
 }

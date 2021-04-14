@@ -7,17 +7,18 @@ import (
 	"fmt"
 	"testing"
 
-	logging "github.com/ipfs/go-log/v2"
+	golog "github.com/ipfs/go-log/v2"
 	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/authd/client"
 	"github.com/textileio/broker-core/cmd/authd/service"
-	"github.com/textileio/broker-core/util"
+	"github.com/textileio/broker-core/logging"
+	"github.com/textileio/broker-core/rpc"
 )
 
 func init() {
-	if err := util.SetLogLevels(map[string]logging.LogLevel{
-		"auth/service": logging.LevelDebug,
+	if err := logging.SetLogLevels(map[string]golog.LogLevel{
+		"auth/service": golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
@@ -42,7 +43,7 @@ func newClient(t *testing.T) *client.Client {
 		require.NoError(t, s.Close())
 	})
 
-	c, err := client.NewClient(listenAddr, util.GetClientRPCOpts(listenAddr)...)
+	c, err := client.NewClient(listenAddr, rpc.GetClientOpts(listenAddr)...)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
