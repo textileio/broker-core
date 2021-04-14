@@ -145,7 +145,8 @@ func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequest
 	return sd, nil
 }
 
-// StorageDealPrepared
+// StorageDealPrepared is called by Prepared to notify that the data preparation stage is done,
+// and to continue with the storage deal process.
 func (b *Broker) StorageDealPrepared(ctx context.Context, id broker.StorageDealID, po broker.DataPreparationResult) error {
 	// TODO: include the data preparation result (piece-size and CommP) in StorageDeal data.
 	// @jsign: I'll do this tomorrow.
