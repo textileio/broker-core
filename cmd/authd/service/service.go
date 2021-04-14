@@ -2,17 +2,33 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	logging "github.com/ipfs/go-log/v2"
+	mbase "github.com/multiformats/go-multibase"
+	varint "github.com/multiformats/go-varint"
+	"github.com/ockam-network/did"
+
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
-	"github.com/textileio/broker-core/rpc"
+	_ "github.com/textileio/jwt-go-eddsa"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-var log = logging.Logger("auth/service")
+const (
+	LogName = "auth/service"
+)
+
+var (
+	log = logging.Logger(LogName)
+)
 
 // Service is a gRPC service for buckets.
 type Service struct {
@@ -23,7 +39,7 @@ type Service struct {
 
 // Go trick
 // this service struct is implementing the interface pb.API...
-// if it's not, will see errors.
+// if it's not, will see errors
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new service.
@@ -50,14 +66,95 @@ func New(listenAddr string) (*Service, error) {
 
 // Close the service.
 func (s *Service) Close() error {
-	rpc.StopServer(s.server)
+	stopped := make(chan struct{})
+	go func() {
+		s.server.GracefulStop()
+		close(stopped)
+	}()
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-timer.C:
+		s.server.Stop()
+	case <-stopped:
+		timer.Stop()
+	}
 	log.Info("service was shutdown")
 	return nil
 }
 
-// Auth provides an API endpoint to resolve authorization for users.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	// check expiration
-	// call s.indexer.
-	return &pb.AuthResponse{}, nil
+	jwtBase64URL := req.JwtBase64URL
+	// token.header.x
+	var x string
+	// token.payload.claims.sub
+	var sub string
+
+	// Step 1:
+	// Context: Parse() needs the public key to validate
+	// Assumption: Public key is in the jwk.x as a base 64 encoded string...
+	// Approach: Decode jwk.x and create an ED25591 public key and return it
+	token, err := jwt.ParseWithClaims(jwtBase64URL, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
+		jwk := token.Header["jwk"]
+
+		// @todo: is there a more idiomatic way here?
+		jwkMap := map[string]string{}
+		for k, v := range jwk.(map[string]interface{}) {
+			foo, ok := v.(string)
+			if !ok {
+				continue
+			} else {
+				jwkMap[k] = foo
+			}
+		}
+
+		// Create the public key
+		x = jwkMap["x"]
+		dx, _ := base64.URLEncoding.DecodeString(x)
+		pkey, err := crypto.UnmarshalEd25519PublicKey(dx)
+		return pkey, err
+	})
+
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("ParseWithClaims: %s", err))
+	}
+
+	// Step 2:
+	// JWT was validated
+	// Now check that they are who they say they are...
+	// Compute encoded DID from the public key...
+	// Make sure that matches what's in the claims.Subject
+	sub = ""
+	if claims, ok := token.Claims.(*jwt.StandardClaims); ok && token.Valid {
+		sub = claims.Subject
+		subDID, _ := did.Parse(sub)
+		_, bytes, err := mbase.Decode(subDID.ID)
+		if err != nil {
+			sub = ""
+		}
+		_, n, err := varint.FromUvarint(bytes)
+		if err != nil {
+			sub = ""
+		}
+		if n != 2 {
+			sub = ""
+		}
+		dx, _ := base64.URLEncoding.DecodeString(x)
+		if string(dx) != string(bytes[2:]) {
+			sub = ""
+		}
+	} else {
+		sub = ""
+	}
+
+	if sub == "" {
+		return nil, status.Errorf(codes.Unauthenticated,
+			"The sub key DID did not match the key DID produced using the public key")
+	}
+
+	// @todo: hit indexerd to check for locked funds
+
+	// Return the subscriber identity
+	return &pb.AuthResponse{
+		Jwk: sub,
+	}, nil
 }
