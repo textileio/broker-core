@@ -53,6 +53,12 @@ $(GOX): $(BINGO_DIR)/gox.mod
 	@echo "(re)installing $(GOBIN)/gox-v1.0.1"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=gox.mod -o=$(GOBIN)/gox-v1.0.1 "github.com/mitchellh/gox"
 
+MOCKERY := $(GOBIN)/mockery-v2.7.4
+$(MOCKERY): $(BINGO_DIR)/mockery.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/mockery-v2.7.4"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=mockery.mod -o=$(GOBIN)/mockery-v2.7.4 "github.com/vektra/mockery/v2"
+
 PROTOC_GEN_BUF_BREAKING := $(GOBIN)/protoc-gen-buf-breaking-v0.41.0
 $(PROTOC_GEN_BUF_BREAKING): $(BINGO_DIR)/protoc-gen-buf-breaking.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
