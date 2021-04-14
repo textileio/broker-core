@@ -2,7 +2,7 @@ name: Review
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 jobs:
   golangci-lint:
