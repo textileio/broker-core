@@ -52,11 +52,11 @@ const (
 	BrokerRequestBatching
 	// BrokerRequestPreparing indicates that a broker request is being prepared.
 	BrokerRequestPreparing
-	// BrokerRequestBidding indicates that a broker request is in bidding stage.
-	BrokerRequestBidding
-	// BrokerRequestMonitoring indicates that a broker request deal is being executed/monitored.
-	BrokerRequestMonitoring
-	// BrokerRequestSuccess indicates tha a broker request was successful.
+	// BrokerRequestAuctioning indicates that a broker request is in bidding stage.
+	BrokerRequestAuctioning
+	// BrokerRequestDealMaking indicates that the storage deal deals are being executed.
+	BrokerRequestDealMaking
+	// BrokerRequestSuccess indicates that the storage deal was successfully stored in Filecoin.
 	BrokerRequestSuccess
 )
 
@@ -73,6 +73,10 @@ const (
 	StorageDealPreparing
 	// StorageDealAuctioning indicates that the storage deal is being auctioned.
 	StorageDealAuctioning
+	// StorageDealDealMaking indicates that the storage deal deals are being executed.
+	StorageDealDealMaking
+	// StorageDealSuccess indicates that the storage deal was successfully stored in Filecoin.
+	StorageDealSuccess
 )
 
 // StorageDeal is the underlying entity that gets into bidding and
