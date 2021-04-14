@@ -1,6 +1,8 @@
 package packer
 
 import (
+	"context"
+
 	"github.com/textileio/broker-core/broker"
 	packeri "github.com/textileio/broker-core/packer"
 )
@@ -16,7 +18,7 @@ func New() (*Packer, error) {
 	return p, nil
 }
 
-func (p *Packer) ReadyToPack(br broker.BrokerRequest) error {
+func (p *Packer) ReadyToPack(ctx context.Context, br broker.BrokerRequest) error {
 	// TODO: wire gRPC client whenever ready.
 	// For the moment, just accepts without error
 
