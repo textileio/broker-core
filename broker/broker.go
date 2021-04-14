@@ -71,6 +71,8 @@ const (
 	StorageDealUnkown StorageDealStatus = iota
 	// StorageDealPreparing indicates that the storage deal is being prepared.
 	StorageDealPreparing
+	// StorageDealAuctioning indicates that the storage deal is being auctioned.
+	StorageDealAuctioning
 )
 
 // StorageDeal is the underlying entity that gets into bidding and
