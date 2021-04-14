@@ -16,9 +16,11 @@ import (
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pb "github.com/textileio/broker-core/cmd/brokerd/pb/broker"
+	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
 	mongods "github.com/textileio/go-ds-mongo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -59,7 +61,12 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
 
-	broker, err := brokeri.New(ds, packer)
+	piecer, err := pieceri.New()
+	if err != nil {
+		return nil, fmt.Errorf("creating piecer implementation: %s", err)
+	}
+
+	broker, err := brokeri.New(ds, packer, piecer)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
@@ -159,8 +166,10 @@ func castBrokerRequestToProto(br broker.BrokerRequest) *pb.BR {
 		Meta: &pb.BRMetadata{
 			Region: br.Metadata.Region,
 		},
+		StorageDealId: string(br.StorageDealID),
+		CreatedAt:     timestamppb.New(br.CreatedAt),
+		UpdatedAt:     timestamppb.New(br.UpdatedAt),
 	}
-
 }
 
 func createDatastore(conf Config) (datastore.TxnDatastore, error) {
