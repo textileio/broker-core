@@ -24,6 +24,7 @@ func init() {
 		{Name: "broker.addr", DefValue: "", Description: "Broker API address"},
 
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "authd.addr", DefValue: "TODO", Description: "The authd address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
@@ -53,6 +54,7 @@ var rootCmd = &cobra.Command{
 			HTTPListenAddr:        v.GetString("http.listen.addr"),
 			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
 			BrokerAPIAddr:         v.GetString("broker.addr"),
+			AuthdAddr:             v.GetString("authd.addr"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

@@ -3,11 +3,12 @@ package broker.auth.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/auth/v1;auth";
 
 message AuthRequest {
-    // token comes in with header
+    // JWT token
+    string jwtBase64URL = 1;
 }
 
 message AuthResponse {
-    // return error if not authorized
+    string identity = 1;
 }
 
 service APIService {
