@@ -33,9 +33,10 @@ message BR {
   string id = 1;
   string cid = 2;
   BRMetadata meta = 3;
-  google.protobuf.Timestamp created_at = 4; 
- }
-
+  string storage_deal_id = 4;
+  google.protobuf.Timestamp created_at = 5; 
+  google.protobuf.Timestamp updated_at = 6; 
+}
 
   
 service APIService {
