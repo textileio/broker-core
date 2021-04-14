@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/authd/service"
 	"github.com/textileio/broker-core/cmd/common"
+	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -20,6 +22,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "near.api.addr", DefValue: "", Description: "neard service api address"},
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
@@ -46,10 +49,22 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		serv, err := service.New(v.GetString("grpc.listen.addr"))
+		chainAPIClientConn, err := grpc.Dial(v.GetString("near.api.addr"), grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("creating near api connection: %v", err)
+		}
+		chainAPIClient := chainapi.NewChainApiServiceClient(chainAPIClientConn)
+
+		config := service.Config{ListenAddr: v.GetString("grpc.listen.addr")}
+		deps := service.Deps{ChainAPIServiceClient: chainAPIClient}
+
+		serv, err := service.New(config, deps)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
+			if err := chainAPIClientConn.Close(); err != nil {
+				log.Errorf("closing chain api client conn: %v", err)
+			}
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
 			}
