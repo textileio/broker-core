@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/textileio/broker-core/auctioner"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/srstore"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -28,22 +29,24 @@ var (
 // Broker creates and tracks request to store Cids in
 // the Filecoin network.
 type Broker struct {
-	store  *srstore.Store
-	packer packer.Packer
-	piecer piecer.Piecer
+	store     *srstore.Store
+	packer    packer.Packer
+	piecer    piecer.Piecer
+	auctioner auctioner.Auctioner
 }
 
 // New creates a Broker backed by the provdied `ds`.
-func New(ds datastore.TxnDatastore, packer packer.Packer, piecer piecer.Piecer) (*Broker, error) {
+func New(ds datastore.TxnDatastore, packer packer.Packer, piecer piecer.Piecer, auctioner auctioner.Auctioner) (*Broker, error) {
 	store, err := srstore.New(txndswrap.Wrap(ds, "/broker-store"))
 	if err != nil {
 		return nil, fmt.Errorf("initializing broker request store: %s", err)
 	}
 
 	b := &Broker{
-		store:  store,
-		packer: packer,
-		piecer: piecer,
+		store:     store,
+		packer:    packer,
+		piecer:    piecer,
+		auctioner: auctioner,
 	}
 	return b, nil
 }
@@ -140,6 +143,21 @@ func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequest
 	}
 
 	return sd, nil
+}
+
+// StorageDealPrepared
+func (b *Broker) StorageDealPrepared(ctx context.Context, id broker.StorageDealID, po broker.DataPreparationResult) error {
+	// TODO: include the data preparation result (piece-size and CommP) in StorageDeal data.
+	// @jsign: I'll do this tomorrow.
+	var sd broker.StorageDeal // assume this variable will exist...
+
+	// Signal the Auctioner to create an auction. It will eventually call WinningBids(..) to tell
+	// us about who won things.
+	if err := b.auctioner.ReadyToAuction(ctx, sd); err != nil {
+		return fmt.Errorf("signaling auctioner to create auction: %s", err)
+	}
+
+	return nil
 }
 
 // GetStorageDeal gets an existing storage deal. If the storage deal doesn't exists, it returns

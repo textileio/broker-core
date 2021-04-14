@@ -140,7 +140,8 @@ func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer) {
 	ds := tests.NewTxMapDatastore()
 	packer := &dumbPacker{}
 	piecer := &dumbPiecer{}
-	b, err := New(ds, packer, piecer)
+	auctioner := &dumbAuctioner{}
+	b, err := New(ds, packer, piecer, auctioner)
 	require.NoError(t, err)
 
 	return b, packer, piecer
@@ -169,6 +170,13 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 	dp.calledCid = c
 	dp.calledID = id
 
+	return nil
+}
+
+type dumbAuctioner struct {
+}
+
+func (dp *dumbAuctioner) ReadyToAuction(ctx context.Context, sd broker.StorageDeal) error {
 	return nil
 }
 

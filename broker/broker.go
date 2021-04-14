@@ -91,3 +91,9 @@ type BrokerRequestGroup struct {
 	Cid                    cid.Cid
 	GroupedStorageRequests []BrokerRequestID
 }
+
+// DataPreparationResult is the result of preparing a StorageDeal.
+type DataPreparationResult struct {
+	PieceSize int64
+	CommP     cid.Cid
+}
