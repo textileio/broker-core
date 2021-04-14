@@ -1,6 +1,10 @@
 package packer
 
-import "github.com/textileio/broker-core/broker"
+import (
+	"context"
+
+	"github.com/textileio/broker-core/broker"
+)
 
 // Packer batches and prepares data to be stored in Filecoin.
 type Packer interface {
@@ -12,5 +16,5 @@ type Packer interface {
 	// work is done asyc. At some point  in the future, the packer will notify
 	// the Broker that a new `StorageDeal` got prepared (which includes the
 	// provided BrokerRequest), so it can continue with bidding.
-	ReadyToPack(br broker.BrokerRequest) error
+	ReadyToPack(ctx context.Context, br broker.BrokerRequest) error
 }
