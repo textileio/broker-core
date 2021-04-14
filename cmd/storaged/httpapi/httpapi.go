@@ -65,6 +65,15 @@ func instrumentHandler(h http.HandlerFunc, name string) http.Handler {
 
 func authenticateHandler(h http.Handler, s storage.StorageRequester) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
+		}
+		// Preflight OPTIONS request
+		if r.Method == "OPTIONS" {
+			return
+		}
 		authHeader, ok := r.Header["Authorization"]
 		if !ok || len(authHeader) == 0 {
 			httpError(w, "Authorization header is required", http.StatusUnauthorized)
@@ -91,15 +100,6 @@ func authenticateHandler(h http.Handler, s storage.StorageRequester) http.Handle
 
 func uploadHandler(s storage.StorageRequester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if origin := r.Header.Get("Origin"); origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
-		}
-		// Preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			return
-		}
 		if r.Method != "POST" {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 			return
