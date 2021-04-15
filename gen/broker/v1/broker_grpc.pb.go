@@ -11,6 +11,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // APIServiceClient is the client API for APIService service.
@@ -31,7 +32,7 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 
 func (c *aPIServiceClient) CreateBR(ctx context.Context, in *CreateBRRequest, opts ...grpc.CallOption) (*CreateBRResponse, error) {
 	out := new(CreateBRResponse)
-	err := c.cc.Invoke(ctx, "/cmd.brokerd.pb.broker.APIService/CreateBR", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateBR", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +41,7 @@ func (c *aPIServiceClient) CreateBR(ctx context.Context, in *CreateBRRequest, op
 
 func (c *aPIServiceClient) GetBR(ctx context.Context, in *GetBRRequest, opts ...grpc.CallOption) (*GetBRResponse, error) {
 	out := new(GetBRResponse)
-	err := c.cc.Invoke(ctx, "/cmd.brokerd.pb.broker.APIService/GetBR", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/GetBR", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ type UnsafeAPIServiceServer interface {
 }
 
 func RegisterAPIServiceServer(s grpc.ServiceRegistrar, srv APIServiceServer) {
-	s.RegisterService(&_APIService_serviceDesc, srv)
+	s.RegisterService(&APIService_ServiceDesc, srv)
 }
 
 func _APIService_CreateBR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -89,7 +90,7 @@ func _APIService_CreateBR_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cmd.brokerd.pb.broker.APIService/CreateBR",
+		FullMethod: "/broker.v1.APIService/CreateBR",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServiceServer).CreateBR(ctx, req.(*CreateBRRequest))
@@ -107,7 +108,7 @@ func _APIService_GetBR_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cmd.brokerd.pb.broker.APIService/GetBR",
+		FullMethod: "/broker.v1.APIService/GetBR",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServiceServer).GetBR(ctx, req.(*GetBRRequest))
@@ -115,8 +116,11 @@ func _APIService_GetBR_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-var _APIService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "cmd.brokerd.pb.broker.APIService",
+// APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var APIService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "broker.v1.APIService",
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -129,5 +133,5 @@ var _APIService_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "cmd/brokerd/pb/broker/broker.proto",
+	Metadata: "broker/v1/broker.proto",
 }

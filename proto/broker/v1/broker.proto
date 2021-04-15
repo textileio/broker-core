@@ -1,6 +1,6 @@
 syntax = "proto3";
-package cmd.brokerd.pb.broker;
-option go_package = "github.com/textileio/broker-core/cmd/brokerd/pb/broker";
+package broker.v1;
+option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
 import "google/protobuf/timestamp.proto";  
 
