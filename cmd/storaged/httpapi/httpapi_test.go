@@ -140,7 +140,11 @@ type uploaderMock struct {
 	mock.Mock
 }
 
-func (um *uploaderMock) CreateFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.Request, error) {
+func (um *uploaderMock) CreateFromReader(
+	ctx context.Context,
+	r io.Reader,
+	meta storage.Metadata,
+) (storage.Request, error) {
 	args := um.Called(ctx, r, meta)
 
 	return args.Get(0).(storage.Request), args.Error(1)

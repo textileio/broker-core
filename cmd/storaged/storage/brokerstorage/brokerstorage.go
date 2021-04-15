@@ -36,7 +36,11 @@ func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (boo
 }
 
 // CreateFromReader creates a StorageRequest using data from a stream.
-func (bs *BrokerStorage) CreateFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.Request, error) {
+func (bs *BrokerStorage) CreateFromReader(
+	ctx context.Context,
+	r io.Reader,
+	meta storage.Metadata,
+) (storage.Request, error) {
 	c, err := bs.up.Store(ctx, r)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("storing stream: %s", err)

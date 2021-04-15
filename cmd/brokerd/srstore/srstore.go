@@ -61,7 +61,11 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 // CreateStorageDeal persists a storage deal.
 func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) error {
 	start := time.Now()
-	defer log.Debugf("creating storage deal %s with group size %d took %dms", sd.ID, len(sd.BrokerRequestIDs), time.Since(start).Milliseconds())
+	defer log.Debugf(
+		"creating storage deal %s with group size %d took %dms",
+		sd.ID, len(sd.BrokerRequestIDs),
+		time.Since(start).Milliseconds(),
+	)
 	now := time.Now()
 
 	// 1- Get all involved BrokerRequests and validate that their in the correct

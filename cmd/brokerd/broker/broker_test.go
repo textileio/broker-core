@@ -130,7 +130,10 @@ func TestCreateStorageDealFail(t *testing.T) {
 		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
-		srb := broker.BrokerRequestGroup{Cid: brgCid, GroupedStorageRequests: []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")}}
+		srb := broker.BrokerRequestGroup{
+			Cid:                    brgCid,
+			GroupedStorageRequests: []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")},
+		}
 		_, err := b.CreateStorageDeal(ctx, srb)
 		require.True(t, errors.Is(err, srstore.ErrStorageDealContainsUnknownBrokerRequest))
 	})

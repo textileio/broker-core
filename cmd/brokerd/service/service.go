@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -16,11 +15,12 @@ import (
 	auctioneri "github.com/textileio/broker-core/cmd/brokerd/auctioner"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
-	pb "github.com/textileio/broker-core/cmd/brokerd/pb/broker"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
 	mongods "github.com/textileio/go-ds-mongo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
