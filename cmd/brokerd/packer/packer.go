@@ -50,13 +50,9 @@ type Packer struct {
 var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
-// Note: the `broker` dependency only exist now for mocking reasons.
-// This dep will go away since Packer will be interacting via an API with the broker.
-func New(broker broker.Broker) (*Packer, error) {
+func New() (*Packer, error) {
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
-		broker: broker,
-
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
@@ -65,6 +61,12 @@ func New(broker broker.Broker) (*Packer, error) {
 	go p.daemon()
 
 	return p, nil
+}
+
+// SetBroker is a *temporary* method that will go away. Now just
+// being useful for the embbeded packer in brokerd.
+func (p *Packer) SetBroker(b broker.Broker) {
+	p.broker = b
 }
 
 // ReadyToPack signals the packer that there's a new BrokerRequest that can be
@@ -78,6 +80,7 @@ func (p *Packer) ReadyToPack(ctx context.Context, br broker.BrokerRequest) error
 	return nil
 }
 
+// Close closes the packer.
 func (p *Packer) Close() error {
 	p.onceClose.Do(func() {
 		p.daemonCancelCtx()
@@ -133,9 +136,11 @@ func (p *Packer) pack(ctx context.Context) error {
 		GroupedStorageRequests: brids,
 	}
 
-	if err := p.broker.CreateStorageDeal(ctx, srg); err != nil {
+	sd, err := p.broker.CreateStorageDeal(ctx, srg)
+	if err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
 	}
+	log.Infof("storage deal created: {id: %s, cid: %s}", sd.ID, sd.Cid)
 	p.queue = p.queue[:0]
 
 	return nil
