@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	_ "net/http/pprof"
@@ -13,32 +14,54 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/authd/service"
-	"github.com/textileio/broker-core/util"
+	"github.com/textileio/broker-core/cmd/brokerd/service"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
 
 var (
-	daemonName = "authd"
+	daemonName = "brokerd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
 
-func init() {
-	flags := []util.Flag{
-		{Name: "grpc.listen.addr", DefValue: ":5000", Description: "gRPC API listen address"},
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
-		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
-	}
+var flags = []struct {
+	name        string
+	defValue    interface{}
+	description string
+}{
+	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
+	{name: "log.debug", defValue: false, description: "Enable debug level logs"},
 
-	util.ConfigureCLI(v, "AUTH", flags, rootCmd)
+	{name: "grpc.listen.addr", defValue: ":5000", description: "gRPC API listen address"},
+
+	{name: "mongo.uri", defValue: "", description: "MongoDB URI backing go-datastore"},
+	{name: "mongo.dbname", defValue: "", description: "MongoDB database name backing go-datastore"},
+}
+
+func init() {
+	v.SetEnvPrefix("BROKER")
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	for _, flag := range flags {
+		switch defval := flag.defValue.(type) {
+		case string:
+			rootCmd.Flags().String(flag.name, defval, flag.description)
+			if err := v.BindPFlag(flag.name, rootCmd.Flags().Lookup(flag.name)); err != nil {
+				log.Fatalf("binding flag %s: %s", flag.name, err)
+			}
+			v.SetDefault(flag.name, defval)
+		default:
+			log.Fatalf("unknown flag type: %T", flag)
+		}
+	}
 }
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "authd provides authentication services for the broker",
-	Long:  `authd provides authentication services for the broker`,
+	Short: "brokerd is a broker to store data in Filecoin",
+	Long:  `brokerd is a broker to store data in Filecoin`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
@@ -54,15 +77,22 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		serv, err := service.New(v.GetString("grpc.listen.addr"))
+		serviceConfig := service.Config{
+			GrpcListenAddress: v.GetString("grpc.listen.addr"),
+
+			MongoURI:    v.GetString("mongo.uri"),
+			MongoDBName: v.GetString("mongo.dbname"),
+		}
+		serv, err := service.New(serviceConfig)
 		checkErr(err)
 
+		log.Info("Listening to requests...")
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, os.Interrupt)
 		<-quit
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 		if err := serv.Close(); err != nil {
-			log.Errorf("closing service: %s", err)
+			log.Errorf("closing http endpoint: %s", err)
 		}
 	},
 }

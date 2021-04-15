@@ -30,6 +30,7 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// Auth calls the Auth api.
 func (c *Client) Auth(ctx context.Context) (*pb.AuthResponse, error) {
 	return c.c.Auth(ctx, &pb.AuthRequest{})
 }

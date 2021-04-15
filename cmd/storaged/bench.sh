@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
-	echo "use $0 <target-url> <size-mb>"
+	echo "use $0 <target-url> <size>"
 	exit -1
 fi
 
@@ -14,7 +14,7 @@ echo "Generating random file..."
 TMPFILE=$(mktemp)
 head -c ${SIZE} < /dev/urandom > $TMPFILE
 echo "Uploading file..."
-curl -v -F "region=europe" -F "file=@$TMPFILE" $TARGET
+curl -v -H "Authorization: something" -F "region=europe" -F "file=@$TMPFILE" $TARGET
 echo "Cleaning..."
 rm $TMPFILE
 
