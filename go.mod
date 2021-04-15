@@ -6,6 +6,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/go-ole/go-ole v1.2.5 // indirect
+	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hsanjuan/ipfs-lite v0.1.20
@@ -13,7 +14,7 @@ require (
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
-	github.com/ipfs/go-ipld-cbor v0.0.4
+	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-log/v2 v2.1.3
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/libp2p/go-libp2p v0.13.0

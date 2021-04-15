@@ -32,12 +32,22 @@ message GetBRResponse {
 message BR {
   string id = 1;
   string cid = 2;
-  BRMetadata meta = 3;
-  string storage_deal_id = 4;
-  google.protobuf.Timestamp created_at = 5; 
-  google.protobuf.Timestamp updated_at = 6; 
+  BrokerRequestStatus status = 3;
+  BRMetadata meta = 4;
+  string storage_deal_id = 5;
+  google.protobuf.Timestamp created_at = 6; 
+  google.protobuf.Timestamp updated_at = 7; 
 }
 
+
+enum BrokerRequestStatus {
+  UNSPECIFIED = 0;
+  BATCHING = 1;
+  PREPARING = 2;
+  AUCTIONING = 3;
+  DEALMAKING = 4;
+  SUCCESS = 5;
+}
   
 service APIService {
   rpc CreateBR(CreateBRRequest) returns (CreateBRResponse) {}
