@@ -26,7 +26,7 @@ var (
 )
 
 func init() {
-	flags := []util.Flags{
+	flags := []util.Flag{
 		{Name: "grpc.listen.addr", DefValue: ":5000", Description: "gRPC API listen address"},
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},

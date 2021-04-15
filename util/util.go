@@ -14,13 +14,15 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type Flags struct {
+// Flag describes a configuration flag.
+type Flag struct {
 	Name        string
 	DefValue    interface{}
 	Description string
 }
 
-func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flags, rootCmd *cobra.Command) {
+// ConfigureCLI configures a Viper environment with flags and envs.
+func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra.Command) {
 	v.SetEnvPrefix("AUTH")
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

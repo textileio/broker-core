@@ -26,7 +26,7 @@ var (
 )
 
 func init() {
-	flags := []util.Flags{
+	flags := []util.Flag{
 		{Name: "http.listen.addr", DefValue: ":8888", Description: "HTTP API listen address"},
 		{Name: "uploader.ipfs.multiaddr", DefValue: "/ip4/127.0.0.1/tcp/5001", Description: "Uploader IPFS API pool"},
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
