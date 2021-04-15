@@ -7,17 +7,22 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-// Broker allows to create and track BrokerRequest.
+// Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
+	BrokerRequestor
+
+	// CreateStorageDeal creates a new StorageDeal. It is called
+	// by the Packer after batching a set of BrokerRequest properly.
+	CreateStorageDeal(ctx context.Context, brg BrokerRequestGroup) (StorageDeal, error)
+}
+
+// BrokerRequestor alows to create and query BrokerRequests.
+type BrokerRequestor interface {
 	// Create creates a new BrokerRequest for data `c` and
 	// configuration `meta`.
 	Create(ctx context.Context, c cid.Cid, meta Metadata) (BrokerRequest, error)
 	// Get returns a broker request from an id.
 	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
-
-	// CreateStorageDeal creates a new StorageDeal. It is called
-	// by the Packer after batching a set of BrokerRequest properly.
-	CreateStorageDeal(ctx context.Context, brg BrokerRequestGroup) error
 }
 
 // BrokerRequestID is the type used for broker request identity.
@@ -26,9 +31,10 @@ type BrokerRequestID string
 // BrokerRequest references a storage request for a Cid.
 type BrokerRequest struct {
 	ID            BrokerRequestID     `json:"id"`
+	DataCid       cid.Cid             `json:"data_cid"`
 	Status        BrokerRequestStatus `json:"status"`
 	Metadata      Metadata            `json:"metadata"`
-	StorageDealID StorageDealID       `json:"storage_deal_id"`
+	StorageDealID StorageDealID       `json:"storage_deal_id,omitempty"`
 	CreatedAt     time.Time           `json:"created_at"`
 	UpdatedAt     time.Time           `json:"updated_at"`
 }
