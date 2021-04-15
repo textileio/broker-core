@@ -16,15 +16,15 @@ func FromProtoBrokerRequest(brproto *BR) (broker.BrokerRequest, error) {
 	var status broker.BrokerRequestStatus
 	switch brproto.Status {
 	case BrokerRequestStatus_UNSPECIFIED:
-		status = broker.BrokerRequestUnknown
+		status = broker.RequestUnknown
 	case BrokerRequestStatus_BATCHING:
-		status = broker.BrokerRequestBatching
+		status = broker.RequestBatching
 	case BrokerRequestStatus_PREPARING:
-		status = broker.BrokerRequestPreparing
+		status = broker.RequestPreparing
 	case BrokerRequestStatus_AUCTIONING:
-		status = broker.BrokerRequestAuctioning
+		status = broker.RequestAuctioning
 	case BrokerRequestStatus_DEALMAKING:
-		status = broker.BrokerRequestDealMaking
+		status = broker.RequestDealMaking
 	case BrokerRequestStatus_SUCCESS:
 		status = broker.BrokerRequestSuccess
 	}

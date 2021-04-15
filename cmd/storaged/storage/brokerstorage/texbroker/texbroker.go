@@ -65,7 +65,7 @@ func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata
 func (tb *TexBroker) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	return broker.BrokerRequest{
 		ID:     id,
-		Status: broker.BrokerRequestUnknown,
+		Status: broker.RequestUnknown,
 	}, nil
 }
 

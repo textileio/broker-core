@@ -56,16 +56,16 @@ func (m Metadata) Validate() error {
 type BrokerRequestStatus int
 
 const (
-	// BrokerRequestUnknown is an invalid status value. Defined for safety.
-	BrokerRequestUnknown BrokerRequestStatus = iota
-	// BrokerRequestBatching indicates that a broker request is being batched.
-	BrokerRequestBatching
-	// BrokerRequestPreparing indicates that a broker request is being prepared.
-	BrokerRequestPreparing
-	// BrokerRequestAuctioning indicates that a broker request is in bidding stage.
-	BrokerRequestAuctioning
-	// BrokerRequestDealMaking indicates that the storage deal deals are being executed.
-	BrokerRequestDealMaking
+	// RequestUnknown is an invalid status value. Defined for safety.
+	RequestUnknown BrokerRequestStatus = iota
+	// RequestBatching indicates that a broker request is being batched.
+	RequestBatching
+	// RequestPreparing indicates that a broker request is being prepared.
+	RequestPreparing
+	// RequestAuctioning indicates that a broker request is in bidding stage.
+	RequestAuctioning
+	// RequestDealMaking indicates that the storage deal deals are being executed.
+	RequestDealMaking
 	// BrokerRequestSuccess indicates that the storage deal was successfully stored in Filecoin.
 	BrokerRequestSuccess
 )
