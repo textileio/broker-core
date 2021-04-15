@@ -1,0 +1,18 @@
+syntax = "proto3";
+package cmd.auctioneerd.message.pb;
+option go_package = "github.com/textileio/broker-core/cmd/auctioneerd/message/pb";
+
+message Message {
+    string auction_id = 1;
+
+    // @todo: Include real storage deal data
+    message StorageDeal {
+        string cid = 1;
+    }
+
+    enum Type {
+        TYPE_UNSPECIFIED = 0;
+        TYPE_AUCTION_START = 1;
+        PATH_AUCTION_END = 2;
+    }
+}

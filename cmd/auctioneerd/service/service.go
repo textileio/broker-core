@@ -3,16 +3,20 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/pb"
 	"github.com/textileio/broker-core/finalizer"
+	kt "github.com/textileio/broker-core/keytransform"
 	"github.com/textileio/broker-core/peer"
 	"github.com/textileio/broker-core/pubsub"
+	"github.com/textileio/broker-core/sempool"
 )
 
 const (
-	LogName = "deals/service"
+	LogName = "auctioneer/service"
 )
 
 var (
@@ -24,10 +28,18 @@ type Config struct {
 }
 
 type Service struct {
-	peer      *peer.Peer
-	deals     *pubsub.Topic
-	finalizer *finalizer.Finalizer
+	pb.UnimplementedAPIServiceServer
+
+	peer  *peer.Peer
+	store *kt.TxnDatastoreExtended
+	topic *pubsub.Topic
+
+	semaphores *sempool.SemaphorePool
+	lk         sync.Mutex
+	finalizer  *finalizer.Finalizer
 }
+
+var _ pb.APIServiceServer = (*Service)(nil)
 
 func New(conf Config) (*Service, error) {
 	p, err := peer.New(conf.Peer)
@@ -40,14 +52,14 @@ func New(conf Config) (*Service, error) {
 	fin.Add(finalizer.NewContextCloser(cancel))
 
 	// Subscribe to market deals
-	deals, err := p.NewTopic(ctx, string(auctioneer.ProtocolDeals), true)
+	topic, err := p.NewTopic(ctx, string(auctioneer.ProtocolDeals), false)
 	if err != nil {
 		return nil, fin.Cleanupf("creating deals topic: %v", err)
 	}
 
 	s := &Service{
 		peer:      p,
-		deals:     deals,
+		topic:     topic,
 		finalizer: fin,
 	}
 
@@ -59,4 +71,8 @@ func New(conf Config) (*Service, error) {
 
 func (s *Service) Close() error {
 	return s.finalizer.Cleanup(nil)
+}
+
+func (s *Service) CreateAuction(ctx context.Context, req *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
+	return nil, nil
 }

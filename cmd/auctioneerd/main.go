@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	daemonName = "dealsd"
+	daemonName = "auctioneerd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
@@ -33,7 +33,7 @@ var flags = []struct {
 }{
 	{
 		name:        "repo",
-		defValue:    ".deals",
+		defValue:    ".auctioneer",
 		description: "Repo path",
 	},
 	{
@@ -49,7 +49,7 @@ var flags = []struct {
 }
 
 func init() {
-	v.SetEnvPrefix("DEALS")
+	v.SetEnvPrefix("AUCTIONEER")
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -93,7 +93,7 @@ var rootCmd = &cobra.Command{
 		serv, err := service.New(config)
 		checkErr(err)
 
-		log.Info("Listening for deals...")
+		log.Info("Listening for auctions...")
 		quit := make(chan os.Signal)
 		signal.Notify(quit, os.Interrupt)
 		<-quit

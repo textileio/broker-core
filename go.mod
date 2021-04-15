@@ -25,6 +25,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-ds-mongo v0.1.4
+	github.com/textileio/go-datastore-extensions v1.0.1 // indirect
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.19.0

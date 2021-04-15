@@ -1,7 +1,0 @@
-syntax = "proto3";
-package market.message.pb;
-option go_package = "github.com/textileio/broker-core/market/message/pb";
-
-message Message {
-    string id = 1;
-}

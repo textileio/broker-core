@@ -1,0 +1,17 @@
+syntax = "proto3";
+package cmd.auctioneerd.pb;
+option go_package = "github.com/textileio/broker-core/cmd/auctioneerd/pb";
+
+message CreateAuctionRequest {
+
+}
+
+message CreateAuctionResponse {
+
+}
+
+service APIService {
+    rpc CreateAuction(CreateAuctionRequest) returns (CreateAuctionResponse) {}
+}
+
+
