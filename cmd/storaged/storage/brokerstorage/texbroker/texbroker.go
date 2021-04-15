@@ -2,43 +2,76 @@ package texbroker
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
+	"google.golang.org/grpc"
+
+	pb "github.com/textileio/broker-core/cmd/brokerd/pb/broker"
+)
+
+var (
+	log = logger.Logger("texbroker")
 )
 
 // TexBroker provides an interface with the Broker subsystem.
 type TexBroker struct {
+	c    pb.APIServiceClient
+	conn *grpc.ClientConn
 }
 
-var _ broker.Broker = (*TexBroker)(nil)
+var _ broker.BrokerRequestor = (*TexBroker)(nil)
 
 // New returns a new TexBroker.
-func New() (*TexBroker, error) {
-	return &TexBroker{}, nil
+func New(brokerAPIAddr string) (*TexBroker, error) {
+	conn, err := grpc.Dial(brokerAPIAddr)
+	if err != nil {
+		return nil, err
+	}
+	b := &TexBroker{
+		c:    pb.NewAPIServiceClient(conn),
+		conn: conn,
+	}
+
+	return b, nil
 }
 
 // Create creates a new BrokerRequest.
 func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
-	// TODO: Make the implementation once we have the Broker API to call.
-	// For now, just fake it.
+	log.Debugf("creating broker request for cid %s", c)
 
-	return broker.BrokerRequest{
-		ID:     broker.BrokerRequestID(uuid.New().String()),
-		Status: broker.BrokerRequestBatching,
-	}, nil
+	req := &pb.CreateBRRequest{
+		Cid: c.String(),
+		Meta: &pb.BRMetadata{
+			Region: meta.Region,
+		},
+	}
+	res, err := tb.c.CreateBR(ctx, req)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
+	}
+
+	br, err := pb.FromProtoBrokerRequest(res.Request)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
+	}
+
+	return br, nil
 }
 
 // Get gets a broker request from its ID.
-// TODO: whenever th gRPC is wired, it needs to detect and document
-// the "not-found" case.
 func (tb *TexBroker) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	// TODO: Make the implementation once we have the Broker API to call.
-	// For now, just fake it.
-
 	return broker.BrokerRequest{
 		ID:     id,
 		Status: broker.BrokerRequestUnknown,
 	}, nil
+}
+
+func (tb *TexBroker) Close() error {
+	if err := tb.conn.Close(); err != nil {
+		return fmt.Errorf("closing gRPC client: %s", err)
+	}
+	return nil
 }

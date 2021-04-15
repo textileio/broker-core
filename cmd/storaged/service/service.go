@@ -19,6 +19,8 @@ type Config struct {
 	HTTPListenAddr string
 	// UploaderIPFSMultiaddr is the multiaddress of the IPFS layer.
 	UploaderIPFSMultiaddr string
+	// BrokerAPIAddr is the Broker API address.
+	BrokerAPIAddr string
 }
 
 // Service provides an implementation of the Storage API.
@@ -61,7 +63,7 @@ func createStorage(config Config) (storage.Requester, error) {
 		return nil, fmt.Errorf("creating broker uploader: %s", err)
 	}
 
-	brok, err := texbroker.New()
+	brok, err := texbroker.New(config.BrokerAPIAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker service: %s", err)
 	}

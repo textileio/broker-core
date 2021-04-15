@@ -50,6 +50,7 @@ var rootCmd = &cobra.Command{
 		serviceConfig := service.Config{
 			HTTPListenAddr:        v.GetString("http.listen.addr"),
 			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
+			BrokerAPIAddr:         v.GetString("broker.addr"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
