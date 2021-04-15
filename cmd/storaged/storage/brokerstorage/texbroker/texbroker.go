@@ -26,7 +26,7 @@ var _ broker.BrokerRequestor = (*TexBroker)(nil)
 
 // New returns a new TexBroker.
 func New(brokerAPIAddr string) (*TexBroker, error) {
-	conn, err := grpc.Dial(brokerAPIAddr)
+	conn, err := grpc.Dial(brokerAPIAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
