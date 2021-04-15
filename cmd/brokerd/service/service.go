@@ -106,7 +106,7 @@ func New(config Config) (*Service, error) {
 }
 
 // CreateBR creates a new BrokerRequest.
-func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBRRequest) (*pb.CreateBRResponse, error) {
+func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -129,7 +129,7 @@ func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBRRequest) (*pb.Crea
 		return nil, status.Error(codes.Internal, fmt.Sprintf("creating storage request: %s", err))
 	}
 
-	res := &pb.CreateBRResponse{
+	res := &pb.CreateBrokerRequestResponse{
 		Request: castBrokerRequestToProto(br),
 	}
 
@@ -137,7 +137,7 @@ func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBRRequest) (*pb.Crea
 }
 
 // GetBR gets an existing broker request.
-func (s *Service) GetBR(ctx context.Context, r *pb.GetBRRequest) (*pb.GetBRResponse, error) {
+func (s *Service) GetBR(ctx context.Context, r *pb.GetBrokerRequestRequest) (*pb.GetBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -147,7 +147,7 @@ func (s *Service) GetBR(ctx context.Context, r *pb.GetBRRequest) (*pb.GetBRRespo
 		return nil, status.Error(codes.Internal, fmt.Sprintf("get broker request: %s", err))
 	}
 
-	res := &pb.GetBRResponse{
+	res := &pb.GetBrokerRequestResponse{
 		BrokerRequest: castBrokerRequestToProto(br),
 	}
 
@@ -184,10 +184,10 @@ func (s *Service) Close() error {
 	return nil
 }
 
-func castBrokerRequestToProto(br broker.BrokerRequest) *pb.BR {
-	return &pb.BR{
+func castBrokerRequestToProto(br broker.BrokerRequest) *pb.BrokerRequest {
+	return &pb.BrokerRequest{
 		Id: string(br.ID),
-		Meta: &pb.BRMetadata{
+		Meta: &pb.BrokerRequestMetadata{
 			Region: br.Metadata.Region,
 		},
 		StorageDealId: string(br.StorageDealID),

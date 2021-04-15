@@ -43,13 +43,13 @@ func New(brokerAPIAddr string) (*TexBroker, error) {
 func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
 	log.Debugf("creating broker request for cid %s", c)
 
-	req := &pb.CreateBRRequest{
+	req := &pb.CreateBrokerRequestRequest{
 		Cid: c.String(),
-		Meta: &pb.BRMetadata{
+		Meta: &pb.BrokerRequestMetadata{
 			Region: meta.Region,
 		},
 	}
-	res, err := tb.c.CreateBR(ctx, req)
+	res, err := tb.c.CreateBrokerRequest(ctx, req)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
 	}

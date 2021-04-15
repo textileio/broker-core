@@ -9,7 +9,7 @@ import (
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 )
 
-func FromProtoBrokerRequest(brproto *pb.BR) (broker.BrokerRequest, error) {
+func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, error) {
 	c, err := cid.Decode(brproto.Cid)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("decoding cid: %s", err)

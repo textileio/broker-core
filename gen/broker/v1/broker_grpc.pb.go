@@ -18,8 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type APIServiceClient interface {
-	CreateBR(ctx context.Context, in *CreateBRRequest, opts ...grpc.CallOption) (*CreateBRResponse, error)
-	GetBR(ctx context.Context, in *GetBRRequest, opts ...grpc.CallOption) (*GetBRResponse, error)
+	CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error)
+	GetBrokerRequest(ctx context.Context, in *GetBrokerRequestRequest, opts ...grpc.CallOption) (*GetBrokerRequestResponse, error)
 }
 
 type aPIServiceClient struct {
@@ -30,18 +30,18 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 	return &aPIServiceClient{cc}
 }
 
-func (c *aPIServiceClient) CreateBR(ctx context.Context, in *CreateBRRequest, opts ...grpc.CallOption) (*CreateBRResponse, error) {
-	out := new(CreateBRResponse)
-	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateBR", in, out, opts...)
+func (c *aPIServiceClient) CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error) {
+	out := new(CreateBrokerRequestResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateBrokerRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *aPIServiceClient) GetBR(ctx context.Context, in *GetBRRequest, opts ...grpc.CallOption) (*GetBRResponse, error) {
-	out := new(GetBRResponse)
-	err := c.cc.Invoke(ctx, "/broker.v1.APIService/GetBR", in, out, opts...)
+func (c *aPIServiceClient) GetBrokerRequest(ctx context.Context, in *GetBrokerRequestRequest, opts ...grpc.CallOption) (*GetBrokerRequestResponse, error) {
+	out := new(GetBrokerRequestResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/GetBrokerRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +52,8 @@ func (c *aPIServiceClient) GetBR(ctx context.Context, in *GetBRRequest, opts ...
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
 type APIServiceServer interface {
-	CreateBR(context.Context, *CreateBRRequest) (*CreateBRResponse, error)
-	GetBR(context.Context, *GetBRRequest) (*GetBRResponse, error)
+	CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error)
+	GetBrokerRequest(context.Context, *GetBrokerRequestRequest) (*GetBrokerRequestResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -61,11 +61,11 @@ type APIServiceServer interface {
 type UnimplementedAPIServiceServer struct {
 }
 
-func (UnimplementedAPIServiceServer) CreateBR(context.Context, *CreateBRRequest) (*CreateBRResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateBR not implemented")
+func (UnimplementedAPIServiceServer) CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateBrokerRequest not implemented")
 }
-func (UnimplementedAPIServiceServer) GetBR(context.Context, *GetBRRequest) (*GetBRResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBR not implemented")
+func (UnimplementedAPIServiceServer) GetBrokerRequest(context.Context, *GetBrokerRequestRequest) (*GetBrokerRequestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBrokerRequest not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -80,38 +80,38 @@ func RegisterAPIServiceServer(s grpc.ServiceRegistrar, srv APIServiceServer) {
 	s.RegisterService(&APIService_ServiceDesc, srv)
 }
 
-func _APIService_CreateBR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateBRRequest)
+func _APIService_CreateBrokerRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBrokerRequestRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).CreateBR(ctx, in)
+		return srv.(APIServiceServer).CreateBrokerRequest(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.v1.APIService/CreateBR",
+		FullMethod: "/broker.v1.APIService/CreateBrokerRequest",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).CreateBR(ctx, req.(*CreateBRRequest))
+		return srv.(APIServiceServer).CreateBrokerRequest(ctx, req.(*CreateBrokerRequestRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _APIService_GetBR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetBRRequest)
+func _APIService_GetBrokerRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBrokerRequestRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).GetBR(ctx, in)
+		return srv.(APIServiceServer).GetBrokerRequest(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.v1.APIService/GetBR",
+		FullMethod: "/broker.v1.APIService/GetBrokerRequest",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).GetBR(ctx, req.(*GetBRRequest))
+		return srv.(APIServiceServer).GetBrokerRequest(ctx, req.(*GetBrokerRequestRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -124,12 +124,12 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateBR",
-			Handler:    _APIService_CreateBR_Handler,
+			MethodName: "CreateBrokerRequest",
+			Handler:    _APIService_CreateBrokerRequest_Handler,
 		},
 		{
-			MethodName: "GetBR",
-			Handler:    _APIService_GetBR_Handler,
+			MethodName: "GetBrokerRequest",
+			Handler:    _APIService_GetBrokerRequest_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
