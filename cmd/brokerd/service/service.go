@@ -14,7 +14,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
-	"github.com/textileio/broker-core/cmd/brokerd/packer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -46,8 +45,8 @@ type Service struct {
 	config Config
 	server *grpc.Server
 
-	broker broker.Broker
-	packer packer.Packer
+	broker *brokeri.Broker
+	packer *packeri.Packer
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
@@ -83,6 +82,10 @@ func New(config Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
+
+	// TODO: this line will go away soon, now it's just needed for emmbeding a packer
+	// in broked binary.
+	packer.SetBroker(broker)
 
 	s := &Service{
 		config: config,
@@ -171,7 +174,7 @@ func (s *Service) Close() error {
 	}
 
 	if err := s.packer.Close(); err != nil {
-		errors = append(errors, err)
+		errors = append(errors, err.Error())
 	}
 
 	if errors != nil {
