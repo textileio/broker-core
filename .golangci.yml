@@ -1,0 +1,28 @@
+linters-settings:
+  misspell:
+    locale: US
+
+linters:
+  enable:
+    - golint
+    - misspell
+    - bodyclose
+    - unconvert
+    - goconst
+    - goimports
+    - unparam
+    - whitespace
+    - godot
+
+issues:
+  exclude-use-default: false
+
+  exclude:
+   - stutters
+
+run:
+  timeout: 30m
+
+service:
+  golangci-lint-version: 1.39.x # use the fixed version to not introduce new linters unexpectedly
+    

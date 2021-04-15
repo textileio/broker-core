@@ -20,7 +20,7 @@ func TestSuccess(t *testing.T) {
 
 	req, res := makeRequestWithFile(t)
 
-	expectedSR := storage.StorageRequest{ID: "ID1", StatusCode: storage.StatusBatching}
+	expectedSR := storage.Request{ID: "ID1", StatusCode: storage.StatusBatching}
 	usm := &uploaderMock{}
 	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
@@ -29,7 +29,7 @@ func TestSuccess(t *testing.T) {
 	mux.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
 
-	var responseSR storage.StorageRequest
+	var responseSR storage.Request
 	err := json.Unmarshal(res.Body.Bytes(), &responseSR)
 	require.NoError(t, err)
 
@@ -104,7 +104,7 @@ func TestFail(t *testing.T) {
 		req, res := makeRequestWithFile(t)
 
 		usm := &uploaderMock{}
-		usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(storage.StorageRequest{}, fmt.Errorf("oops"))
+		usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(storage.Request{}, fmt.Errorf("oops"))
 		usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
 
 		mux := createMux(usm)
@@ -118,13 +118,14 @@ func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 	pr, pw := io.Pipe()
 	writer := multipart.NewWriter(pw)
 	go func() {
-		defer writer.Close()
+		defer func() { _ = writer.Close() }()
 
-		writer.WriteField("region", "asia")
+		err := writer.WriteField("region", "asia")
+		require.NoError(t, err)
 		w, err := writer.CreateFormFile("file", "something.jpg")
 		require.NoError(t, err)
-		w.Write(make([]byte, 100))
-
+		_, err = w.Write(make([]byte, 100))
+		require.NoError(t, err)
 	}()
 
 	req := httptest.NewRequest("POST", "/upload", pr)
@@ -135,15 +136,14 @@ func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 	return req, res
 }
 
-// Mocks
 type uploaderMock struct {
 	mock.Mock
 }
 
-func (um *uploaderMock) CreateFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.StorageRequest, error) {
+func (um *uploaderMock) CreateFromReader(ctx context.Context, r io.Reader, meta storage.Metadata) (storage.Request, error) {
 	args := um.Called(ctx, r, meta)
 
-	return args.Get(0).(storage.StorageRequest), args.Error(1)
+	return args.Get(0).(storage.Request), args.Error(1)
 }
 
 func (um *uploaderMock) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {

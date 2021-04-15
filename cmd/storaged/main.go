@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
 	_ "net/http/pprof"
@@ -15,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/storaged/service"
+	"github.com/textileio/broker-core/util"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -25,31 +25,15 @@ var (
 	v          = viper.New()
 )
 
-var flags = []struct {
-	name        string
-	defValue    interface{}
-	description string
-}{
-	{name: "http.listen.addr", defValue: ":8888", description: "HTTP API listen address"},
-	{name: "uploader.ipfs.multiaddr", defValue: "/ip4/127.0.0.1/tcp/5001", description: "Uploader IPFS API pool"},
-	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
-}
-
 func init() {
-	v.SetEnvPrefix("STORAGE")
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	for _, flag := range flags {
-		switch defval := flag.defValue.(type) {
-		case string:
-			rootCmd.Flags().String(flag.name, defval, flag.description)
-			v.BindPFlag(flag.name, rootCmd.Flags().Lookup(flag.name))
-			v.SetDefault(flag.name, defval)
-		default:
-			log.Fatalf("unkown flag type: %T", flag)
-		}
+	flags := []util.Flag{
+		{Name: "http.listen.addr", DefValue: ":8888", Description: "HTTP API listen address"},
+		{Name: "uploader.ipfs.multiaddr", DefValue: "/ip4/127.0.0.1/tcp/5001", Description: "Uploader IPFS API pool"},
+		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
+		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
+
+	util.ConfigureCLI(v, "STORAGE", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
@@ -72,14 +56,14 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			HttpListenAddr:        v.GetString("http.listen.addr"),
+			HTTPListenAddr:        v.GetString("http.listen.addr"),
 			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
 		checkErr(err)
 
 		log.Info("Listening to requests...")
-		quit := make(chan os.Signal)
+		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, os.Interrupt)
 		<-quit
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
