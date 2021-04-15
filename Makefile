@@ -22,13 +22,25 @@ build-authd:
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/authd
 .PHONY: build-authd
 
+build-neard:
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/neard
+.PHONY: build-neard
+
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
 
+install-storaged:
+	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/storaged
+.PHONY: install-storaged
+
 install-authd:
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/authd
 .PHONY: install-authd
+
+install-neard:
+	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/neard
+.PHONY: install-neard
 
 define gen_release_files
 	$(GOX) -osarch=$(3) -output="build/$(2)/$(2)_${BIN_VERSION}_{{.OS}}-{{.Arch}}/$(2)" -ldflags="${GOVVV_FLAGS}" $(1)
@@ -59,14 +71,14 @@ clean-protos:
 .PHONY: buf-local
 buf-local: $(BUF)
 	$(BUF) check lint
-	# $(BUF) check breaking --against-input '.git#branch=master'
+	# $(BUF) check breaking --against-input '.git#branch=main'
 
 # https is what we run when testing in most CI providers.
 # This does breaking change detection against our remote HTTPS git repository.
 .PHONY: buf-https
 buf-https: $(BUF)
 	$(BUF) check lint
-	# $(BUF) check breaking --against-input "$(HTTPS_GIT)#branch=master"
+	# $(BUF) check breaking --against-input "$(HTTPS_GIT)#branch=main"
 
 # ssh is what we run when testing in CI providers that provide ssh public key authentication.
 # This does breaking change detection against our remote HTTPS ssh repository.
@@ -74,4 +86,4 @@ buf-https: $(BUF)
 .PHONY: buf-ssh
 buf-ssh: $(BUF)
 	$(BUF) check lint
-	# $(BUF) check breaking --against-input "$(SSH_GIT)#branch=master"
+	# $(BUF) check breaking --against-input "$(SSH_GIT)#branch=main"
