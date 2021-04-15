@@ -1,13 +1,15 @@
-package broker
+package v1
 
 import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
+
+	pb "github.com/textileio/broker-core/gen/broker/v1"
 )
 
-func FromProtoBrokerRequest(brproto *BR) (broker.BrokerRequest, error) {
+func FromProtoBrokerRequest(brproto *pb.BR) (broker.BrokerRequest, error) {
 	c, err := cid.Decode(brproto.Cid)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("decoding cid: %s", err)
@@ -15,17 +17,17 @@ func FromProtoBrokerRequest(brproto *BR) (broker.BrokerRequest, error) {
 
 	var status broker.BrokerRequestStatus
 	switch brproto.Status {
-	case BrokerRequestStatus_UNSPECIFIED:
+	case pb.BrokerRequestStatus_UNSPECIFIED:
 		status = broker.RequestUnknown
-	case BrokerRequestStatus_BATCHING:
+	case pb.BrokerRequestStatus_BATCHING:
 		status = broker.RequestBatching
-	case BrokerRequestStatus_PREPARING:
+	case pb.BrokerRequestStatus_PREPARING:
 		status = broker.RequestPreparing
-	case BrokerRequestStatus_AUCTIONING:
+	case pb.BrokerRequestStatus_AUCTIONING:
 		status = broker.RequestAuctioning
-	case BrokerRequestStatus_DEALMAKING:
+	case pb.BrokerRequestStatus_DEALMAKING:
 		status = broker.RequestDealMaking
-	case BrokerRequestStatus_SUCCESS:
+	case pb.BrokerRequestStatus_SUCCESS:
 		status = broker.BrokerRequestSuccess
 	}
 

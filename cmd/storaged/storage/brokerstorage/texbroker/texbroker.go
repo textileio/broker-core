@@ -7,9 +7,10 @@ import (
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
+	v1 "github.com/textileio/broker-core/proto/broker/v1"
+	"github.com/textileio/broker-core/util"
 	"google.golang.org/grpc"
-
-	pb "github.com/textileio/broker-core/cmd/brokerd/pb/broker"
 )
 
 var (
@@ -26,7 +27,7 @@ var _ broker.BrokerRequestor = (*TexBroker)(nil)
 
 // New returns a new TexBroker.
 func New(brokerAPIAddr string) (*TexBroker, error) {
-	conn, err := grpc.Dial(brokerAPIAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(brokerAPIAddr, util.GetClientRPCOpts(brokerAPIAddr)...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata
 		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
 	}
 
-	br, err := pb.FromProtoBrokerRequest(res.Request)
+	br, err := v1.FromProtoBrokerRequest(res.Request)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
 	}
