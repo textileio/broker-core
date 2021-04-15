@@ -23,7 +23,7 @@ type Flag struct {
 
 // ConfigureCLI configures a Viper environment with flags and envs.
 func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra.Command) {
-	v.SetEnvPrefix("AUTH")
+	v.SetEnvPrefix(envPrefix)
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
