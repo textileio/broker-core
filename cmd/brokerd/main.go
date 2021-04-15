@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -21,11 +22,12 @@ func init() {
 	flags := []common.Flag{
 		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "auctioneer.addr", DefValue: ":5001", Description: "Auctioneer address"},
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
-
+		{Name: "grpc.listen.addr", DefValue: ":5000", Description: "gRPC API listen address"},
 		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+
+		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "BROKER", flags, rootCmd)
