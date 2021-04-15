@@ -6,6 +6,10 @@ BIN_BUILD_FLAGS?=CGO_ENABLED=0
 BIN_VERSION?="git"
 GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
 
+lint: $(GOLANGCI_LINT)
+	$(GOLANGCI_LINT) run
+.PHONYY: lint
+
 build: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: build
@@ -42,7 +46,7 @@ define gen_release_files
 endef
 
 protos: $(BUF) $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC) clean-protos
-	$(BUF) generate --template '{"version":"v1beta1","plugins":[{"name":"go","out":".","opt":"paths=source_relative","path":$(PROTOC_GEN_GO)},{"name":"go-grpc","out":".","opt":"paths=source_relative","path":$(PROTOC_GEN_GO_GRPC)}]}'
+	$(BUF) generate --template '{"version":"v1beta1","plugins":[{"name":"go","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO)},{"name":"go-grpc","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO_GRPC)}]}'
 .PHONY: protos
 
 clean-protos:

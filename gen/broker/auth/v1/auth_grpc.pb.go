@@ -11,6 +11,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // APIServiceClient is the client API for APIService service.
@@ -30,7 +31,7 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 
 func (c *aPIServiceClient) Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
 	out := new(AuthResponse)
-	err := c.cc.Invoke(ctx, "/cmd.authd.pb.auth.APIService/Auth", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/broker.auth.v1.APIService/Auth", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +63,7 @@ type UnsafeAPIServiceServer interface {
 }
 
 func RegisterAPIServiceServer(s grpc.ServiceRegistrar, srv APIServiceServer) {
-	s.RegisterService(&_APIService_serviceDesc, srv)
+	s.RegisterService(&APIService_ServiceDesc, srv)
 }
 
 func _APIService_Auth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -75,7 +76,7 @@ func _APIService_Auth_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cmd.authd.pb.auth.APIService/Auth",
+		FullMethod: "/broker.auth.v1.APIService/Auth",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServiceServer).Auth(ctx, req.(*AuthRequest))
@@ -83,8 +84,11 @@ func _APIService_Auth_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
-var _APIService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "cmd.authd.pb.auth.APIService",
+// APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var APIService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "broker.auth.v1.APIService",
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -93,5 +97,5 @@ var _APIService_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "cmd/authd/pb/auth/auth.proto",
+	Metadata: "broker/auth/v1/auth.proto",
 }

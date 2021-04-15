@@ -3,7 +3,6 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
-	github.com/golang/protobuf v1.4.3
 	github.com/google/uuid v1.2.0
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-files v0.0.8

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	pb "github.com/textileio/broker-core/cmd/authd/pb/auth"
+	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"google.golang.org/grpc"
 )
 
