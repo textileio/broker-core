@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	log = logging.Logger("http-api")
+	log = logging.Logger("http/api")
 )
 
 // NewServer returns a new http server exposing the storage API.

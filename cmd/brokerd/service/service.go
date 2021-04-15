@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	log = logging.Logger("broker-service")
+	log = logging.Logger("broker/service")
 )
 
 // Config provides configuration to the broker service.

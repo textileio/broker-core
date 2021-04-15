@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	log = logging.Logger("auth-service")
+	log = logging.Logger("auth/service")
 )
 
 // Service is a gRPC service for buckets.
