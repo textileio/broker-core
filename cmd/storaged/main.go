@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
 	_ "net/http/pprof"
@@ -15,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/storaged/service"
+	"github.com/textileio/broker-core/util"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -25,34 +25,15 @@ var (
 	v          = viper.New()
 )
 
-var flags = []struct {
-	name        string
-	defValue    interface{}
-	description string
-}{
-	{name: "http.listen.addr", defValue: ":8888", description: "HTTP API listen address"},
-	{name: "uploader.ipfs.multiaddr", defValue: "/ip4/127.0.0.1/tcp/5001", description: "Uploader IPFS API pool"},
-	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
-	{name: "log.debug", defValue: false, description: "Enable debug level logs"},
-}
-
 func init() {
-	v.SetEnvPrefix("STORAGE")
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	for _, flag := range flags {
-		switch defval := flag.defValue.(type) {
-		case string:
-			rootCmd.Flags().String(flag.name, defval, flag.description)
-			if err := v.BindPFlag(flag.name, rootCmd.Flags().Lookup(flag.name)); err != nil {
-				log.Fatalf("binding flag %s: %s", flag.name, err)
-			}
-			v.SetDefault(flag.name, defval)
-		default:
-			log.Fatalf("unknown flag type: %T", flag)
-		}
+	flags := []util.Flags{
+		{Name: "http.listen.addr", DefValue: ":8888", Description: "HTTP API listen address"},
+		{Name: "uploader.ipfs.multiaddr", DefValue: "/ip4/127.0.0.1/tcp/5001", Description: "Uploader IPFS API pool"},
+		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
+		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
+
+	util.ConfigureCLI(v, "STORAGE", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
 	_ "net/http/pprof"
@@ -15,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/authd/service"
+	"github.com/textileio/broker-core/util"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -25,33 +25,14 @@ var (
 	v          = viper.New()
 )
 
-var flags = []struct {
-	name        string
-	defValue    interface{}
-	description string
-}{
-	{name: "grpc.listen.addr", defValue: ":5000", description: "gRPC API listen address"},
-	{name: "metrics.addr", defValue: ":9090", description: "Prometheus endpoint"},
-	{name: "log.debug", defValue: false, description: "Enable debug level logs"},
-}
-
 func init() {
-	v.SetEnvPrefix("AUTH")
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	for _, flag := range flags {
-		switch defval := flag.defValue.(type) {
-		case string:
-			rootCmd.Flags().String(flag.name, defval, flag.description)
-			if err := v.BindPFlag(flag.name, rootCmd.Flags().Lookup(flag.name)); err != nil {
-				log.Fatalf("binding flag %s: %s", flag.name, err)
-			}
-			v.SetDefault(flag.name, defval)
-		default:
-			log.Fatalf("unknown flag type: %T", flag)
-		}
+	flags := []util.Flags{
+		{Name: "grpc.listen.addr", DefValue: ":5000", Description: "gRPC API listen address"},
+		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
+		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
+
+	util.ConfigureCLI(v, "AUTH", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
