@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -38,4 +39,20 @@ func (c Credentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[s
 }
 func (c Credentials) RequireTransportSecurity() bool {
 	return c.Secure
+}
+
+// StopServer attempts to gracefully stop the server without permanently blocking.
+func StopServer(s *grpc.Server) {
+	stopped := make(chan struct{})
+	go func() {
+		s.GracefulStop()
+		close(stopped)
+	}()
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-timer.C:
+		s.Stop()
+	case <-stopped:
+		timer.Stop()
+	}
 }

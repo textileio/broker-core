@@ -9,6 +9,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	core "github.com/textileio/broker-core/auctioneer"
 	. "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/logging"
 	badger "github.com/textileio/go-ds-badger3"
@@ -16,7 +17,7 @@ import (
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		LogName: golog.LevelDebug,
+		"auctioneer/queue": golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
@@ -88,19 +89,19 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	a, err := q.CreateAuction()
 	require.NoError(t, err)
-	assert.Equal(t, StatusNew, a.Status)
+	assert.Equal(t, core.AuctionStatusNew, a.Status)
 
-	// Should open shortly
+	// Should start shortly
 	time.Sleep(time.Millisecond * 10)
 	got, err := q.GetAuction(a.ID)
 	require.NoError(t, err)
-	assert.Equal(t, StatusOpen, got.Status)
+	assert.Equal(t, core.AuctionStatusStarted, got.Status)
 
 	// Allow to close
 	time.Sleep(time.Millisecond * 100)
 	got, err = q.GetAuction(a.ID)
 	require.NoError(t, err)
-	assert.Equal(t, StatusClosed, got.Status)
+	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 }
 
 func newQueue(t *testing.T) *Queue {
@@ -117,7 +118,7 @@ func newQueue(t *testing.T) *Queue {
 	return q
 }
 
-func handler(_ context.Context, a Auction) error {
+func handler(_ context.Context, _ *core.Auction) error {
 	time.Sleep(time.Millisecond * 100)
 	return nil
 }

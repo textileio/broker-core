@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/dealsd/service"
-	"github.com/textileio/broker-core/peer"
+	"github.com/textileio/broker-core/marketpeer"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -85,7 +85,8 @@ var rootCmd = &cobra.Command{
 		}
 
 		config := service.Config{
-			Peer: peer.Config{
+			RepoPath: v.GetString("repo"),
+			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
 				HostMultiaddr: v.GetString("host.multiaddr"),
 			},
@@ -93,13 +94,12 @@ var rootCmd = &cobra.Command{
 		serv, err := service.New(config)
 		checkErr(err)
 
-		log.Info("Listening for deals...")
-		quit := make(chan os.Signal)
+		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, os.Interrupt)
 		<-quit
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 		if err := serv.Close(); err != nil {
-			log.Errorf("closing http endpoint: %s", err)
+			log.Errorf("closing service: %s", err)
 		}
 	},
 }

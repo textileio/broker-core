@@ -2,77 +2,105 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"sync"
+	"net"
+	"path/filepath"
 
 	golog "github.com/ipfs/go-log/v2"
-	"github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/cmd/auctioneerd/pb"
 	"github.com/textileio/broker-core/finalizer"
 	kt "github.com/textileio/broker-core/keytransform"
-	"github.com/textileio/broker-core/peer"
-	"github.com/textileio/broker-core/pubsub"
-	"github.com/textileio/broker-core/sempool"
+	"github.com/textileio/broker-core/marketpeer"
+	"github.com/textileio/broker-core/rpc"
+	"google.golang.org/grpc"
 )
 
-const (
-	LogName = "auctioneer/service"
-)
-
-var (
-	log = golog.Logger(LogName)
-)
+var log = golog.Logger("auctioneer/service")
 
 type Config struct {
-	Peer peer.Config
+	RepoPath   string
+	ListenAddr string
+	Peer       marketpeer.Config
 }
 
 type Service struct {
 	pb.UnimplementedAPIServiceServer
 
-	peer  *peer.Peer
-	store *kt.TxnDatastoreExtended
-	topic *pubsub.Topic
-
-	semaphores *sempool.SemaphorePool
-	lk         sync.Mutex
-	finalizer  *finalizer.Finalizer
+	server    *grpc.Server
+	lib       *auctioneer.Auctioneer
+	finalizer *finalizer.Finalizer
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
 
 func New(conf Config) (*Service, error) {
-	p, err := peer.New(conf.Peer)
-	if err != nil {
-		return nil, fmt.Errorf("creating peer: %v", err)
-	}
+	fin := finalizer.NewFinalizer()
 
-	var fin = finalizer.NewFinalizer()
-	ctx, cancel := context.WithCancel(context.Background())
-	fin.Add(finalizer.NewContextCloser(cancel))
-
-	// Subscribe to market deals
-	topic, err := p.NewTopic(ctx, string(auctioneer.ProtocolDeals), false)
+	// Create auctioneer peer
+	p, err := marketpeer.New(conf.Peer)
 	if err != nil {
-		return nil, fin.Cleanupf("creating deals topic: %v", err)
+		return nil, fin.Cleanupf("creating peer: %v", err)
 	}
+	fin.Add(p)
+
+	// Create auctioneer
+	store, err := kt.NewBadgerStore(filepath.Join(conf.RepoPath, "auctionq"))
+	if err != nil {
+		return nil, fin.Cleanupf("creating repo: %v", err)
+	}
+	fin.Add(store)
+	lib, err := auctioneer.New(p, store)
+	if err != nil {
+		return nil, fin.Cleanupf("creating auctioneer: %v", err)
+	}
+	fin.Add(lib)
 
 	s := &Service{
-		peer:      p,
-		topic:     topic,
+		server:    grpc.NewServer(),
+		lib:       lib,
 		finalizer: fin,
 	}
 
-	// deals.SetEventHandler(s.eventHandler)
-	// deals.SetMessageHandler(s.messageHandler)
+	listener, err := net.Listen("tcp", conf.ListenAddr)
+	if err != nil {
+		return nil, fmt.Errorf("getting net listener: %v", err)
+	}
+	go func() {
+		pb.RegisterAPIServiceServer(s.server, s)
+		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Errorf("server error: %v", err)
+		}
+	}()
 
+	log.Infof("service listening at %s", conf.ListenAddr)
 	return s, nil
 }
 
 func (s *Service) Close() error {
+	rpc.StopServer(s.server)
+	log.Info("service was shutdown")
 	return s.finalizer.Cleanup(nil)
 }
 
-func (s *Service) CreateAuction(ctx context.Context, req *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
-	return nil, nil
+func (s *Service) CreateAuction(_ context.Context, _ *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
+	id, err := s.lib.CreateAuction()
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CreateAuctionResponse{
+		Id: id,
+	}, nil
+}
+
+func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.GetAuctionResponse, error) {
+	a, err := s.lib.GetAuction(req.Id)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetAuctionResponse{
+		Auction: cast.AuctionToPb(a),
+	}, nil
 }

@@ -1,11 +1,22 @@
 package keytransform
 
 import (
+	"os"
+
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	dsq "github.com/ipfs/go-datastore/query"
 	dse "github.com/textileio/go-datastore-extensions"
+	badger "github.com/textileio/go-ds-badger3"
 )
+
+// NewBadgerStore returns a new badger-based TxnDatastoreExtended.
+func NewBadgerStore(repoPath string) (TxnDatastoreExtended, error) {
+	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
+		return nil, err
+	}
+	return badger.NewDatastore(repoPath, &badger.DefaultOptions)
+}
 
 // TxnDatastoreExtended adds QueryExtensions to TxnDatastore.
 type TxnDatastoreExtended interface {

@@ -1,4 +1,4 @@
-package peer
+package marketpeer
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	cconnmgr "github.com/libp2p/go-libp2p-core/connmgr"
@@ -58,12 +57,16 @@ func New(conf Config) (*Peer, error) {
 		return nil, fmt.Errorf("parsing host multiaddress: %s", err)
 	}
 
-	var fin = finalizer.NewFinalizer()
+	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
 
 	// Setup ipfslite peerstore
-	lstore, err := badgerStore(filepath.Join(conf.RepoPath, "ipfslite"))
+	repoPath := filepath.Join(conf.RepoPath, "ipfslite")
+	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
+		return nil, fmt.Errorf("making dir: %v", err)
+	}
+	lstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
 	if err != nil {
 		return nil, fin.Cleanupf("creating repo: %v", err)
 	}
@@ -118,6 +121,10 @@ func (p *Peer) Close() error {
 	return p.finalizer.Cleanup(nil)
 }
 
+func (p *Peer) Self() peer.ID {
+	return p.host.ID()
+}
+
 func (p *Peer) Bootstrap(addrs []peer.AddrInfo) {
 	p.peer.Bootstrap(addrs)
 }
@@ -163,15 +170,4 @@ func getHostKey(repoPath string) (crypto.PrivKey, error) {
 		}
 		return crypto.UnmarshalPrivateKey(bytes)
 	}
-}
-
-func badgerStore(repoPath string) (datastore.Batching, error) {
-	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
-		return nil, err
-	}
-	dstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
-	if err != nil {
-		return nil, err
-	}
-	return dstore, nil
 }

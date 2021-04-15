@@ -14,8 +14,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/dealsd/service"
-	"github.com/textileio/broker-core/peer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/marketpeer"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -37,8 +37,13 @@ var flags = []struct {
 		description: "Repo path",
 	},
 	{
+		name:        "rpc.addr",
+		defValue:    ":5000",
+		description: "gRPC listen address",
+	},
+	{
 		name:        "host.multiaddr",
-		defValue:    "/ip4/127.0.0.1/tcp/4001",
+		defValue:    "/ip4/0.0.0.0/tcp/4001",
 		description: "Libp2p host listen multiaddr",
 	},
 	{
@@ -85,7 +90,9 @@ var rootCmd = &cobra.Command{
 		}
 
 		config := service.Config{
-			Peer: peer.Config{
+			RepoPath:   v.GetString("repo"),
+			ListenAddr: v.GetString("rpc.addr"),
+			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
 				HostMultiaddr: v.GetString("host.multiaddr"),
 			},
@@ -93,13 +100,12 @@ var rootCmd = &cobra.Command{
 		serv, err := service.New(config)
 		checkErr(err)
 
-		log.Info("Listening for auctions...")
-		quit := make(chan os.Signal)
+		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, os.Interrupt)
 		<-quit
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 		if err := serv.Close(); err != nil {
-			log.Errorf("closing http endpoint: %s", err)
+			log.Errorf("closing service: %s", err)
 		}
 	},
 }

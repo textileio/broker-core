@@ -10,7 +10,7 @@ import (
 )
 
 // Handler is used to receive topic peer events and messages.
-type Handler func(from peer.ID, topic, msg string)
+type Handler func(from peer.ID, topic string, msg []byte)
 
 // Topic provides a nice interface to a libp2p pubsub topic.
 type Topic struct {
@@ -113,7 +113,7 @@ func (t *Topic) watch() {
 		}
 		t.lk.Lock()
 		if t.eventHandler != nil {
-			t.eventHandler(e.Peer, t.t.String(), msg)
+			t.eventHandler(e.Peer, t.t.String(), []byte(msg))
 		}
 		t.lk.Unlock()
 	}
@@ -130,7 +130,7 @@ func (t *Topic) listen() {
 		}
 		t.lk.Lock()
 		if t.messageHandler != nil {
-			t.messageHandler(msg.ReceivedFrom, t.t.String(), string(msg.Data))
+			t.messageHandler(msg.ReceivedFrom, t.t.String(), msg.Data)
 		}
 		t.lk.Unlock()
 	}
