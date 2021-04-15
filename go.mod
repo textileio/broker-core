@@ -13,6 +13,7 @@ require (
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
+	github.com/ipfs/go-ipld-cbor v0.0.4
 	github.com/ipfs/go-log/v2 v2.1.3
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/libp2p/go-libp2p v0.13.0

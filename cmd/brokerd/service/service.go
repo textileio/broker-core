@@ -14,6 +14,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
+	"github.com/textileio/broker-core/cmd/brokerd/packer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -44,7 +45,9 @@ type Service struct {
 
 	config Config
 	server *grpc.Server
+
 	broker broker.Broker
+	packer packer.Packer
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
@@ -85,6 +88,7 @@ func New(config Config) (*Service, error) {
 		config: config,
 		server: grpc.NewServer(),
 		broker: broker,
+		packer: packer,
 	}
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -164,6 +168,10 @@ func (s *Service) Close() error {
 		s.server.Stop()
 	case <-stopped:
 		timer.Stop()
+	}
+
+	if err := s.packer.Close(); err != nil {
+		errors = append(errors, err)
 	}
 
 	if errors != nil {

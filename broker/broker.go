@@ -14,6 +14,10 @@ type Broker interface {
 	Create(ctx context.Context, c cid.Cid, meta Metadata) (BrokerRequest, error)
 	// Get returns a broker request from an id.
 	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
+
+	// CreateStorageDeal creates a new StorageDeal. It is called
+	// by the Packer after batching a set of BrokerRequest properly.
+	CreateStorageDeal(ctx context.Context, brg BrokerRequestGroup) error
 }
 
 // BrokerRequestID is the type used for broker request identity.
