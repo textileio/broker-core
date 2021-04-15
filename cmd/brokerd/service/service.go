@@ -105,8 +105,8 @@ func New(config Config) (*Service, error) {
 	return s, nil
 }
 
-// CreateBR creates a new BrokerRequest.
-func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
+// CreateBrokerRequest creates a new BrokerRequest.
+func (s *Service) CreateBrokerRequest(ctx context.Context, r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -129,15 +129,19 @@ func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBrokerRequestRequest
 		return nil, status.Error(codes.Internal, fmt.Sprintf("creating storage request: %s", err))
 	}
 
+	pbr, err := castBrokerRequestToProto(br)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+	}
 	res := &pb.CreateBrokerRequestResponse{
-		Request: castBrokerRequestToProto(br),
+		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// GetBR gets an existing broker request.
-func (s *Service) GetBR(ctx context.Context, r *pb.GetBrokerRequestRequest) (*pb.GetBrokerRequestResponse, error) {
+// GetBrokerRequest gets an existing broker request.
+func (s *Service) GetBrokerRequest(ctx context.Context, r *pb.GetBrokerRequestRequest) (*pb.GetBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -147,8 +151,12 @@ func (s *Service) GetBR(ctx context.Context, r *pb.GetBrokerRequestRequest) (*pb
 		return nil, status.Error(codes.Internal, fmt.Sprintf("get broker request: %s", err))
 	}
 
+	pbr, err := castBrokerRequestToProto(br)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+	}
 	res := &pb.GetBrokerRequestResponse{
-		BrokerRequest: castBrokerRequestToProto(br),
+		BrokerRequest: pbr,
 	}
 
 	return res, nil
@@ -184,16 +192,37 @@ func (s *Service) Close() error {
 	return nil
 }
 
-func castBrokerRequestToProto(br broker.BrokerRequest) *pb.BrokerRequest {
+func castBrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
+	var pbStatus pb.BrokerRequestStatus
+	switch br.Status {
+	case broker.RequestUnknown:
+		pbStatus = pb.BrokerRequestStatus_UNSPECIFIED
+	case broker.RequestBatching:
+		pbStatus = pb.BrokerRequestStatus_BATCHING
+	case broker.RequestPreparing:
+		pbStatus = pb.BrokerRequestStatus_PREPARING
+	case broker.RequestAuctioning:
+		pbStatus = pb.BrokerRequestStatus_AUCTIONING
+	case broker.RequestDealMaking:
+		pbStatus = pb.BrokerRequestStatus_DEALMAKING
+	case broker.BrokerRequestSuccess:
+		pbStatus = pb.BrokerRequestStatus_SUCCESS
+	default:
+		return nil, fmt.Errorf("unknown status: %d", br.Status)
+
+	}
+
 	return &pb.BrokerRequest{
-		Id: string(br.ID),
+		Id:      string(br.ID),
+		DataCid: br.DataCid.String(),
+		Status:  pbStatus,
 		Meta: &pb.BrokerRequestMetadata{
 			Region: br.Metadata.Region,
 		},
 		StorageDealId: string(br.StorageDealID),
 		CreatedAt:     timestamppb.New(br.CreatedAt),
 		UpdatedAt:     timestamppb.New(br.UpdatedAt),
-	}
+	}, nil
 }
 
 func createDatastore(conf Config) (datastore.TxnDatastore, error) {

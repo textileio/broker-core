@@ -10,7 +10,7 @@ import (
 )
 
 func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, error) {
-	c, err := cid.Decode(brproto.Cid)
+	c, err := cid.Decode(brproto.DataCid)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("decoding cid: %s", err)
 	}
@@ -29,6 +29,8 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 		status = broker.RequestDealMaking
 	case pb.BrokerRequestStatus_SUCCESS:
 		status = broker.BrokerRequestSuccess
+	default:
+		return broker.BrokerRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
 	}
 
 	var metadata broker.Metadata

@@ -29,7 +29,7 @@ message GetBrokerRequestResponse {
 // General
 message BrokerRequest {
   string id = 1;
-  string cid = 2;
+  string data_cid = 2;
   BrokerRequestStatus status = 3;
   BrokerRequestMetadata meta = 4;
   string storage_deal_id = 5;

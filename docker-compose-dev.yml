@@ -8,7 +8,7 @@ services:
       - STORAGE_LOG_DEBUG=true
       - STORAGE_HTTP_LISTEN_ADDR=:8888
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
-      - STORAGE_BROKER_ADDR=/dns4/brokerd/tcp/5001
+      - STORAGE_BROKER_ADDR=brokerd:5000
     ports:
       - "127.0.0.1:8888:8888"
     security_opt:
