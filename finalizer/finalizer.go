@@ -18,10 +18,12 @@ type Finalizer struct {
 	resources []io.Closer
 }
 
+// Add one or more io.Closer to the finalizer.
 func (r *Finalizer) Add(cs ...io.Closer) {
 	r.resources = append(r.resources, cs...)
 }
 
+// Cleanup closes all io.Closer and cancels all contexts with err.
 func (r *Finalizer) Cleanup(err error) error {
 	var errs []error
 	for i := len(r.resources) - 1; i >= 0; i-- {
@@ -33,6 +35,7 @@ func (r *Finalizer) Cleanup(err error) error {
 	return multierror.Append(err, errs...).ErrorOrNil()
 }
 
+// Cleanupf closes all io.Closer and cancels all contexts with a formatted err.
 func (r *Finalizer) Cleanupf(format string, err error) error {
 	return r.Cleanup(fmt.Errorf(format, err))
 }
@@ -42,10 +45,12 @@ func NewContextCloser(cancel context.CancelFunc) io.Closer {
 	return &ContextCloser{cf: cancel}
 }
 
+// ContextCloser maps a context to io.Closer.
 type ContextCloser struct {
 	cf context.CancelFunc
 }
 
+// Close the context.
 func (cc ContextCloser) Close() error {
 	cc.cf()
 	return nil

@@ -22,13 +22,17 @@ build-authd:
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/authd
 .PHONY: build-authd
 
+build-auctioneerd:
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
+.PHONY: build-auctioneerd
+
+build-minerd:
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
+.PHONY: build-minerd
+
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
-
-install-authd:
-	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/authd
-.PHONY: install-authd
 
 define gen_release_files
 	$(GOX) -osarch=$(3) -output="build/$(2)/$(2)_${BIN_VERSION}_{{.OS}}-{{.Arch}}/$(2)" -ldflags="${GOVVV_FLAGS}" $(1)

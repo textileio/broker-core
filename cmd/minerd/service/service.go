@@ -17,11 +17,13 @@ import (
 
 var log = golog.Logger("miner/service")
 
+// Config defines params for Service configuration.
 type Config struct {
 	RepoPath string
 	Peer     marketpeer.Config
 }
 
+// Service is a miner service that subscribes to brokered deals.
 type Service struct {
 	peer *marketpeer.Peer
 
@@ -29,6 +31,7 @@ type Service struct {
 	finalizer *finalizer.Finalizer
 }
 
+// New returns a new Service.
 func New(conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,15 +70,19 @@ func New(conf Config) (*Service, error) {
 	return s, nil
 }
 
+// Close the service.
 func (s *Service) Close() error {
 	log.Info("service was shutdown")
 	return s.finalizer.Cleanup(nil)
 }
 
+// Bootstrap the market peer against well-known network peers.
 func (s *Service) Bootstrap() {
 	s.peer.Bootstrap()
 }
 
+// EnableMDNS enables an MDNS discovery service.
+// This is useful on a local network (testing).
 func (s *Service) EnableMDNS(intervalSecs int) error {
 	return s.peer.EnableMDNS(intervalSecs)
 }
@@ -89,7 +96,7 @@ func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
 
 	auction := &pb.Auction{}
 	if err := proto.Unmarshal(msg, auction); err != nil {
-		log.Errorf("unmarshalling message: %v", err)
+		log.Errorf("unmarshaling message: %v", err)
 		return
 	}
 
@@ -105,7 +112,7 @@ func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) {
 
 	win := &pb.Win{}
 	if err := proto.Unmarshal(msg, win); err != nil {
-		log.Errorf("unmarshalling message: %v", err)
+		log.Errorf("unmarshaling message: %v", err)
 		return
 	}
 	log.Infof("deal won in auction %s with bid %s", win.AuctionId, win.BidId)
@@ -117,12 +124,12 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	}
 
 	// Create bids topic.
-	t, err := s.peer.NewTopic(s.ctx, core.BidsTopic(auction.Id), false)
+	bids, err := s.peer.NewTopic(s.ctx, core.BidsTopic(auction.Id), false)
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
 	}
-	defer t.Close()
-	t.SetEventHandler(s.eventHandler)
+	defer func() { _ = bids.Close() }()
+	bids.SetEventHandler(s.eventHandler)
 
 	// Submit bid to auctioneer.
 	msg, err := proto.Marshal(&pb.Bid{
@@ -131,7 +138,10 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 		// @todo: Figure out what this should really look like.
 		Amount: int64(rand.Intn(100)),
 	})
-	if err := t.Publish(s.ctx, msg); err != nil {
+	if err != nil {
+		return fmt.Errorf("marshaling message: %v", err)
+	}
+	if err := bids.Publish(s.ctx, msg); err != nil {
 		return fmt.Errorf("publishing bid: %v", err)
 	}
 	return nil

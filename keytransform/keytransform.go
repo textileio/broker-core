@@ -33,7 +33,7 @@ func WrapTxnDatastore(child TxnDatastoreExtended, t kt.KeyTransform) *Datastore 
 	}
 }
 
-// Datastore keeps a KeyTransform function
+// Datastore keeps a KeyTransform function.
 type Datastore struct {
 	child TxnDatastoreExtended
 	ds.Datastore
@@ -49,10 +49,12 @@ type txn struct {
 
 var _ dse.TxnExt = (*txn)(nil)
 
+// NewTransaction returns a transaction wrapped by the selected namespace prefix.
 func (d *Datastore) NewTransaction(readOnly bool) (ds.Txn, error) {
 	return d.newTransaction(readOnly)
 }
 
+// NewTransactionExtended returns an extended transaction wrapped by the selected namespace prefix.
 func (d *Datastore) NewTransactionExtended(readOnly bool) (dse.TxnExt, error) {
 	return d.newTransaction(readOnly)
 }
@@ -66,6 +68,7 @@ func (d *Datastore) newTransaction(readOnly bool) (dse.TxnExt, error) {
 	return &txn{Txn: t, ds: d}, nil
 }
 
+// QueryExtended queries the selected namespace prefix with extensions.
 func (d *Datastore) QueryExtended(q dse.QueryExt) (dsq.Results, error) {
 	return d.child.QueryExtended(q)
 }
@@ -83,7 +86,7 @@ func (t *txn) Put(key ds.Key, value []byte) (err error) {
 	return t.Txn.Put(t.ds.ConvertKey(key), value)
 }
 
-// Delete removes the value for given key
+// Delete removes the value for given key.
 func (t *txn) Delete(key ds.Key) (err error) {
 	return t.Txn.Delete(t.ds.ConvertKey(key))
 }
@@ -130,7 +133,6 @@ func (t *txn) QueryExtended(q dse.QueryExt) (dsq.Results, error) {
 // Split the query into a child query and a naive query. That way, we can make
 // the child datastore do as much work as possible.
 func (t *txn) prepareQuery(q dse.QueryExt) (naive, child dse.QueryExt) {
-
 	// First, put everything in the child query. Then, start taking things
 	// out.
 	child = q

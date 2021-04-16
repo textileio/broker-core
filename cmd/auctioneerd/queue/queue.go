@@ -44,15 +44,15 @@ var (
 	ErrNotFound = errors.New("auction not found")
 
 	// dsPrefix is the prefix for auctions.
-	// Structure: /auctions/<auction_id> -> Auction
+	// Structure: /auctions/<auction_id> -> Auction.
 	dsPrefix = ds.NewKey("/auctions")
 
 	// dsQueuePrefix is the prefix for queued auctions.
-	// Structure: /queue/<auction_id> -> nil
+	// Structure: /queue/<auction_id> -> nil.
 	dsQueuePrefix = ds.NewKey("/queue")
 
 	// dsStartedPrefix is the prefix for started auctions that are accepting bids.
-	// Structure: /started/<auction_id> -> nil
+	// Structure: /started/<auction_id> -> nil.
 	dsStartedPrefix = ds.NewKey("/started")
 )
 
@@ -131,7 +131,7 @@ func (q *Queue) CreateAuction(duration time.Duration) (string, error) {
 	}
 	a := &core.Auction{
 		ID:       id,
-		Status:   core.AuctionStatusNew,
+		Status:   core.AuctionStatusUnspecified,
 		Duration: int64(duration),
 	}
 	if err := q.enqueue(a); err != nil {
@@ -186,7 +186,9 @@ func (q Query) setDefaults() Query {
 type Order int
 
 const (
+	// OrderDescending orders results decending.
 	OrderDescending Order = iota
+	// OrderAscending orders results ascending.
 	OrderAscending
 )
 
@@ -228,7 +230,7 @@ func (q *Queue) ListAuctions(query Query) ([]core.Auction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying requests: %v", err)
 	}
-	defer results.Close()
+	defer func() { _ = results.Close() }()
 
 	var list []core.Auction
 	for res := range results.Next() {
@@ -350,21 +352,16 @@ func (q *Queue) getQueued() (*core.Auction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying queue: %v", err)
 	}
-	defer results.Close()
+	defer func() { _ = results.Close() }()
 
-	var key string
-	for res := range results.Next() {
-		if res.Error != nil {
-			return nil, fmt.Errorf("getting next result: %v", res.Error)
-		}
-		key = res.Key
-		break
-	}
-	if len(key) == 0 {
+	res, ok := <-results.Next()
+	if !ok {
 		return nil, nil
+	} else if res.Error != nil {
+		return nil, fmt.Errorf("getting next result: %v", res.Error)
 	}
 
-	a, err := q.getAuction(txn, path.Base(key))
+	a, err := q.getAuction(txn, path.Base(res.Key))
 	if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}

@@ -24,11 +24,15 @@ import (
 var (
 	log = golog.Logger("auctioneer")
 
+	// AuctionDuration is the duration of time auctions run for.
+	// TODO (@sander): Move this to a configuration param.
 	AuctionDuration = time.Second * 10
 
+	// ErrAuctionFailed indicates an auction was not successful.
 	ErrAuctionFailed = errors.New("auction failed; no acceptable bids")
 )
 
+// Auctioneer handles deal auctions for a broker.
 type Auctioneer struct {
 	queue *q.Queue
 
@@ -40,6 +44,7 @@ type Auctioneer struct {
 	lk        sync.Mutex
 }
 
+// New returns a new Auctioneer.
 func New(peer *marketpeer.Peer, store kt.TxnDatastoreExtended) (*Auctioneer, error) {
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,18 +72,24 @@ func New(peer *marketpeer.Peer, store kt.TxnDatastoreExtended) (*Auctioneer, err
 	return a, nil
 }
 
+// Close the auctioneer.
 func (a *Auctioneer) Close() error {
 	return a.finalizer.Cleanup(nil)
 }
 
+// Bootstrap the market peer against well-known network peers.
 func (a *Auctioneer) Bootstrap() {
 	a.peer.Bootstrap()
 }
 
+// EnableMDNS enables an MDNS discovery service.
+// This is useful on a local network (testing).
 func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
 	return a.peer.EnableMDNS(intervalSecs)
 }
 
+// CreateAuction creates a new auction.
+// New auctions are queud if the auctioneer is busy.
 func (a *Auctioneer) CreateAuction() (string, error) {
 	id, err := a.queue.CreateAuction(AuctionDuration)
 	if err != nil {
@@ -89,6 +100,7 @@ func (a *Auctioneer) CreateAuction() (string, error) {
 	return id, nil
 }
 
+// GetAuction returns an auction by id.
 func (a *Auctioneer) GetAuction(id string) (*core.Auction, error) {
 	return a.queue.GetAuction(id)
 }
@@ -114,7 +126,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
 	}
-	defer bids.Close()
+	defer func() { _ = bids.Close() }()
 	bids.SetEventHandler(a.eventHandler)
 	bids.SetMessageHandler(a.bidsHandler)
 
@@ -126,6 +138,9 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 		Id:     auction.ID,
 		EndsAt: timestamppb.New(deadline),
 	})
+	if err != nil {
+		return fmt.Errorf("marshaling message: %v", err)
+	}
 	if err := a.auctions.Publish(ctx, msg); err != nil {
 		return fmt.Errorf("publishing auction: %v", err)
 	}
@@ -165,7 +180,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
 
 	bid := &pb.Bid{}
 	if err := proto.Unmarshal(msg, bid); err != nil {
-		log.Errorf("unmarshalling message: %v", err)
+		log.Errorf("unmarshaling message: %v", err)
 		return
 	}
 
@@ -197,19 +212,22 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 	}
 
 	// Create win topic.
-	t, err := a.peer.NewTopic(ctx, core.WinsTopic(winner), false)
+	wins, err := a.peer.NewTopic(ctx, core.WinsTopic(winner), false)
 	if err != nil {
 		return fmt.Errorf("creating win topic: %v", err)
 	}
-	defer t.Close()
-	t.SetEventHandler(a.eventHandler)
+	defer func() { _ = wins.Close() }()
+	wins.SetEventHandler(a.eventHandler)
 
 	// Notify winner.
 	msg, err := proto.Marshal(&pb.Win{
 		AuctionId: auction.ID,
 		BidId:     auction.Winner,
 	})
-	if err := t.Publish(ctx, msg); err != nil {
+	if err != nil {
+		return fmt.Errorf("marshaling message: %v", err)
+	}
+	if err := wins.Publish(ctx, msg); err != nil {
 		return fmt.Errorf("publishing win: %v", err)
 	}
 	return nil
