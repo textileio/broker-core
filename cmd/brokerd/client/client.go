@@ -7,14 +7,11 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/ipfs/go-cid"
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/util"
 )
-
-var log = logger.Logger("brokerd/client")
 
 type Client struct {
 	c    pb.APIServiceClient
@@ -36,8 +33,6 @@ func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 
 // Create creates a new BrokerRequest.
 func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
-	log.Debugf("creating broker request for cid %s", dataCid)
-
 	req := &pb.CreateBrokerRequestRequest{
 		Cid: dataCid.String(),
 		Meta: &pb.BrokerRequest_Metadata{

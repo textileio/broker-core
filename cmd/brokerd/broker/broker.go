@@ -143,7 +143,7 @@ func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequest
 		return broker.StorageDeal{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
-	log.Debugf("creating storage deal %s created, signaling packer...", sd.ID)
+	log.Debugf("creating storage deal %s created, signaling piecer...", sd.ID)
 	// Signal Piecer that there's work to do. It will eventually call us
 	// through PreparedStorageDeal(...).
 	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.Cid); err != nil {
