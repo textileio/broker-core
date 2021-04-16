@@ -50,9 +50,9 @@ func TestQueue_ListRequests(t *testing.T) {
 		ids := make([]string, limit)
 		for i := 0; i < limit; i++ {
 			now = now.Add(time.Millisecond)
-			a, err := q.CreateAuction(time.Second)
+			id, err := q.CreateAuction(time.Second)
 			require.NoError(t, err)
-			ids[i] = a.ID
+			ids[i] = id
 		}
 
 		// Allow all to finish
@@ -87,14 +87,13 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	a, err := q.CreateAuction(time.Millisecond)
+	id, err := q.CreateAuction(time.Millisecond)
 	require.NoError(t, err)
-	assert.Equal(t, core.AuctionStatusStarted, a.Status)
 
 	// Allow to finish
 	time.Sleep(time.Millisecond * 200)
 
-	got, err := q.GetAuction(a.ID)
+	got, err := q.GetAuction(id)
 	require.NoError(t, err)
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 }

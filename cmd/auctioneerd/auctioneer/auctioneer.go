@@ -80,13 +80,13 @@ func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
 }
 
 func (a *Auctioneer) CreateAuction() (string, error) {
-	auction, err := a.queue.CreateAuction(AuctionDuration)
+	id, err := a.queue.CreateAuction(AuctionDuration)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
 	}
 
-	log.Debugf("created auction %s", auction.ID)
-	return auction.ID, nil
+	log.Debugf("created auction %s", id)
+	return id, nil
 }
 
 func (a *Auctioneer) GetAuction(id string) (*core.Auction, error) {

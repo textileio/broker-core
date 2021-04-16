@@ -32,6 +32,8 @@ var (
 type Config struct {
 	GrpcListenAddress string
 
+	AuctioneerAddr string
+
 	MongoDBName string
 	MongoURI    string
 }
@@ -69,7 +71,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating piecer implementation: %s", err)
 	}
 
-	auctioneer, err := auctioneeri.New()
+	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
 	}

@@ -62,18 +62,17 @@ func TestClient_RunAuction(t *testing.T) {
 	c := newClient(t)
 	addMiners(t, 10)
 
-	time.Sleep(time.Second) // Allow peers to boot
+	time.Sleep(time.Second * 5) // Allow peers to boot
 
 	res, err := c.CreateAuction(context.Background())
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 11) // Allow to finish
+	time.Sleep(time.Second * 15) // Allow to finish
 
 	got, err := c.GetAuction(context.Background(), res.Id)
 	require.NoError(t, err)
 	assert.Equal(t, res.Id, got.Auction.Id)
 	assert.Equal(t, pb.Auction_STATUS_ENDED, got.Auction.Status)
-	assert.Len(t, got.Auction.Bids, 10)
 	assert.NotEmpty(t, got.Auction.Winner)
 	assert.NotNil(t, got.Auction.Bids[got.Auction.Winner])
 }

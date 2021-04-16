@@ -1,7 +1,7 @@
 package queue
 
 // @todo: Restart started auctions?
-// @todo: Handle cancelling auctions? When queued? When already started?
+// @todo: Handle canceling auctions? When queued? When already started?
 
 import (
 	"bytes"
@@ -124,10 +124,10 @@ func (q *Queue) NewID(t time.Time) (string, error) {
 
 // CreateAuction adds a new auction to the queue.
 // The new auction will be handled immediately if workers are not busy.
-func (q *Queue) CreateAuction(duration time.Duration) (*core.Auction, error) {
+func (q *Queue) CreateAuction(duration time.Duration) (string, error) {
 	id, err := q.NewID(time.Now())
 	if err != nil {
-		return nil, fmt.Errorf("creating id: %v", err)
+		return "", fmt.Errorf("creating id: %v", err)
 	}
 	a := &core.Auction{
 		ID:       id,
@@ -135,9 +135,9 @@ func (q *Queue) CreateAuction(duration time.Duration) (*core.Auction, error) {
 		Duration: int64(duration),
 	}
 	if err := q.enqueue(a); err != nil {
-		return nil, fmt.Errorf("enqueueing: %v", err)
+		return "", fmt.Errorf("enqueueing: %v", err)
 	}
-	return a, nil
+	return id, nil
 }
 
 // GetAuction returns an auction by id.

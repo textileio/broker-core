@@ -19,7 +19,8 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "grpc.listen.addr", DefValue: ":5000", Description: "gRPC API listen address"},
+		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "auctioneer.addr", DefValue: ":5001", Description: "Auctioneer address"},
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 
@@ -51,6 +52,8 @@ var rootCmd = &cobra.Command{
 
 		serviceConfig := service.Config{
 			GrpcListenAddress: v.GetString("grpc.listen.addr"),
+
+			AuctioneerAddr: v.GetString("auctioneer.addr"),
 
 			MongoURI:    v.GetString("mongo.uri"),
 			MongoDBName: v.GetString("mongo.dbname"),
