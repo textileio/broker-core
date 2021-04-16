@@ -30,10 +30,12 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// CreateAuction creates an auction.
 func (c *Client) CreateAuction(ctx context.Context) (*pb.CreateAuctionResponse, error) {
 	return c.c.CreateAuction(ctx, &pb.CreateAuctionRequest{})
 }
 
+// GetAuction returns an auction by id.
 func (c *Client) GetAuction(ctx context.Context, id string) (*pb.GetAuctionResponse, error) {
 	return c.c.GetAuction(ctx, &pb.GetAuctionRequest{
 		Id: id,

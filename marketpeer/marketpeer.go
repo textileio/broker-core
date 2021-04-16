@@ -28,22 +28,23 @@ import (
 
 var log = golog.Logger("mpeer")
 
+// Config defines params for Peer configuration.
 type Config struct {
 	RepoPath      string
 	HostMultiaddr string
 	ConnManager   cconnmgr.ConnManager
 }
 
-func setDefaults(conf *Config) error {
+func setDefaults(conf *Config) {
 	if len(conf.HostMultiaddr) == 0 {
 		conf.HostMultiaddr = "/ip4/0.0.0.0/tcp/0"
 	}
 	if conf.ConnManager == nil {
 		conf.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
 	}
-	return nil
 }
 
+// Peer wraps libp2p peer components needed to partake in the broker market.
 type Peer struct {
 	host      host.Host
 	peer      *ipfslite.Peer
@@ -51,10 +52,9 @@ type Peer struct {
 	finalizer *finalizer.Finalizer
 }
 
+// New returns a new Peer.
 func New(conf Config) (*Peer, error) {
-	if err := setDefaults(&conf); err != nil {
-		return nil, fmt.Errorf("setting defaults: %v", err)
-	}
+	setDefaults(&conf)
 
 	hostAddr, err := multiaddr.NewMultiaddr(conf.HostMultiaddr)
 	if err != nil {
@@ -121,24 +121,29 @@ func New(conf Config) (*Peer, error) {
 	}, nil
 }
 
+// Close the peer.
 func (p *Peer) Close() error {
 	return p.finalizer.Cleanup(nil)
 }
 
+// Self returns the peer's id.
 func (p *Peer) Self() peer.ID {
 	return p.host.ID()
 }
 
+// Bootstrap the market peer against well-known network peers.
 func (p *Peer) Bootstrap() {
 	p.peer.Bootstrap(ipfslite.DefaultBootstrapPeers())
 	log.Info("peer was bootstapped")
 }
 
+// EnableMDNS enables an MDNS discovery service.
+// This is useful on a local network (testing).
 func (p *Peer) EnableMDNS(internalSecs int) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	p.finalizer.Add(finalizer.NewContextCloser(cancel))
 
-	if err := mdns.New(ctx, p.host, internalSecs); err != nil {
+	if err := mdns.Start(ctx, p.host, internalSecs); err != nil {
 		return err
 	}
 
@@ -146,6 +151,7 @@ func (p *Peer) EnableMDNS(internalSecs int) error {
 	return nil
 }
 
+// NewTopic returns a new pubsub.Topic using the peer's host.
 func (p *Peer) NewTopic(ctx context.Context, topic string, subscribe bool) (*pubsub.Topic, error) {
 	return pubsub.NewTopic(ctx, p.ps, p.host.ID(), topic, subscribe)
 }

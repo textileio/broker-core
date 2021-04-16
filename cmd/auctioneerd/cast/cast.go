@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// AuctionToPb returns pb.Auction from auctioneer.Auction.
 func AuctionToPb(a *core.Auction) *pb.Auction {
 	pba := &pb.Auction{
 		Id:        a.ID,
@@ -19,9 +20,10 @@ func AuctionToPb(a *core.Auction) *pb.Auction {
 	return pba
 }
 
+// AuctionStatusToPb returns pb.Auction_Status from auctioneer.AuctionStatus.
 func AuctionStatusToPb(s core.AuctionStatus) pb.Auction_Status {
 	switch s {
-	case core.AuctionStatusNew:
+	case core.AuctionStatusUnspecified:
 		return pb.Auction_STATUS_UNSPECIFIED
 	case core.AuctionStatusQueued:
 		return pb.Auction_STATUS_QUEUED
@@ -36,6 +38,7 @@ func AuctionStatusToPb(s core.AuctionStatus) pb.Auction_Status {
 	}
 }
 
+// AuctionBidsToPb returns a map of pb.Auction_bid from a map of auctioneer.Bid.
 func AuctionBidsToPb(bids map[string]core.Bid) map[string]*pb.Auction_Bid {
 	pbbids := make(map[string]*pb.Auction_Bid)
 	for k, v := range bids {

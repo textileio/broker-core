@@ -29,6 +29,7 @@ type Credentials struct {
 	Secure bool
 }
 
+// GetRequestMetadata gets the current request metadata.
 func (c Credentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
 	md := map[string]string{}
 	// // token, ok := TokenFromContext(ctx)
@@ -37,6 +38,9 @@ func (c Credentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[s
 	// }
 	return md, nil
 }
+
+// RequireTransportSecurity indicates whether the credentials requires
+// transport security.
 func (c Credentials) RequireTransportSecurity() bool {
 	return c.Secure
 }
