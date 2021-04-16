@@ -114,5 +114,5 @@ type BrokerRequestGroup struct {
 // DataPreparationResult is the result of preparing a StorageDeal.
 type DataPreparationResult struct {
 	PieceSize uint64
-	CommP     cid.Cid
+	PieceCid  cid.Cid
 }

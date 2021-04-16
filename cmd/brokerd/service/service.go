@@ -88,6 +88,7 @@ func New(config Config) (*Service, error) {
 	// TODO: this line will go away soon, now it's just needed for emmbeding a packer
 	// in broked binary.
 	packer.SetBroker(broker)
+	piecer.SetBroker(broker)
 
 	s := &Service{
 		config: config,

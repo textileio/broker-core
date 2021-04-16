@@ -7,6 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/golang/protobuf v1.5.2
+	github.com/dustin/go-humanize v1.0.0
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
 	github.com/google/uuid v1.2.0

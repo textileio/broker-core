@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	commP "github.com/filecoin-project/go-fil-commp-hashhash"
 	"github.com/ipfs/go-car"
@@ -163,7 +164,7 @@ func (p *Piecer) prepare(ctx context.Context, psd pendingStorageDeal) error {
 
 		dpr = broker.DataPreparationResult{
 			PieceSize: ps,
-			CommP:     pcid,
+			PieceCid:  pcid,
 		}
 	}()
 	wg.Wait()
@@ -171,6 +172,7 @@ func (p *Piecer) prepare(ctx context.Context, psd pendingStorageDeal) error {
 		return fmt.Errorf("write car err: %s, commP err: %s", errCarGen, errCommP)
 	}
 
+	log.Debugf("piece-size: %s, piece-cid: %s", humanize.IBytes(dpr.PieceSize), dpr.PieceCid)
 	log.Debugf("preparation of storage deal %s took %.2f seconds", psd.id, time.Since(start).Seconds())
 
 	if err := p.broker.StorageDealPrepared(ctx, psd.id, dpr); err != nil {
