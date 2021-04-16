@@ -54,10 +54,19 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metada
 
 // Get gets a broker request from its ID.
 func (c *Client) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	return broker.BrokerRequest{
-		ID:     id,
-		Status: broker.RequestUnknown,
-	}, nil
+	req := &pb.GetBrokerRequestRequest{
+		Id: string(id),
+	}
+	res, err := c.c.GetBrokerRequest(ctx, req)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("calling get broker api: %s", err)
+	}
+	br, err := cast.FromProtoBrokerRequest(res.BrokerRequest)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("converting broker request response: %s", err)
+	}
+
+	return br, nil
 }
 
 func (c *Client) Close() error {
