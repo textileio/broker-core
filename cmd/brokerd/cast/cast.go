@@ -1,4 +1,4 @@
-package v1
+package cast
 
 import (
 	"fmt"
@@ -17,17 +17,17 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 
 	var status broker.BrokerRequestStatus
 	switch brproto.Status {
-	case pb.BrokerRequestStatus_UNSPECIFIED:
+	case pb.BrokerRequest_UNSPECIFIED:
 		status = broker.RequestUnknown
-	case pb.BrokerRequestStatus_BATCHING:
+	case pb.BrokerRequest_BATCHING:
 		status = broker.RequestBatching
-	case pb.BrokerRequestStatus_PREPARING:
+	case pb.BrokerRequest_PREPARING:
 		status = broker.RequestPreparing
-	case pb.BrokerRequestStatus_AUCTIONING:
+	case pb.BrokerRequest_AUCTIONING:
 		status = broker.RequestAuctioning
-	case pb.BrokerRequestStatus_DEALMAKING:
+	case pb.BrokerRequest_DEALMAKING:
 		status = broker.RequestDealMaking
-	case pb.BrokerRequestStatus_SUCCESS:
+	case pb.BrokerRequest_SUCCESS:
 		status = broker.BrokerRequestSuccess
 	default:
 		return broker.BrokerRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)

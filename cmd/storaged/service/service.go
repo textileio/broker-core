@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/storaged/httpapi"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/brokerauth"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/texbroker"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader/ipfsuploader"
+	"github.com/textileio/broker-core/util"
 )
 
 // Config provides configuration parameters for a service.
@@ -63,7 +65,12 @@ func createStorage(config Config) (storage.Requester, error) {
 		return nil, fmt.Errorf("creating broker uploader: %s", err)
 	}
 
-	brok, err := texbroker.New(config.BrokerAPIAddr)
+	brokerdClient, err := client.New(config.BrokerAPIAddr, util.GetClientRPCOpts(config.BrokerAPIAddr)...)
+	if err != nil {
+		return nil, fmt.Errorf("creating brokerd gRPC client: %s", err)
+	}
+
+	brok, err := texbroker.New(brokerdClient)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker service: %s", err)
 	}

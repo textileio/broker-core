@@ -6,12 +6,10 @@ import "google/protobuf/timestamp.proto";
 
 message CreateBrokerRequestRequest {
   string cid = 1;
-  BrokerRequestMetadata meta = 2;
+  BrokerRequest.Metadata meta = 2;
 }
 
-message BrokerRequestMetadata {
-    string region = 1;
-}
+
 
 message CreateBrokerRequestResponse {
   BrokerRequest request = 1;
@@ -30,23 +28,26 @@ message GetBrokerRequestResponse {
 message BrokerRequest {
   string id = 1;
   string data_cid = 2;
-  BrokerRequestStatus status = 3;
-  BrokerRequestMetadata meta = 4;
+  Status status = 3;
+  Metadata meta = 4;
   string storage_deal_id = 5;
   google.protobuf.Timestamp created_at = 6; 
   google.protobuf.Timestamp updated_at = 7; 
-}
 
+  enum Status {
+    UNSPECIFIED = 0;
+    BATCHING = 1;
+    PREPARING = 2;
+    AUCTIONING = 3;
+    DEALMAKING = 4;
+    SUCCESS = 5;
+  }
 
-enum BrokerRequestStatus {
-  UNSPECIFIED = 0;
-  BATCHING = 1;
-  PREPARING = 2;
-  AUCTIONING = 3;
-  DEALMAKING = 4;
-  SUCCESS = 5;
+  message Metadata {
+    string region = 1;
+  }
 }
-  
+ 
 service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
   rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}

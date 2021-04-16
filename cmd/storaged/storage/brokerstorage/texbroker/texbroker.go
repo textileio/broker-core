@@ -7,10 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
-	pb "github.com/textileio/broker-core/gen/broker/v1"
-	v1 "github.com/textileio/broker-core/proto/broker/v1"
-	"github.com/textileio/broker-core/util"
-	"google.golang.org/grpc"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 )
 
 var (
@@ -19,21 +16,15 @@ var (
 
 // TexBroker provides an interface with the Broker subsystem.
 type TexBroker struct {
-	c    pb.APIServiceClient
-	conn *grpc.ClientConn
+	c *client.Client
 }
 
 var _ broker.BrokerRequestor = (*TexBroker)(nil)
 
 // New returns a new TexBroker.
-func New(brokerAPIAddr string) (*TexBroker, error) {
-	conn, err := grpc.Dial(brokerAPIAddr, util.GetClientRPCOpts(brokerAPIAddr)...)
-	if err != nil {
-		return nil, err
-	}
+func New(c *client.Client) (*TexBroker, error) {
 	b := &TexBroker{
-		c:    pb.NewAPIServiceClient(conn),
-		conn: conn,
+		c: c,
 	}
 
 	return b, nil
@@ -43,36 +34,18 @@ func New(brokerAPIAddr string) (*TexBroker, error) {
 func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
 	log.Debugf("creating broker request for cid %s", c)
 
-	req := &pb.CreateBrokerRequestRequest{
-		Cid: c.String(),
-		Meta: &pb.BrokerRequestMetadata{
-			Region: meta.Region,
-		},
-	}
-	res, err := tb.c.CreateBrokerRequest(ctx, req)
+	br, err := tb.c.Create(ctx, c, meta)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
+		return broker.BrokerRequest{}, fmt.Errorf("calling create api: %s", err)
 	}
-
-	br, err := v1.FromProtoBrokerRequest(res.Request)
-	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
-	}
-
 	return br, nil
 }
 
 // Get gets a broker request from its ID.
 func (tb *TexBroker) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	return broker.BrokerRequest{
-		ID:     id,
-		Status: broker.RequestUnknown,
-	}, nil
-}
-
-func (tb *TexBroker) Close() error {
-	if err := tb.conn.Close(); err != nil {
-		return fmt.Errorf("closing gRPC client: %s", err)
+	br, err := tb.Get(ctx, id)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("calling get api: %s", err)
 	}
-	return nil
+	return br, nil
 }

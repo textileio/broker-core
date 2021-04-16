@@ -193,20 +193,20 @@ func (s *Service) Close() error {
 }
 
 func castBrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
-	var pbStatus pb.BrokerRequestStatus
+	var pbStatus pb.BrokerRequest_Status
 	switch br.Status {
 	case broker.RequestUnknown:
-		pbStatus = pb.BrokerRequestStatus_UNSPECIFIED
+		pbStatus = pb.BrokerRequest_UNSPECIFIED
 	case broker.RequestBatching:
-		pbStatus = pb.BrokerRequestStatus_BATCHING
+		pbStatus = pb.BrokerRequest_BATCHING
 	case broker.RequestPreparing:
-		pbStatus = pb.BrokerRequestStatus_PREPARING
+		pbStatus = pb.BrokerRequest_PREPARING
 	case broker.RequestAuctioning:
-		pbStatus = pb.BrokerRequestStatus_AUCTIONING
+		pbStatus = pb.BrokerRequest_AUCTIONING
 	case broker.RequestDealMaking:
-		pbStatus = pb.BrokerRequestStatus_DEALMAKING
+		pbStatus = pb.BrokerRequest_DEALMAKING
 	case broker.BrokerRequestSuccess:
-		pbStatus = pb.BrokerRequestStatus_SUCCESS
+		pbStatus = pb.BrokerRequest_SUCCESS
 	default:
 		return nil, fmt.Errorf("unknown status: %d", br.Status)
 
@@ -216,7 +216,7 @@ func castBrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error
 		Id:      string(br.ID),
 		DataCid: br.DataCid.String(),
 		Status:  pbStatus,
-		Meta: &pb.BrokerRequestMetadata{
+		Meta: &pb.BrokerRequest_Metadata{
 			Region: br.Metadata.Region,
 		},
 		StorageDealId: string(br.StorageDealID),
