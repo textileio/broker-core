@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"time"
 
@@ -51,7 +50,6 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(c *cobra.Command, args []string) {
-		util.CheckErr(fmt.Errorf("asdfdasf"))
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
 		util.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
