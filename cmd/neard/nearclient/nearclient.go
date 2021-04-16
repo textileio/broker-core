@@ -16,47 +16,56 @@ type queryRequest struct {
 	PrefixBase64 string `json:"prefix_base64"`
 }
 
+// Value models a state key-value pair.
 type Value struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
+// ViewStateResponse is the response when calling ViewState.
 type ViewStateResponse struct {
 	Values      []Value `json:"values"`
 	BlockHash   string  `json:"block_hash"`
 	BlockHeight int     `json:"block_height"`
 }
 
+// Client communicates with the NEAR API.
 type Client struct {
 	rpcClient *rpc.Client
 }
 
+// NewClient creates a new Client.
 func NewClient(rpcClient *rpc.Client) (*Client, error) {
 	return &Client{
 		rpcClient: rpcClient,
 	}, nil
 }
 
+// ViewStateOption controls the behavior when calling ViewState.
 type ViewStateOption func(*queryRequest)
 
+// WithFinality specifies the finality to be used when querying the state.
 func WithFinality(finalaity string) ViewStateOption {
 	return func(qr *queryRequest) {
 		qr.Finality = finalaity
 	}
 }
 
+// WithBlockID specifies the block id to query the state for.
 func WithBlockID(blockID string) ViewStateOption {
 	return func(qr *queryRequest) {
 		qr.BlockID = blockID
 	}
 }
 
+// WithPrefix specifies the state key prefix to query for.
 func WithPrefix(prefix string) ViewStateOption {
 	return func(qr *queryRequest) {
 		qr.PrefixBase64 = base64.StdEncoding.EncodeToString([]byte(prefix))
 	}
 }
 
+// ViewState queries the contract state.
 func (c *Client) ViewState(ctx context.Context, accountID string, opts ...ViewStateOption) (*ViewStateResponse, error) {
 	req := &queryRequest{
 		RequestType: "view_state",

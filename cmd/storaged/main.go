@@ -3,10 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"time"
 
 	_ "net/http/pprof"
 
@@ -14,9 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/storaged/service"
-	"github.com/textileio/broker-core/util"
-	"go.opentelemetry.io/contrib/instrumentation/runtime"
-	"go.opentelemetry.io/otel/exporters/metric/prometheus"
+	"github.com/textileio/broker-core/cmd/util"
 )
 
 var (
@@ -48,10 +42,10 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
-		checkErr(err)
+		util.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := setupInstrumentation(v.GetString("metrics.addr")); err != nil {
+		if err := util.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
@@ -60,12 +54,12 @@ var rootCmd = &cobra.Command{
 			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
-		checkErr(err)
+		util.CheckErr(err)
 
 		log.Info("Listening to requests...")
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, os.Interrupt)
-		<-quit
+
+		util.WaitForTerminateSignal()
+
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 		if err := serv.Close(); err != nil {
 			log.Errorf("closing http endpoint: %s", err)
@@ -74,30 +68,5 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	checkErr(rootCmd.Execute())
-}
-
-func setupInstrumentation(prometheusAddr string) error {
-	exporter, err := prometheus.InstallNewPipeline(prometheus.Config{
-		DefaultHistogramBoundaries: []float64{1e-3, 1e-2, 1e-1, 1},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize prometheus exporter %v", err)
-	}
-	http.HandleFunc("/metrics", exporter.ServeHTTP)
-	go func() {
-		_ = http.ListenAndServe(prometheusAddr, nil)
-	}()
-
-	if err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
-		return fmt.Errorf("starting Go runtime metrics: %s", err)
-	}
-
-	return nil
-}
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
+	util.CheckErr(rootCmd.Execute())
 }

@@ -11,23 +11,27 @@ import (
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 )
 
+// LockInfo models user locked funds.
 type LockInfo struct {
 	Deposit   *big.Int
 	Sender    string
 	AccountID string
 }
 
+// State models the lock box contract state.
 type State struct {
 	LockedFunds map[string]LockInfo
 	BlockHash   string
 	BlockHeight int
 }
 
+// Client communicates with the lock box contract API.
 type Client struct {
 	nc        *nearclient.Client
 	accountID string
 }
 
+// NewClient creates a new Client.
 func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
 	return &Client{
 		nc:        nc,
@@ -35,6 +39,7 @@ func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
 	}, nil
 }
 
+// GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
 	res, err := c.nc.ViewState(ctx, c.accountID, nearclient.WithFinality("final"))
 	if err != nil {

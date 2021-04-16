@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	_ "net/http/pprof"
 
@@ -31,10 +30,7 @@ var flags = []util.Flag{
 }
 
 func init() {
-	v.SetEnvPrefix("BROKER")
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	util.BindFlags(flags, rootCmd, v)
+	util.ConfigureCLI(v, "BROKER", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
@@ -67,7 +63,7 @@ var rootCmd = &cobra.Command{
 
 		log.Info("Listening to requests...")
 
-		util.WaitUntilTerminated()
+		util.WaitForTerminateSignal()
 
 		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 		if err := serv.Close(); err != nil {

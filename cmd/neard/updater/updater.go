@@ -12,16 +12,19 @@ var (
 	log = logging.Logger("updater")
 )
 
+// UpdateDelegate describes an object that can be called back with a state update.
 type UpdateDelegate interface {
 	HandleStateUpdate(*lockboxclient.State)
 }
 
+// Updater updates the lock box state to the delegate.
 type Updater struct {
 	config  Config
 	mainCtx context.Context
 	cancel  context.CancelFunc
 }
 
+// Config holds the configuration for creating a new Updater.
 type Config struct {
 	Lbc             *lockboxclient.Client
 	UpdateFrequency time.Duration
@@ -29,6 +32,7 @@ type Config struct {
 	Delegate        UpdateDelegate
 }
 
+// NewUpdater creates a new Updater.
 func NewUpdater(config Config) *Updater {
 	ctx, cancel := context.WithCancel(context.Background())
 	u := &Updater{
@@ -40,6 +44,7 @@ func NewUpdater(config Config) *Updater {
 	return u
 }
 
+// Close closes the update, canceling all current work.
 func (u *Updater) Close() error {
 	u.cancel()
 	return nil

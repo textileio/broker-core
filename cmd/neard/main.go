@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -26,21 +26,18 @@ var (
 )
 
 var flags = []util.Flag{
-	{Name: "listen-addr", DefValue: ":5000", Description: "The host and port the gRPC service should listen on."},
-	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus endpoint"},
-	{Name: "endpoint-url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
-	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
-	{Name: "account-id", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box smart contract."},
-	{Name: "update-frequency", DefValue: time.Second * 5, Description: "How often to query the smart contract state."},
-	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
+	{Name: "listen.addr", DefValue: ":5000", Description: "The host and port the gRPC service should listen on."},
+	{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
+	{Name: "endpoint.url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
+	{Name: "endpoint.timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
+	{Name: "account.id", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box smart contract."},
+	{Name: "update.frequency", DefValue: time.Second * 5, Description: "How often to query the smart contract state."},
+	{Name: "request.timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
 	{Name: "debug", DefValue: false, Description: "Enable debug level logs."},
 }
 
 func init() {
-	v.SetEnvPrefix("NEAR")
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	util.BindFlags(flags, rootCmd, v)
+	util.ConfigureCLI(v, "NEAR", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
@@ -54,17 +51,18 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(c *cobra.Command, args []string) {
+		util.CheckErr(fmt.Errorf("asdfdasf"))
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
 		util.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		listenAddr := v.GetString("listen-addr")
-		metricsAddr := v.GetString("metrics-addr")
-		endpointURL := v.GetString("endpoint-url")
-		endpointTimeout := v.GetDuration("endpoint-timeout")
-		accountID := v.GetString("account-id")
-		updateFrequency := v.GetDuration("update-frequency")
-		requestTimeout := v.GetDuration("request-timeout")
+		listenAddr := v.GetString("listen.addr")
+		metricsAddr := v.GetString("metrics.addr")
+		endpointURL := v.GetString("endpoint.url")
+		endpointTimeout := v.GetDuration("endpoint.timeout")
+		accountID := v.GetString("account.id")
+		updateFrequency := v.GetDuration("update.frequency")
+		requestTimeout := v.GetDuration("request.timeout")
 
 		if err := util.SetupInstrumentation(metricsAddr); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
@@ -99,7 +97,7 @@ var rootCmd = &cobra.Command{
 		service, err := service.NewService(listener, sc)
 		util.CheckErr(err)
 
-		util.WaitUntilTerminated()
+		util.WaitForTerminateSignal()
 
 		util.CheckErr(u.Close())
 		rpcClient.Close()
