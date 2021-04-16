@@ -36,7 +36,7 @@ func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 
 // Create creates a new BrokerRequest.
 func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
-	log.Debugf("creating broker request for cid %s", c)
+	log.Debugf("creating broker request for cid %s", dataCid)
 
 	req := &pb.CreateBrokerRequestRequest{
 		Cid: dataCid.String(),

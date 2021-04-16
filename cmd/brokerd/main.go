@@ -25,6 +25,7 @@ func init() {
 		{Name: "grpc.listen.addr", DefValue: ":5000", Description: "gRPC API listen address"},
 		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "ipfs.multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
@@ -59,6 +60,8 @@ var rootCmd = &cobra.Command{
 
 			MongoURI:    v.GetString("mongo.uri"),
 			MongoDBName: v.GetString("mongo.dbname"),
+
+			IpfsMultiaddr: v.GetString("ipfs.multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

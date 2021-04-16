@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	httpapi "github.com/ipfs/go-ipfs-http-client"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logger "github.com/ipfs/go-log/v2"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/textileio/broker-core/broker"
 	packeri "github.com/textileio/broker-core/packer"
@@ -40,6 +42,7 @@ type Packer struct {
 	queue []broker.BrokerRequest
 
 	broker broker.Broker
+	ipfs   *httpapi.HttpApi
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -50,9 +53,19 @@ type Packer struct {
 var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
-func New() (*Packer, error) {
+func New(ipfsAPIMultiaddr string) (*Packer, error) {
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing ipfs client multiaddress: %s", err)
+	}
+	client, err := httpapi.NewApi(ma)
+	if err != nil {
+		return nil, fmt.Errorf("creating ipfs client: %s", err)
+	}
+
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
+		ipfs:            client,
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
@@ -129,6 +142,10 @@ func (p *Packer) pack(ctx context.Context) error {
 	n, err := cbornode.WrapObject(cidArray, multihash.SHA2_256, -1)
 	if err != nil {
 		return fmt.Errorf("marshaling cbor array: %s", err)
+	}
+
+	if err := p.ipfs.Dag().Add(ctx, n); err != nil {
+		return fmt.Errorf("adding root node of batch to ipfs: %s", err)
 	}
 
 	srg := broker.BrokerRequestGroup{

@@ -36,6 +36,8 @@ type Config struct {
 
 	MongoDBName string
 	MongoURI    string
+
+	IpfsMultiaddr string
 }
 
 // Service provides an implementation of the broker API.
@@ -63,7 +65,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating datastore: %s", err)
 	}
 
-	packer, err := packeri.New()
+	packer, err := packeri.New(config.IpfsMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
