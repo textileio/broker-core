@@ -3,6 +3,9 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
+	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
+	github.com/ethereum/go-ethereum v1.10.2
+	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hsanjuan/ipfs-lite v0.1.20
@@ -24,9 +27,9 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/go-ds-mongo v0.1.4
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
+	github.com/textileio/go-ds-mongo v0.1.4
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.19.0
 	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0
@@ -38,3 +41,5 @@ require (
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
 )
+
+replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1

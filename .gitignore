@@ -17,6 +17,4 @@
 
 # Project
 .env
-buildtools/protoc
-buildtools/protoc-gen-go
 build/
