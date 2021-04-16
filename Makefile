@@ -26,21 +26,17 @@ build-neard:
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/neard
 .PHONY: build-neard
 
+build-auctioneerd:
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
+.PHONY: build-auctioneerd
+
+build-minerd:
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
+.PHONY: build-minerd
+
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
-
-install-storaged:
-	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/storaged
-.PHONY: install-storaged
-
-install-authd:
-	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/authd
-.PHONY: install-authd
-
-install-neard:
-	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/neard
-.PHONY: install-neard
 
 define gen_release_files
 	$(GOX) -osarch=$(3) -output="build/$(2)/$(2)_${BIN_VERSION}_{{.OS}}-{{.Arch}}/$(2)" -ldflags="${GOVVV_FLAGS}" $(1)

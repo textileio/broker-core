@@ -20,12 +20,14 @@ import (
 
 var log = golog.Logger("auctioneer/service")
 
+// Config defines params for Service configuration.
 type Config struct {
 	RepoPath   string
 	ListenAddr string
 	Peer       marketpeer.Config
 }
 
+// Service is a gRPC service wrapper around an Auctioneer.
 type Service struct {
 	pb.UnimplementedAPIServiceServer
 
@@ -36,6 +38,7 @@ type Service struct {
 
 var _ pb.APIServiceServer = (*Service)(nil)
 
+// New returns a new Service.
 func New(conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
@@ -79,20 +82,25 @@ func New(conf Config) (*Service, error) {
 	return s, nil
 }
 
+// Close the service.
 func (s *Service) Close() error {
 	rpc.StopServer(s.server)
 	log.Info("service was shutdown")
 	return s.finalizer.Cleanup(nil)
 }
 
+// Bootstrap the market peer against well-known network peers.
 func (s *Service) Bootstrap() {
 	s.lib.Bootstrap()
 }
 
+// EnableMDNS enables an MDNS discovery service.
+// This is useful on a local network (testing).
 func (s *Service) EnableMDNS(intervalSecs int) error {
 	return s.lib.EnableMDNS(intervalSecs)
 }
 
+// CreateAuction creates a new auction.
 func (s *Service) CreateAuction(_ context.Context, _ *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
 	id, err := s.lib.CreateAuction()
 	if err != nil {
@@ -103,6 +111,7 @@ func (s *Service) CreateAuction(_ context.Context, _ *pb.CreateAuctionRequest) (
 	}, nil
 }
 
+// GetAuction gets an auction by id.
 func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.GetAuctionResponse, error) {
 	a, err := s.lib.GetAuction(req.Id)
 	if err != nil {

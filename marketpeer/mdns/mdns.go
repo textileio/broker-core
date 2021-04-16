@@ -15,7 +15,8 @@ var log = golog.Logger("mpeer/mdns")
 
 const connTimeout = time.Second * 10
 
-func New(ctx context.Context, host host.Host, intervalSecs int) error {
+// Start the MDNS discovery.
+func Start(ctx context.Context, host host.Host, intervalSecs int) error {
 	if intervalSecs <= 0 {
 		intervalSecs = 5
 	}
@@ -36,6 +37,7 @@ type handler struct {
 	host host.Host
 }
 
+// HandlePeerFound tries to connect to the discovered peer.
 func (h *handler) HandlePeerFound(p peer.AddrInfo) {
 	log.Infof("connecting to discovered peer: %s", p.ID)
 	ctx, cancel := context.WithTimeout(h.ctx, connTimeout)
