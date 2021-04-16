@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
-	"github.com/textileio/broker-core/auctioner"
+	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/srstore"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -29,10 +29,10 @@ var (
 // Broker creates and tracks request to store Cids in
 // the Filecoin network.
 type Broker struct {
-	store     *srstore.Store
-	packer    packer.Packer
-	piecer    piecer.Piecer
-	auctioner auctioner.Auctioner
+	store      *srstore.Store
+	packer     packer.Packer
+	piecer     piecer.Piecer
+	auctioneer auctioneer.Auctioneer
 }
 
 // New creates a Broker backed by the provdied `ds`.
@@ -40,7 +40,7 @@ func New(
 	ds datastore.TxnDatastore,
 	packer packer.Packer,
 	piecer piecer.Piecer,
-	auctioner auctioner.Auctioner,
+	auctioneer auctioneer.Auctioneer,
 ) (*Broker, error) {
 	store, err := srstore.New(txndswrap.Wrap(ds, "/broker-store"))
 	if err != nil {
@@ -48,10 +48,10 @@ func New(
 	}
 
 	b := &Broker{
-		store:     store,
-		packer:    packer,
-		piecer:    piecer,
-		auctioner: auctioner,
+		store:      store,
+		packer:     packer,
+		piecer:     piecer,
+		auctioneer: auctioneer,
 	}
 	return b, nil
 }
@@ -161,10 +161,10 @@ func (b *Broker) StorageDealPrepared(
 	// @jsign: I'll do this tomorrow.
 	var sd broker.StorageDeal // assume this variable will exist...
 
-	// Signal the Auctioner to create an auction. It will eventually call WinningBids(..) to tell
+	// Signal the Auctioneer to create an auction. It will eventually call WinningBids(..) to tell
 	// us about who won things.
-	if err := b.auctioner.ReadyToAuction(ctx, sd); err != nil {
-		return fmt.Errorf("signaling auctioner to create auction: %s", err)
+	if err := b.auctioneer.ReadyToAuction(ctx, sd); err != nil {
+		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
 
 	return nil

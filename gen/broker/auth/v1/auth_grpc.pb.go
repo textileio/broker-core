@@ -18,12 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type APIServiceClient interface {
-<<<<<<< HEAD:gen/broker/auth/v1/auth_grpc.pb.go
 	Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error)
-=======
-	CreateAuction(ctx context.Context, in *CreateAuctionRequest, opts ...grpc.CallOption) (*CreateAuctionResponse, error)
-	GetAuction(ctx context.Context, in *GetAuctionRequest, opts ...grpc.CallOption) (*GetAuctionResponse, error)
->>>>>>> auctioneer: implements auction flow between auctioneer and miners:cmd/auctioneerd/pb/auctioneer_grpc.pb.go
 }
 
 type aPIServiceClient struct {
@@ -43,25 +38,11 @@ func (c *aPIServiceClient) Auth(ctx context.Context, in *AuthRequest, opts ...gr
 	return out, nil
 }
 
-func (c *aPIServiceClient) GetAuction(ctx context.Context, in *GetAuctionRequest, opts ...grpc.CallOption) (*GetAuctionResponse, error) {
-	out := new(GetAuctionResponse)
-	err := c.cc.Invoke(ctx, "/cmd.auctioneerd.pb.APIService/GetAuction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // APIServiceServer is the server API for APIService service.
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
 type APIServiceServer interface {
-<<<<<<< HEAD:gen/broker/auth/v1/auth_grpc.pb.go
 	Auth(context.Context, *AuthRequest) (*AuthResponse, error)
-=======
-	CreateAuction(context.Context, *CreateAuctionRequest) (*CreateAuctionResponse, error)
-	GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error)
->>>>>>> auctioneer: implements auction flow between auctioneer and miners:cmd/auctioneerd/pb/auctioneer_grpc.pb.go
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -71,9 +52,6 @@ type UnimplementedAPIServiceServer struct {
 
 func (UnimplementedAPIServiceServer) Auth(context.Context, *AuthRequest) (*AuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Auth not implemented")
-}
-func (UnimplementedAPIServiceServer) GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAuction not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -106,43 +84,16 @@ func _APIService_Auth_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
-<<<<<<< HEAD:gen/broker/auth/v1/auth_grpc.pb.go
 // APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var APIService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "broker.auth.v1.APIService",
-=======
-func _APIService_GetAuction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAuctionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(APIServiceServer).GetAuction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/cmd.auctioneerd.pb.APIService/GetAuction",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).GetAuction(ctx, req.(*GetAuctionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _APIService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "cmd.auctioneerd.pb.APIService",
->>>>>>> auctioneer: implements auction flow between auctioneer and miners:cmd/auctioneerd/pb/auctioneer_grpc.pb.go
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "Auth",
 			Handler:    _APIService_Auth_Handler,
-		},
-		{
-			MethodName: "GetAuction",
-			Handler:    _APIService_GetAuction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

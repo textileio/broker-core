@@ -2,22 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"strings"
-	"time"
-
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/marketpeer"
-	"go.opentelemetry.io/contrib/instrumentation/runtime"
-	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
 
 var (
@@ -26,54 +18,22 @@ var (
 	v          = viper.New()
 )
 
-var flags = []struct {
-	name        string
-	defValue    interface{}
-	description string
-}{
-	{
-		name:        "repo",
-		defValue:    ".auctioneer",
-		description: "Repo path",
-	},
-	{
-		name:        "rpc.addr",
-		defValue:    ":5000",
-		description: "gRPC listen address",
-	},
-	{
-		name:        "host.multiaddr",
-		defValue:    "/ip4/0.0.0.0/tcp/4001",
-		description: "Libp2p host listen multiaddr",
-	},
-	{
-		name:        "metrics.addr",
-		defValue:    ":9090",
-		description: "Prometheus listen address",
-	},
-}
-
 func init() {
-	v.SetEnvPrefix("AUCTIONEER")
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	for _, flag := range flags {
-		switch defval := flag.defValue.(type) {
-		case string:
-			rootCmd.Flags().String(flag.name, defval, flag.description)
-			_ = v.BindPFlag(flag.name, rootCmd.Flags().Lookup(flag.name))
-			v.SetDefault(flag.name, defval)
-		default:
-			log.Fatalf("unkown flag type: %T", flag)
-		}
+	flags := []common.Flag{
+		{Name: "repo", DefValue: ".auctioneer", Description: "Repo path"},
+		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "host.multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
+
+	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "todo",
-	Long:  `todo`,
+	Short: "auctioneerd handles deal auctions for the Broker",
+	Long:  "auctioneerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
@@ -82,10 +42,10 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
-		checkErr(err)
+		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := setupInstrumentation(v.GetString("metrics.addr")); err != nil {
+		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
@@ -98,43 +58,16 @@ var rootCmd = &cobra.Command{
 			},
 		}
 		serv, err := service.New(config)
-		checkErr(err)
+		common.CheckErr(err)
 
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, os.Interrupt)
-		<-quit
-		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
-		if err := serv.Close(); err != nil {
-			log.Errorf("closing service: %s", err)
-		}
+		common.HandleInterrupt(func() {
+			if err := serv.Close(); err != nil {
+				log.Errorf("closing service: %s", err)
+			}
+		})
 	},
 }
 
 func main() {
-	checkErr(rootCmd.Execute())
-}
-
-func setupInstrumentation(prometheusAddr string) error {
-	exporter, err := prometheus.InstallNewPipeline(prometheus.Config{
-		DefaultHistogramBoundaries: []float64{1e-3, 1e-2, 1e-1, 1},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize prometheus exporter %v", err)
-	}
-	http.HandleFunc("/metrics", exporter.ServeHTTP)
-	go func() {
-		_ = http.ListenAndServe(prometheusAddr, nil)
-	}()
-
-	if err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
-		return fmt.Errorf("starting Go runtime metrics: %s", err)
-	}
-
-	return nil
-}
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
+	common.CheckErr(rootCmd.Execute())
 }

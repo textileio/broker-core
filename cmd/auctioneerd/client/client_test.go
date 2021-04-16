@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
-	"github.com/textileio/broker-core/cmd/auctioneerd/pb"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
-	miners "github.com/textileio/broker-core/cmd/dealsd/service"
+	minersrv "github.com/textileio/broker-core/cmd/minerd/service"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/rpc"
@@ -25,7 +25,7 @@ func init() {
 		"auctioneer":         golog.LevelDebug,
 		"auctioneer/queue":   golog.LevelDebug,
 		"auctioneer/service": golog.LevelDebug,
-		"deals/service":      golog.LevelDebug,
+		"miner/service":      golog.LevelDebug,
 		"mpeer":              golog.LevelDebug,
 	}); err != nil {
 		panic(err)
@@ -62,12 +62,12 @@ func TestClient_RunAuction(t *testing.T) {
 	c := newClient(t)
 	addMiners(t, 10)
 
-	time.Sleep(time.Second * 5) // Allow peers to boot
+	time.Sleep(time.Second) // Allow peers to boot
 
 	res, err := c.CreateAuction(context.Background())
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 10) // Allow to finish
+	time.Sleep(time.Second * 11) // Allow to finish
 
 	got, err := c.GetAuction(context.Background(), res.Id)
 	require.NoError(t, err)
@@ -117,13 +117,13 @@ func addMiners(t *testing.T, n int) {
 		dir, err := ioutil.TempDir("", "")
 		require.NoError(t, err)
 
-		config := miners.Config{
+		config := minersrv.Config{
 			RepoPath: dir,
 			Peer: marketpeer.Config{
 				RepoPath: dir,
 			},
 		}
-		s, err := miners.New(config)
+		s, err := minersrv.New(config)
 		require.NoError(t, err)
 		err = s.EnableMDNS(1)
 		require.NoError(t, err)

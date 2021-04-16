@@ -9,13 +9,13 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/message/pb"
 	"github.com/textileio/broker-core/finalizer"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
 	"google.golang.org/protobuf/proto"
 )
 
-var log = golog.Logger("deals/service")
+var log = golog.Logger("miner/service")
 
 type Config struct {
 	RepoPath string

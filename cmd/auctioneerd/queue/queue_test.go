@@ -87,19 +87,14 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	a, err := q.CreateAuction(time.Second)
+	a, err := q.CreateAuction(time.Millisecond)
 	require.NoError(t, err)
-	assert.Equal(t, core.AuctionStatusNew, a.Status)
+	assert.Equal(t, core.AuctionStatusStarted, a.Status)
 
-	// Should start shortly
-	time.Sleep(time.Millisecond * 10)
+	// Allow to finish
+	time.Sleep(time.Millisecond * 200)
+
 	got, err := q.GetAuction(a.ID)
-	require.NoError(t, err)
-	assert.Equal(t, core.AuctionStatusStarted, got.Status)
-
-	// Allow to close
-	time.Sleep(time.Millisecond * 100)
-	got, err = q.GetAuction(a.ID)
 	require.NoError(t, err)
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 }

@@ -1,6 +1,6 @@
 syntax = "proto3";
-package cmd.auctioneerd.pb;
-option go_package = "github.com/textileio/broker-core/cmd/auctioneerd/pb";
+package broker.auctioneer.v1;
+option go_package = "github.com/textileio/broker-core/broker/auctioneer/v1;auctioneer";
 
 import "google/protobuf/timestamp.proto";
 

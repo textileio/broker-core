@@ -2,7 +2,7 @@ package cast
 
 import (
 	core "github.com/textileio/broker-core/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/pb"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

@@ -9,9 +9,9 @@ COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
-  CGO_ENABLED=0 GOOS=linux make build-dealsd
+  CGO_ENABLED=0 GOOS=linux make build-minerd
 
 FROM alpine
-COPY --from=builder /app/dealsd /app/dealsd
-WORKDIR /app 
-ENTRYPOINT ["./dealsd"]
+COPY --from=builder /app/minerd /app/minerd
+WORKDIR /app
+ENTRYPOINT ["./minerd"]

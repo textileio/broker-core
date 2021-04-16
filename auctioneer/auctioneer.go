@@ -67,5 +67,5 @@ type Bid struct {
 }
 
 type Auctioneer interface {
-	Auction(ctx context.Context, deal broker.StorageDeal) error
+	ReadyToAuction(ctx context.Context, sd broker.StorageDeal) error
 }

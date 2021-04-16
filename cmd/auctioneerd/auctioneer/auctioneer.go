@@ -11,9 +11,9 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/message/pb"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/finalizer"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	kt "github.com/textileio/broker-core/keytransform"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/pubsub"
@@ -94,8 +94,6 @@ func (a *Auctioneer) GetAuction(id string) (*core.Auction, error) {
 }
 
 func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) error {
-	log.Debugf("auction %s starting", auction.ID)
-
 	a.lk.Lock()
 	if _, ok := a.bids[auction.ID]; ok {
 		a.lk.Unlock()
@@ -109,6 +107,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 		delete(a.bids, auction.ID)
 		a.lk.Unlock()
 	}()
+	log.Debugf("auction %s started", auction.ID)
 
 	// Subscribe to bids topic.
 	bids, err := a.peer.NewTopic(ctx, core.BidsTopic(auction.ID), true)
