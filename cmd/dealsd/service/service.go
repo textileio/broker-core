@@ -50,7 +50,7 @@ func New(conf Config) (*Service, error) {
 	}
 	fin.Add(auctions)
 	auctions.SetEventHandler(s.eventHandler)
-	auctions.SetMessageHandler(s.winsHandler)
+	auctions.SetMessageHandler(s.auctionsHandler)
 
 	// Subscribe to our own wins topic
 	wins, err := p.NewTopic(ctx, core.WinsTopic(p.Self()), true)
@@ -62,6 +62,8 @@ func New(conf Config) (*Service, error) {
 	wins.SetMessageHandler(s.winsHandler)
 
 	log.Info("service started")
+
+	s.finalizer = fin
 	return s, nil
 }
 
@@ -70,12 +72,20 @@ func (s *Service) Close() error {
 	return s.finalizer.Cleanup(nil)
 }
 
+func (s *Service) Bootstrap() {
+	s.peer.Bootstrap()
+}
+
+func (s *Service) EnableMDNS(intervalSecs int) error {
+	return s.peer.EnableMDNS(intervalSecs)
+}
+
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
 }
 
 func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
-	log.Debugf("%s received message from %s", topic, from)
+	log.Debugf("%s received auction from %s", topic, from)
 
 	auction := &pb.Auction{}
 	if err := proto.Unmarshal(msg, auction); err != nil {
@@ -91,7 +101,7 @@ func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
 }
 
 func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) {
-	log.Debugf("%s received message from %s", topic, from)
+	log.Debugf("%s received win from %s", topic, from)
 
 	win := &pb.Win{}
 	if err := proto.Unmarshal(msg, win); err != nil {

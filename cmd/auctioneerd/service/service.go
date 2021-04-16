@@ -85,6 +85,14 @@ func (s *Service) Close() error {
 	return s.finalizer.Cleanup(nil)
 }
 
+func (s *Service) Bootstrap() {
+	s.lib.Bootstrap()
+}
+
+func (s *Service) EnableMDNS(intervalSecs int) error {
+	return s.lib.EnableMDNS(intervalSecs)
+}
+
 func (s *Service) CreateAuction(_ context.Context, _ *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
 	id, err := s.lib.CreateAuction()
 	if err != nil {

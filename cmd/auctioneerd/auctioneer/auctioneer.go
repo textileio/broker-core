@@ -45,7 +45,7 @@ func New(peer *marketpeer.Peer, store kt.TxnDatastoreExtended) (*Auctioneer, err
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
 
-	a := &Auctioneer{peer: peer}
+	a := &Auctioneer{peer: peer, bids: make(map[string]chan core.Bid)}
 
 	// Create the global auctions topic
 	auctions, err := peer.NewTopic(ctx, core.AuctionTopic, false)
@@ -71,8 +71,16 @@ func (a *Auctioneer) Close() error {
 	return a.finalizer.Cleanup(nil)
 }
 
+func (a *Auctioneer) Bootstrap() {
+	a.peer.Bootstrap()
+}
+
+func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
+	return a.peer.EnableMDNS(intervalSecs)
+}
+
 func (a *Auctioneer) CreateAuction() (string, error) {
-	auction, err := a.queue.CreateAuction()
+	auction, err := a.queue.CreateAuction(AuctionDuration)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
 	}
@@ -111,10 +119,10 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 	bids.SetEventHandler(a.eventHandler)
 	bids.SetMessageHandler(a.bidsHandler)
 
+	// Set deadline
+	deadline := auction.StartedAt.Add(time.Duration(auction.Duration))
+
 	// Publish the auction.
-	deadline := time.Now().Add(AuctionDuration)
-	auction.StartedAt = time.Now()
-	auction.Duration = int64(AuctionDuration)
 	msg, err := proto.Marshal(&pb.Auction{
 		Id:     auction.ID,
 		EndsAt: timestamppb.New(deadline),
@@ -123,6 +131,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 		return fmt.Errorf("publishing auction: %v", err)
 	}
 
+	auction.Bids = make(map[string]core.Bid)
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	for {
@@ -153,7 +162,7 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 }
 
 func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
-	log.Debugf("%s received message from %s", topic, from)
+	log.Debugf("%s received bid from %s", topic, from)
 
 	bid := &pb.Bid{}
 	if err := proto.Unmarshal(msg, bid); err != nil {
@@ -165,14 +174,10 @@ func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
 	defer a.lk.Unlock()
 	ch, ok := a.bids[bid.AuctionId]
 	if ok {
-		select {
-		case ch <- core.Bid{
+		ch <- core.Bid{
 			From:       from,
 			Amount:     bid.Amount,
 			ReceivedAt: time.Now(),
-		}:
-		default:
-			log.Warnf("slow bids receiver for %s", bid.AuctionId)
 		}
 	}
 }

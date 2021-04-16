@@ -13,6 +13,7 @@ func AuctionToPb(a *core.Auction) *pb.Auction {
 		Bids:      AuctionBidsToPb(a.Bids),
 		Winner:    a.Winner,
 		StartedAt: timestamppb.New(a.StartedAt),
+		Duration:  a.Duration,
 		Error:     a.Error,
 	}
 	return pba

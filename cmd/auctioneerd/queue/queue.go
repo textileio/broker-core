@@ -65,7 +65,7 @@ type Queue struct {
 	store kt.TxnDatastoreExtended
 
 	handler Handler
-	jobCh   chan core.Auction
+	jobCh   chan *core.Auction
 	doneCh  chan struct{}
 	entropy *ulid.MonotonicEntropy
 
@@ -81,7 +81,7 @@ func NewQueue(store kt.TxnDatastoreExtended, handler Handler) (*Queue, error) {
 	q := &Queue{
 		store:   store,
 		handler: handler,
-		jobCh:   make(chan core.Auction, MaxConcurrency),
+		jobCh:   make(chan *core.Auction, MaxConcurrency),
 		doneCh:  make(chan struct{}, MaxConcurrency),
 		ctx:     ctx,
 		cancel:  cancel,
@@ -124,19 +124,20 @@ func (q *Queue) NewID(t time.Time) (string, error) {
 
 // CreateAuction adds a new auction to the queue.
 // The new auction will be handled immediately if workers are not busy.
-func (q *Queue) CreateAuction() (*core.Auction, error) {
+func (q *Queue) CreateAuction(duration time.Duration) (*core.Auction, error) {
 	id, err := q.NewID(time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("creating id: %v", err)
 	}
-	a := core.Auction{
-		ID:     id,
-		Status: core.AuctionStatusNew,
+	a := &core.Auction{
+		ID:       id,
+		Status:   core.AuctionStatusNew,
+		Duration: int64(duration),
 	}
 	if err := q.enqueue(a); err != nil {
 		return nil, fmt.Errorf("enqueueing: %v", err)
 	}
-	return &a, nil
+	return a, nil
 }
 
 // GetAuction returns an auction by id.
@@ -249,7 +250,7 @@ func (q *Queue) ListAuctions(query Query) ([]core.Auction, error) {
 	return list, nil
 }
 
-func (q *Queue) enqueue(a core.Auction) error {
+func (q *Queue) enqueue(a *core.Auction) error {
 	// Set the auction to "started"
 	if err := q.setStatus(a, core.AuctionStatusStarted); err != nil {
 		return fmt.Errorf("updating status (started): %v", err)
@@ -284,7 +285,7 @@ func (q *Queue) worker(num int) {
 
 			// Handle the auction with the handler func
 			status := core.AuctionStatusEnded
-			if err := q.handler(q.ctx, &a); err != nil {
+			if err := q.handler(q.ctx, a); err != nil {
 				status = core.AuctionStatusError
 				a.Error = err.Error()
 				log.Errorf("error handling auction: %v", err)
@@ -328,7 +329,7 @@ func (q *Queue) getNext() {
 		return
 	}
 	log.Debug("enqueueing job: %s", a.ID)
-	if err := q.enqueue(*a); err != nil {
+	if err := q.enqueue(a); err != nil {
 		log.Debugf("error enqueueing: %v", err)
 	}
 }
@@ -370,7 +371,7 @@ func (q *Queue) getQueued() (*core.Auction, error) {
 	return a, nil
 }
 
-func (q *Queue) setStatus(a core.Auction, status core.AuctionStatus) error {
+func (q *Queue) setStatus(a *core.Auction, status core.AuctionStatus) error {
 	txn, err := q.store.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("creating txn: %v", err)
@@ -388,10 +389,12 @@ func (q *Queue) setStatus(a core.Auction, status core.AuctionStatus) error {
 		}
 	}
 	if status == core.AuctionStatusQueued {
+		a.StartedAt = time.Time{} // reset started
 		if err := txn.Put(dsQueuePrefix.ChildString(a.ID), nil); err != nil {
 			return fmt.Errorf("putting to queue: %v", err)
 		}
 	} else if status == core.AuctionStatusStarted {
+		a.StartedAt = time.Now()
 		if err := txn.Put(dsStartedPrefix.ChildString(a.ID), nil); err != nil {
 			return fmt.Errorf("putting to started: %v", err)
 		}

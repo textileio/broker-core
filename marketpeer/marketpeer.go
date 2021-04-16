@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
+	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	cconnmgr "github.com/libp2p/go-libp2p-core/connmgr"
@@ -20,9 +21,12 @@ import (
 	ps "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/finalizer"
+	"github.com/textileio/broker-core/marketpeer/mdns"
 	"github.com/textileio/broker-core/pubsub"
 	badger "github.com/textileio/go-ds-badger3"
 )
+
+var log = golog.Logger("mpeer")
 
 type Config struct {
 	RepoPath      string
@@ -31,7 +35,7 @@ type Config struct {
 }
 
 func setDefaults(conf *Config) error {
-	if len(conf.HostMultiaddr) != 0 {
+	if len(conf.HostMultiaddr) == 0 {
 		conf.HostMultiaddr = "/ip4/0.0.0.0/tcp/0"
 	}
 	if conf.ConnManager == nil {
@@ -125,8 +129,21 @@ func (p *Peer) Self() peer.ID {
 	return p.host.ID()
 }
 
-func (p *Peer) Bootstrap(addrs []peer.AddrInfo) {
-	p.peer.Bootstrap(addrs)
+func (p *Peer) Bootstrap() {
+	p.peer.Bootstrap(ipfslite.DefaultBootstrapPeers())
+	log.Info("peer was bootstapped")
+}
+
+func (p *Peer) EnableMDNS(internalSecs int) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.finalizer.Add(finalizer.NewContextCloser(cancel))
+
+	if err := mdns.New(ctx, p.host, internalSecs); err != nil {
+		return err
+	}
+
+	log.Infof("mdns was enabled (interval=%ds)", internalSecs)
+	return nil
 }
 
 func (p *Peer) NewTopic(ctx context.Context, topic string, subscribe bool) (*pubsub.Topic, error) {
