@@ -56,7 +56,7 @@ var _ packeri.Packer = (*Packer)(nil)
 func New(ipfsAPIMultiaddr string) (*Packer, error) {
 	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
 	if err != nil {
-		return nil, fmt.Errorf("parsing ipfs client multiaddress: %s", err)
+		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
 	}
 	client, err := httpapi.NewApi(ma)
 	if err != nil {
@@ -129,8 +129,8 @@ func (p *Packer) pack(ctx context.Context) error {
 	// Do some simply cbor array batching.
 	// Totally reasonable things to do.. just some downsides.
 	//
-	// We don't do dag-size checking to fit in sector-sizes here since all
-	// this is a temporal mock.
+	// We don't do dag-size checking to fit in sector-sizes here
+	// but we need to do that to always cut DAG sizes smaller than a sector.
 	//
 	// A better batching and dag-size checking will happen soon anyway.
 	cidArray := make([]cid.Cid, len(p.queue))

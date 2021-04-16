@@ -70,7 +70,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
 
-	piecer, err := pieceri.New()
+	piecer, err := pieceri.New(config.IpfsMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating piecer implementation: %s", err)
 	}

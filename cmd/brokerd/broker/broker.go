@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/srstore"
@@ -24,6 +25,8 @@ var (
 	// ErrEmptyGroup is returned when an empty storage deal group
 	// is received.
 	ErrEmptyGroup = fmt.Errorf("the storage deal group is empty")
+
+	log = logger.Logger("broker")
 )
 
 // Broker creates and tracks request to store Cids in
@@ -140,6 +143,7 @@ func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequest
 		return broker.StorageDeal{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
+	log.Debugf("creating storage deal %s created, signaling packer...", sd.ID)
 	// Signal Piecer that there's work to do. It will eventually call us
 	// through PreparedStorageDeal(...).
 	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.Cid); err != nil {
@@ -162,6 +166,7 @@ func (b *Broker) StorageDealPrepared(
 	// @jsign: I'll do this tomorrow.
 	var sd broker.StorageDeal // assume this variable will exist...
 
+	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call WinningBids(..) to tell
 	// us about who won things.
 	if err := b.auctioneer.ReadyToAuction(ctx, sd); err != nil {

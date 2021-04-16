@@ -7,9 +7,12 @@ require (
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/golang/protobuf v1.5.2
+	github.com/filecoin-project/go-fil-commcid v0.1.0
+	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hsanjuan/ipfs-lite v0.1.20
+	github.com/ipfs/go-car v0.0.4
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-files v0.0.8
@@ -37,7 +40,6 @@ require (
 	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0
 	go.opentelemetry.io/otel/metric v0.19.0
 	go.uber.org/zap v1.16.0
-	google.golang.org/appengine v1.6.1
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
 )
