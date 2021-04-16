@@ -10,7 +10,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
-	"github.com/textileio/broker-core/util"
+	"github.com/textileio/broker-core/rpc"
 )
 
 type Client struct {
@@ -19,7 +19,7 @@ type Client struct {
 }
 
 func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
-	conn, err := grpc.Dial(brokerAPIAddr, util.GetClientRPCOpts(brokerAPIAddr)...)
+	conn, err := grpc.Dial(brokerAPIAddr, rpc.GetClientOpts(brokerAPIAddr)...)
 	if err != nil {
 		return nil, err
 	}
