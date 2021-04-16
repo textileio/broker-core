@@ -5,16 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
+	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
 )
 
-var (
-	log = logging.Logger("auth/service")
-)
+var log = logging.Logger("auth/service")
 
 // Service is a gRPC service for buckets.
 type Service struct {
@@ -52,18 +50,7 @@ func New(listenAddr string) (*Service, error) {
 
 // Close the service.
 func (s *Service) Close() error {
-	stopped := make(chan struct{})
-	go func() {
-		s.server.GracefulStop()
-		close(stopped)
-	}()
-	timer := time.NewTimer(10 * time.Second)
-	select {
-	case <-timer.C:
-		s.server.Stop()
-	case <-stopped:
-		timer.Stop()
-	}
+	rpc.StopServer(s.server)
 	log.Info("service was shutdown")
 	return nil
 }

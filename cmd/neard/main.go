@@ -10,12 +10,12 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	"github.com/textileio/broker-core/cmd/neard/service"
 	"github.com/textileio/broker-core/cmd/neard/statecache"
 	"github.com/textileio/broker-core/cmd/neard/updater"
-	"github.com/textileio/broker-core/cmd/util"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 	v          = viper.New()
 )
 
-var flags = []util.Flag{
+var flags = []common.Flag{
 	{Name: "listen.addr", DefValue: ":5000", Description: "The host and port the gRPC service should listen on."},
 	{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
 	{Name: "endpoint.url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
@@ -36,7 +36,7 @@ var flags = []util.Flag{
 }
 
 func init() {
-	util.ConfigureCLI(v, "NEAR", flags, rootCmd)
+	common.ConfigureCLI(v, "NEAR", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
@@ -51,7 +51,7 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
-		util.CheckErr(err)
+		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
 		listenAddr := v.GetString("listen.addr")
@@ -62,7 +62,7 @@ var rootCmd = &cobra.Command{
 		updateFrequency := v.GetDuration("update.frequency")
 		requestTimeout := v.GetDuration("request.timeout")
 
-		if err := util.SetupInstrumentation(metricsAddr); err != nil {
+		if err := common.SetupInstrumentation(metricsAddr); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
@@ -70,16 +70,16 @@ var rootCmd = &cobra.Command{
 		defer cancel()
 
 		rpcClient, err := rpc.DialContext(ctx, endpointURL)
-		util.CheckErr(err)
+		common.CheckErr(err)
 
 		nc, err := nearclient.NewClient(rpcClient)
-		util.CheckErr(err)
+		common.CheckErr(err)
 
 		lc, err := lockboxclient.NewClient(nc, accountID)
-		util.CheckErr(err)
+		common.CheckErr(err)
 
 		sc, err := statecache.NewStateCache()
-		util.CheckErr(err)
+		common.CheckErr(err)
 
 		u := updater.NewUpdater(updater.Config{
 			Lbc:             lc,
@@ -90,22 +90,23 @@ var rootCmd = &cobra.Command{
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)
-		util.CheckErr(err)
+		common.CheckErr(err)
 
 		service, err := service.NewService(listener, sc)
-		util.CheckErr(err)
+		common.CheckErr(err)
 
-		util.WaitForTerminateSignal()
+		common.HandleInterrupt(func() {
+			common.CheckErr(u.Close())
+			rpcClient.Close()
+			log.Info("Gracefully stopping... (press Ctrl+C again to force)")
+			common.CheckErr(service.Close())
+			common.CheckErr(listener.Close())
+			log.Info("Closed.")
+		})
 
-		util.CheckErr(u.Close())
-		rpcClient.Close()
-		log.Info("Gracefully stopping... (press Ctrl+C again to force)")
-		util.CheckErr(service.Close())
-		util.CheckErr(listener.Close())
-		log.Info("Closed.")
 	},
 }
 
 func main() {
-	util.CheckErr(rootCmd.Execute())
+	common.CheckErr(rootCmd.Execute())
 }

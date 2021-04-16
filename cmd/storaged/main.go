@@ -2,15 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/storaged/service"
-	"github.com/textileio/broker-core/cmd/util"
 )
 
 var (
@@ -20,14 +18,14 @@ var (
 )
 
 func init() {
-	flags := []util.Flag{
+	flags := []common.Flag{
 		{Name: "http.listen.addr", DefValue: ":8888", Description: "HTTP API listen address"},
 		{Name: "uploader.ipfs.multiaddr", DefValue: "/ip4/127.0.0.1/tcp/5001", Description: "Uploader IPFS API pool"},
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
+		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
-	util.ConfigureCLI(v, "STORAGE", flags, rootCmd)
+	common.ConfigureCLI(v, "STORAGE", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
@@ -42,10 +40,10 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
-		util.CheckErr(err)
+		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := util.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
+		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
@@ -54,19 +52,18 @@ var rootCmd = &cobra.Command{
 			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
-		util.CheckErr(err)
+		common.CheckErr(err)
 
-		log.Info("Listening to requests...")
+		log.Info("listening to requests...")
 
-		util.WaitForTerminateSignal()
-
-		fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
-		if err := serv.Close(); err != nil {
-			log.Errorf("closing http endpoint: %s", err)
-		}
+		common.HandleInterrupt(func() {
+			if err := serv.Close(); err != nil {
+				log.Errorf("closing http endpoint: %s", err)
+			}
+		})
 	},
 }
 
 func main() {
-	util.CheckErr(rootCmd.Execute())
+	common.CheckErr(rootCmd.Execute())
 }

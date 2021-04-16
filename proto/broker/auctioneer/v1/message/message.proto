@@ -1,0 +1,20 @@
+syntax = "proto3";
+package broker.auctioneer.v1.message;
+option go_package = "github.com/textileio/broker-core/broker/auctioneer/v1/message";
+
+import "google/protobuf/timestamp.proto";
+
+message Auction {
+    string id = 1;
+    google.protobuf.Timestamp ends_at = 2;
+}
+
+message Bid {
+    string auction_id = 1;
+    int64 amount = 2;
+}
+
+message Win {
+    string auction_id = 1;
+    string bid_id = 2;
+}

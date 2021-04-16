@@ -1,23 +1,18 @@
-package util
+package common
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
-)
-
-var (
-	log = logging.Logger("util")
 )
 
 // Flag describes a configuration flag.
@@ -41,8 +36,6 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 		case bool:
 			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
-		case time.Duration:
-			rootCmd.Flags().Duration(flag.Name, defval, flag.Description)
 		default:
 			log.Fatalf("unknown flag type: %T", flag)
 		}
@@ -52,21 +45,7 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 	}
 }
 
-// CheckErr logs a fatal error and terminates.
-func CheckErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-// WaitForTerminateSignal blocks until the user trigeers a termination.
-func WaitForTerminateSignal() {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
-}
-
-// SetupInstrumentation sets up a Prometheus server.
+// SetupInstrumentation starts a metrics endpoint.
 func SetupInstrumentation(prometheusAddr string) error {
 	exporter, err := prometheus.InstallNewPipeline(prometheus.Config{
 		DefaultHistogramBoundaries: []float64{1e-3, 1e-2, 1e-1, 1},
@@ -84,4 +63,21 @@ func SetupInstrumentation(prometheusAddr string) error {
 	}
 
 	return nil
+}
+
+// CheckErr ends in a fatal log if err is not nil.
+func CheckErr(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// HandleInterrupt attempts to cleanup while allowing the user to force stop the process.
+func HandleInterrupt(cleanup func()) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
+	cleanup()
+	os.Exit(1)
 }

@@ -13,5 +13,3 @@ message AuthResponse {
 service APIService {
     rpc Auth(AuthRequest) returns (AuthResponse) {}
 }
-
-

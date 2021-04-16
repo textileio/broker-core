@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
-	auctioneri "github.com/textileio/broker-core/cmd/brokerd/auctioner"
+	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
@@ -31,6 +31,8 @@ var (
 // Config provides configuration to the broker service.
 type Config struct {
 	GrpcListenAddress string
+
+	AuctioneerAddr string
 
 	MongoDBName string
 	MongoURI    string
@@ -69,12 +71,12 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating piecer implementation: %s", err)
 	}
 
-	auctioner, err := auctioneri.New()
+	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating auctioner implementation: %s", err)
+		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
 	}
 
-	broker, err := brokeri.New(ds, packer, piecer, auctioner)
+	broker, err := brokeri.New(ds, packer, piecer, auctioneer)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}

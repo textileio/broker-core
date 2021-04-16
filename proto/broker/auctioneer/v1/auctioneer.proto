@@ -1,0 +1,50 @@
+syntax = "proto3";
+package broker.auctioneer.v1;
+option go_package = "github.com/textileio/broker-core/broker/auctioneer/v1;auctioneer";
+
+import "google/protobuf/timestamp.proto";
+
+message Auction {
+    string id = 1;
+    Status status = 2;
+    map<string, Bid> bids = 3;
+    string winner = 4;
+    google.protobuf.Timestamp started_at = 5;
+    int64 duration = 6;
+    string error = 7;
+
+    enum Status {
+        STATUS_UNSPECIFIED = 0;
+        STATUS_QUEUED = 1;
+        STATUS_STARTED = 2;
+        STATUS_ENDED = 3;
+        STATUS_ERROR = 4;
+    }
+
+    message Bid {
+        string from = 1;
+        int64 amount = 2;
+        google.protobuf.Timestamp received_at = 3;
+    }
+}
+
+message CreateAuctionRequest {
+    // @todo: Fill in with real stuff
+}
+
+message CreateAuctionResponse {
+    string id = 1;
+}
+
+message GetAuctionRequest {
+    string id = 1;
+}
+
+message GetAuctionResponse {
+    Auction auction = 1;
+}
+
+service APIService {
+    rpc CreateAuction(CreateAuctionRequest) returns (CreateAuctionResponse) {}
+    rpc GetAuction(GetAuctionRequest) returns (GetAuctionResponse) {}
+}

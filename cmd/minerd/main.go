@@ -7,34 +7,32 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/brokerd/service"
 	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/cmd/minerd/service"
+	"github.com/textileio/broker-core/marketpeer"
 )
 
 var (
-	daemonName = "brokerd"
+	daemonName = "minerd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "auctioneer.addr", DefValue: ":5001", Description: "Auctioneer address"},
+		{Name: "repo", DefValue: ".miner", Description: "Repo path"},
+		{Name: "host.multiaddr", DefValue: "/ip4/127.0.0.1/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
-
-		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 	}
 
-	common.ConfigureCLI(v, "BROKER", flags, rootCmd)
+	common.ConfigureCLI(v, "MINER", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "brokerd is a Broker to store data in Filecoin",
-	Long:  `brokerd is a Broker to store data in Filecoin`,
+	Short: "minerd is used by a miner to listen for deals from the Broker",
+	Long:  "minerd is used by a miner to listen for deals from the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
@@ -50,22 +48,19 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		serviceConfig := service.Config{
-			GrpcListenAddress: v.GetString("grpc.listen.addr"),
-
-			AuctioneerAddr: v.GetString("auctioneer.addr"),
-
-			MongoURI:    v.GetString("mongo.uri"),
-			MongoDBName: v.GetString("mongo.dbname"),
+		config := service.Config{
+			RepoPath: v.GetString("repo"),
+			Peer: marketpeer.Config{
+				RepoPath:      v.GetString("repo"),
+				HostMultiaddr: v.GetString("host.multiaddr"),
+			},
 		}
-		serv, err := service.New(serviceConfig)
+		serv, err := service.New(config)
 		common.CheckErr(err)
-
-		log.Info("listening to requests...")
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
-				log.Errorf("closing http endpoint: %s", err)
+				log.Errorf("closing service: %s", err)
 			}
 		})
 	},
