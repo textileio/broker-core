@@ -26,7 +26,7 @@ func New(addr string) (*BrokerAuth, error) {
 
 var _ auth.Authorizer = (*BrokerAuth)(nil)
 
-// IsAuthorized returns an identity that is authorized to use the storage service, otherwise returning an error.
+// IsAuthorized returns the identity that is authorized to use the storage service, otherwise returning an error.
 func (ba *BrokerAuth) IsAuthorized(ctx context.Context, jwtBase64URL string) (bool, string, error) {
 	req := &pb.AuthRequest{JwtBase64URL: jwtBase64URL}
 	res, err := ba.c.Auth(ctx, req)
