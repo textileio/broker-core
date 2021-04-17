@@ -30,6 +30,7 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// Auth authenticates the JWT.
 func (c *Client) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	return c.c.Auth(ctx, req)
 }

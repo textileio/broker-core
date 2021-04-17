@@ -16,6 +16,8 @@ import (
 
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
+
+	// This import runs the init, which registers the algo with jwt-go.
 	_ "github.com/textileio/jwt-go-eddsa"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,6 +25,7 @@ import (
 )
 
 const (
+	// LogName is our auth logger.
 	LogName = "auth/service"
 )
 
@@ -37,9 +40,6 @@ type Service struct {
 	server *grpc.Server
 }
 
-// Go trick
-// this service struct is implementing the interface pb.API...
-// if it's not, will see errors
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new service.
@@ -82,6 +82,7 @@ func (s *Service) Close() error {
 	return nil
 }
 
+// Auth takes in a JWT base64 encoded, verifies it, checks the indentity (by comparing key DIDs) and returns DID.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	jwtBase64URL := req.JwtBase64URL
 	// token.header.x
@@ -89,10 +90,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// token.payload.claims.sub
 	var sub string
 
-	// Step 1:
-	// Context: Parse() needs the public key to validate
-	// Assumption: Public key is in the jwk.x as a base 64 encoded string...
-	// Approach: Decode jwk.x and create an ED25591 public key and return it
+	// Validate the JWT.
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
 		jwk := token.Header["jwk"]
 
@@ -123,7 +121,6 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// Now check that they are who they say they are...
 	// Compute encoded DID from the public key...
 	// Make sure that matches what's in the claims.Subject
-	sub = ""
 	if claims, ok := token.Claims.(*jwt.StandardClaims); ok && token.Valid {
 		sub = claims.Subject
 		subDID, _ := did.Parse(sub)
@@ -155,6 +152,6 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 
 	// Return the subscriber identity
 	return &pb.AuthResponse{
-		Jwk: sub,
+		Identity: sub,
 	}, nil
 }

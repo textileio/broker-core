@@ -8,7 +8,7 @@ message AuthRequest {
 }
 
 message AuthResponse {
-    string jwk = 1;
+    string identity = 1;
 }
 
 service APIService {
