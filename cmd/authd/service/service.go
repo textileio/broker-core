@@ -82,19 +82,19 @@ func (s *Service) Close() error {
 	return nil
 }
 
-// Auth takes in a JWT base64 encoded, verifies it, checks the indentity (by comparing key DIDs) and returns DID.
+// Auth takes in a base64 encoded JWT, verifies it, checks the indentity (by comparing key DIDs) and returns DID.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	jwtBase64URL := req.JwtBase64URL
+
 	// token.header.x
 	var x string
+
 	// token.payload.claims.sub
 	var sub string
 
 	// Validate the JWT.
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
 		jwk := token.Header["jwk"]
-
-		// @todo: is there a more idiomatic way here?
 		jwkMap := map[string]string{}
 		for k, v := range jwk.(map[string]interface{}) {
 			foo, ok := v.(string)
@@ -104,8 +104,6 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 				jwkMap[k] = foo
 			}
 		}
-
-		// Create the public key
 		x = jwkMap["x"]
 		dx, _ := base64.URLEncoding.DecodeString(x)
 		pkey, err := crypto.UnmarshalEd25519PublicKey(dx)
@@ -116,11 +114,6 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("ParseWithClaims: %s", err))
 	}
 
-	// Step 2:
-	// JWT was validated
-	// Now check that they are who they say they are...
-	// Compute encoded DID from the public key...
-	// Make sure that matches what's in the claims.Subject
 	if claims, ok := token.Claims.(*jwt.StandardClaims); ok && token.Valid {
 		sub = claims.Subject
 		subDID, _ := did.Parse(sub)
