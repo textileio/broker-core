@@ -22,6 +22,7 @@ func init() {
 		{Name: "http.listen.addr", DefValue: ":8888", Description: "HTTP API listen address"},
 		{Name: "uploader.ipfs.multiaddr", DefValue: "/ip4/127.0.0.1/tcp/5001", Description: "Uploader IPFS API pool"},
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "authd.addr", DefValue: "TODO", Description: "The authd address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
@@ -50,6 +51,7 @@ var rootCmd = &cobra.Command{
 		serviceConfig := service.Config{
 			HTTPListenAddr:        v.GetString("http.listen.addr"),
 			UploaderIPFSMultiaddr: v.GetString("uploader.ipfs.multiaddr"),
+			AuthdAddr:             v.GetString("authd.addr"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
