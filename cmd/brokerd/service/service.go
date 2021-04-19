@@ -212,7 +212,6 @@ func castBrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error
 		pbStatus = pb.BrokerRequest_SUCCESS
 	default:
 		return nil, fmt.Errorf("unknown status: %d", br.Status)
-
 	}
 
 	return &pb.BrokerRequest{
