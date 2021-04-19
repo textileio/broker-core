@@ -3,6 +3,7 @@ package packer
 import (
 	"context"
 
+	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -13,8 +14,8 @@ type Packer interface {
 	// this broker request data might be batched with others.
 	//
 	// This API only allows packer to know about this BrokerRequest, the real
-	// work is done asyc. At some point  in the future, the packer will notify
+	// work is done asyc. After some BrokerRequests are batched, the packer will notify
 	// the Broker that a new `StorageDeal` got prepared (which includes the
 	// provided BrokerRequest), so it can continue with bidding.
-	ReadyToPack(ctx context.Context, br broker.BrokerRequest) error
+	ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error
 }
