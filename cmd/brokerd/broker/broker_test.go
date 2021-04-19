@@ -151,13 +151,18 @@ func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer) {
 }
 
 type dumbPacker struct {
-	readyToPackCalled []broker.BrokerRequest
+	readyToPackCalled []brc
+}
+
+type brc struct {
+	id      broker.BrokerRequestID
+	dataCid cid.Cid
 }
 
 var _ packer.Packer = (*dumbPacker)(nil)
 
-func (dp *dumbPacker) ReadyToPack(ctx context.Context, br broker.BrokerRequest) error {
-	dp.readyToPackCalled = append(dp.readyToPackCalled, br)
+func (dp *dumbPacker) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
+	dp.readyToPackCalled = append(dp.readyToPackCalled, brc{id: id, dataCid: dataCid})
 
 	return nil
 }

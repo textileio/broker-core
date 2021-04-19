@@ -39,7 +39,7 @@ var (
 // BrokerRequest into a StorageDeal.
 type Packer struct {
 	lock  sync.Mutex
-	queue []broker.BrokerRequest
+	queue []br
 
 	broker broker.Broker
 	ipfs   *httpapi.HttpApi
@@ -48,6 +48,11 @@ type Packer struct {
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
+}
+
+type br struct {
+	id      broker.BrokerRequestID
+	dataCid cid.Cid
 }
 
 var _ packeri.Packer = (*Packer)(nil)
@@ -85,10 +90,10 @@ func (p *Packer) SetBroker(b broker.Broker) {
 // ReadyToPack signals the packer that there's a new BrokerRequest that can be
 // considered. Packer will notify the broker async when the final StorageDeal
 // that contains this BrokerRequest gets created.
-func (p *Packer) ReadyToPack(ctx context.Context, br broker.BrokerRequest) error {
+func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	p.queue = append(p.queue, br)
+	p.queue = append(p.queue, br{id: id, dataCid: dataCid})
 
 	return nil
 }
@@ -136,8 +141,8 @@ func (p *Packer) pack(ctx context.Context) error {
 	cidArray := make([]cid.Cid, len(p.queue))
 	brids := make([]broker.BrokerRequestID, len(p.queue))
 	for i, br := range p.queue {
-		cidArray[i] = br.DataCid
-		brids[i] = br.ID
+		cidArray[i] = br.dataCid
+		brids[i] = br.id
 	}
 	n, err := cbornode.WrapObject(cidArray, multihash.SHA2_256, -1)
 	if err != nil {

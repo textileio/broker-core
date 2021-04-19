@@ -118,7 +118,7 @@ func (s *Service) CreateBrokerRequest(
 
 	c, err := cid.Decode(r.Cid)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid cid: %s", err))
+		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
 
 	meta := broker.Metadata{}
@@ -126,17 +126,17 @@ func (s *Service) CreateBrokerRequest(
 		meta.Region = r.Meta.Region
 	}
 	if err := meta.Validate(); err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid metadata: %s", err))
+		return nil, status.Errorf(codes.InvalidArgument, "invalid metadata: %s", err)
 	}
 
 	br, err := s.broker.Create(ctx, c, meta)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("creating storage request: %s", err))
+		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
 	pbr, err := castBrokerRequestToProto(br)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
 	res := &pb.CreateBrokerRequestResponse{
 		Request: pbr,
@@ -155,12 +155,12 @@ func (s *Service) GetBrokerRequest(
 
 	br, err := s.broker.Get(ctx, broker.BrokerRequestID(r.Id))
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("get broker request: %s", err))
+		return nil, status.Errorf(codes.Internal, "get broker request: %s", err)
 	}
 
 	pbr, err := castBrokerRequestToProto(br)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
 	res := &pb.GetBrokerRequestResponse{
 		BrokerRequest: pbr,
