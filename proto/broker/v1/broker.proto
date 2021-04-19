@@ -9,8 +9,6 @@ message CreateBrokerRequestRequest {
   BrokerRequest.Metadata meta = 2;
 }
 
-
-
 message CreateBrokerRequestResponse {
   BrokerRequest request = 1;
 }
@@ -21,6 +19,15 @@ message GetBrokerRequestRequest {
 
 message GetBrokerRequestResponse {
   BrokerRequest broker_request = 1;
+}
+
+message CreateStorageDealRequest {
+  string batch_cid = 1;
+  repeated string broker_request_ids = 2;
+}
+
+message CreateStorageDealResponse {
+  string id = 1;
 }
 
 
@@ -51,6 +58,7 @@ message BrokerRequest {
 service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
   rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}
+  rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
 }
 
 

@@ -71,6 +71,31 @@ func (c *Client) Get(ctx context.Context, id broker.BrokerRequestID) (broker.Bro
 	return br, nil
 }
 
+func (c *Client) CreateStorageDeal(ctx context.Context, batchCid cid.Cid, ids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	if !batchCid.Defined() {
+		return "", fmt.Errorf("batch cid is undefined")
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("grouped broker requests list is empty")
+	}
+
+	brids := make([]string, len(ids))
+	for i, brID := range ids {
+		brids[i] = string(brID)
+	}
+
+	req := &pb.CreateStorageDealRequest{
+		BatchCid:         batchCid.String(),
+		BrokerRequestIds: brids,
+	}
+	res, err := c.c.CreateStorageDeal(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("calling create storage deal api: %s", err)
+	}
+
+	return broker.StorageDealID(res.Id), nil
+}
+
 // Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {
