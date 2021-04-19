@@ -85,7 +85,7 @@ func New(conf Config) (*Service, error) {
 	return s, nil
 }
 
-// CreateAuction creates a new auction.
+// ReadyToPack indicates that a broker request is ready to be packed.
 func (s *Service) ReadyToPack(ctx context.Context, r *pb.ReadyToPackRequest) (*pb.ReadyToPackResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")

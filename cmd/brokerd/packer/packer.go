@@ -33,7 +33,7 @@ func New(addr string) (*Packer, error) {
 // that contains this BrokerRequest gets created.
 func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	if err := p.c.ReadyToPack(ctx, id, dataCid); err != nil {
-		return fmt.Errorf("calling ready to pack api: %s", err)
+		return fmt.Errorf("ready to pack client: %s", err)
 	}
 
 	return nil

@@ -27,33 +27,33 @@ services:
       - BROKER_MONGO_URI=mongodb://mongo:27017
       - BROKER_MONGO_DBNAME=brokerd
       - BROKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
-    ports:
-      - "127.0.0.1:5000:5000"
+      - BROKER_PACKER_ADDR=packerd:5000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
+      - packerd
       - mongo
+      - ipfs
   packerd:
     build:
       context: .
       dockerfile: ./cmd/packerd/Dockerfile
     environment:
       - PACKER_LOG_DEBUG=true
-      - BROKER_GRPC_LISTEN_ADDR=:5000
+      - PACKER_GRPC_LISTEN_ADDR=:5000
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
       - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - PACKER_BROKER_ADDR=brokerd:5000
-    ports:
-      - "127.0.0.1:5000:5000"
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
       - mongo
+      - ipfs
   mongo:
     image: mongo:latest
     ports:

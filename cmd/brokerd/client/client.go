@@ -71,7 +71,11 @@ func (c *Client) Get(ctx context.Context, id broker.BrokerRequestID) (broker.Bro
 	return br, nil
 }
 
-func (c *Client) CreateStorageDeal(ctx context.Context, batchCid cid.Cid, ids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+// CreateStorageDeal deal creates a storage deal.
+func (c *Client) CreateStorageDeal(
+	ctx context.Context,
+	batchCid cid.Cid,
+	ids []broker.BrokerRequestID) (broker.StorageDealID, error) {
 	if !batchCid.Defined() {
 		return "", fmt.Errorf("batch cid is undefined")
 	}

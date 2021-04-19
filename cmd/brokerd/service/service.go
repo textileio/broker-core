@@ -32,6 +32,7 @@ type Config struct {
 	GrpcListenAddress string
 
 	AuctioneerAddr string
+	PackerAddr     string
 
 	MongoDBName string
 	MongoURI    string
@@ -64,7 +65,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating datastore: %s", err)
 	}
 
-	packer, err := packeri.New(config.IpfsMultiaddr)
+	packer, err := packeri.New(config.PackerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
@@ -166,6 +167,7 @@ func (s *Service) GetBrokerRequest(
 	return res, nil
 }
 
+// CreateStorageDeal deal creates a storage deal.
 func (s *Service) CreateStorageDeal(
 	ctx context.Context,
 	r *pb.CreateStorageDealRequest) (*pb.CreateStorageDealResponse, error) {
@@ -179,6 +181,12 @@ func (s *Service) CreateStorageDeal(
 	}
 
 	brids := make([]broker.BrokerRequestID, len(r.BrokerRequestIds))
+	for i, id := range r.BrokerRequestIds {
+		if id == "" {
+			return nil, status.Error(codes.InvalidArgument, "broker request id can't be empty")
+		}
+		brids[i] = broker.BrokerRequestID(id)
+	}
 
 	srb := broker.BrokerRequestGroup{
 		BatchCid:       batchCid,
