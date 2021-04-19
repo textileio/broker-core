@@ -41,7 +41,7 @@ func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
 
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.nc.ViewState(ctx, c.accountID, nearclient.WithFinality("final"))
+	res, err := c.nc.ViewState(ctx, c.accountID, nearclient.ViewStateWithFinality("final"))
 	if err != nil {
 		return nil, fmt.Errorf("calling view state: %v", err)
 	}
