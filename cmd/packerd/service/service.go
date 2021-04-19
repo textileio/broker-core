@@ -5,15 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"path/filepath"
 
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/packer/v1"
-	kt "github.com/textileio/broker-core/keytransform"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -24,9 +23,13 @@ var log = golog.Logger("packer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	RepoPath         string
-	ListenAddr       string
+	ListenAddr string
+
+	MongoDBName string
+	MongoURI    string
+
 	IpfsAPIMultiaddr string
+	BrokerAPIAddr    string
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -42,16 +45,20 @@ var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
 func New(conf Config) (*Service, error) {
+	if err := validateConfig(conf); err != nil {
+		return nil, fmt.Errorf("config is invalid: %s", err)
+	}
+
 	fin := finalizer.NewFinalizer()
 
 	// TODO: wire mongo?
-	store, err := kt.NewBadgerStore(filepath.Join(conf.RepoPath, "packerstore"))
+	ds, err := common.CreateMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
 	if err != nil {
-		return nil, fin.Cleanupf("creating repo: %v", err)
+		return nil, fmt.Errorf("creating datastore: %s", err)
 	}
-	fin.Add(store)
+	fin.Add(ds)
 
-	lib, err := packer.New(store, conf.IpfsAPIMultiaddr)
+	lib, err := packer.New(ds, conf.IpfsAPIMultiaddr, conf.BrokerAPIAddr)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
@@ -103,4 +110,24 @@ func (s *Service) Close() error {
 	rpc.StopServer(s.server)
 	log.Info("service was shutdown")
 	return s.finalizer.Cleanup(nil)
+}
+
+func validateConfig(conf Config) error {
+	if conf.BrokerAPIAddr == "" {
+		return fmt.Errorf("broker api addr is empty")
+	}
+	if conf.IpfsAPIMultiaddr == "" {
+		return fmt.Errorf("ipfs api multiaddr is empty")
+	}
+	if conf.ListenAddr == "" {
+		return fmt.Errorf("service listen addr is empty")
+	}
+	if conf.MongoDBName == "" {
+		return fmt.Errorf("mongo db name is empty")
+	}
+	if conf.MongoURI == "" {
+		return fmt.Errorf("mongo uri is empty")
+	}
+
+	return nil
 }

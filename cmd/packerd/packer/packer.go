@@ -14,6 +14,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 	packeri "github.com/textileio/broker-core/packer"
 )
 
@@ -29,7 +30,8 @@ type Packer struct {
 	lock  sync.Mutex
 	queue []br
 
-	ipfs *httpapi.HttpApi
+	ipfs   *httpapi.HttpApi
+	broker *client.Client
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -45,19 +47,25 @@ type br struct {
 var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
-func New(ds datastore.TxnDatastore, ipfsAPIMultiaddr string) (*Packer, error) {
+func New(ds datastore.TxnDatastore, ipfsAPIMultiaddr string, brokerAPIAddr string) (*Packer, error) {
 	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
 	}
-	client, err := httpapi.NewApi(ma)
+	ipfsClient, err := httpapi.NewApi(ma)
 	if err != nil {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
 
+	brokerClient, err := client.New(brokerAPIAddr)
+	if err != nil {
+		return nil, fmt.Errorf("creating broker client: %s", err)
+	}
+
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
-		ipfs:            client,
+		ipfs:            ipfsClient,
+		broker:          brokerClient,
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
@@ -134,16 +142,12 @@ func (p *Packer) pack(ctx context.Context) error {
 		return fmt.Errorf("adding root node of batch to ipfs: %s", err)
 	}
 
-	srg := broker.BrokerRequestGroup{
-		Cid:                    n.Cid(),
-		GroupedStorageRequests: brids,
-	}
-
-	sd, err := p.broker.CreateStorageDeal(ctx, srg)
+	sdID, err := p.broker.CreateStorageDeal(ctx, n.Cid(), brids)
 	if err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
 	}
-	log.Infof("storage deal created: {id: %s, cid: %s}", sd.ID, sd.Cid)
+
+	log.Infof("storage deal created: {id: %s, cid: %s}", sdID, n.Cid())
 	p.queue = p.queue[:0]
 
 	return nil

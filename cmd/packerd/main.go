@@ -19,8 +19,14 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "repo", DefValue: ".packer", Description: "Repo path"},
+		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
+		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+
 		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
+
+		{Name: "ipfs.multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+
+		{Name: "broker.addr", DefValue: "", Description: "Broker API address"},
 
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
@@ -49,8 +55,11 @@ var rootCmd = &cobra.Command{
 		}
 
 		config := service.Config{
-			RepoPath:   v.GetString("repo"),
-			ListenAddr: v.GetString("rpc.addr"),
+			ListenAddr:       v.GetString("rpc.addr"),
+			IpfsAPIMultiaddr: v.GetString("ipfs.multiaddr"),
+			BrokerAPIAddr:    v.GetString("broker.addr"),
+			MongoURI:         v.GetString("mongo.uri"),
+			MongoDBName:      v.GetString("mongo.dbname"),
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)

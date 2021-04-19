@@ -118,19 +118,19 @@ func (b *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.Bro
 // the Broker to create a StorageDeal. This StorageDeal should be prepared (piece-size/commP) before publishing
 // it in the feed.
 func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequestGroup) (broker.StorageDeal, error) {
-	if !srb.Cid.Defined() {
+	if !srb.BatchCid.Defined() {
 		return broker.StorageDeal{}, ErrInvalidCid
 	}
-	if len(srb.GroupedStorageRequests) == 0 {
+	if len(srb.BrokerRequests) == 0 {
 		return broker.StorageDeal{}, ErrEmptyGroup
 	}
 
 	now := time.Now()
 	sd := broker.StorageDeal{
 		ID:               broker.StorageDealID(uuid.New().String()),
-		Cid:              srb.Cid,
+		Cid:              srb.BatchCid,
 		Status:           broker.StorageDealPreparing,
-		BrokerRequestIDs: srb.GroupedStorageRequests,
+		BrokerRequestIDs: srb.BrokerRequests,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}

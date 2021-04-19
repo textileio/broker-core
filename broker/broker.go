@@ -107,8 +107,8 @@ type StorageDeal struct {
 // BrokerRequestGroup is an ephemeral entity that Packer utilizes
 // to ask the Broker to create a definitive StorageDeal from it.
 type BrokerRequestGroup struct {
-	Cid                    cid.Cid
-	GroupedStorageRequests []BrokerRequestID
+	BatchCid       cid.Cid
+	BrokerRequests []BrokerRequestID
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.

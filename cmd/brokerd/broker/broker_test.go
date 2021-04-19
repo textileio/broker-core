@@ -68,8 +68,8 @@ func TestCreateStorageDeal(t *testing.T) {
 	// 2- Create a StorageDeal with both storage requests.
 	brgCid := createCidFromString("StorageDeal")
 	srg := broker.BrokerRequestGroup{
-		Cid:                    brgCid,
-		GroupedStorageRequests: []broker.BrokerRequestID{br1.ID, br2.ID},
+		BatchCid:       brgCid,
+		BrokerRequests: []broker.BrokerRequestID{br1.ID, br2.ID},
 	}
 	sd, err := b.CreateStorageDeal(ctx, srg)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
-		srb := broker.BrokerRequestGroup{Cid: cid.Undef}
+		srb := broker.BrokerRequestGroup{BatchCid: cid.Undef}
 		_, err := b.CreateStorageDeal(ctx, srb)
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -119,7 +119,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
-		srb := broker.BrokerRequestGroup{Cid: brgCid}
+		srb := broker.BrokerRequestGroup{BatchCid: brgCid}
 		_, err := b.CreateStorageDeal(ctx, srb)
 		require.Equal(t, ErrEmptyGroup, err)
 	})
@@ -131,8 +131,8 @@ func TestCreateStorageDealFail(t *testing.T) {
 
 		brgCid := createCidFromString("StorageDeal")
 		srb := broker.BrokerRequestGroup{
-			Cid:                    brgCid,
-			GroupedStorageRequests: []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")},
+			BatchCid:       brgCid,
+			BrokerRequests: []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")},
 		}
 		_, err := b.CreateStorageDeal(ctx, srb)
 		require.True(t, errors.Is(err, srstore.ErrStorageDealContainsUnknownBrokerRequest))
