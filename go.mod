@@ -4,12 +4,11 @@ go 1.16
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
-	github.com/ethereum/go-ethereum v1.10.2
-	github.com/go-ole/go-ole v1.2.5 // indirect
-	github.com/golang/protobuf v1.5.2
 	github.com/dustin/go-humanize v1.0.0
+	github.com/ethereum/go-ethereum v1.10.2
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
+	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hsanjuan/ipfs-lite v0.1.20

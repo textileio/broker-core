@@ -43,7 +43,7 @@ func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata
 
 // Get gets a broker request from its ID.
 func (tb *TexBroker) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	br, err := tb.Get(ctx, id)
+	br, err := tb.c.Get(ctx, id)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("calling get api: %s", err)
 	}

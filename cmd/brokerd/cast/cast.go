@@ -9,6 +9,7 @@ import (
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 )
 
+// FromProtoBrokerRequest transforms a pb.BrokerRequest to broker.BrokerRequest.
 func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, error) {
 	c, err := cid.Decode(brproto.DataCid)
 	if err != nil {

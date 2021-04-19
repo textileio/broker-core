@@ -13,11 +13,13 @@ import (
 	"github.com/textileio/broker-core/rpc"
 )
 
+// Client is a brokerd client.
 type Client struct {
 	c    pb.APIServiceClient
 	conn *grpc.ClientConn
 }
 
+// New returns a new *Client.
 func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 	conn, err := grpc.Dial(brokerAPIAddr, rpc.GetClientOpts(brokerAPIAddr)...)
 	if err != nil {
@@ -69,6 +71,7 @@ func (c *Client) Get(ctx context.Context, id broker.BrokerRequestID) (broker.Bro
 	return br, nil
 }
 
+// Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {
 		return fmt.Errorf("closing gRPC client: %s", err)

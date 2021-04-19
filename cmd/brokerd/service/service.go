@@ -109,7 +109,9 @@ func New(config Config) (*Service, error) {
 }
 
 // CreateBrokerRequest creates a new BrokerRequest.
-func (s *Service) CreateBrokerRequest(ctx context.Context, r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
+func (s *Service) CreateBrokerRequest(
+	ctx context.Context,
+	r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -144,7 +146,9 @@ func (s *Service) CreateBrokerRequest(ctx context.Context, r *pb.CreateBrokerReq
 }
 
 // GetBrokerRequest gets an existing broker request.
-func (s *Service) GetBrokerRequest(ctx context.Context, r *pb.GetBrokerRequestRequest) (*pb.GetBrokerRequestResponse, error) {
+func (s *Service) GetBrokerRequest(
+	ctx context.Context,
+	r *pb.GetBrokerRequestRequest) (*pb.GetBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
