@@ -19,6 +19,8 @@ type Client struct {
 	conn *grpc.ClientConn
 }
 
+var _ broker.Broker = (*Client)(nil)
+
 // New returns a new *Client.
 func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 	conn, err := grpc.Dial(brokerAPIAddr, rpc.GetClientOpts(brokerAPIAddr)...)
@@ -98,6 +100,11 @@ func (c *Client) CreateStorageDeal(
 	}
 
 	return broker.StorageDealID(res.Id), nil
+}
+
+func (c *Client) StorageDealPrepared(ctx context.Context, id broker.StorageDealID, pr broker.DataPreparationResult) error {
+	// TODO: this will be relevant when piecer exists as separate daemon piecerd
+	panic("not prepared")
 }
 
 // Close closes gracefully the client.

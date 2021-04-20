@@ -13,7 +13,7 @@ type Broker interface {
 
 	// CreateStorageDeal creates a new StorageDeal. It is called
 	// by the Packer after batching a set of BrokerRequest properly.
-	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDeal, error)
+	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDealID, error)
 
 	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
 	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error

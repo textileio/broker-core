@@ -120,12 +120,12 @@ func (b *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.Bro
 func (b *Broker) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
-	brids []broker.BrokerRequestID) (broker.StorageDeal, error) {
+	brids []broker.BrokerRequestID) (broker.StorageDealID, error) {
 	if !batchCid.Defined() {
-		return broker.StorageDeal{}, ErrInvalidCid
+		return "", ErrInvalidCid
 	}
 	if len(brids) == 0 {
-		return broker.StorageDeal{}, ErrEmptyGroup
+		return "", ErrEmptyGroup
 	}
 
 	now := time.Now()
@@ -143,7 +143,7 @@ func (b *Broker) CreateStorageDeal(
 	// - Link each BrokerRequest with the StorageDeal.
 	// - Save the `StorageDeal` in the store.
 	if err := b.store.CreateStorageDeal(ctx, sd); err != nil {
-		return broker.StorageDeal{}, fmt.Errorf("creating storage deal: %w", err)
+		return "", fmt.Errorf("creating storage deal: %w", err)
 	}
 
 	log.Debugf("creating storage deal %s created, signaling piecer...", sd.ID)
@@ -152,10 +152,10 @@ func (b *Broker) CreateStorageDeal(
 	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.Cid); err != nil {
 		// TODO: same possible improvement as described in `ReadyToPack`
 		// applies here.
-		return broker.StorageDeal{}, fmt.Errorf("signaling piecer: %s", err)
+		return "", fmt.Errorf("signaling piecer: %s", err)
 	}
 
-	return sd, nil
+	return sd.ID, nil
 }
 
 // StorageDealPrepared is called by Prepared to notify that the data preparation stage is done,

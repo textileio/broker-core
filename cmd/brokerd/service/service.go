@@ -193,7 +193,7 @@ func (s *Service) CreateStorageDeal(
 		return nil, status.Errorf(codes.Internal, "creating storage deal: %s", err)
 	}
 
-	return &pb.CreateStorageDealResponse{Id: string(sd.ID)}, nil
+	return &pb.CreateStorageDealResponse{Id: string(sd)}, nil
 }
 
 // Close gracefully closes the service.

@@ -73,7 +73,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	// Check that what Piecer was notified about matches
 	// the BrokerRequest group to be prepared.
 	require.Equal(t, brgCid, p.calledCid)
-	require.Equal(t, sd.ID, p.calledID)
+	require.Equal(t, sd, p.calledID)
 
 	// Check that all broker request:
 	// 1- Moved to StatusPreparing
@@ -81,21 +81,21 @@ func TestCreateStorageDeal(t *testing.T) {
 	br1, err = b.Get(ctx, br1.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestPreparing, br1.Status)
-	require.Equal(t, sd.ID, br1.StorageDealID)
+	require.Equal(t, sd, br1.StorageDealID)
 	br2, err = b.Get(ctx, br2.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestPreparing, br2.Status)
-	require.Equal(t, sd.ID, br2.StorageDealID)
+	require.Equal(t, sd, br2.StorageDealID)
 
 	// Check that the StorageDeal was persisted correctly.
-	sd2, err := b.GetStorageDeal(ctx, sd.ID)
+	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
-	require.Equal(t, sd.ID, sd2.ID)
-	require.Equal(t, sd.Cid, sd2.Cid)
-	require.Equal(t, sd.Status, sd2.Status)
-	require.Equal(t, len(sd.BrokerRequestIDs), len(sd2.BrokerRequestIDs))
-	require.Equal(t, sd.CreatedAt.Unix(), sd2.CreatedAt.Unix())
-	require.Equal(t, sd.UpdatedAt.Unix(), sd2.UpdatedAt.Unix())
+	require.Equal(t, sd, sd2.ID)
+	require.True(t, sd2.Cid.Defined())
+	require.Equal(t, broker.StorageDealPreparing, sd2.Status)
+	require.Len(t, sd2.BrokerRequestIDs, 2)
+	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
+	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
 }
 
 func TestCreateStorageDealFail(t *testing.T) {
