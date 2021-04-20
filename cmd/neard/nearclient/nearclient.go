@@ -11,9 +11,9 @@ import (
 type queryRequest struct {
 	RequestType  string `json:"request_type"`
 	Finality     string `json:"finality,omitempty"`
-	BlockID      string `json:"block_id,omitempty"`
+	BlockID      int    `json:"block_id,omitempty"`
 	AccountID    string `json:"account_id,omitempty"`
-	PrefixBase64 string `json:"prefix_base64,omitempty"`
+	PrefixBase64 string `json:"prefix_base64"`
 }
 
 type changesRequest struct {
@@ -21,7 +21,7 @@ type changesRequest struct {
 	AccountIDs      []string `json:"account_ids"`
 	KeyPrefixBase64 string   `json:"key_prefix_base64"`
 	Finality        string   `json:"finality,omitempty"`
-	BlockID         string   `json:"block_id,omitempty"`
+	BlockID         int      `json:"block_id,omitempty"`
 }
 
 // Value models a state key-value pair.
@@ -97,7 +97,7 @@ func ViewStateWithFinality(finalaity string) ViewStateOption {
 }
 
 // ViewStateWithBlockID specifies the block id to query the state for.
-func ViewStateWithBlockID(blockID string) ViewStateOption {
+func ViewStateWithBlockID(blockID int) ViewStateOption {
 	return func(qr *queryRequest) {
 		qr.BlockID = blockID
 	}
@@ -113,16 +113,17 @@ func ViewStateWithPrefix(prefix string) ViewStateOption {
 // ViewState queries the contract state.
 func (c *Client) ViewState(ctx context.Context, accountID string, opts ...ViewStateOption) (*ViewStateResponse, error) {
 	req := &queryRequest{
-		RequestType: "view_state",
-		AccountID:   accountID,
+		RequestType:  "view_state",
+		AccountID:    accountID,
+		PrefixBase64: "",
 	}
 	for _, opt := range opts {
 		opt(req)
 	}
-	if req.BlockID == "" && req.Finality == "" {
+	if req.BlockID == 0 && req.Finality == "" {
 		return nil, fmt.Errorf("you must provide ViewStateWithBlockID or ViewStateWithFinality")
 	}
-	if req.BlockID != "" && req.Finality != "" {
+	if req.BlockID != 0 && req.Finality != "" {
 		return nil, fmt.Errorf("you must provide one of ViewStateWithBlockID or ViewStateWithFinality, but not both")
 	}
 	var res ViewStateResponse
@@ -144,7 +145,7 @@ func ViewAccountWithFinality(finalaity string) ViewAccountOption {
 }
 
 // ViewAccountWithBlockID specifies the block id to query the account for.
-func ViewAccountWithBlockID(blockID string) ViewAccountOption {
+func ViewAccountWithBlockID(blockID int) ViewAccountOption {
 	return func(qr *queryRequest) {
 		qr.BlockID = blockID
 	}
@@ -163,10 +164,10 @@ func (c *Client) ViewAccount(
 	for _, opt := range opts {
 		opt(req)
 	}
-	if req.BlockID == "" && req.Finality == "" {
+	if req.BlockID == 0 && req.Finality == "" {
 		return nil, fmt.Errorf("you must provide ViewAccountWithBlockID or ViewAccountWithFinality")
 	}
-	if req.BlockID != "" && req.Finality != "" {
+	if req.BlockID != 0 && req.Finality != "" {
 		return nil, fmt.Errorf("you must provide one of ViewAccountWithBlockID or ViewAccountWithFinality, but not both")
 	}
 	var res ViewAccountResponse
@@ -195,7 +196,7 @@ func DataChangesWithFinality(finalaity string) DataChangesOption {
 }
 
 // DataChangesWithBlockID specifies the block id to query data changes for.
-func DataChangesWithBlockID(blockID string) DataChangesOption {
+func DataChangesWithBlockID(blockID int) DataChangesOption {
 	return func(qr *changesRequest) {
 		qr.BlockID = blockID
 	}
@@ -214,10 +215,10 @@ func (c *Client) DataChanges(
 	for _, opt := range opts {
 		opt(req)
 	}
-	if req.BlockID == "" && req.Finality == "" {
+	if req.BlockID == 0 && req.Finality == "" {
 		return nil, fmt.Errorf("you must provide DataChangesWithBlockID or DataChangesWithFinality")
 	}
-	if req.BlockID != "" && req.Finality != "" {
+	if req.BlockID != 0 && req.Finality != "" {
 		return nil, fmt.Errorf("you must provide one of DataChangesWithBlockID or DataChangesWithFinality, but not both")
 	}
 	var res DataChangesResponse
