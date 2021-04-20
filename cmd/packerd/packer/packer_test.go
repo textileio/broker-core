@@ -3,6 +3,7 @@ package packer
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -27,18 +28,19 @@ func TestPackAndRetrieve(t *testing.T) {
 	ipfs, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	packer := createPacker(t, ipfsAPIMultiaddr)
+	brokerMock := &brokerMock{}
+	packer := createPacker(t, ipfs, brokerMock)
 
 	// 2- Add 100 random files and get their cids.
 	dataCids := addRandomData(t, ipfs, 100)
 
-	// 3- Signal ready to pack these cids to Packer, and force pack.
+	// 3- Signal ready to pack these cids to Packer
 	for i, dataCid := range dataCids {
 		err = packer.ReadyToPack(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
 		require.NoError(t, err)
 	}
 
-	// 4- Test retrieval with go-ipfs with selector
+	// 4- Force pack and inspect what was signaled to the broker
 
 	// TODO:
 	// - Customize cut frequency
@@ -48,10 +50,14 @@ func TestPackAndRetrieve(t *testing.T) {
 	// - Test for collision behavior
 }
 
-func createPacker(t *testing.T, ipfsMultiaddr string) *Packer {
+func TestSelectorRetrieval(t *testing.T) {
+	// TODO
+}
+
+func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi, broker *brokerMock) *Packer {
 	ds := tests.NewTxMapDatastore()
 	// TODO: dockerize?
-	packer, err := New(ds, ipfsMultiaddr, "")
+	packer, err := New(ds, ipfsClient, broker)
 	require.NoError(t, err)
 
 	return packer
@@ -75,4 +81,41 @@ func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
 		cids[i] = node.Cid()
 	}
 	return cids
+}
+
+type brokerMock struct {
+	batchCid cid.Cid
+	srids    []broker.BrokerRequestID
+}
+
+func (bm *brokerMock) CreateStorageDeal(
+	ctx context.Context,
+	batchCid cid.Cid,
+	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	if batchCid.Defined() {
+		return "", fmt.Errorf("create storaeg deal called twice")
+	}
+	bm.batchCid = batchCid
+	bm.srids = srids
+
+	return broker.StorageDealID("DUKE"), nil
+}
+
+// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
+func (bm *brokerMock) StorageDealPrepared(
+	ctx context.Context,
+	id broker.StorageDealID,
+	pr broker.DataPreparationResult) error {
+	panic("shouldn't be called")
+}
+
+func (bm *brokerMock) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+
+	panic("shouldn't be called")
+}
+
+// Get returns a broker request from an id.
+func (bm *brokerMock) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
+
+	panic("shouldn't be called")
 }
