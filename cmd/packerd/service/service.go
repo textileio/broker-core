@@ -51,7 +51,6 @@ func New(conf Config) (*Service, error) {
 
 	fin := finalizer.NewFinalizer()
 
-	// TODO: wire mongo?
 	ds, err := common.CreateMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
 	if err != nil {
 		return nil, fmt.Errorf("creating datastore: %s", err)
