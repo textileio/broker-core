@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
@@ -20,10 +21,12 @@ func TestSuccess(t *testing.T) {
 
 	req, res := makeRequestWithFile(t)
 
-	expectedSR := storage.Request{ID: "ID1", StatusCode: storage.StatusBatching}
+	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
+	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
 	usm := &uploaderMock{}
 	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
+	usm.On("Get", mock.Anything, mock.Anything).Return(expectedSR, nil)
 
 	mux := createMux(usm)
 	mux.ServeHTTP(res, req)
@@ -34,6 +37,17 @@ func TestSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, expectedSR, responseSR)
+
+	// Call Get(..)
+	req = httptest.NewRequest("GET", "/storagerequest/"+responseSR.ID, nil)
+	req.Header.Add("Authorization", "foo")
+	res = httptest.NewRecorder()
+	mux.ServeHTTP(res, req)
+	require.Equal(t, http.StatusOK, res.Code)
+	err = json.Unmarshal(res.Body.Bytes(), &responseSR)
+	require.NoError(t, err)
+	require.Equal(t, expectedSR, responseSR)
+
 	usm.AssertExpectations(t)
 }
 
@@ -154,4 +168,10 @@ func (um *uploaderMock) IsAuthorized(ctx context.Context, identity string) (bool
 	args := um.Called(ctx, identity)
 
 	return args.Bool(0), args.String(1), args.Error(2)
+}
+
+func (um *uploaderMock) Get(ctx context.Context, id string) (storage.Request, error) {
+	args := um.Called(ctx, id)
+
+	return args.Get(0).(storage.Request), args.Error(1)
 }

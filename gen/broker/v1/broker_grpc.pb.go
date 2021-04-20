@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type APIServiceClient interface {
 	CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error)
 	GetBrokerRequest(ctx context.Context, in *GetBrokerRequestRequest, opts ...grpc.CallOption) (*GetBrokerRequestResponse, error)
+	CreateStorageDeal(ctx context.Context, in *CreateStorageDealRequest, opts ...grpc.CallOption) (*CreateStorageDealResponse, error)
 }
 
 type aPIServiceClient struct {
@@ -48,12 +49,22 @@ func (c *aPIServiceClient) GetBrokerRequest(ctx context.Context, in *GetBrokerRe
 	return out, nil
 }
 
+func (c *aPIServiceClient) CreateStorageDeal(ctx context.Context, in *CreateStorageDealRequest, opts ...grpc.CallOption) (*CreateStorageDealResponse, error) {
+	out := new(CreateStorageDealResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateStorageDeal", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // APIServiceServer is the server API for APIService service.
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
 type APIServiceServer interface {
 	CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error)
 	GetBrokerRequest(context.Context, *GetBrokerRequestRequest) (*GetBrokerRequestResponse, error)
+	CreateStorageDeal(context.Context, *CreateStorageDealRequest) (*CreateStorageDealResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -66,6 +77,9 @@ func (UnimplementedAPIServiceServer) CreateBrokerRequest(context.Context, *Creat
 }
 func (UnimplementedAPIServiceServer) GetBrokerRequest(context.Context, *GetBrokerRequestRequest) (*GetBrokerRequestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBrokerRequest not implemented")
+}
+func (UnimplementedAPIServiceServer) CreateStorageDeal(context.Context, *CreateStorageDealRequest) (*CreateStorageDealResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateStorageDeal not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -116,6 +130,24 @@ func _APIService_GetBrokerRequest_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _APIService_CreateStorageDeal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateStorageDealRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServiceServer).CreateStorageDeal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/broker.v1.APIService/CreateStorageDeal",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServiceServer).CreateStorageDeal(ctx, req.(*CreateStorageDealRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -130,6 +162,10 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBrokerRequest",
 			Handler:    _APIService_GetBrokerRequest_Handler,
+		},
+		{
+			MethodName: "CreateStorageDeal",
+			Handler:    _APIService_CreateStorageDeal_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

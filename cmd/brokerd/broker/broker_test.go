@@ -67,17 +67,13 @@ func TestCreateStorageDeal(t *testing.T) {
 
 	// 2- Create a StorageDeal with both storage requests.
 	brgCid := createCidFromString("StorageDeal")
-	srg := broker.BrokerRequestGroup{
-		Cid:                    brgCid,
-		GroupedStorageRequests: []broker.BrokerRequestID{br1.ID, br2.ID},
-	}
-	sd, err := b.CreateStorageDeal(ctx, srg)
+	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
 	// Check that what Piecer was notified about matches
 	// the BrokerRequest group to be prepared.
 	require.Equal(t, brgCid, p.calledCid)
-	require.Equal(t, sd.ID, p.calledID)
+	require.Equal(t, sd, p.calledID)
 
 	// Check that all broker request:
 	// 1- Moved to StatusPreparing
@@ -85,21 +81,21 @@ func TestCreateStorageDeal(t *testing.T) {
 	br1, err = b.Get(ctx, br1.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestPreparing, br1.Status)
-	require.Equal(t, sd.ID, br1.StorageDealID)
+	require.Equal(t, sd, br1.StorageDealID)
 	br2, err = b.Get(ctx, br2.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestPreparing, br2.Status)
-	require.Equal(t, sd.ID, br2.StorageDealID)
+	require.Equal(t, sd, br2.StorageDealID)
 
 	// Check that the StorageDeal was persisted correctly.
-	sd2, err := b.GetStorageDeal(ctx, sd.ID)
+	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
-	require.Equal(t, sd.ID, sd2.ID)
-	require.Equal(t, sd.Cid, sd2.Cid)
-	require.Equal(t, sd.Status, sd2.Status)
-	require.Equal(t, len(sd.BrokerRequestIDs), len(sd2.BrokerRequestIDs))
-	require.Equal(t, sd.CreatedAt.Unix(), sd2.CreatedAt.Unix())
-	require.Equal(t, sd.UpdatedAt.Unix(), sd2.UpdatedAt.Unix())
+	require.Equal(t, sd, sd2.ID)
+	require.True(t, sd2.Cid.Defined())
+	require.Equal(t, broker.StorageDealPreparing, sd2.Status)
+	require.Len(t, sd2.BrokerRequestIDs, 2)
+	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
+	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
 }
 
 func TestCreateStorageDealFail(t *testing.T) {
@@ -109,8 +105,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
-		srb := broker.BrokerRequestGroup{Cid: cid.Undef}
-		_, err := b.CreateStorageDeal(ctx, srb)
+		_, err := b.CreateStorageDeal(ctx, cid.Undef, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
@@ -119,8 +114,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
-		srb := broker.BrokerRequestGroup{Cid: brgCid}
-		_, err := b.CreateStorageDeal(ctx, srb)
+		_, err := b.CreateStorageDeal(ctx, brgCid, nil)
 		require.Equal(t, ErrEmptyGroup, err)
 	})
 
@@ -130,11 +124,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
-		srb := broker.BrokerRequestGroup{
-			Cid:                    brgCid,
-			GroupedStorageRequests: []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")},
-		}
-		_, err := b.CreateStorageDeal(ctx, srb)
+		_, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")})
 		require.True(t, errors.Is(err, srstore.ErrStorageDealContainsUnknownBrokerRequest))
 	})
 }
@@ -151,13 +141,18 @@ func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer) {
 }
 
 type dumbPacker struct {
-	readyToPackCalled []broker.BrokerRequest
+	readyToPackCalled []brc
+}
+
+type brc struct {
+	id      broker.BrokerRequestID
+	dataCid cid.Cid
 }
 
 var _ packer.Packer = (*dumbPacker)(nil)
 
-func (dp *dumbPacker) ReadyToPack(ctx context.Context, br broker.BrokerRequest) error {
-	dp.readyToPackCalled = append(dp.readyToPackCalled, br)
+func (dp *dumbPacker) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
+	dp.readyToPackCalled = append(dp.readyToPackCalled, brc{id: id, dataCid: dataCid})
 
 	return nil
 }

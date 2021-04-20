@@ -2,42 +2,43 @@ package main
 
 import (
 	"encoding/json"
-
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/brokerd/service"
 	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/cmd/packerd/service"
 )
 
 var (
-	daemonName = "brokerd"
+	daemonName = "packerd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "auctioneer.addr", DefValue: ":5001", Description: "Auctioneer address"},
-		{Name: "packer.addr", DefValue: "", Description: "Packer API address"},
 		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+
+		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
+
 		{Name: "ipfs.multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+
+		{Name: "broker.addr", DefValue: "", Description: "Broker API address"},
 
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
-	common.ConfigureCLI(v, "BROKER", flags, rootCmd)
+	common.ConfigureCLI(v, "packer", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "brokerd is a Broker to store data in Filecoin",
-	Long:  `brokerd is a Broker to store data in Filecoin`,
+	Short: "packerd handles deal auctions for the Broker",
+	Long:  "packerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
 		if v.GetBool("log.debug") {
@@ -53,25 +54,19 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		serviceConfig := service.Config{
-			GrpcListenAddress: v.GetString("rpc.addr"),
-
-			AuctioneerAddr: v.GetString("auctioneer.addr"),
-			PackerAddr:     v.GetString("packer.addr"),
-
-			MongoURI:    v.GetString("mongo.uri"),
-			MongoDBName: v.GetString("mongo.dbname"),
-
-			IpfsMultiaddr: v.GetString("ipfs.multiaddr"),
+		config := service.Config{
+			ListenAddr:       v.GetString("rpc.addr"),
+			IpfsAPIMultiaddr: v.GetString("ipfs.multiaddr"),
+			BrokerAPIAddr:    v.GetString("broker.addr"),
+			MongoURI:         v.GetString("mongo.uri"),
+			MongoDBName:      v.GetString("mongo.dbname"),
 		}
-		serv, err := service.New(serviceConfig)
+		serv, err := service.New(config)
 		common.CheckErr(err)
-
-		log.Info("listening to requests...")
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
-				log.Errorf("closing http endpoint: %s", err)
+				log.Errorf("closing service: %s", err)
 			}
 		})
 	},

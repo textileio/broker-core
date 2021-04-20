@@ -13,7 +13,7 @@ type Broker interface {
 
 	// CreateStorageDeal creates a new StorageDeal. It is called
 	// by the Packer after batching a set of BrokerRequest properly.
-	CreateStorageDeal(ctx context.Context, brg BrokerRequestGroup) (StorageDeal, error)
+	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDealID, error)
 
 	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
 	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
@@ -69,9 +69,29 @@ const (
 	RequestAuctioning
 	// RequestDealMaking indicates that the storage deal deals are being executed.
 	RequestDealMaking
-	// BrokerRequestSuccess indicates that the storage deal was successfully stored in Filecoin.
-	BrokerRequestSuccess
+	// RequestSuccess indicates that the storage deal was successfully stored in Filecoin.
+	RequestSuccess
 )
+
+// String returns a string-encoded status.
+func (brs BrokerRequestStatus) String() string {
+	switch brs {
+	case RequestUnknown:
+		return "unknown"
+	case RequestBatching:
+		return "batching"
+	case RequestPreparing:
+		return "preparing"
+	case RequestAuctioning:
+		return "auctioning"
+	case RequestDealMaking:
+		return "deal-making"
+	case RequestSuccess:
+		return "success"
+	default:
+		return "invalid"
+	}
+}
 
 // StorageDealID is the type of a StorageDeal identifier.
 type StorageDealID string
@@ -102,13 +122,6 @@ type StorageDeal struct {
 	BrokerRequestIDs []BrokerRequestID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
-}
-
-// BrokerRequestGroup is an ephemeral entity that Packer utilizes
-// to ask the Broker to create a definitive StorageDeal from it.
-type BrokerRequestGroup struct {
-	Cid                    cid.Cid
-	GroupedStorageRequests []BrokerRequestID
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.

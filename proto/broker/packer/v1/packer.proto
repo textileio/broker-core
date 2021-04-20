@@ -1,0 +1,17 @@
+syntax = "proto3";
+package broker.packer.v1;
+option go_package = "github.com/textileio/broker-core/broker/packer/v1;packer";
+
+import "google/protobuf/timestamp.proto";
+
+message ReadyToPackRequest {
+    string broker_request_id = 1;
+    string data_cid = 2;
+}
+
+message ReadyToPackResponse {
+}
+
+service APIService {
+    rpc ReadyToPack(ReadyToPackRequest) returns (ReadyToPackResponse) {}
+}

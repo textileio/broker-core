@@ -5,8 +5,8 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
-
 	pb "github.com/textileio/broker-core/gen/broker/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // FromProtoBrokerRequest transforms a pb.BrokerRequest to broker.BrokerRequest.
@@ -29,7 +29,7 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 	case pb.BrokerRequest_DEALMAKING:
 		status = broker.RequestDealMaking
 	case pb.BrokerRequest_SUCCESS:
-		status = broker.BrokerRequestSuccess
+		status = broker.RequestSuccess
 	default:
 		return broker.BrokerRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
 	}
@@ -50,4 +50,37 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 	}
 
 	return br, nil
+}
+
+// BrokerRequestToProto maps a broker.BrokerRequest to pb.BrokerRequest.
+func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
+	var pbStatus pb.BrokerRequest_Status
+	switch br.Status {
+	case broker.RequestUnknown:
+		pbStatus = pb.BrokerRequest_UNSPECIFIED
+	case broker.RequestBatching:
+		pbStatus = pb.BrokerRequest_BATCHING
+	case broker.RequestPreparing:
+		pbStatus = pb.BrokerRequest_PREPARING
+	case broker.RequestAuctioning:
+		pbStatus = pb.BrokerRequest_AUCTIONING
+	case broker.RequestDealMaking:
+		pbStatus = pb.BrokerRequest_DEALMAKING
+	case broker.RequestSuccess:
+		pbStatus = pb.BrokerRequest_SUCCESS
+	default:
+		return nil, fmt.Errorf("unknown status: %d", br.Status)
+	}
+
+	return &pb.BrokerRequest{
+		Id:      string(br.ID),
+		DataCid: br.DataCid.String(),
+		Status:  pbStatus,
+		Meta: &pb.BrokerRequest_Metadata{
+			Region: br.Metadata.Region,
+		},
+		StorageDealId: string(br.StorageDealID),
+		CreatedAt:     timestamppb.New(br.CreatedAt),
+		UpdatedAt:     timestamppb.New(br.UpdatedAt),
+	}, nil
 }

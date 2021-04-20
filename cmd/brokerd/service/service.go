@@ -9,19 +9,18 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
+	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
+	"github.com/textileio/broker-core/cmd/common"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
-	mongods "github.com/textileio/go-ds-mongo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -33,6 +32,7 @@ type Config struct {
 	GrpcListenAddress string
 
 	AuctioneerAddr string
+	PackerAddr     string
 
 	MongoDBName string
 	MongoURI    string
@@ -60,12 +60,12 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	ds, err := createDatastore(config)
+	ds, err := common.CreateMongoTxnDatastore(config.MongoURI, config.MongoDBName)
 	if err != nil {
 		return nil, fmt.Errorf("creating datastore: %s", err)
 	}
 
-	packer, err := packeri.New(config.IpfsMultiaddr)
+	packer, err := packeri.New(config.PackerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
@@ -85,9 +85,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
 
-	// TODO: this line will go away soon, now it's just needed for emmbeding a packer
-	// in broked binary.
-	packer.SetBroker(broker)
+	// TODO: this line will go away soon when piecer lives in its own daemon
 	piecer.SetBroker(broker)
 
 	s := &Service{
@@ -118,7 +116,7 @@ func (s *Service) CreateBrokerRequest(
 
 	c, err := cid.Decode(r.Cid)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid cid: %s", err))
+		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
 
 	meta := broker.Metadata{}
@@ -126,17 +124,17 @@ func (s *Service) CreateBrokerRequest(
 		meta.Region = r.Meta.Region
 	}
 	if err := meta.Validate(); err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid metadata: %s", err))
+		return nil, status.Errorf(codes.InvalidArgument, "invalid metadata: %s", err)
 	}
 
 	br, err := s.broker.Create(ctx, c, meta)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("creating storage request: %s", err))
+		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
-	pbr, err := castBrokerRequestToProto(br)
+	pbr, err := cast.BrokerRequestToProto(br)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
 	res := &pb.CreateBrokerRequestResponse{
 		Request: pbr,
@@ -155,12 +153,12 @@ func (s *Service) GetBrokerRequest(
 
 	br, err := s.broker.Get(ctx, broker.BrokerRequestID(r.Id))
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("get broker request: %s", err))
+		return nil, status.Errorf(codes.Internal, "get broker request: %s", err)
 	}
 
-	pbr, err := castBrokerRequestToProto(br)
+	pbr, err := cast.BrokerRequestToProto(br)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
 	res := &pb.GetBrokerRequestResponse{
 		BrokerRequest: pbr,
@@ -169,12 +167,40 @@ func (s *Service) GetBrokerRequest(
 	return res, nil
 }
 
+// CreateStorageDeal deal creates a storage deal.
+func (s *Service) CreateStorageDeal(
+	ctx context.Context,
+	r *pb.CreateStorageDealRequest) (*pb.CreateStorageDealResponse, error) {
+	if r == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+
+	batchCid, err := cid.Decode(r.BatchCid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", r.BatchCid)
+	}
+
+	brids := make([]broker.BrokerRequestID, len(r.BrokerRequestIds))
+	for i, id := range r.BrokerRequestIds {
+		if id == "" {
+			return nil, status.Error(codes.InvalidArgument, "broker request id can't be empty")
+		}
+		brids[i] = broker.BrokerRequestID(id)
+	}
+
+	sd, err := s.broker.CreateStorageDeal(ctx, batchCid, brids)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "creating storage deal: %s", err)
+	}
+
+	return &pb.CreateStorageDealResponse{Id: string(sd)}, nil
+}
+
 // Close gracefully closes the service.
 func (s *Service) Close() error {
 	var errors []string
 	defer log.Info("service was shutdown with %d errors", len(errors))
 
-	// TODO: close gRPC server when exists
 	stopped := make(chan struct{})
 	go func() {
 		s.server.GracefulStop()
@@ -197,56 +223,4 @@ func (s *Service) Close() error {
 	}
 
 	return nil
-}
-
-func castBrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
-	var pbStatus pb.BrokerRequest_Status
-	switch br.Status {
-	case broker.RequestUnknown:
-		pbStatus = pb.BrokerRequest_UNSPECIFIED
-	case broker.RequestBatching:
-		pbStatus = pb.BrokerRequest_BATCHING
-	case broker.RequestPreparing:
-		pbStatus = pb.BrokerRequest_PREPARING
-	case broker.RequestAuctioning:
-		pbStatus = pb.BrokerRequest_AUCTIONING
-	case broker.RequestDealMaking:
-		pbStatus = pb.BrokerRequest_DEALMAKING
-	case broker.BrokerRequestSuccess:
-		pbStatus = pb.BrokerRequest_SUCCESS
-	default:
-		return nil, fmt.Errorf("unknown status: %d", br.Status)
-	}
-
-	return &pb.BrokerRequest{
-		Id:      string(br.ID),
-		DataCid: br.DataCid.String(),
-		Status:  pbStatus,
-		Meta: &pb.BrokerRequest_Metadata{
-			Region: br.Metadata.Region,
-		},
-		StorageDealId: string(br.StorageDealID),
-		CreatedAt:     timestamppb.New(br.CreatedAt),
-		UpdatedAt:     timestamppb.New(br.UpdatedAt),
-	}, nil
-}
-
-func createDatastore(conf Config) (datastore.TxnDatastore, error) {
-	log.Info("Opening Mongo database...")
-
-	mongoCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	if conf.MongoURI == "" {
-		return nil, fmt.Errorf("mongo uri is empty")
-	}
-	if conf.MongoDBName == "" {
-		return nil, fmt.Errorf("mongo database name is empty")
-	}
-	ds, err := mongods.New(mongoCtx, conf.MongoURI, conf.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("opening mongo datastore: %s", err)
-	}
-
-	return ds, nil
 }

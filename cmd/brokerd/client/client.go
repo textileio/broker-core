@@ -19,6 +19,8 @@ type Client struct {
 	conn *grpc.ClientConn
 }
 
+var _ broker.Broker = (*Client)(nil)
+
 // New returns a new *Client.
 func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 	conn, err := grpc.Dial(brokerAPIAddr, rpc.GetClientOpts(brokerAPIAddr)...)
@@ -69,6 +71,44 @@ func (c *Client) Get(ctx context.Context, id broker.BrokerRequestID) (broker.Bro
 	}
 
 	return br, nil
+}
+
+// CreateStorageDeal deal creates a storage deal.
+func (c *Client) CreateStorageDeal(
+	ctx context.Context,
+	batchCid cid.Cid,
+	ids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	if !batchCid.Defined() {
+		return "", fmt.Errorf("batch cid is undefined")
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("grouped broker requests list is empty")
+	}
+
+	brids := make([]string, len(ids))
+	for i, brID := range ids {
+		brids[i] = string(brID)
+	}
+
+	req := &pb.CreateStorageDealRequest{
+		BatchCid:         batchCid.String(),
+		BrokerRequestIds: brids,
+	}
+	res, err := c.c.CreateStorageDeal(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("calling create storage deal api: %s", err)
+	}
+
+	return broker.StorageDealID(res.Id), nil
+}
+
+// StorageDealPrepared indicates the preparing output for a storage deal.
+func (c *Client) StorageDealPrepared(
+	ctx context.Context,
+	id broker.StorageDealID,
+	pr broker.DataPreparationResult) error {
+	// TODO: this will be relevant when piecer exists as separate daemon piecerd
+	panic("not prepared")
 }
 
 // Close closes gracefully the client.

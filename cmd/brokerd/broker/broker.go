@@ -88,7 +88,7 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	// We notify the Packer that this BrokerRequest is ready to be considered.
 	// We'll receive a call to `(*Broker).CreateStorageDeal(...)` which will contain
 	// this BrokerRequest, and continue with the bidding process..
-	if err := b.packer.ReadyToPack(ctx, br); err != nil {
+	if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
 		// TODO: there's room for improvement here. We can mark this broker-request
 		// to be retried in signaling the packer, to avoid be orphaned.
 		// Under normal circumstances this shouldn't happen.
@@ -117,20 +117,23 @@ func (b *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.Bro
 // caused by Packer. When Packer batches enough pending BrokerRequests in a BrokerRequestGroup, it signals
 // the Broker to create a StorageDeal. This StorageDeal should be prepared (piece-size/commP) before publishing
 // it in the feed.
-func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequestGroup) (broker.StorageDeal, error) {
-	if !srb.Cid.Defined() {
-		return broker.StorageDeal{}, ErrInvalidCid
+func (b *Broker) CreateStorageDeal(
+	ctx context.Context,
+	batchCid cid.Cid,
+	brids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	if !batchCid.Defined() {
+		return "", ErrInvalidCid
 	}
-	if len(srb.GroupedStorageRequests) == 0 {
-		return broker.StorageDeal{}, ErrEmptyGroup
+	if len(brids) == 0 {
+		return "", ErrEmptyGroup
 	}
 
 	now := time.Now()
 	sd := broker.StorageDeal{
 		ID:               broker.StorageDealID(uuid.New().String()),
-		Cid:              srb.Cid,
+		Cid:              batchCid,
 		Status:           broker.StorageDealPreparing,
-		BrokerRequestIDs: srb.GroupedStorageRequests,
+		BrokerRequestIDs: brids,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
@@ -140,7 +143,7 @@ func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequest
 	// - Link each BrokerRequest with the StorageDeal.
 	// - Save the `StorageDeal` in the store.
 	if err := b.store.CreateStorageDeal(ctx, sd); err != nil {
-		return broker.StorageDeal{}, fmt.Errorf("creating storage deal: %w", err)
+		return "", fmt.Errorf("creating storage deal: %w", err)
 	}
 
 	log.Debugf("creating storage deal %s created, signaling piecer...", sd.ID)
@@ -149,10 +152,10 @@ func (b *Broker) CreateStorageDeal(ctx context.Context, srb broker.BrokerRequest
 	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.Cid); err != nil {
 		// TODO: same possible improvement as described in `ReadyToPack`
 		// applies here.
-		return broker.StorageDeal{}, fmt.Errorf("signaling piecer: %s", err)
+		return "", fmt.Errorf("signaling piecer: %s", err)
 	}
 
-	return sd, nil
+	return sd.ID, nil
 }
 
 // StorageDealPrepared is called by Prepared to notify that the data preparation stage is done,
