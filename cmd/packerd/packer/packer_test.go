@@ -13,6 +13,7 @@ import (
 	ipfsfiles "github.com/ipfs/go-ipfs-files"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
+	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
@@ -42,10 +43,17 @@ func TestPackAndRetrieve(t *testing.T) {
 	}
 
 	// 4- Force pack and inspect what was signaled to the broker
+	err = packer.pack(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, brokerMock.srids, 100)
+	require.True(t, brokerMock.batchCid.Defined())
+
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
+	require.NoError(t, err)
+	require.True(t, pinned)
 
 	// TODO:
-	// - Customize cut frequency
-	// - Custome max batch size
 	// - Add test to check that three levels are < 1MiB in worst case scenario.
 	// - Persistent queue, resumal.
 	// - Test for collision behavior
@@ -76,7 +84,7 @@ func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
 		node, err := ipfs.Unixfs().Add(
 			context.Background(),
 			ipfsfiles.NewReaderFile(bytes.NewReader(data)),
-			options.Unixfs.Pin(false))
+			options.Unixfs.Pin(true))
 		require.NoError(t, err)
 
 		cids[i] = node.Cid()
@@ -93,8 +101,8 @@ func (bm *brokerMock) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
 	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
-	if batchCid.Defined() {
-		return "", fmt.Errorf("create storaeg deal called twice")
+	if bm.batchCid.Defined() {
+		return "", fmt.Errorf("create storage deal called twice")
 	}
 	bm.batchCid = batchCid
 	bm.srids = srids
