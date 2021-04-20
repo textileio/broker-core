@@ -5,6 +5,7 @@ option go_package = "github.com/textileio/broker-core/gen/broker/auth/v1;auth";
 message AuthRequest {
     // JWT token
     string jwtBase64URL = 1;
+    uint64 blockHeight = 2;
 }
 
 message AuthResponse {

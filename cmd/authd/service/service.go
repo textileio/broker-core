@@ -16,6 +16,7 @@ import (
 
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
+	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
 
 	// This import runs the init, which registers the algo with jwt-go.
 	_ "github.com/textileio/jwt-go-eddsa"
@@ -33,23 +34,34 @@ var (
 	log = logging.Logger(LogName)
 )
 
-// Service is a gRPC service for buckets.
+// Service is a gRPC service for authorization.
 type Service struct {
 	pb.UnimplementedAPIServiceServer
-
+	Config
+	Deps
 	server *grpc.Server
+}
+
+// Config is the service config.
+type Config struct {
+	ListenAddr string
+}
+
+// Deps comprises the service dependencies.
+type Deps struct {
+	ChainAPIServiceClient chainapi.ChainApiServiceClient
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new service.
-func New(listenAddr string) (*Service, error) {
-	// put the indexer here
-
+func New(config Config, deps Deps) (*Service, error) {
 	s := &Service{
 		server: grpc.NewServer(),
+		Config: config,
+		Deps:   deps,
 	}
-	listener, err := net.Listen("tcp", listenAddr)
+	listener, err := net.Listen("tcp", config.ListenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
@@ -60,7 +72,7 @@ func New(listenAddr string) (*Service, error) {
 		}
 	}()
 
-	log.Infof("service listening at %s", listenAddr)
+	log.Infof("service listening at %s", config.ListenAddr)
 	return s, nil
 }
 
@@ -89,10 +101,8 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// token.header.x
 	var x string
 
-	// token.payload.claims.sub
-	var sub string
-
 	// Validate the JWT.
+	// TODO break this out to another function.
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
 		jwk := token.Header["jwk"]
 		jwkMap := map[string]string{}
@@ -109,39 +119,63 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		pkey, err := crypto.UnmarshalEd25519PublicKey(dx)
 		return pkey, err
 	})
-
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("ParseWithClaims: %s", err))
+		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Parsing JWT: %s", err))
+	}
+	if !token.Valid {
+		return nil, status.Errorf(codes.Unauthenticated, "JWT invalid")
 	}
 
-	if claims, ok := token.Claims.(*jwt.StandardClaims); ok && token.Valid {
-		sub = claims.Subject
-		subDID, _ := did.Parse(sub)
-		_, bytes, err := mbase.Decode(subDID.ID)
-		if err != nil {
-			sub = ""
-		}
-		_, n, err := varint.FromUvarint(bytes)
-		if err != nil {
-			sub = ""
-		}
-		if n != 2 {
-			sub = ""
-		}
-		dx, _ := base64.URLEncoding.DecodeString(x)
-		if string(dx) != string(bytes[2:]) {
-			sub = ""
-		}
-	} else {
-		sub = ""
+	// Get the claims.
+	// TODO break out to another function.
+	claims, ok := token.Claims.(*jwt.StandardClaims)
+	if claims.Valid() != nil {
+		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid claims: %s", err))
+	}
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "Invalid claims")
 	}
 
-	if sub == "" {
+	// Verify the key DID.
+	// TODO: break this out to another function.
+	// TODO: break out the error handling to another function.
+	sub := claims.Subject
+	subDID, _ := did.Parse(sub)
+	_, bytes, err := mbase.Decode(subDID.ID)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated,
+			"The sub key DID did not match the key DID produced using the public key")
+	}
+	_, n, err := varint.FromUvarint(bytes)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated,
+			"The sub key DID did not match the key DID produced using the public key")
+	}
+	if n != 2 {
+		return nil, status.Errorf(codes.Unauthenticated,
+			"The sub key DID did not match the key DID produced using the public key")
+	}
+	dx, _ := base64.URLEncoding.DecodeString(x)
+	if string(dx) != string(bytes[2:]) {
 		return nil, status.Errorf(codes.Unauthenticated,
 			"The sub key DID did not match the key DID produced using the public key")
 	}
 
-	// @todo: hit indexerd to check for locked funds
+	// Check the chain for locked funds.
+	// TODO break this out into another function
+	iss := claims.Issuer
+	blockHeight := req.BlockHeight
+	var chainReq = &chainapi.HasFundsRequest{
+		BlockHeight: blockHeight,
+		AccountId:   iss,
+	}
+	chainRes, err := s.Deps.ChainAPIServiceClient.HasFunds(ctx, chainReq)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Locked funds: %s", err))
+	}
+	if !chainRes.HasFunds {
+		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Locked funds: %s", err))
+	}
 
 	// Return the subscriber identity
 	return &pb.AuthResponse{
