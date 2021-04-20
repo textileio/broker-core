@@ -13,7 +13,7 @@ type Broker interface {
 
 	// CreateStorageDeal creates a new StorageDeal. It is called
 	// by the Packer after batching a set of BrokerRequest properly.
-	CreateStorageDeal(ctx context.Context, brg BrokerRequestGroup) (StorageDeal, error)
+	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDeal, error)
 
 	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
 	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
@@ -122,13 +122,6 @@ type StorageDeal struct {
 	BrokerRequestIDs []BrokerRequestID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
-}
-
-// BrokerRequestGroup is an ephemeral entity that Packer utilizes
-// to ask the Broker to create a definitive StorageDeal from it.
-type BrokerRequestGroup struct {
-	BatchCid       cid.Cid
-	BrokerRequests []BrokerRequestID
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.

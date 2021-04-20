@@ -67,11 +67,7 @@ func TestCreateStorageDeal(t *testing.T) {
 
 	// 2- Create a StorageDeal with both storage requests.
 	brgCid := createCidFromString("StorageDeal")
-	srg := broker.BrokerRequestGroup{
-		BatchCid:       brgCid,
-		BrokerRequests: []broker.BrokerRequestID{br1.ID, br2.ID},
-	}
-	sd, err := b.CreateStorageDeal(ctx, srg)
+	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
 	// Check that what Piecer was notified about matches
@@ -109,8 +105,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
-		srb := broker.BrokerRequestGroup{BatchCid: cid.Undef}
-		_, err := b.CreateStorageDeal(ctx, srb)
+		_, err := b.CreateStorageDeal(ctx, cid.Undef, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
@@ -119,8 +114,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
-		srb := broker.BrokerRequestGroup{BatchCid: brgCid}
-		_, err := b.CreateStorageDeal(ctx, srb)
+		_, err := b.CreateStorageDeal(ctx, brgCid, nil)
 		require.Equal(t, ErrEmptyGroup, err)
 	})
 
@@ -130,11 +124,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
-		srb := broker.BrokerRequestGroup{
-			BatchCid:       brgCid,
-			BrokerRequests: []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")},
-		}
-		_, err := b.CreateStorageDeal(ctx, srb)
+		_, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("INVENTED")})
 		require.True(t, errors.Is(err, srstore.ErrStorageDealContainsUnknownBrokerRequest))
 	})
 }

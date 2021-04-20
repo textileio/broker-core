@@ -188,11 +188,7 @@ func (s *Service) CreateStorageDeal(
 		brids[i] = broker.BrokerRequestID(id)
 	}
 
-	srb := broker.BrokerRequestGroup{
-		BatchCid:       batchCid,
-		BrokerRequests: brids,
-	}
-	sd, err := s.broker.CreateStorageDeal(ctx, srb)
+	sd, err := s.broker.CreateStorageDeal(ctx, batchCid, brids)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage deal: %s", err)
 	}
