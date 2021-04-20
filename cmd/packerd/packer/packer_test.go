@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	ipfsfiles "github.com/ipfs/go-ipfs-files"
@@ -57,7 +58,7 @@ func TestSelectorRetrieval(t *testing.T) {
 func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi, broker *brokerMock) *Packer {
 	ds := tests.NewTxMapDatastore()
 	// TODO: dockerize?
-	packer, err := New(ds, ipfsClient, broker)
+	packer, err := New(ds, ipfsClient, broker, WithFrequency(time.Hour))
 	require.NoError(t, err)
 
 	return packer

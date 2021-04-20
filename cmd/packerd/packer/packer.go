@@ -45,7 +45,7 @@ type br struct {
 var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
-func New(ds datastore.TxnDatastore, ipfsClient *httpapi.HttpApi, broker broker.Broker) (*Packer, error) {
+func New(ds datastore.TxnDatastore, ipfsClient *httpapi.HttpApi, broker broker.Broker, opts ...Option) (*Packer, error) {
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
 		ipfs:            ipfsClient,
