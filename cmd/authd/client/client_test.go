@@ -82,6 +82,7 @@ func TestClient_Create(t *testing.T) {
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
+	chainAPIClientMock.AssertExpectations(t)
 }
 
 func newClient(t *testing.T, chainAPIClient chainapi.ChainApiServiceClient) *client.Client {
