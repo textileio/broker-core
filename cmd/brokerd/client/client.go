@@ -102,7 +102,11 @@ func (c *Client) CreateStorageDeal(
 	return broker.StorageDealID(res.Id), nil
 }
 
-func (c *Client) StorageDealPrepared(ctx context.Context, id broker.StorageDealID, pr broker.DataPreparationResult) error {
+// StorageDealPrepared indicates the preparing output for a storage deal.
+func (c *Client) StorageDealPrepared(
+	ctx context.Context,
+	id broker.StorageDealID,
+	pr broker.DataPreparationResult) error {
 	// TODO: this will be relevant when piecer exists as separate daemon piecerd
 	panic("not prepared")
 }

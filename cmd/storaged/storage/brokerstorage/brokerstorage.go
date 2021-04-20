@@ -65,6 +65,7 @@ func (bs *BrokerStorage) CreateFromReader(
 	}, nil
 }
 
+// Get returns a Request by id.
 func (bs *BrokerStorage) Get(ctx context.Context, id string) (storage.Request, error) {
 	br, err := bs.broker.Get(ctx, broker.BrokerRequestID(id))
 	if err != nil {

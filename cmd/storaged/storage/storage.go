@@ -36,7 +36,7 @@ const (
 	StatusAuctioning
 	// StatusDealMaking indicates that the data is in deal-making process.
 	StatusDealMaking
-	// StatusSuccess
+	// StatusSuccess indicates that the request was stored in Filecoin.
 	StatusSuccess
 )
 
