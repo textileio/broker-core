@@ -52,6 +52,7 @@ func TestPackAndRetrieve(t *testing.T) {
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
 	require.NoError(t, err)
 	require.True(t, pinned)
+	require.Len(t, packer.queue, 0)
 
 	// TODO:
 	// - Add test to check that three levels are < 1MiB in worst case scenario.
@@ -84,6 +85,7 @@ func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
 		node, err := ipfs.Unixfs().Add(
 			context.Background(),
 			ipfsfiles.NewReaderFile(bytes.NewReader(data)),
+			options.Unixfs.CidVersion(1),
 			options.Unixfs.Pin(true))
 		require.NoError(t, err)
 
@@ -119,12 +121,10 @@ func (bm *brokerMock) StorageDealPrepared(
 }
 
 func (bm *brokerMock) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
-
 	panic("shouldn't be called")
 }
 
 // Get returns a broker request from an id.
 func (bm *brokerMock) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
-
 	panic("shouldn't be called")
 }
