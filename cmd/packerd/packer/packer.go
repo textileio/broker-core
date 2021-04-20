@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	cutFrequency = time.Second * 10
+	cutFrequency = time.Second * 20
 
 	log = logger.Logger("packer")
 )

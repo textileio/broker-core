@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
@@ -20,7 +21,8 @@ func TestSuccess(t *testing.T) {
 
 	req, res := makeRequestWithFile(t)
 
-	expectedSR := storage.Request{ID: "ID1", StatusCode: storage.StatusBatching}
+	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
+	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
 	usm := &uploaderMock{}
 	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
