@@ -12,9 +12,7 @@ import (
 type Requester interface {
 	IsAuthorized(ctx context.Context, identity string) (bool, string, error)
 	CreateFromReader(ctx context.Context, r io.Reader, meta Metadata) (Request, error)
-	// Potentially other future methods here to cover other use-cases like:
-	// - CreateFromCid(context.Context, cid.Cid, Metadata) // Fetch from IPFS network
-	// - CreateFromRemote(context.Context, RemoteOrigin, Metadata) // Fetch from some remote origin.
+	Get(ctx context.Context, id string) (Request, error)
 }
 
 // Metadata contains extra data to be considered by the Broker.
@@ -32,6 +30,14 @@ const (
 	StatusUnknown Status = iota
 	// StatusBatching indicates that the storage request is being batched.
 	StatusBatching
+	// StatusPreparing indicates that the batch containing the data is being prepared.
+	StatusPreparing
+	// StatusAuctioning indicates that the batch containing the data is being auctioned.
+	StatusAuctioning
+	// StatusDealMaking indicates that the data is in deal-making process.
+	StatusDealMaking
+	// StatusSuccess
+	StatusSuccess
 )
 
 // Request is a request for storing data in a Broker.

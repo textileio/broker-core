@@ -45,8 +45,11 @@ func NewServer(listenAddr string, s storage.Requester) (*http.Server, error) {
 func createMux(s storage.Requester) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	uh := wrapMiddlewares(s, uploadHandler(s), "upload")
-	mux.Handle("/upload", uh)
+	uploadHandler := wrapMiddlewares(s, uploadHandler(s), "upload")
+	mux.Handle("/upload", uploadHandler)
+
+	storageRequest := wrapMiddlewares(s, storageRequestHandler(s), "storagerequest")
+	mux.Handle("/storagerequest/", storageRequest)
 
 	return mux
 }
@@ -123,6 +126,33 @@ func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Requ
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(storageRequest); err != nil {
+			httpError(w, fmt.Sprintf("marshaling response: %s", err), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			httpError(w, "only GET method is allowed", http.StatusBadRequest)
+			return
+		}
+		urlParts := strings.SplitN(r.URL.Path, "/", 3)
+		if len(urlParts) < 3 {
+			httpError(w, "the url should be /broker-request/{id}", http.StatusBadRequest)
+			return
+		}
+		id := urlParts[2]
+
+		sr, err := s.Get(r.Context(), id)
+		if err != nil {
+			httpError(w, fmt.Sprintf("get broker-request: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(sr); err != nil {
 			httpError(w, fmt.Sprintf("marshaling response: %s", err), http.StatusInternalServerError)
 			return
 		}

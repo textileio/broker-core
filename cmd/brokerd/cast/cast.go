@@ -29,7 +29,7 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 	case pb.BrokerRequest_DEALMAKING:
 		status = broker.RequestDealMaking
 	case pb.BrokerRequest_SUCCESS:
-		status = broker.BrokerRequestSuccess
+		status = broker.RequestSuccess
 	default:
 		return broker.BrokerRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
 	}
@@ -66,7 +66,7 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 		pbStatus = pb.BrokerRequest_AUCTIONING
 	case broker.RequestDealMaking:
 		pbStatus = pb.BrokerRequest_DEALMAKING
-	case broker.BrokerRequestSuccess:
+	case broker.RequestSuccess:
 		pbStatus = pb.BrokerRequest_SUCCESS
 	default:
 		return nil, fmt.Errorf("unknown status: %d", br.Status)

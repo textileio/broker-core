@@ -53,10 +53,50 @@ func (bs *BrokerStorage) CreateFromReader(
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
+	status, err := brokerRequestStatusToStorageRequestStatus(sr.Status)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
+	}
 
 	return storage.Request{
 		ID:         string(sr.ID),
 		Cid:        c,
-		StatusCode: storage.StatusBatching,
+		StatusCode: status,
 	}, nil
+}
+
+func (bs *BrokerStorage) Get(ctx context.Context, id string) (storage.Request, error) {
+	br, err := bs.broker.Get(ctx, broker.BrokerRequestID(id))
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("getting broker request: %s", err)
+	}
+
+	status, err := brokerRequestStatusToStorageRequestStatus(br.Status)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
+	}
+	sr := storage.Request{
+		ID:         string(br.ID),
+		Cid:        br.DataCid,
+		StatusCode: status,
+	}
+
+	return sr, nil
+}
+
+func brokerRequestStatusToStorageRequestStatus(status broker.BrokerRequestStatus) (storage.Status, error) {
+	switch status {
+	case broker.RequestBatching:
+		return storage.StatusBatching, nil
+	case broker.RequestPreparing:
+		return storage.StatusPreparing, nil
+	case broker.RequestAuctioning:
+		return storage.StatusAuctioning, nil
+	case broker.RequestDealMaking:
+		return storage.StatusDealMaking, nil
+	case broker.RequestSuccess:
+		return storage.StatusSuccess, nil
+	default:
+		return storage.StatusUnknown, fmt.Errorf("unknown status: %s", status)
+	}
 }

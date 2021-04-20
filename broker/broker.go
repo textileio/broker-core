@@ -69,9 +69,29 @@ const (
 	RequestAuctioning
 	// RequestDealMaking indicates that the storage deal deals are being executed.
 	RequestDealMaking
-	// BrokerRequestSuccess indicates that the storage deal was successfully stored in Filecoin.
-	BrokerRequestSuccess
+	// RequestSuccess indicates that the storage deal was successfully stored in Filecoin.
+	RequestSuccess
 )
+
+// String returns a string-encoded status.
+func (brs BrokerRequestStatus) String() string {
+	switch brs {
+	case RequestUnknown:
+		return "unknown"
+	case RequestBatching:
+		return "batching"
+	case RequestPreparing:
+		return "preparing"
+	case RequestAuctioning:
+		return "auctioning"
+	case RequestDealMaking:
+		return "deal-making"
+	case RequestSuccess:
+		return "success"
+	default:
+		return "invalid"
+	}
+}
 
 // StorageDealID is the type of a StorageDeal identifier.
 type StorageDealID string
