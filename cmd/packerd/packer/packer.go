@@ -11,6 +11,8 @@ import (
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logger "github.com/ipfs/go-log/v2"
+	"github.com/ipfs/interface-go-ipfs-core/options"
+	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/multiformats/go-multihash"
 	"github.com/textileio/broker-core/broker"
 	packeri "github.com/textileio/broker-core/packer"
@@ -124,6 +126,9 @@ func (p *Packer) pack(ctx context.Context) error {
 
 	if err := p.ipfs.Dag().Add(ctx, n); err != nil {
 		return fmt.Errorf("adding root node of batch to ipfs: %s", err)
+	}
+	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(n.Cid()), options.Pin.Recursive(true)); err != nil {
+		return fmt.Errorf("pinning batch cid: %s", err)
 	}
 
 	sdID, err := p.broker.CreateStorageDeal(ctx, n.Cid(), brids)
