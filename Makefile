@@ -53,6 +53,14 @@ define gen_release_files
 	done
 endef
 
+mocks: $(MOCKERY) clean-mocks
+	$(MOCKERY) --all --dir gen --keeptree
+.PHONY: mocks
+
+clean-mocks:
+	rm -rf mocks
+.PHONY: clean-mocks
+
 protos: $(BUF) $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC) clean-protos
 	$(BUF) generate --template '{"version":"v1beta1","plugins":[{"name":"go","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO)},{"name":"go-grpc","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO_GRPC)}]}'
 .PHONY: protos

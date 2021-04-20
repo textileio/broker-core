@@ -9,11 +9,12 @@ import (
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/phayes/freeport"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/authd/client"
 	"github.com/textileio/broker-core/logging"
+	mocks "github.com/textileio/broker-core/mocks/broker/chainapi/v1"
 	"github.com/textileio/broker-core/rpc"
-	"google.golang.org/grpc"
 
 	"github.com/textileio/broker-core/cmd/authd/service"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
@@ -57,23 +58,23 @@ var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1A
 //     "aud": "https://broker.staging.textile.io/"
 // }
 
-type chainAPIServiceClientMock struct {
-}
-
-func (c *chainAPIServiceClientMock) LockInfo(ctx context.Context, in *chainapi.LockInfoRequest, opts ...grpc.CallOption) (*chainapi.LockInfoResponse, error) {
-	return nil, nil
-}
-func (c *chainAPIServiceClientMock) HasFunds(ctx context.Context, in *chainapi.HasFundsRequest, opts ...grpc.CallOption) (*chainapi.HasFundsResponse, error) {
-	return nil, nil
-}
-
-func (c *chainAPIServiceClientMock) State(ctx context.Context, in *chainapi.StateRequest, opts ...grpc.CallOption) (*chainapi.StateResponse, error) {
-	return nil, nil
-}
-
 func TestClient_Create(t *testing.T) {
 	jwtBase64URL := TOKEN
-	c := newClient(t)
+
+	// Create your mock with behavior for this particular test.
+	// This is a very simple example and can be much more sophisticated.
+	// See docs at https://github.com/stretchr/testify#mock-package and https://github.com/vektra/mockery.
+	chainAPIClientMock := &mocks.ChainApiServiceClient{}
+	chainAPIClientMock.On(
+		"HasFunds",
+		mock.Anything, // this is the ctx, can't use AnythingOfType because context.Context is an interface.
+		mock.AnythingOfType("*chainapi.HasFundsRequest"),
+		mock.AnythingOfType("[]grpc.CallOption"),
+	).Return(&chainapi.HasFundsResponse{
+		HasFunds: true,
+	})
+
+	c := newClient(t, chainAPIClientMock)
 	req := &pb.AuthRequest{
 		BlockHeight:  1,
 		JwtBase64URL: jwtBase64URL}
@@ -83,7 +84,7 @@ func TestClient_Create(t *testing.T) {
 	require.NotNil(t, res)
 }
 
-func newClient(t *testing.T) *client.Client {
+func newClient(t *testing.T, chainAPIClient chainapi.ChainApiServiceClient) *client.Client {
 	listenPort, err := freeport.GetFreePort()
 	require.NoError(t, err)
 	addr := fmt.Sprintf("127.0.0.1:%d", listenPort)
@@ -91,7 +92,7 @@ func newClient(t *testing.T) *client.Client {
 		ListenAddr: addr,
 	}
 	deps := service.Deps{
-		ChainAPIServiceClient: &chainAPIServiceClientMock{},
+		ChainAPIServiceClient: chainAPIClient,
 	}
 	s, err := service.New(config, deps)
 	require.NoError(t, err)
