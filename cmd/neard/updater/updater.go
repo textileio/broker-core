@@ -14,14 +14,15 @@ var (
 
 // UpdateDelegate describes an object that can be called back with a state update.
 type UpdateDelegate interface {
-	HandleStateUpdate(*lockboxclient.State)
+	HandleIntialStateUpdate(*lockboxclient.State)
 }
 
 // Updater updates the lock box state to the delegate.
 type Updater struct {
-	config  Config
-	mainCtx context.Context
-	cancel  context.CancelFunc
+	config      Config
+	mainCtx     context.Context
+	cancel      context.CancelFunc
+	blockHeight int
 }
 
 // Config holds the configuration for creating a new Updater.
@@ -55,14 +56,16 @@ func (u *Updater) run() {
 		select {
 		case <-time.After(u.config.UpdateFrequency):
 			ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
+			account, err := u.config.Lbc.GetAccount(ctx)
+			log.Infof("block height = %v", account.BlockHeight)
 			// ToDo: Detect fatal vs recoverable error, backoff maybe.
-			state, err := u.config.Lbc.GetState(ctx)
+			// state, err := u.config.Lbc.GetState(ctx)
 			if err != nil {
 				log.Errorf("getting state: %v", err)
 				cancel()
 				continue
 			}
-			u.config.Delegate.HandleStateUpdate(state)
+			// u.config.Delegate.HandleStateUpdate(state)
 			cancel()
 		case <-u.mainCtx.Done():
 			return

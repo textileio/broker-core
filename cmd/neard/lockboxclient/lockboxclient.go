@@ -90,3 +90,7 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 		BlockHeight: res.BlockHeight,
 	}, nil
 }
+
+func (c *Client) GetAccount(ctx context.Context) (*nearclient.ViewAccountResponse, error) {
+	return c.nc.ViewAccount(ctx, c.accountID, nearclient.ViewAccountWithFinality("final"))
+}
