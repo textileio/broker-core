@@ -22,7 +22,6 @@ func init() {
 	flags := []common.Flag{
 		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "auctioneer.addr", DefValue: ":5001", Description: "Auctioneer address"},
-		{Name: "grpc.listen.addr", DefValue: ":5000", Description: "gRPC API listen address"},
 		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "ipfs.multiaddr", DefValue: "", Description: "IPFS multiaddress"},
@@ -54,7 +53,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			GrpcListenAddress: v.GetString("grpc.listen.addr"),
+			GrpcListenAddress: v.GetString("rpc.addr"),
 
 			AuctioneerAddr: v.GetString("auctioneer.addr"),
 
