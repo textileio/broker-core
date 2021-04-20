@@ -58,10 +58,17 @@ var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1A
 // }
 
 type chainAPIServiceClientMock struct {
-	cc grpc.ClientConnInterface
 }
 
-func (c *chainApiServiceClientMock) LockInfo(ctx context.Context, in *chainapi.LockInfoRequest, opts ...grpc.CallOption) (*chainapi.LockInfoResponse, error) {
+func (c *chainAPIServiceClientMock) LockInfo(ctx context.Context, in *chainapi.LockInfoRequest, opts ...grpc.CallOption) (*chainapi.LockInfoResponse, error) {
+	return nil, nil
+}
+func (c *chainAPIServiceClientMock) HasFunds(ctx context.Context, in *chainapi.HasFundsRequest, opts ...grpc.CallOption) (*chainapi.HasFundsResponse, error) {
+	return nil, nil
+}
+
+func (c *chainAPIServiceClientMock) State(ctx context.Context, in *chainapi.StateRequest, opts ...grpc.CallOption) (*chainapi.StateResponse, error) {
+	return nil, nil
 }
 
 func TestClient_Create(t *testing.T) {
@@ -84,7 +91,7 @@ func newClient(t *testing.T) *client.Client {
 		ListenAddr: addr,
 	}
 	deps := service.Deps{
-		ChainAPIServiceClient: nil,
+		ChainAPIServiceClient: &chainAPIServiceClientMock{},
 	}
 	s, err := service.New(config, deps)
 	require.NoError(t, err)
