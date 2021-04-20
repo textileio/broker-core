@@ -15,6 +15,7 @@ var defaultConfig = config{
 	sectorSize: 32 << 30,
 }
 
+// Option applies a configuration change.
 type Option func(*config) error
 
 // WithFrequency indicates how much time should pass until a batch is

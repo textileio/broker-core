@@ -50,7 +50,11 @@ type br struct {
 var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
-func New(ds datastore.TxnDatastore, ipfsClient *httpapi.HttpApi, broker broker.Broker, opts ...Option) (*Packer, error) {
+func New(
+	ds datastore.TxnDatastore,
+	ipfsClient *httpapi.HttpApi,
+	broker broker.Broker,
+	opts ...Option) (*Packer, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
@@ -199,7 +203,6 @@ func (p *Packer) batchQueue(ctx context.Context, brs []br) (cid.Cid, []broker.Br
 			return cid.Undef, nil, fmt.Errorf("getting target node: %s", err)
 		}
 		if err == merkledag.ErrLinkNotFound {
-
 			if err := layer2Node.AddNodeLink(base32Cid, n); err != nil {
 				return cid.Undef, nil, fmt.Errorf("adding target node link: %s", err)
 			}
