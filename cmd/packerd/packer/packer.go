@@ -11,10 +11,8 @@ import (
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logger "github.com/ipfs/go-log/v2"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/brokerd/client"
 	packeri "github.com/textileio/broker-core/packer"
 )
 
@@ -31,7 +29,7 @@ type Packer struct {
 	queue []br
 
 	ipfs   *httpapi.HttpApi
-	broker *client.Client
+	broker broker.Broker
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -47,25 +45,11 @@ type br struct {
 var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
-func New(ds datastore.TxnDatastore, ipfsAPIMultiaddr string, brokerAPIAddr string) (*Packer, error) {
-	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
-	if err != nil {
-		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
-	}
-	ipfsClient, err := httpapi.NewApi(ma)
-	if err != nil {
-		return nil, fmt.Errorf("creating ipfs client: %s", err)
-	}
-
-	brokerClient, err := client.New(brokerAPIAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating broker client: %s", err)
-	}
-
+func New(ds datastore.TxnDatastore, ipfsClient *httpapi.HttpApi, broker broker.Broker) (*Packer, error) {
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
 		ipfs:            ipfsClient,
-		broker:          brokerClient,
+		broker:          broker,
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
