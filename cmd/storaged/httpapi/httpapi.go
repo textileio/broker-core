@@ -117,7 +117,7 @@ func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Requ
 		}
 		storageRequest, err := s.CreateFromReader(r.Context(), file, meta)
 		if err != nil {
-			httpError(w, fmt.Sprintf("uploading data: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("upload data and create broker request: %s", err), http.StatusInternalServerError)
 			return
 		}
 

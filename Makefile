@@ -14,11 +14,15 @@ build: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: build
 
-build-storaged:
+build-storaged: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/storaged
 .PHONY: build-storaged
 
-build-authd:
+build-brokerd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/brokerd
+.PHONY: build-brokerd
+
+build-authd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/authd
 .PHONY: build-authd
 
@@ -52,6 +56,14 @@ define gen_release_files
 		fi; \
 	done
 endef
+
+up:
+	docker-compose -f docker-compose-dev.yml up --build
+.PHONY: up
+
+down:
+	docker-compose -f docker-compose-dev.yml down
+.PHONY: down
 
 protos: $(BUF) $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC) clean-protos
 	$(BUF) generate --template '{"version":"v1beta1","plugins":[{"name":"go","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO)},{"name":"go-grpc","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO_GRPC)}]}'

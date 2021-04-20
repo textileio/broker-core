@@ -15,13 +15,13 @@ import (
 type BrokerStorage struct {
 	auth   auth.Authorizer
 	up     uploader.Uploader
-	broker broker.Broker
+	broker broker.BrokerRequestor
 }
 
 var _ storage.Requester = (*BrokerStorage)(nil)
 
 // New returns a new BrokerStorage.
-func New(auth auth.Authorizer, up uploader.Uploader, broker broker.Broker) (*BrokerStorage, error) {
+func New(auth auth.Authorizer, up uploader.Uploader, broker broker.BrokerRequestor) (*BrokerStorage, error) {
 	return &BrokerStorage{
 		auth:   auth,
 		up:     up,

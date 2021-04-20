@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -21,11 +22,12 @@ func init() {
 	flags := []common.Flag{
 		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "auctioneer.addr", DefValue: ":5001", Description: "Auctioneer address"},
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
-
 		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "ipfs.multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+
+		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "BROKER", flags, rootCmd)
@@ -51,12 +53,14 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			GrpcListenAddress: v.GetString("grpc.listen.addr"),
+			GrpcListenAddress: v.GetString("rpc.addr"),
 
 			AuctioneerAddr: v.GetString("auctioneer.addr"),
 
 			MongoURI:    v.GetString("mongo.uri"),
 			MongoDBName: v.GetString("mongo.dbname"),
+
+			IpfsMultiaddr: v.GetString("ipfs.multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

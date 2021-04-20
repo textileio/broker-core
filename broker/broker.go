@@ -7,8 +7,20 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-// Broker allows to create and track BrokerRequest.
+// Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
+	BrokerRequestor
+
+	// CreateStorageDeal creates a new StorageDeal. It is called
+	// by the Packer after batching a set of BrokerRequest properly.
+	CreateStorageDeal(ctx context.Context, brg BrokerRequestGroup) (StorageDeal, error)
+
+	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
+	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
+}
+
+// BrokerRequestor alows to create and query BrokerRequests.
+type BrokerRequestor interface {
 	// Create creates a new BrokerRequest for data `c` and
 	// configuration `meta`.
 	Create(ctx context.Context, c cid.Cid, meta Metadata) (BrokerRequest, error)
@@ -22,9 +34,10 @@ type BrokerRequestID string
 // BrokerRequest references a storage request for a Cid.
 type BrokerRequest struct {
 	ID            BrokerRequestID     `json:"id"`
+	DataCid       cid.Cid             `json:"data_cid"`
 	Status        BrokerRequestStatus `json:"status"`
 	Metadata      Metadata            `json:"metadata"`
-	StorageDealID StorageDealID       `json:"storage_deal_id"`
+	StorageDealID StorageDealID       `json:"storage_deal_id,omitempty"`
 	CreatedAt     time.Time           `json:"created_at"`
 	UpdatedAt     time.Time           `json:"updated_at"`
 }
@@ -46,16 +59,16 @@ func (m Metadata) Validate() error {
 type BrokerRequestStatus int
 
 const (
-	// BrokerRequestUnknown is an invalid status value. Defined for safety.
-	BrokerRequestUnknown BrokerRequestStatus = iota
-	// BrokerRequestBatching indicates that a broker request is being batched.
-	BrokerRequestBatching
-	// BrokerRequestPreparing indicates that a broker request is being prepared.
-	BrokerRequestPreparing
-	// BrokerRequestAuctioning indicates that a broker request is in bidding stage.
-	BrokerRequestAuctioning
-	// BrokerRequestDealMaking indicates that the storage deal deals are being executed.
-	BrokerRequestDealMaking
+	// RequestUnknown is an invalid status value. Defined for safety.
+	RequestUnknown BrokerRequestStatus = iota
+	// RequestBatching indicates that a broker request is being batched.
+	RequestBatching
+	// RequestPreparing indicates that a broker request is being prepared.
+	RequestPreparing
+	// RequestAuctioning indicates that a broker request is in bidding stage.
+	RequestAuctioning
+	// RequestDealMaking indicates that the storage deal deals are being executed.
+	RequestDealMaking
 	// BrokerRequestSuccess indicates that the storage deal was successfully stored in Filecoin.
 	BrokerRequestSuccess
 )
@@ -100,6 +113,6 @@ type BrokerRequestGroup struct {
 
 // DataPreparationResult is the result of preparing a StorageDeal.
 type DataPreparationResult struct {
-	PieceSize int64
-	CommP     cid.Cid
+	PieceSize uint64
+	PieceCid  cid.Cid
 }

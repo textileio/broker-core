@@ -4,44 +4,53 @@ option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
 import "google/protobuf/timestamp.proto";  
 
-// CreateBR()
-message CreateBRRequest {
+message CreateBrokerRequestRequest {
   string cid = 1;
-  BRMetadata meta = 2;
+  BrokerRequest.Metadata meta = 2;
 }
 
-message BRMetadata {
-    string region = 1;
+
+
+message CreateBrokerRequestResponse {
+  BrokerRequest request = 1;
 }
 
-message CreateBRResponse {
-  BR request = 1;
-}
-
-// GetBR()
-message GetBRRequest {
+message GetBrokerRequestRequest {
   string id = 1;
 }
 
-message GetBRResponse {
-  BR broker_request = 1;
+message GetBrokerRequestResponse {
+  BrokerRequest broker_request = 1;
 }
 
 
 // General
-message BR {
+message BrokerRequest {
   string id = 1;
-  string cid = 2;
-  BRMetadata meta = 3;
-  string storage_deal_id = 4;
-  google.protobuf.Timestamp created_at = 5; 
-  google.protobuf.Timestamp updated_at = 6; 
-}
+  string data_cid = 2;
+  Status status = 3;
+  Metadata meta = 4;
+  string storage_deal_id = 5;
+  google.protobuf.Timestamp created_at = 6; 
+  google.protobuf.Timestamp updated_at = 7; 
 
-  
+  enum Status {
+    UNSPECIFIED = 0;
+    BATCHING = 1;
+    PREPARING = 2;
+    AUCTIONING = 3;
+    DEALMAKING = 4;
+    SUCCESS = 5;
+  }
+
+  message Metadata {
+    string region = 1;
+  }
+}
+ 
 service APIService {
-  rpc CreateBR(CreateBRRequest) returns (CreateBRResponse) {}
-  rpc GetBR(GetBRRequest) returns (GetBRResponse) {}
+  rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
+  rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}
 }
 
 

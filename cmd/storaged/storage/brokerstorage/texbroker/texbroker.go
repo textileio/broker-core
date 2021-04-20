@@ -2,43 +2,50 @@ package texbroker
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
+)
+
+var (
+	log = logger.Logger("texbroker")
 )
 
 // TexBroker provides an interface with the Broker subsystem.
 type TexBroker struct {
+	c *client.Client
 }
 
-var _ broker.Broker = (*TexBroker)(nil)
+var _ broker.BrokerRequestor = (*TexBroker)(nil)
 
 // New returns a new TexBroker.
-func New() (*TexBroker, error) {
-	return &TexBroker{}, nil
+func New(c *client.Client) (*TexBroker, error) {
+	b := &TexBroker{
+		c: c,
+	}
+
+	return b, nil
 }
 
 // Create creates a new BrokerRequest.
 func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
-	// TODO: Make the implementation once we have the Broker API to call.
-	// For now, just fake it.
+	log.Debugf("creating broker request for cid %s", c)
 
-	return broker.BrokerRequest{
-		ID:     broker.BrokerRequestID(uuid.New().String()),
-		Status: broker.BrokerRequestBatching,
-	}, nil
+	br, err := tb.c.Create(ctx, c, meta)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("calling create api: %s", err)
+	}
+	return br, nil
 }
 
 // Get gets a broker request from its ID.
-// TODO: whenever th gRPC is wired, it needs to detect and document
-// the "not-found" case.
 func (tb *TexBroker) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	// TODO: Make the implementation once we have the Broker API to call.
-	// For now, just fake it.
-
-	return broker.BrokerRequest{
-		ID:     id,
-		Status: broker.BrokerRequestUnknown,
-	}, nil
+	br, err := tb.c.Get(ctx, id)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("calling get api: %s", err)
+	}
+	return br, nil
 }

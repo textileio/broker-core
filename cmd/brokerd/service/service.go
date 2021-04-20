@@ -36,6 +36,8 @@ type Config struct {
 
 	MongoDBName string
 	MongoURI    string
+
+	IpfsMultiaddr string
 }
 
 // Service provides an implementation of the broker API.
@@ -44,7 +46,9 @@ type Service struct {
 
 	config Config
 	server *grpc.Server
-	broker broker.Broker
+
+	broker *brokeri.Broker
+	packer *packeri.Packer
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
@@ -61,12 +65,12 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating datastore: %s", err)
 	}
 
-	packer, err := packeri.New()
+	packer, err := packeri.New(config.IpfsMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
 
-	piecer, err := pieceri.New()
+	piecer, err := pieceri.New(config.IpfsMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating piecer implementation: %s", err)
 	}
@@ -81,10 +85,16 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
 
+	// TODO: this line will go away soon, now it's just needed for emmbeding a packer
+	// in broked binary.
+	packer.SetBroker(broker)
+	piecer.SetBroker(broker)
+
 	s := &Service{
 		config: config,
 		server: grpc.NewServer(),
 		broker: broker,
+		packer: packer,
 	}
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -98,8 +108,10 @@ func New(config Config) (*Service, error) {
 	return s, nil
 }
 
-// CreateBR creates a new BrokerRequest.
-func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBRRequest) (*pb.CreateBRResponse, error) {
+// CreateBrokerRequest creates a new BrokerRequest.
+func (s *Service) CreateBrokerRequest(
+	ctx context.Context,
+	r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -122,15 +134,21 @@ func (s *Service) CreateBR(ctx context.Context, r *pb.CreateBRRequest) (*pb.Crea
 		return nil, status.Error(codes.Internal, fmt.Sprintf("creating storage request: %s", err))
 	}
 
-	res := &pb.CreateBRResponse{
-		Request: castBrokerRequestToProto(br),
+	pbr, err := castBrokerRequestToProto(br)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+	}
+	res := &pb.CreateBrokerRequestResponse{
+		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// GetBR gets an existing broker request.
-func (s *Service) GetBR(ctx context.Context, r *pb.GetBRRequest) (*pb.GetBRResponse, error) {
+// GetBrokerRequest gets an existing broker request.
+func (s *Service) GetBrokerRequest(
+	ctx context.Context,
+	r *pb.GetBrokerRequestRequest) (*pb.GetBrokerRequestResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -140,8 +158,12 @@ func (s *Service) GetBR(ctx context.Context, r *pb.GetBRRequest) (*pb.GetBRRespo
 		return nil, status.Error(codes.Internal, fmt.Sprintf("get broker request: %s", err))
 	}
 
-	res := &pb.GetBRResponse{
-		BrokerRequest: castBrokerRequestToProto(br),
+	pbr, err := castBrokerRequestToProto(br)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("converting result to proto: %s", err))
+	}
+	res := &pb.GetBrokerRequestResponse{
+		BrokerRequest: pbr,
 	}
 
 	return res, nil
@@ -166,6 +188,10 @@ func (s *Service) Close() error {
 		timer.Stop()
 	}
 
+	if err := s.packer.Close(); err != nil {
+		errors = append(errors, err.Error())
+	}
+
 	if errors != nil {
 		return fmt.Errorf(strings.Join(errors, "\n"))
 	}
@@ -173,16 +199,36 @@ func (s *Service) Close() error {
 	return nil
 }
 
-func castBrokerRequestToProto(br broker.BrokerRequest) *pb.BR {
-	return &pb.BR{
-		Id: string(br.ID),
-		Meta: &pb.BRMetadata{
+func castBrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
+	var pbStatus pb.BrokerRequest_Status
+	switch br.Status {
+	case broker.RequestUnknown:
+		pbStatus = pb.BrokerRequest_UNSPECIFIED
+	case broker.RequestBatching:
+		pbStatus = pb.BrokerRequest_BATCHING
+	case broker.RequestPreparing:
+		pbStatus = pb.BrokerRequest_PREPARING
+	case broker.RequestAuctioning:
+		pbStatus = pb.BrokerRequest_AUCTIONING
+	case broker.RequestDealMaking:
+		pbStatus = pb.BrokerRequest_DEALMAKING
+	case broker.BrokerRequestSuccess:
+		pbStatus = pb.BrokerRequest_SUCCESS
+	default:
+		return nil, fmt.Errorf("unknown status: %d", br.Status)
+	}
+
+	return &pb.BrokerRequest{
+		Id:      string(br.ID),
+		DataCid: br.DataCid.String(),
+		Status:  pbStatus,
+		Meta: &pb.BrokerRequest_Metadata{
 			Region: br.Metadata.Region,
 		},
 		StorageDealId: string(br.StorageDealID),
 		CreatedAt:     timestamppb.New(br.CreatedAt),
 		UpdatedAt:     timestamppb.New(br.UpdatedAt),
-	}
+	}, nil
 }
 
 func createDatastore(conf Config) (datastore.TxnDatastore, error) {

@@ -79,7 +79,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) er
 
 		// 2- Link all BrokerRequests with the StorageDeal, and change their status
 		// to `Preparing`, since they should mirror the StorageDeal status.
-		br.Status = broker.BrokerRequestPreparing
+		br.Status = broker.RequestPreparing
 		br.UpdatedAt = now
 		br.StorageDealID = sd.ID
 

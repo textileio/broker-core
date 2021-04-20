@@ -4,15 +4,20 @@ go 1.16
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
+	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.2
+	github.com/filecoin-project/go-fil-commcid v0.1.0
+	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hsanjuan/ipfs-lite v0.1.20
+	github.com/ipfs/go-car v0.0.4
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
+	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-log/v2 v2.1.3
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/libp2p/go-libp2p v0.13.0
@@ -35,9 +40,6 @@ require (
 	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0
 	go.opentelemetry.io/otel/metric v0.19.0
 	go.uber.org/zap v1.16.0
-	golang.org/x/net v0.0.0-20210414194228-064579744ee0 // indirect
-	golang.org/x/sys v0.0.0-20210415045647-66c3f260301c // indirect
-	google.golang.org/genproto v0.0.0-20210415145412-64678f1ae2d5 // indirect
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
 )
