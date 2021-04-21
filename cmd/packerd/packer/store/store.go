@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	logger "github.com/ipfs/go-log/v2"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 )
@@ -23,6 +24,8 @@ var (
 	ErrNotFound = fmt.Errorf("batchable broker request doesn't exist")
 
 	dsPrefixBatchableBrokerRequest = datastore.NewKey("/bbr")
+
+	log = logger.Logger("packer/store")
 )
 
 // BatchableBrokerRequest is a broker-request that's pending to be
@@ -33,6 +36,7 @@ type BatchableBrokerRequest struct {
 	DataCid         cid.Cid
 }
 
+// Store provides persistent storage for BatchableBrokerRequest.
 type Store struct {
 	ds datastore.TxnDatastore
 
@@ -46,6 +50,7 @@ type Store struct {
 	entropy *ulid.MonotonicEntropy
 }
 
+// New returns a *Store.
 func New(ds datastore.TxnDatastore) (*Store, error) {
 	s := &Store{
 		ds: ds,
@@ -128,7 +133,7 @@ func (s *Store) Dequeue(bbrs []BatchableBrokerRequest) error {
 	return nil
 }
 
-// Iterator provides an iterator to walk throught available
+// Iterator provides an iterator to walk through available
 // BatchableStorageRequest in ascending order.
 type Iterator struct {
 	s       *Store
@@ -193,7 +198,11 @@ func (s *Store) loadCache() error {
 	if err != nil {
 		return fmt.Errorf("creating query: %s", err)
 	}
-	defer res.Close()
+	defer func() {
+		if err := res.Close(); err != nil {
+			log.Errorf("closing query result: %s", err)
+		}
+	}()
 
 	for item := range res.Next() {
 		if item.Error != nil {

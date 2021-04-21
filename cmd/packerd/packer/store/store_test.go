@@ -92,6 +92,7 @@ func TestPartialWrongDequeueing(t *testing.T) {
 	err = s.Enqueue(br1)
 	require.NoError(t, err)
 	err = s.Enqueue(br2)
+	require.NoError(t, err)
 
 	// But try to dequeue br2 and br3. This is wrong and should error.
 	// Note that we can remove br2, but not br3 (doesn't exist).
@@ -100,6 +101,41 @@ func TestPartialWrongDequeueing(t *testing.T) {
 	// This should error without removing br2 since we should do removals transactionally. All or nothing.
 	// So let's check that.
 	brs := []BatchableBrokerRequest{br1, br2}
+	assertIterator(t, s, brs)
+}
+
+func TestRehydration(t *testing.T) {
+	ds := tests.NewTxMapDatastore()
+	s, err := New(ds)
+	require.NoError(t, err)
+
+	br1 := BatchableBrokerRequest{
+		BrokerRequestID: broker.BrokerRequestID("1"),
+		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHA"),
+	}
+	br2 := BatchableBrokerRequest{
+		BrokerRequestID: broker.BrokerRequestID("2"),
+		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHB"),
+	}
+	br3 := BatchableBrokerRequest{
+		BrokerRequestID: broker.BrokerRequestID("3"),
+		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHC"),
+	}
+	err = s.Enqueue(br1)
+	require.NoError(t, err)
+	err = s.Enqueue(br2)
+	require.NoError(t, err)
+	err = s.Enqueue(br3)
+	require.NoError(t, err)
+	// Check that things are all as expected.
+	brs := []BatchableBrokerRequest{br1, br2, br3}
+	assertIterator(t, s, brs)
+
+	// Create new *Store, but with same `ds`. Cache should be populated.
+	s, err = New(ds)
+	require.NoError(t, err)
+	// Check things again in this new *Store. Since the Iterator pulls things from
+	// its internal in-memory cache, if the following works then it was re-populated correctly.
 	assertIterator(t, s, brs)
 }
 
@@ -118,7 +154,6 @@ func assertIterator(t *testing.T, s *Store, expectedResult []BatchableBrokerRequ
 		count++
 	}
 	require.Equal(t, len(expectedResult), count) // Check we walked exactly all of them.
-
 }
 
 func castCid(cidStr string) cid.Cid {
