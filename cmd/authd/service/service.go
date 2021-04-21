@@ -105,13 +105,11 @@ type ValidatedToken struct {
 	X   string
 	Sub string
 	Iss string
-	Blk uint64
 }
 
-// AuthClaims defines a verifiable claim to an identity.
+// AuthClaims defines standard claims for authentication.
 type AuthClaims struct {
 	jwt.StandardClaims
-	Blk uint64 `json:"blk,omitempty"`
 }
 
 // ValidateInput sanity checks the raw inputs to the service.
@@ -162,7 +160,6 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		X:   jwkMap["x"],
 		Sub: claims.Subject,
 		Iss: claims.Issuer,
-		Blk: claims.Blk,
 	}
 	return validatedToken, err
 }
@@ -192,9 +189,9 @@ func ValidateKeyDID(sub string, x string) (bool, error) {
 }
 
 // ValidateLockedFunds validates that the user has locked funds on chain.
-func ValidateLockedFunds(ctx context.Context, iss string, blk uint64, s chainapi.ChainApiServiceClient) (bool, error) {
+func ValidateLockedFunds(ctx context.Context, iss string, s chainapi.ChainApiServiceClient) (bool, error) {
 	var chainReq = &chainapi.HasFundsRequest{
-		BlockHeight: blk,
+		BlockHeight: 1,
 		AccountId:   iss,
 	}
 	chainRes, err := s.HasFunds(ctx, chainReq)
@@ -225,7 +222,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid Key DID: %s", keyErr))
 	}
 	// Check for locked funds
-	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Iss, token.Blk, s.Deps.ChainAPIServiceClient)
+	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Iss, s.Deps.ChainAPIServiceClient)
 	if !fundsOk || fundsErr != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Locked funds error: %s", fundsErr))
 	}

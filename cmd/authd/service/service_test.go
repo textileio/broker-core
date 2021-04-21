@@ -52,7 +52,6 @@ var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1A
 //     "iat": 1618517489,
 //     "exp": 101618517489,
 //     "aud": "https://broker.staging.textile.io/",
-//     "blk": 1
 // }
 
 func TestService_validateKeyDID(t *testing.T) {
@@ -93,7 +92,6 @@ func TestService_validateToken(t *testing.T) {
 	require.Equal(t, output.Iss, "carsonfarmer.testnet")
 	require.Equal(t, output.Sub, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")
 	require.Equal(t, output.X, "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM=")
-	require.Equal(t, output.Blk, uint64(1))
 
 	// Invalid token
 	token = "INVALID_TOKEN"
@@ -130,7 +128,6 @@ func TestService_validateInput(t *testing.T) {
 func TestClient_ValidateLockedFunds(t *testing.T) {
 	// Funds ok
 	sub := "sub"
-	blk := uint64(1)
 	mockChain := &mocks.ChainApiServiceClient{}
 	mockChain.On(
 		"HasFunds",
@@ -139,7 +136,7 @@ func TestClient_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: true,
 	}, nil)
-	ok, err := service.ValidateLockedFunds(context.Background(), sub, blk, mockChain)
+	ok, err := service.ValidateLockedFunds(context.Background(), sub, mockChain)
 	require.NoError(t, err)
 	require.True(t, ok)
 	mockChain.AssertExpectations(t)
@@ -153,7 +150,7 @@ func TestClient_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: false,
 	}, nil)
-	ok, err = service.ValidateLockedFunds(context.Background(), sub, blk, mockChain)
+	ok, err = service.ValidateLockedFunds(context.Background(), sub, mockChain)
 	require.Error(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
