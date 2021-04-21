@@ -13,7 +13,6 @@ import (
 	mocks "github.com/textileio/broker-core/mocks/broker/chainapi/v1"
 
 	"github.com/textileio/broker-core/cmd/authd/service"
-	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
 )
 
@@ -102,27 +101,21 @@ func TestService_validateToken(t *testing.T) {
 func TestService_validateInput(t *testing.T) {
 	// Valid token
 	token := TOKEN
-	req := &pb.AuthRequest{
-		JwtBase64URL: token}
-	input, err := service.ValidateInput(req)
+	input, err := service.ValidateInput(token)
 	require.NoError(t, err)
-	require.Equal(t, req.JwtBase64URL, input.JwtBase64URL)
+	require.Equal(t, token, input.JwtBase64URL)
 
 	// Invalid token with valid height
 	token = "INVALID_TOKEN"
-	req = &pb.AuthRequest{
-		JwtBase64URL: token}
-	input, err = service.ValidateInput(req)
+	input, err = service.ValidateInput(token)
 	require.Error(t, err)
 	require.Nil(t, input)
 
 	// Valid token with no height
 	token = TOKEN
-	req = &pb.AuthRequest{
-		JwtBase64URL: token}
-	input, err = service.ValidateInput(req)
+	input, err = service.ValidateInput(token)
 	require.NoError(t, err)
-	require.Equal(t, req.JwtBase64URL, input.JwtBase64URL)
+	require.Equal(t, token, input.JwtBase64URL)
 }
 
 func TestClient_ValidateLockedFunds(t *testing.T) {

@@ -113,13 +113,13 @@ type AuthClaims struct {
 }
 
 // ValidateInput sanity checks the raw inputs to the service.
-func ValidateInput(input *pb.AuthRequest) (*ValidatedInput, error) {
-	parts := strings.Split(input.JwtBase64URL, ".")
+func ValidateInput(jwtBase64URL string) (*ValidatedInput, error) {
+	parts := strings.Split(jwtBase64URL, ".")
 	if len(parts) != 3 {
 		return nil, errors.New("token contains invalid number of segments")
 	}
 	return &ValidatedInput{
-		JwtBase64URL: input.JwtBase64URL,
+		JwtBase64URL: jwtBase64URL,
 	}, nil
 }
 
@@ -207,7 +207,7 @@ func ValidateLockedFunds(ctx context.Context, iss string, s chainapi.ChainApiSer
 // Auth takes in a base64 encoded JWT, verifies it, checks the indentity (by comparing key DIDs) and returns DID.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	// Validate the request input.
-	validInput, InputErr := ValidateInput(req)
+	validInput, InputErr := ValidateInput(req.JwtBase64URL)
 	if InputErr != nil {
 		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid request input: %s (%s)", req, InputErr))
 	}
