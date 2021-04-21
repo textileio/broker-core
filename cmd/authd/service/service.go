@@ -116,7 +116,7 @@ type AuthClaims struct {
 func ValidateInput(input *pb.AuthRequest) (*ValidatedInput, error) {
 	parts := strings.Split(input.JwtBase64URL, ".")
 	if len(parts) != 3 {
-		return nil, status.Errorf(codes.InvalidArgument, "Token contains invalid number of segments")
+		return nil, errors.New("token contains invalid number of segments")
 	}
 	return &ValidatedInput{
 		JwtBase64URL: input.JwtBase64URL,
@@ -142,18 +142,18 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		return pkey, err
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Parsing JWT: %s", err))
+		return nil, fmt.Errorf("Unable to parse JWT: %s", err)
 	}
 	if !token.Valid {
-		return nil, status.Errorf(codes.Unauthenticated, "JWT invalid")
+		return nil, errors.New("the JWT is invalid")
 	}
 
 	claims, ok := token.Claims.(*AuthClaims)
 	if claims.Valid() != nil {
-		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid claims: %s", err))
+		return nil, errors.New("Invalid JWT claims: %s")
 	}
 	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "Invalid claims")
+		return nil, errors.New("invalid JWT claims")
 	}
 
 	validatedToken := &ValidatedToken{
@@ -168,22 +168,22 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 func ValidateKeyDID(sub string, x string) (bool, error) {
 	subDID, err := did.Parse(sub)
 	if err != nil {
-		return false, status.Errorf(codes.Unauthenticated, "Error parsing DID")
+		return false, fmt.Errorf("Error parsing DID: %s", err)
 	}
 	_, bytes, err := mbase.Decode(subDID.ID)
 	if err != nil {
-		return false, status.Errorf(codes.Unauthenticated, "Error decoding DID")
+		return false, fmt.Errorf("Error decoding DID: %s", err)
 	}
 	_, n, err := varint.FromUvarint(bytes)
 	if err != nil {
-		return false, status.Errorf(codes.Unauthenticated, "DID multiformat error")
+		return false, fmt.Errorf("DID multiformat error: %s", err)
 	}
 	if n != 2 {
-		return false, status.Errorf(codes.Unauthenticated, "Key DID format error")
+		return false, errors.New("key DID format error")
 	}
 	dx, _ := base64.URLEncoding.DecodeString(x)
 	if string(dx) != string(bytes[2:]) {
-		return false, status.Errorf(codes.Unauthenticated, "Key DID does not match the public key")
+		return false, errors.New("key DID does not match the public key")
 	}
 	return true, nil
 }
@@ -196,10 +196,10 @@ func ValidateLockedFunds(ctx context.Context, iss string, s chainapi.ChainApiSer
 	}
 	chainRes, err := s.HasFunds(ctx, chainReq)
 	if err != nil {
-		return false, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Locked funds error: %s", err))
+		return false, fmt.Errorf("Locked funds error: %s", err)
 	}
 	if !chainRes.HasFunds {
-		return false, status.Errorf(codes.InvalidArgument, "Doesn't have locked funds")
+		return false, errors.New("account doesn't have locked funds")
 	}
 	return true, nil
 }
@@ -214,17 +214,17 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// Validate the JWT token.
 	token, tokenErr := ValidateToken(validInput.JwtBase64URL)
 	if tokenErr != nil {
-		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid JWT: %s", tokenErr))
+		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("Invalid JWT: %s", tokenErr))
 	}
 	// Validate the key DID.
 	keyOk, keyErr := ValidateKeyDID(token.Sub, token.X)
 	if !keyOk || keyErr != nil {
-		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid Key DID: %s", keyErr))
+		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("Invalid Key DID: %s", keyErr))
 	}
 	// Check for locked funds
 	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Iss, s.Deps.ChainAPIServiceClient)
 	if !fundsOk || fundsErr != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Locked funds error: %s", fundsErr))
+		return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("Locked funds error: %s", fundsErr))
 	}
 	return &pb.AuthResponse{
 		Identity: token.Sub,
