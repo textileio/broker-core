@@ -11,8 +11,8 @@ require (
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/google/uuid v1.2.0
-	github.com/hashicorp/go-multierror v1.1.0
-	github.com/hsanjuan/ipfs-lite v0.1.20
+	github.com/hashicorp/go-multierror v1.1.1
+	github.com/hsanjuan/ipfs-lite v1.1.19
 	github.com/ipfs/go-car v0.0.4
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
@@ -23,7 +23,6 @@ require (
 	github.com/ipfs/go-merkledag v0.3.2
 	github.com/ipfs/go-unixfs v0.2.4
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
-	github.com/kr/pretty v0.2.1 // indirect
 	github.com/libp2p/go-libp2p v0.13.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5

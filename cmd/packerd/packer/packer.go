@@ -17,6 +17,8 @@ import (
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/multiformats/go-multibase"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/packerd/packer/store"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 	packeri "github.com/textileio/broker-core/packer"
 )
 
@@ -30,9 +32,7 @@ type Packer struct {
 	batchFrequency time.Duration
 	batchLimit     int64
 
-	lock  sync.Mutex
-	queue []br
-
+	store  *store.Store
 	ipfs   *httpapi.HttpApi
 	broker broker.Broker
 
@@ -40,11 +40,6 @@ type Packer struct {
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
-}
-
-type br struct {
-	id      broker.BrokerRequestID
-	dataCid cid.Cid
 }
 
 var _ packeri.Packer = (*Packer)(nil)
@@ -62,13 +57,20 @@ func New(
 		}
 	}
 
+	store, err := store.New(txndswrap.Wrap(ds, "/queue"))
+	if err != nil {
+		return nil, fmt.Errorf("initializing store: %s", err)
+	}
+
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
 		batchFrequency: cfg.frequency,
 		batchLimit:     calcBatchLimit(cfg.sectorSize),
 
-		ipfs:            ipfsClient,
-		broker:          broker,
+		store:  store,
+		ipfs:   ipfsClient,
+		broker: broker,
+
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
@@ -86,9 +88,15 @@ func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dat
 	if dataCid.Version() != 1 {
 		return fmt.Errorf("only cidv1 is supported")
 	}
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	p.queue = append(p.queue, br{id: id, dataCid: dataCid})
+
+	br := store.BatchableBrokerRequest{
+		ID:              "", // Will be set by `store`, explicit here to signal that wasn't missed.
+		BrokerRequestID: id,
+		DataCid:         dataCid,
+	}
+	if err := p.store.Enqueue(br); err != nil {
+		return fmt.Errorf("enqueueing broker request: %s", err)
+	}
 
 	return nil
 }
@@ -118,35 +126,22 @@ func (p *Packer) daemon() {
 }
 
 func (p *Packer) pack(ctx context.Context) error {
-	p.lock.Lock()
-	copyQueue := p.queue
-	p.lock.Unlock()
-	if len(copyQueue) == 0 {
-		return nil
-	}
-
-	log.Infof("packing %d broker requests...", len(p.queue))
-
-	batchCid, brids, err := p.batchQueue(ctx, copyQueue)
+	batchCid, includedBBRs, err := p.batchQueue(ctx)
 	if err != nil {
 		return fmt.Errorf("batching cids: %s", err)
 	}
 
-	p.lock.Lock()
-	for _, brid := range brids {
-		for i := range p.queue {
-			if p.queue[i].id == brid {
-				// Remove while keeping order. This keeps fairness.
-				p.queue = append(p.queue[:i], p.queue[i+1:]...)
-				break
-			}
-		}
+	brids := make([]broker.BrokerRequestID, len(includedBBRs))
+	for i, bbr := range includedBBRs {
+		brids[i] = bbr.BrokerRequestID
 	}
-	p.lock.Unlock()
-
 	sdID, err := p.broker.CreateStorageDeal(ctx, batchCid, brids)
 	if err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
+	}
+
+	if err := p.store.Dequeue(includedBBRs); err != nil {
+		return fmt.Errorf("dequeueing batched broker requests: %s", err)
 	}
 
 	log.Infof("storage deal created: {id: %s, cid: %s}", sdID, batchCid)
@@ -154,14 +149,20 @@ func (p *Packer) pack(ctx context.Context) error {
 	return nil
 }
 
-func (p *Packer) batchQueue(ctx context.Context, brs []br) (cid.Cid, []broker.BrokerRequestID, error) {
+func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrokerRequest, error) {
 	batchRoot := unixfs.EmptyDirNode()
 	batchRoot.SetCidBuilder(merkledag.V1CidPrefix())
 	var currentSize int64
 
-	var addedStorageRequestIDs []broker.BrokerRequestID
-	for _, br := range brs {
-		n, err := p.ipfs.Dag().Get(ctx, br.dataCid)
+	it := p.store.NewIterator()
+	var bbrs []store.BatchableBrokerRequest
+	for {
+		br, ok := it.Next()
+		if !ok {
+			break
+		}
+
+		n, err := p.ipfs.Dag().Get(ctx, br.DataCid)
 		if err != nil {
 			return cid.Undef, nil, fmt.Errorf("getting node by cid: %s", err)
 		}
@@ -174,12 +175,12 @@ func (p *Packer) batchQueue(ctx context.Context, brs []br) (cid.Cid, []broker.Br
 		// we skip it and try with the next. Skipped ones still keep original order,
 		// so they naturally have priority in the next batch to get in.
 		if currentSize+int64(ns.CumulativeSize) > p.batchLimit {
-			log.Infof("skipping cid %s which doesn't fit in sector-limit bounds: %s", br.dataCid)
+			log.Infof("skipping cid %s which doesn't fit in sector-limit bounds: %s", br.DataCid)
 			continue
 		}
 
 		// 1- We get a base32 Cid.
-		base32Cid, err := br.dataCid.StringOfBase(multibase.Base32)
+		base32Cid, err := br.DataCid.StringOfBase(multibase.Base32)
 		if err != nil {
 			return cid.Undef, nil, fmt.Errorf("transforming to base32 cid: %s", err)
 		}
@@ -229,7 +230,7 @@ func (p *Packer) batchQueue(ctx context.Context, brs []br) (cid.Cid, []broker.Br
 			log.Warnf("lucky! cid %s is already in the batch", base32Cid)
 		}
 
-		addedStorageRequestIDs = append(addedStorageRequestIDs, br.id)
+		bbrs = append(bbrs, br)
 
 		currentSize, err = p.dagSize(ctx, batchRoot.Cid())
 		if err != nil {
@@ -241,7 +242,7 @@ func (p *Packer) batchQueue(ctx context.Context, brs []br) (cid.Cid, []broker.Br
 		return cid.Undef, nil, fmt.Errorf("pinning batch root: %s", err)
 	}
 
-	return batchRoot.Cid(), addedStorageRequestIDs, nil
+	return batchRoot.Cid(), bbrs, nil
 }
 
 func (p *Packer) getOrCreateLayerNode(
@@ -300,33 +301,3 @@ func (p *Packer) dagSize(ctx context.Context, c cid.Cid) (int64, error) {
 func calcBatchLimit(sectorSize int64) int64 {
 	return int64(float64(sectorSize) * float64(127) / float64(128) / 1.04)
 }
-
-/*
-// (jsign): Leaving this other dag-size implementation which is correct for DAGs that aren't UnixFS fully.
-// But it's very slow. Unfortunately, there's no workaround for this slow method (`ipfs dag stat` does exactly
-// this thing).
-
-func (p *Packer) dagSizeTraversal(ctx context.Context, c cid.Cid) (uint64, error) {
-	n, err := p.ipfs.Dag().Get(ctx, c)
-	if err != nil {
-		return 0, fmt.Errorf("getting node by cid: %s", err)
-	}
-
-	var size uint64
-	err = traverse.Traverse(n, traverse.Options{
-		DAG:            p.ipfs.Dag(),
-		Order:          traverse.DFSPre,
-		ErrFunc:        nil,
-		SkipDuplicates: true,
-		Func: func(current traverse.State) error {
-			size += uint64(len(current.Node.RawData()))
-			return nil
-		},
-	})
-	if err != nil {
-		return 0, fmt.Errorf("traversing the DAG: %s", err)
-	}
-
-	return size, nil
-}
-*/
