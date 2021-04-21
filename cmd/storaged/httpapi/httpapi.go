@@ -69,7 +69,7 @@ func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if origin := r.Header.Get("Origin"); origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
 		}
 		// Preflight OPTIONS request
@@ -140,14 +140,14 @@ func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *h
 		}
 		urlParts := strings.SplitN(r.URL.Path, "/", 3)
 		if len(urlParts) < 3 {
-			httpError(w, "the url should be /broker-request/{id}", http.StatusBadRequest)
+			httpError(w, "the url should be /storagerequest/{id}", http.StatusBadRequest)
 			return
 		}
 		id := urlParts[2]
 
 		sr, err := s.Get(r.Context(), id)
 		if err != nil {
-			httpError(w, fmt.Sprintf("get broker-request: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("get storagerequest: %s", err), http.StatusInternalServerError)
 			return
 		}
 
