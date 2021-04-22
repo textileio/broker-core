@@ -39,6 +39,9 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 		case bool:
 			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
+		case time.Duration:
+			rootCmd.Flags().Duration(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
 		default:
 			log.Fatalf("unknown flag type: %T", flag)
 		}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
@@ -25,6 +26,23 @@ type State struct {
 	BlockHeight int
 }
 
+// ChangeType describes the type of data change.
+type ChangeType int
+
+const (
+	// Update is a data update change.
+	Update ChangeType = iota
+	// Delete is a data deletion change.
+	Delete
+)
+
+// Change holds information about a state change.
+type Change struct {
+	Key      string
+	Type     ChangeType
+	LockInfo *LockInfo
+}
+
 // Client communicates with the lock box contract API.
 type Client struct {
 	nc        *nearclient.Client
@@ -41,7 +59,7 @@ func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
 
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.nc.ViewState(ctx, c.accountID, nearclient.WithFinality("final"))
+	res, err := c.nc.ViewState(ctx, c.accountID, nearclient.ViewStateWithFinality("final"))
 	if err != nil {
 		return nil, fmt.Errorf("calling view state: %v", err)
 	}
@@ -49,44 +67,120 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 	lockedFunds := make(map[string]LockInfo)
 
 	for _, val := range res.Values {
-		keyBytes, err := base64.StdEncoding.DecodeString(val.Key)
+		key, err := extractKey(val.Key)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("extracting key: %v", err)
 		}
-		valueBytes, err := base64.StdEncoding.DecodeString(val.Value)
+
+		lockInfo, err := extractLockInfo(val.Value)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("extracting lock info: %v", err)
 		}
 
-		parts := strings.Split(string(keyBytes), "::")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("unexpected key format: %s", string(keyBytes))
-		}
-
-		var j struct {
-			Deposit   string `json:"deposit"`
-			Sender    string `json:"sender"`
-			AccountID string `json:"accountId"`
-		}
-		err = json.Unmarshal(valueBytes, &j)
-		if err != nil {
-			return nil, err
-		}
-
-		deposit, ok := (&big.Int{}).SetString(j.Deposit, 10)
-		if !ok {
-			return nil, fmt.Errorf("error parsing string to big int: %s", j.Deposit)
-		}
-
-		lockedFunds[parts[1]] = LockInfo{
-			Deposit:   deposit,
-			Sender:    j.Sender,
-			AccountID: j.AccountID,
-		}
+		lockedFunds[key] = *lockInfo
 	}
 	return &State{
 		LockedFunds: lockedFunds,
 		BlockHash:   res.BlockHash,
 		BlockHeight: res.BlockHeight,
+	}, nil
+}
+
+// GetAccount gets information about the lock box account.
+func (c *Client) GetAccount(ctx context.Context) (*nearclient.ViewAccountResponse, error) {
+	return c.nc.ViewAccount(ctx, c.accountID, nearclient.ViewAccountWithFinality("final"))
+}
+
+// HasLocked calls the lock box hasLocked function.
+func (c *Client) HasLocked(ctx context.Context, accountID string) (bool, error) {
+	res, err := c.nc.CallFunction(
+		ctx,
+		c.accountID,
+		"hasLocked",
+		nearclient.CallFunctionWithFinality("final"),
+		nearclient.CallFunctionWithArgs(map[string]interface{}{
+			"accountId": accountID,
+		}),
+	)
+	if err != nil {
+		return false, fmt.Errorf("calling call function: %v", err)
+	}
+	b, err := strconv.ParseBool(string(res.Result))
+	if err != nil {
+		return false, fmt.Errorf("parsing result %v: %v", string(res.Result), err)
+	}
+	return b, nil
+}
+
+// GetChanges gets the lock box state changes for a block height.
+func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
+	res, err := c.nc.DataChanges(ctx, []string{c.accountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
+	if err != nil {
+		return nil, "", fmt.Errorf("calling data changes: %v", err)
+	}
+	var changes []Change
+	for _, item := range res.Changes {
+		var t ChangeType
+		switch item.Type {
+		case "data_update":
+			t = Update
+		case "data_deletion":
+			t = Delete
+		default:
+			return nil, "", fmt.Errorf("unknown change type: %v", item.Type)
+		}
+		key, err := extractKey(item.Change.KeyBase64)
+		if err != nil {
+			return nil, "", fmt.Errorf("extracting key: %v", err)
+		}
+		var lockInfo *LockInfo
+		if t == Update {
+			lockInfo, err = extractLockInfo(item.Change.ValueBase64)
+			if err != nil {
+				return nil, "", fmt.Errorf("extracting lock info: %v", err)
+			}
+		}
+		changes = append(changes, Change{Key: key, Type: t, LockInfo: lockInfo})
+	}
+	return changes, res.BlockHash, nil
+}
+
+func extractKey(encoded string) (string, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	parts := strings.Split(string(keyBytes), "::")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("unexpected key format: %s", string(keyBytes))
+	}
+	return parts[1], nil
+}
+
+func extractLockInfo(encoded string) (*LockInfo, error) {
+	valueBytes, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	var j struct {
+		Deposit   string `json:"deposit"`
+		Sender    string `json:"sender"`
+		AccountID string `json:"accountId"`
+	}
+	err = json.Unmarshal(valueBytes, &j)
+	if err != nil {
+		return nil, err
+	}
+
+	deposit, ok := (&big.Int{}).SetString(j.Deposit, 10)
+	if !ok {
+		return nil, fmt.Errorf("error parsing string to big int: %s", j.Deposit)
+	}
+
+	return &LockInfo{
+		Deposit:   deposit,
+		Sender:    j.Sender,
+		AccountID: j.AccountID,
 	}, nil
 }

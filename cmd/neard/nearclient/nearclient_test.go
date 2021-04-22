@@ -11,10 +11,26 @@ import (
 
 var ctx = context.Background()
 
-func TestIt(t *testing.T) {
+func TestViewState(t *testing.T) {
 	c, cleanup := makeClient(t)
 	defer cleanup()
-	res, err := c.ViewState(ctx, "lock-box.testnet", WithFinality("final"))
+	res, err := c.ViewState(ctx, "lock-box.testnet", ViewStateWithFinality("final"))
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
+
+func TestViewAccount(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.ViewAccount(ctx, "lock-box.testnet", ViewAccountWithFinality("final"))
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
+
+func TestDataChanges(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.DataChanges(ctx, []string{"lock-box.testnet"}, DataChangesWithFinality("final"))
 	require.NoError(t, err)
 	require.NotNil(t, res)
 }

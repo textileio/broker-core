@@ -23,13 +23,15 @@ var (
 type Service struct {
 	chainapi.UnimplementedChainApiServiceServer
 	sc     *statecache.StateCache
+	lc     *lockboxclient.Client
 	server *grpc.Server
 }
 
 // NewService creates a new Service.
-func NewService(listener net.Listener, stateCache *statecache.StateCache) (*Service, error) {
+func NewService(listener net.Listener, stateCache *statecache.StateCache, lc *lockboxclient.Client) (*Service, error) {
 	s := &Service{
 		sc:     stateCache,
+		lc:     lc,
 		server: grpc.NewServer(),
 	}
 	go func() {
@@ -65,18 +67,12 @@ func (s *Service) LockInfo(ctx context.Context, req *chainapi.LockInfoRequest) (
 
 // HasFunds returns whether or not the specified account id has locked funds.
 func (s *Service) HasFunds(ctx context.Context, req *chainapi.HasFundsRequest) (*chainapi.HasFundsResponse, error) {
-	state := s.sc.GetState()
-	if state.BlockHeight < int(req.BlockHeight) {
-		return nil, status.Errorf(
-			codes.FailedPrecondition,
-			"specified block height %v is greater than current state block height %v",
-			req.BlockHeight,
-			state.BlockHeight,
-		)
+	res, err := s.lc.HasLocked(ctx, req.AccountId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "calling has funds: %v", err)
 	}
-	_, ok := state.LockedFunds[req.AccountId]
 	return &chainapi.HasFundsResponse{
-		HasFunds: ok,
+		HasFunds: res,
 	}, nil
 }
 
