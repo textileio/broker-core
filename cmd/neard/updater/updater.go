@@ -4,12 +4,7 @@ import (
 	"context"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
-)
-
-var (
-	log = logging.Logger("updater")
 )
 
 // UpdateDelegate describes an object that can be called back with a state update.

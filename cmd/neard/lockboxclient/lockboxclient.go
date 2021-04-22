@@ -26,13 +26,17 @@ type State struct {
 	BlockHeight int
 }
 
+// ChangeType describes the type of data change.
 type ChangeType int
 
 const (
+	// Update is a data update change.
 	Update ChangeType = iota
+	// Delete is a data deletion change.
 	Delete
 )
 
+// Change holds information about a state change.
 type Change struct {
 	Key      string
 	Type     ChangeType
@@ -82,10 +86,12 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 	}, nil
 }
 
+// GetAccount gets information about the lock box account.
 func (c *Client) GetAccount(ctx context.Context) (*nearclient.ViewAccountResponse, error) {
 	return c.nc.ViewAccount(ctx, c.accountID, nearclient.ViewAccountWithFinality("final"))
 }
 
+// HasLocked calls the lock box hasLocked function.
 func (c *Client) HasLocked(ctx context.Context, accountID string) (bool, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
@@ -106,6 +112,7 @@ func (c *Client) HasLocked(ctx context.Context, accountID string) (bool, error) 
 	return b, nil
 }
 
+// GetChanges gets the lock box state changes for a block height.
 func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
 	res, err := c.nc.DataChanges(ctx, []string{c.accountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
 	if err != nil {

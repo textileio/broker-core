@@ -30,7 +30,7 @@ var flags = []common.Flag{
 	{Name: "endpoint.url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
 	{Name: "endpoint.timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
 	{Name: "account.id", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box smart contract."},
-	{Name: "update.frequency", DefValue: time.Millisecond * 500, Description: "How often to query the smart contract state."},
+	{Name: "update.frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state."},
 	{Name: "request.timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
 	{Name: "debug", DefValue: false, Description: "Enable debug level logs."},
 }
