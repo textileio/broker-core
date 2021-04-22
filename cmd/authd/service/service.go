@@ -37,7 +37,7 @@ var (
 
 // Service is a gRPC service for authorization.
 type Service struct {
-	pb.UnimplementedAPIServiceServer
+	pb.UnimplementedAuthAPIServiceServer
 	Config
 	Deps
 	server *grpc.Server
@@ -54,7 +54,7 @@ type Deps struct {
 	ChainAPIServiceClient chainapi.ChainApiServiceClient
 }
 
-var _ pb.APIServiceServer = (*Service)(nil)
+var _ pb.AuthAPIServiceServer = (*Service)(nil)
 
 // New returns a new service.
 func New(config Config, deps Deps) (*Service, error) {
@@ -64,7 +64,7 @@ func New(config Config, deps Deps) (*Service, error) {
 		Deps:   deps,
 	}
 	go func() {
-		pb.RegisterAPIServiceServer(s.server, s)
+		pb.RegisterAuthAPIServiceServer(s.server, s)
 		if err := s.server.Serve(config.Listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Errorf("server error: %v", err)
 		}
