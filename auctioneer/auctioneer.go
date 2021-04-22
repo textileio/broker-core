@@ -26,13 +26,13 @@ func WinsTopic(pid peer.ID) string {
 
 // Auction defines the core auction model.
 type Auction struct {
-	ID        string
-	Status    AuctionStatus
-	Bids      map[string]Bid
-	Winner    string
-	StartedAt time.Time
-	Duration  int64
-	Error     string
+	ID         string
+	Status     AuctionStatus
+	Bids       map[string]Bid
+	WinningBid string
+	StartedAt  time.Time
+	Duration   int64
+	Error      string
 }
 
 // AuctionStatus is the status of an auction.

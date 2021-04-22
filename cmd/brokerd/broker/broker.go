@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-datastore"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
@@ -40,7 +39,7 @@ type Broker struct {
 
 // New creates a Broker backed by the provdied `ds`.
 func New(
-	ds datastore.TxnDatastore,
+	ds txndswrap.TxnDatastore,
 	packer packer.Packer,
 	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,

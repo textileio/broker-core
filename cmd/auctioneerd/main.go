@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	_ "net/http/pprof"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/marketpeer"
@@ -25,6 +27,8 @@ func init() {
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+
+		{Name: "auction.duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
 	}
 
 	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd)
@@ -55,6 +59,9 @@ var rootCmd = &cobra.Command{
 			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
 				HostMultiaddr: v.GetString("host-multiaddr"),
+			},
+			Auction: auctioneer.AuctionConfig{
+				Duration: v.GetDuration("auctions.duration"),
 			},
 		}
 		serv, err := service.New(config)

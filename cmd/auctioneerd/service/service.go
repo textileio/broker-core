@@ -10,9 +10,9 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
-	kt "github.com/textileio/broker-core/keytransform"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
@@ -25,6 +25,7 @@ type Config struct {
 	RepoPath   string
 	ListenAddr string
 	Peer       marketpeer.Config
+	Auction    auctioneer.AuctionConfig
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
@@ -50,12 +51,14 @@ func New(conf Config) (*Service, error) {
 	fin.Add(p)
 
 	// Create auctioneer
-	store, err := kt.NewBadgerStore(filepath.Join(conf.RepoPath, "auctionq"))
+	store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(conf.RepoPath, "auctionq"))
 	if err != nil {
 		return nil, fin.Cleanupf("creating repo: %v", err)
 	}
 	fin.Add(store)
-	lib, err := auctioneer.New(p, store)
+	lib, err := auctioneer.New(p, store, auctioneer.AuctionConfig{
+		Duration: conf.Auction.Duration,
+	})
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctioneer: %v", err)
 	}

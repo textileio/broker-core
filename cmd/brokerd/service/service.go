@@ -16,7 +16,7 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
-	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -60,7 +60,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	ds, err := common.CreateMongoTxnDatastore(config.MongoURI, config.MongoDBName)
+	ds, err := dshelper.NewMongoTxnDatastore(config.MongoURI, config.MongoDBName)
 	if err != nil {
 		return nil, fmt.Errorf("creating datastore: %s", err)
 	}

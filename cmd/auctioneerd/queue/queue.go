@@ -1,7 +1,8 @@
 package queue
 
-// @todo: Restart started auctions?
-// @todo: Handle canceling auctions? When queued? When already started?
+// TODO: Restart started auctions?
+// TODO: Handle canceling auctions? When queued? When already started?
+// TODO: Handle retries if auction fails (got no bids / ome other error)
 
 import (
 	"bytes"
@@ -20,7 +21,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/oklog/ulid/v2"
 	core "github.com/textileio/broker-core/auctioneer"
-	kt "github.com/textileio/broker-core/keytransform"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 	dsextensions "github.com/textileio/go-datastore-extensions"
 )
 
@@ -62,7 +63,7 @@ type Handler func(ctx context.Context, auction *core.Auction) error
 
 // Queue is a persistent worker-based task queue.
 type Queue struct {
-	store kt.TxnDatastoreExtended
+	store txndswrap.TxnDatastore
 
 	handler Handler
 	jobCh   chan *core.Auction
@@ -76,7 +77,7 @@ type Queue struct {
 }
 
 // NewQueue returns a new Queue using handler to process auctions.
-func NewQueue(store kt.TxnDatastoreExtended, handler Handler) (*Queue, error) {
+func NewQueue(store txndswrap.TxnDatastore, handler Handler) (*Queue, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	q := &Queue{
 		store:   store,
@@ -142,14 +143,14 @@ func (q *Queue) CreateAuction(duration time.Duration) (string, error) {
 
 // GetAuction returns an auction by id.
 func (q *Queue) GetAuction(id string) (*core.Auction, error) {
-	a, err := q.getAuction(q.store, id)
+	a, err := getAuction(q.store, id)
 	if err != nil {
 		return nil, err
 	}
 	return a, err
 }
 
-func (q *Queue) getAuction(reader ds.Read, id string) (*core.Auction, error) {
+func getAuction(reader ds.Read, id string) (*core.Auction, error) {
 	val, err := reader.Get(dsPrefix.ChildString(id))
 	if errors.Is(err, ds.ErrNotFound) {
 		return nil, ErrNotFound
@@ -361,7 +362,7 @@ func (q *Queue) getQueued() (*core.Auction, error) {
 		return nil, fmt.Errorf("getting next result: %v", res.Error)
 	}
 
-	a, err := q.getAuction(txn, path.Base(res.Key))
+	a, err := getAuction(txn, path.Base(res.Key))
 	if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}

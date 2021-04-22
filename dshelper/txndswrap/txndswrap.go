@@ -1,41 +1,39 @@
-package keytransform
+package txndswrap
 
 import (
-	"os"
+	"strings"
 
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	dsq "github.com/ipfs/go-datastore/query"
 	dse "github.com/textileio/go-datastore-extensions"
-	badger "github.com/textileio/go-ds-badger3"
 )
 
-// NewBadgerStore returns a new badger-based TxnDatastoreExtended.
-func NewBadgerStore(repoPath string) (TxnDatastoreExtended, error) {
-	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
-		return nil, err
+// Wrap wraps a TxDatastore with a namespace prefix.
+func Wrap(child TxnDatastore, prefix string) *Datastore {
+	parts := strings.Split(prefix, "/")
+	prefixKey := ds.NewKey("/")
+	for _, part := range parts {
+		prefixKey = prefixKey.ChildString(part)
 	}
-	return badger.NewDatastore(repoPath, &badger.DefaultOptions)
-}
-
-// TxnDatastoreExtended adds QueryExtensions to TxnDatastore.
-type TxnDatastoreExtended interface {
-	ds.TxnDatastore
-	dse.DatastoreExtensions
-}
-
-// WrapTxnDatastore wraps a datastore with a key transform.
-func WrapTxnDatastore(child TxnDatastoreExtended, t kt.KeyTransform) *Datastore {
-	return &Datastore{
+	t := kt.PrefixTransform{Prefix: prefixKey}
+	nds := &Datastore{
 		child:        child,
 		Datastore:    kt.Wrap(child, t),
 		KeyTransform: t,
 	}
+	return nds
+}
+
+// TxnDatastore adds QueryExtensions to TxnDatastore.
+type TxnDatastore interface {
+	ds.TxnDatastore
+	dse.DatastoreExtensions
 }
 
 // Datastore keeps a KeyTransform function.
 type Datastore struct {
-	child TxnDatastoreExtended
+	child TxnDatastore
 	ds.Datastore
 	kt.KeyTransform
 }

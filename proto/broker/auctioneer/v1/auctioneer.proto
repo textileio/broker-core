@@ -29,7 +29,7 @@ message Auction {
 }
 
 message CreateAuctionRequest {
-    // @todo: Fill in with real stuff
+    // TODO: Fill in with real stuff
 }
 
 message CreateAuctionResponse {

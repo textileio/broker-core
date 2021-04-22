@@ -11,6 +11,7 @@ import (
 	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	minersrv "github.com/textileio/broker-core/cmd/minerd/service"
@@ -91,6 +92,9 @@ func newClient(t *testing.T) *client.Client {
 		Peer: marketpeer.Config{
 			RepoPath: dir,
 		},
+		Auction: auctioneer.AuctionConfig{
+			Duration: time.Second * 10,
+		},
 	}
 	s, err := service.New(config)
 	require.NoError(t, err)
@@ -113,8 +117,7 @@ func newClient(t *testing.T) *client.Client {
 
 func addMiners(t *testing.T, n int) {
 	for i := 0; i < n; i++ {
-		dir, err := ioutil.TempDir("", "")
-		require.NoError(t, err)
+		dir := t.TempDir()
 
 		config := minersrv.Config{
 			RepoPath: dir,

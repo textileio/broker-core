@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	dse "github.com/textileio/go-datastore-extensions"
 )
 
 // TxMapDatastore is a in-memory datastore that satisfies TxnDatastore.
@@ -75,12 +76,27 @@ func (d *TxMapDatastore) Clone() (*TxMapDatastore, error) {
 	return t2, nil
 }
 
-// NewTransaction creates a transaction A read-only transaction should be
+// NewTransaction creates a transaction. A read-only transaction should be
 // indicated with readOnly equal true.
 func (d *TxMapDatastore) NewTransaction(readOnly bool) (datastore.Txn, error) {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
 	return NewSimpleTx(d), nil
+}
+
+// NewTransactionExtended creates an extended transaction. A read-only transaction should be
+// indicated with readOnly equal true.
+func (d *TxMapDatastore) NewTransactionExtended(readOnly bool) (dse.TxnExt, error) {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+	return NewSimpleTx(d), nil
+}
+
+// QueryExtended executes an extended query.
+func (d *TxMapDatastore) QueryExtended(q dse.QueryExt) (query.Results, error) {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+	return d.Query(q.Query)
 }
 
 type op struct {
@@ -97,7 +113,7 @@ type SimpleTx struct {
 }
 
 // NewSimpleTx creates a transaction.
-func NewSimpleTx(ds datastore.Datastore) datastore.Txn {
+func NewSimpleTx(ds datastore.Datastore) dse.TxnExt {
 	return &SimpleTx{
 		ops:    make(map[datastore.Key]op),
 		target: ds,
@@ -109,6 +125,13 @@ func (bt *SimpleTx) Query(q query.Query) (query.Results, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
 	return bt.target.Query(q)
+}
+
+// QueryExtended executes an extended query within the transaction scope.
+func (bt *SimpleTx) QueryExtended(q dse.QueryExt) (query.Results, error) {
+	bt.lock.RLock()
+	defer bt.lock.RUnlock()
+	return bt.target.Query(q.Query)
 }
 
 // Get returns a key value within the transaction.

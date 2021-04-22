@@ -1,5 +1,8 @@
 package service
 
+// TODO: Store bids (bid history)
+// TODO: Add filters via config
+
 import (
 	"context"
 	"fmt"
@@ -135,7 +138,7 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	msg, err := proto.Marshal(&pb.Bid{
 		AuctionId: auction.Id,
 
-		// @todo: Figure out what this should really look like.
+		// TODO: Figure out what this should really look like.
 		Amount: int64(rand.Intn(100)),
 	})
 	if err != nil {

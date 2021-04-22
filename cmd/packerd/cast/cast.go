@@ -12,7 +12,7 @@ func AuctionToPb(a *core.Auction) *pb.Auction {
 		Id:        a.ID,
 		Status:    AuctionStatusToPb(a.Status),
 		Bids:      AuctionBidsToPb(a.Bids),
-		Winner:    a.Winner,
+		Winner:    a.WinningBid,
 		StartedAt: timestamppb.New(a.StartedAt),
 		Duration:  a.Duration,
 		Error:     a.Error,
