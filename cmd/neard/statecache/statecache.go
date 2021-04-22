@@ -33,6 +33,7 @@ func (sc *StateCache) HandleIntialStateUpdate(state *lockboxclient.State) {
 	sc.state = *state
 }
 
+// HandleStateChanges handles state changes.
 func (sc *StateCache) HandleStateChanges(changes []lockboxclient.Change, blockHash string, blockHeight int) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
@@ -46,6 +47,11 @@ func (sc *StateCache) HandleStateChanges(changes []lockboxclient.Change, blockHa
 			delete(sc.state.LockedFunds, change.Key)
 		}
 	}
+}
+
+// HandleError handles errors.
+func (sc *StateCache) HandleError(err error) {
+	log.Infof("handling error: %v", err)
 }
 
 // GetState returns the current state.

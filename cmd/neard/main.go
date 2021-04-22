@@ -92,7 +92,7 @@ var rootCmd = &cobra.Command{
 		listener, err := net.Listen("tcp", listenAddr)
 		common.CheckErr(err)
 
-		service, err := service.NewService(listener, sc)
+		service, err := service.NewService(listener, sc, lc)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {

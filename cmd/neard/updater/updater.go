@@ -16,6 +16,7 @@ var (
 type UpdateDelegate interface {
 	HandleIntialStateUpdate(*lockboxclient.State)
 	HandleStateChanges([]lockboxclient.Change, string, int)
+	HandleError(error)
 }
 
 // Updater updates the lock box state to the delegate.
@@ -53,24 +54,30 @@ func (u *Updater) Close() error {
 }
 
 func (u *Updater) run() {
-	ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
-	initialState, err := u.config.Lbc.GetState(ctx)
-	cancel()
-	if err != nil {
-		log.Errorf("getting state: %v", err)
-		return
-	}
-	u.blockHeight = initialState.BlockHeight
-	u.config.Delegate.HandleIntialStateUpdate(initialState)
+	updateFrequency := u.config.UpdateFrequency
 	for {
 	Loop:
 		select {
-		case <-time.After(u.config.UpdateFrequency):
+		case <-time.After(updateFrequency):
+			if u.blockHeight == 0 {
+				ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
+				initialState, err := u.config.Lbc.GetState(ctx)
+				cancel()
+				if err != nil {
+					u.config.Delegate.HandleError(err)
+					updateFrequency *= 2
+					continue
+				}
+				u.blockHeight = initialState.BlockHeight
+				u.config.Delegate.HandleIntialStateUpdate(initialState)
+				continue
+			}
 			ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
 			account, err := u.config.Lbc.GetAccount(ctx)
 			cancel()
 			if err != nil {
-				log.Errorf("getting account: %v", err)
+				u.config.Delegate.HandleError(err)
+				updateFrequency *= 2
 				continue
 			}
 			if u.blockHeight >= account.BlockHeight {
@@ -81,11 +88,13 @@ func (u *Updater) run() {
 				changes, blockHash, err := u.config.Lbc.GetChanges(ctx, i)
 				cancel()
 				if err != nil {
-					log.Errorf("getting changes: %v", err)
+					u.config.Delegate.HandleError(err)
+					updateFrequency *= 2
 					break Loop
 				}
 				u.blockHeight = i
 				u.config.Delegate.HandleStateChanges(changes, blockHash, i)
+				updateFrequency = u.config.UpdateFrequency
 			}
 		case <-u.mainCtx.Done():
 			return

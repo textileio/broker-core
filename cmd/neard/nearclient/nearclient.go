@@ -3,25 +3,28 @@ package nearclient
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type queryRequest struct {
-	RequestType  string `json:"request_type"`
-	Finality     string `json:"finality,omitempty"`
-	BlockID      int    `json:"block_id,omitempty"`
-	AccountID    string `json:"account_id,omitempty"`
-	PrefixBase64 string `json:"prefix_base64"`
+	RequestType  string      `json:"request_type"`
+	Finality     string      `json:"finality,omitempty"`
+	BlockID      interface{} `json:"block_id,omitempty"`
+	AccountID    string      `json:"account_id,omitempty"`
+	PrefixBase64 string      `json:"prefix_base64"`
+	MethodName   string      `json:"method_name,omitempty"`
+	ArgsBase64   string      `json:"args_base64,omitempty"`
 }
 
 type changesRequest struct {
-	ChangesType     string   `json:"changes_type"`
-	AccountIDs      []string `json:"account_ids"`
-	KeyPrefixBase64 string   `json:"key_prefix_base64"`
-	Finality        string   `json:"finality,omitempty"`
-	BlockID         int      `json:"block_id,omitempty"`
+	ChangesType     string      `json:"changes_type"`
+	AccountIDs      []string    `json:"account_ids"`
+	KeyPrefixBase64 string      `json:"key_prefix_base64"`
+	Finality        string      `json:"finality,omitempty"`
+	BlockID         interface{} `json:"block_id,omitempty"`
 }
 
 // Value models a state key-value pair.
@@ -46,6 +49,14 @@ type ViewAccountResponse struct {
 	StoragePaidAt int    `json:"storage_paid_at"`
 	BlockHeight   int    `json:"block_height"`
 	BlockHash     string `json:"block_hash"`
+}
+
+// CallFunctionResponse holds information about the result of a function call.
+type CallFunctionResponse struct {
+	Result      []byte   `json:"result"`
+	Logs        []string `json:"logs"`
+	BlockHeight int      `json:"block_height"`
+	BlockHash   string   `json:"block_hash"`
 }
 
 // Change holds information about a state change of a key-value pair.
@@ -96,10 +107,17 @@ func ViewStateWithFinality(finalaity string) ViewStateOption {
 	}
 }
 
-// ViewStateWithBlockID specifies the block id to query the state for.
-func ViewStateWithBlockID(blockID int) ViewStateOption {
+// ViewStateWithBlockHeight specifies the block height to query the state for.
+func ViewStateWithBlockHeight(blockHeight int) ViewStateOption {
 	return func(qr *queryRequest) {
-		qr.BlockID = blockID
+		qr.BlockID = blockHeight
+	}
+}
+
+// ViewStateWithBlockHash specifies the block hash to query the state for.
+func ViewStateWithBlockHash(blockHash string) ViewStateOption {
+	return func(qr *queryRequest) {
+		qr.BlockID = blockHash
 	}
 }
 
@@ -120,11 +138,13 @@ func (c *Client) ViewState(ctx context.Context, accountID string, opts ...ViewSt
 	for _, opt := range opts {
 		opt(req)
 	}
-	if req.BlockID == 0 && req.Finality == "" {
-		return nil, fmt.Errorf("you must provide ViewStateWithBlockID or ViewStateWithFinality")
+	if req.BlockID == nil && req.Finality == "" {
+		return nil, fmt.Errorf("you must provide ViewStateWithBlockHeight, ViewStateWithBlockHash or ViewStateWithFinality")
 	}
-	if req.BlockID != 0 && req.Finality != "" {
-		return nil, fmt.Errorf("you must provide one of ViewStateWithBlockID or ViewStateWithFinality, but not both")
+	if req.BlockID != nil && req.Finality != "" {
+		return nil, fmt.Errorf(
+			"you must provide one of ViewStateWithBlockHeight, ViewStateWithBlockHash or ViewStateWithFinality",
+		)
 	}
 	var res ViewStateResponse
 	err := c.rpcClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req))
@@ -144,10 +164,17 @@ func ViewAccountWithFinality(finalaity string) ViewAccountOption {
 	}
 }
 
-// ViewAccountWithBlockID specifies the block id to query the account for.
-func ViewAccountWithBlockID(blockID int) ViewAccountOption {
+// ViewAccountWithBlockHeight specifies the block height to query the account for.
+func ViewAccountWithBlockHeight(blockHeight int) ViewAccountOption {
 	return func(qr *queryRequest) {
-		qr.BlockID = blockID
+		qr.BlockID = blockHeight
+	}
+}
+
+// ViewAccountWithBlockHash specifies the block hash to query the account for.
+func ViewAccountWithBlockHash(blockHash string) ViewAccountOption {
+	return func(qr *queryRequest) {
+		qr.BlockID = blockHash
 	}
 }
 
@@ -164,15 +191,96 @@ func (c *Client) ViewAccount(
 	for _, opt := range opts {
 		opt(req)
 	}
-	if req.BlockID == 0 && req.Finality == "" {
-		return nil, fmt.Errorf("you must provide ViewAccountWithBlockID or ViewAccountWithFinality")
+	if req.BlockID == nil && req.Finality == "" {
+		return nil, fmt.Errorf(
+			"you must provide ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
+		)
 	}
-	if req.BlockID != 0 && req.Finality != "" {
-		return nil, fmt.Errorf("you must provide one of ViewAccountWithBlockID or ViewAccountWithFinality, but not both")
+	if req.BlockID != nil && req.Finality != "" {
+		return nil, fmt.Errorf(
+			"you must provide one of ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
+		)
 	}
 	var res ViewAccountResponse
 	err := c.rpcClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req))
 	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// CallFunctionOption controls the behavior when calling CallFunction.
+type CallFunctionOption func(*queryRequest) error
+
+// CallFunctionWithFinality specifies the finality to be used when calling the function.
+func CallFunctionWithFinality(finalaity string) CallFunctionOption {
+	return func(qr *queryRequest) error {
+		qr.Finality = finalaity
+		return nil
+	}
+}
+
+// CallFunctionWithBlockHeight specifies the block height to call the function for.
+func CallFunctionWithBlockHeight(blockHeight int) CallFunctionOption {
+	return func(qr *queryRequest) error {
+		qr.BlockID = blockHeight
+		return nil
+	}
+}
+
+// CallFunctionWithBlockHash specifies the block hash to call the function for.
+func CallFunctionWithBlockHash(blockHash string) CallFunctionOption {
+	return func(qr *queryRequest) error {
+		qr.BlockID = blockHash
+		return nil
+	}
+}
+
+// CallFunctionWithArgs specified the args to call the function with.
+// Should be a JSON encodable object.
+func CallFunctionWithArgs(args interface{}) CallFunctionOption {
+	return func(qr *queryRequest) error {
+		if args == nil {
+			args = make(map[string]interface{})
+		}
+		bytes, err := json.Marshal(args)
+		if err != nil {
+			return err
+		}
+		qr.ArgsBase64 = base64.StdEncoding.EncodeToString(bytes)
+		return nil
+	}
+}
+
+// CallFunction calls a function on a contract.
+func (c *Client) CallFunction(
+	ctx context.Context,
+	accountID string,
+	methodName string,
+	opts ...CallFunctionOption,
+) (*CallFunctionResponse, error) {
+	req := &queryRequest{
+		RequestType: "call_function",
+		AccountID:   accountID,
+		MethodName:  methodName,
+	}
+	for _, opt := range opts {
+		if err := opt(req); err != nil {
+			return nil, err
+		}
+	}
+	if req.BlockID == nil && req.Finality == "" {
+		return nil, fmt.Errorf(
+			"you must provide ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
+		)
+	}
+	if req.BlockID != nil && req.Finality != "" {
+		return nil, fmt.Errorf(
+			"you must provide one of ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
+		)
+	}
+	var res CallFunctionResponse
+	if err := c.rpcClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req)); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -195,10 +303,17 @@ func DataChangesWithFinality(finalaity string) DataChangesOption {
 	}
 }
 
-// DataChangesWithBlockID specifies the block id to query data changes for.
-func DataChangesWithBlockID(blockID int) DataChangesOption {
+// DataChangesWithBlockHeight specifies the block id to query data changes for.
+func DataChangesWithBlockHeight(blockHeight int) DataChangesOption {
 	return func(qr *changesRequest) {
-		qr.BlockID = blockID
+		qr.BlockID = blockHeight
+	}
+}
+
+// DataChangesWithBlockHash specifies the block id to query data changes for.
+func DataChangesWithBlockHash(blockHash string) DataChangesOption {
+	return func(qr *changesRequest) {
+		qr.BlockID = blockHash
 	}
 }
 
@@ -215,15 +330,18 @@ func (c *Client) DataChanges(
 	for _, opt := range opts {
 		opt(req)
 	}
-	if req.BlockID == 0 && req.Finality == "" {
-		return nil, fmt.Errorf("you must provide DataChangesWithBlockID or DataChangesWithFinality")
+	if req.BlockID == nil && req.Finality == "" {
+		return nil, fmt.Errorf(
+			"you must provide DataChangesWithBlockHeight, DataChangesWithBlockHash or DataChangesWithFinality",
+		)
 	}
-	if req.BlockID != 0 && req.Finality != "" {
-		return nil, fmt.Errorf("you must provide one of DataChangesWithBlockID or DataChangesWithFinality, but not both")
+	if req.BlockID != nil && req.Finality != "" {
+		return nil, fmt.Errorf(
+			"you must provide one of DataChangesWithBlockHeight, DataChangesWithBlockHash or DataChangesWithFinality",
+		)
 	}
 	var res DataChangesResponse
-	err := c.rpcClient.CallContext(ctx, &res, "EXPERIMENTAL_changes", rpc.NewNamedParams(req))
-	if err != nil {
+	if err := c.rpcClient.CallContext(ctx, &res, "EXPERIMENTAL_changes", rpc.NewNamedParams(req)); err != nil {
 		return nil, err
 	}
 	return &res, nil

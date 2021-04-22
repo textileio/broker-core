@@ -22,6 +22,14 @@ func TestIt(t *testing.T) {
 	require.NotEmpty(t, res.LockedFunds)
 }
 
+func TestHasLocked(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.HasLocked(ctx, "eightysteele.testnet")
+	require.NoError(t, err)
+	require.True(t, res)
+}
+
 func makeClient(t *testing.T) (*Client, func()) {
 	rpcClient, err := rpc.DialContext(ctx, "https://rpc.testnet.near.org")
 	require.NoError(t, err)

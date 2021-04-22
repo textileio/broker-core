@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
@@ -85,8 +86,28 @@ func (c *Client) GetAccount(ctx context.Context) (*nearclient.ViewAccountRespons
 	return c.nc.ViewAccount(ctx, c.accountID, nearclient.ViewAccountWithFinality("final"))
 }
 
-func (c *Client) GetChanges(ctx context.Context, blockID int) ([]Change, string, error) {
-	res, err := c.nc.DataChanges(ctx, []string{c.accountID}, nearclient.DataChangesWithBlockID(blockID))
+func (c *Client) HasLocked(ctx context.Context, accountID string) (bool, error) {
+	res, err := c.nc.CallFunction(
+		ctx,
+		c.accountID,
+		"hasLocked",
+		nearclient.CallFunctionWithFinality("final"),
+		nearclient.CallFunctionWithArgs(map[string]interface{}{
+			"accountId": accountID,
+		}),
+	)
+	if err != nil {
+		return false, fmt.Errorf("calling call function: %v", err)
+	}
+	b, err := strconv.ParseBool(string(res.Result))
+	if err != nil {
+		return false, fmt.Errorf("parsing result %v: %v", string(res.Result), err)
+	}
+	return b, nil
+}
+
+func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
+	res, err := c.nc.DataChanges(ctx, []string{c.accountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
 	if err != nil {
 		return nil, "", fmt.Errorf("calling data changes: %v", err)
 	}
