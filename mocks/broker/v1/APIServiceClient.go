@@ -17,8 +17,8 @@ type APIServiceClient struct {
 	mock.Mock
 }
 
-// CreateBR provides a mock function with given fields: ctx, in, opts
-func (_m *APIServiceClient) CreateBR(ctx context.Context, in *broker.CreateBRRequest, opts ...grpc.CallOption) (*broker.CreateBRResponse, error) {
+// CreateBrokerRequest provides a mock function with given fields: ctx, in, opts
+func (_m *APIServiceClient) CreateBrokerRequest(ctx context.Context, in *broker.CreateBrokerRequestRequest, opts ...grpc.CallOption) (*broker.CreateBrokerRequestResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -28,17 +28,17 @@ func (_m *APIServiceClient) CreateBR(ctx context.Context, in *broker.CreateBRReq
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *broker.CreateBRResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *broker.CreateBRRequest, ...grpc.CallOption) *broker.CreateBRResponse); ok {
+	var r0 *broker.CreateBrokerRequestResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *broker.CreateBrokerRequestRequest, ...grpc.CallOption) *broker.CreateBrokerRequestResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*broker.CreateBRResponse)
+			r0 = ret.Get(0).(*broker.CreateBrokerRequestResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *broker.CreateBRRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *broker.CreateBrokerRequestRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)
@@ -47,8 +47,8 @@ func (_m *APIServiceClient) CreateBR(ctx context.Context, in *broker.CreateBRReq
 	return r0, r1
 }
 
-// GetBR provides a mock function with given fields: ctx, in, opts
-func (_m *APIServiceClient) GetBR(ctx context.Context, in *broker.GetBRRequest, opts ...grpc.CallOption) (*broker.GetBRResponse, error) {
+// CreateStorageDeal provides a mock function with given fields: ctx, in, opts
+func (_m *APIServiceClient) CreateStorageDeal(ctx context.Context, in *broker.CreateStorageDealRequest, opts ...grpc.CallOption) (*broker.CreateStorageDealResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -58,17 +58,47 @@ func (_m *APIServiceClient) GetBR(ctx context.Context, in *broker.GetBRRequest, 
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *broker.GetBRResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *broker.GetBRRequest, ...grpc.CallOption) *broker.GetBRResponse); ok {
+	var r0 *broker.CreateStorageDealResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *broker.CreateStorageDealRequest, ...grpc.CallOption) *broker.CreateStorageDealResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*broker.GetBRResponse)
+			r0 = ret.Get(0).(*broker.CreateStorageDealResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *broker.GetBRRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *broker.CreateStorageDealRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetBrokerRequest provides a mock function with given fields: ctx, in, opts
+func (_m *APIServiceClient) GetBrokerRequest(ctx context.Context, in *broker.GetBrokerRequestRequest, opts ...grpc.CallOption) (*broker.GetBrokerRequestResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *broker.GetBrokerRequestResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *broker.GetBrokerRequestRequest, ...grpc.CallOption) *broker.GetBrokerRequestResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*broker.GetBrokerRequestResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *broker.GetBrokerRequestRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)

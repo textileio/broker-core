@@ -5,31 +5,31 @@ import (
 	"fmt"
 
 	"github.com/textileio/broker-core/auth"
-	"github.com/textileio/broker-core/cmd/authd/client"
-	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
-	"github.com/textileio/broker-core/rpc"
+	authd "github.com/textileio/broker-core/gen/broker/auth/v1"
+	"google.golang.org/grpc"
 )
 
-// BrokerAuth provides authentication resolution for the storage service.
-type BrokerAuth struct {
-	c *client.Client
+// Authd provides authentication resolution for the storage service.
+type Authd struct {
+	client authd.AuthAPIServiceClient
 }
 
 // New returns a new BrokerAuth.
-func New(addr string) (*BrokerAuth, error) {
-	c, err := client.NewClient(addr, rpc.GetClientOpts(addr)...)
-	if err != nil {
-		return nil, fmt.Errorf("creating client: %v", err)
+func New(addr string) (*Authd, error) {
+	conn, connErr := grpc.Dial(addr, grpc.WithInsecure())
+	if connErr != nil {
+		return nil, fmt.Errorf("creating authd client connection: %v", connErr)
 	}
-	return &BrokerAuth{c: c}, nil
+	client := authd.NewAuthAPIServiceClient(conn)
+	return &Authd{client: client}, nil
 }
 
-var _ auth.Authorizer = (*BrokerAuth)(nil)
+var _ auth.Authorizer = (*Authd)(nil)
 
 // IsAuthorized returns the identity that is authorized to use the storage service, otherwise returning an error.
-func (ba *BrokerAuth) IsAuthorized(ctx context.Context, jwtBase64URL string) (bool, string, error) {
-	req := &pb.AuthRequest{JwtBase64URL: jwtBase64URL}
-	res, err := ba.c.Auth(ctx, req)
+func (a *Authd) IsAuthorized(ctx context.Context, jwtBase64URL string) (bool, string, error) {
+	req := &authd.AuthRequest{JwtBase64URL: jwtBase64URL}
+	res, err := a.client.Auth(ctx, req)
 	if err != nil {
 		return false, fmt.Sprintf("IsAuthorized error: %s", err), err
 	}

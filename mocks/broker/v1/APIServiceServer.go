@@ -15,21 +15,21 @@ type APIServiceServer struct {
 	mock.Mock
 }
 
-// CreateBR provides a mock function with given fields: _a0, _a1
-func (_m *APIServiceServer) CreateBR(_a0 context.Context, _a1 *broker.CreateBRRequest) (*broker.CreateBRResponse, error) {
+// CreateBrokerRequest provides a mock function with given fields: _a0, _a1
+func (_m *APIServiceServer) CreateBrokerRequest(_a0 context.Context, _a1 *broker.CreateBrokerRequestRequest) (*broker.CreateBrokerRequestResponse, error) {
 	ret := _m.Called(_a0, _a1)
 
-	var r0 *broker.CreateBRResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *broker.CreateBRRequest) *broker.CreateBRResponse); ok {
+	var r0 *broker.CreateBrokerRequestResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *broker.CreateBrokerRequestRequest) *broker.CreateBrokerRequestResponse); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*broker.CreateBRResponse)
+			r0 = ret.Get(0).(*broker.CreateBrokerRequestResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *broker.CreateBRRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *broker.CreateBrokerRequestRequest) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
@@ -38,21 +38,44 @@ func (_m *APIServiceServer) CreateBR(_a0 context.Context, _a1 *broker.CreateBRRe
 	return r0, r1
 }
 
-// GetBR provides a mock function with given fields: _a0, _a1
-func (_m *APIServiceServer) GetBR(_a0 context.Context, _a1 *broker.GetBRRequest) (*broker.GetBRResponse, error) {
+// CreateStorageDeal provides a mock function with given fields: _a0, _a1
+func (_m *APIServiceServer) CreateStorageDeal(_a0 context.Context, _a1 *broker.CreateStorageDealRequest) (*broker.CreateStorageDealResponse, error) {
 	ret := _m.Called(_a0, _a1)
 
-	var r0 *broker.GetBRResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *broker.GetBRRequest) *broker.GetBRResponse); ok {
+	var r0 *broker.CreateStorageDealResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *broker.CreateStorageDealRequest) *broker.CreateStorageDealResponse); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*broker.GetBRResponse)
+			r0 = ret.Get(0).(*broker.CreateStorageDealResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *broker.GetBRRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *broker.CreateStorageDealRequest) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetBrokerRequest provides a mock function with given fields: _a0, _a1
+func (_m *APIServiceServer) GetBrokerRequest(_a0 context.Context, _a1 *broker.GetBrokerRequestRequest) (*broker.GetBrokerRequestResponse, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 *broker.GetBrokerRequestResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *broker.GetBrokerRequestRequest) *broker.GetBrokerRequestResponse); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*broker.GetBrokerRequestResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *broker.GetBrokerRequestRequest) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)

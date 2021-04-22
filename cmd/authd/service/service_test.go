@@ -172,7 +172,7 @@ func TestClient_Setup(t *testing.T) {
 	require.Equal(t, res.Identity, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")
 }
 
-func newClient(listener *bufconn.Listener) (pb.APIServiceClient, error) {
+func newClient(listener *bufconn.Listener) (pb.AuthAPIServiceClient, error) {
 	bufDialer := func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
 	}
@@ -180,7 +180,7 @@ func newClient(listener *bufconn.Listener) (pb.APIServiceClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	client := pb.NewAPIServiceClient(conn)
+	client := pb.NewAuthAPIServiceClient(conn)
 	return client, nil
 }
 

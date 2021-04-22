@@ -11,6 +11,6 @@ message AuthResponse {
     string identity = 1;
 }
 
-service APIService {
+service AuthAPIService {
     rpc Auth(AuthRequest) returns (AuthResponse) {}
 }
