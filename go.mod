@@ -34,6 +34,7 @@ require (
 	github.com/multiformats/go-varint v0.0.6
 	github.com/ockam-network/did v0.1.3
 	github.com/oklog/ulid/v2 v2.0.2
+	github.com/ory/dockertest/v3 v3.6.3
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
