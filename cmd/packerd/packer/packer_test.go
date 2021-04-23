@@ -103,7 +103,55 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 }
 
 func TestSizeLimit(t *testing.T) {
-	panic("TODO")
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	brokerMock := &brokerMock{allowMultipleCalls: true}
+	ds := tests.NewTxMapDatastore()
+	// Configure max DAG size of 5KB
+	packer, err := New(ds, ipfs, brokerMock, WithFrequency(time.Hour), WithSectorSize(50*100))
+	require.NoError(t, err)
+
+	// 2- Add 100 random files ready to batch, which is 10KiB. They can't fit all in a single dag.
+	numFiles := 100
+	dataCids := addRandomData(t, ipfs, numFiles)
+
+	// 3- Signal that all of them are ready to pack.
+	for i, dataCid := range dataCids {
+		err = packer.ReadyToPack(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
+		require.NoError(t, err)
+	}
+	numCidsBatched, err := packer.pack(ctx)
+	require.NoError(t, err)
+
+	require.True(t, brokerMock.batchCid.Defined())
+	// The first batch should definitely considered less than 100 broker requests.
+	require.Less(t, len(brokerMock.srids), numFiles)
+	// There were no repetitions, so that means also 50 cids.
+	require.Less(t, numCidsBatched, int64(numFiles))
+
+	// Check that the batch cid was pinned in ipfs.
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
+	require.NoError(t, err)
+	require.True(t, pinned)
+
+	// Keep packing and counting...
+	// If something is working wrong, this will be and endless loop.
+	for numCidsBatched < int64(numFiles) {
+		countBatched, err := packer.pack(ctx)
+		require.NoError(t, err)
+		numCidsBatched += countBatched
+	}
+	// Check that we got exactly numFiles batched in total, not a single extra one.
+	require.Equal(t, int64(numFiles), numCidsBatched)
 }
 
 func TestSelectorRetrieval(t *testing.T) {
@@ -140,15 +188,16 @@ func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
 }
 
 type brokerMock struct {
-	batchCid cid.Cid
-	srids    []broker.BrokerRequestID
+	batchCid           cid.Cid
+	srids              []broker.BrokerRequestID
+	allowMultipleCalls bool
 }
 
 func (bm *brokerMock) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
 	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
-	if bm.batchCid.Defined() {
+	if !bm.allowMultipleCalls && bm.batchCid.Defined() {
 		return "", fmt.Errorf("create storage deal called twice")
 	}
 	bm.batchCid = batchCid
