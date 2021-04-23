@@ -10,6 +10,8 @@ import (
 )
 
 func TestFull(t *testing.T) {
+	t.Parallel()
+
 	ds := tests.NewTxMapDatastore()
 	s, err := New(ds)
 	require.NoError(t, err)
@@ -71,6 +73,8 @@ func TestFull(t *testing.T) {
 }
 
 func TestPartialWrongDequeueing(t *testing.T) {
+	t.Parallel()
+
 	ds := tests.NewTxMapDatastore()
 	s, err := New(ds)
 	require.NoError(t, err)
@@ -153,7 +157,7 @@ func assertIterator(t *testing.T, s *Store, expectedResult []BatchableBrokerRequ
 		require.Equal(t, expectedResult[count].DataCid, br.DataCid)
 		count++
 	}
-	require.Equal(t, len(expectedResult), count) // Check we walked exactly all of them.
+	require.Len(t, expectedResult, count) // Check we walked exactly all of them.
 }
 
 func castCid(cidStr string) cid.Cid {

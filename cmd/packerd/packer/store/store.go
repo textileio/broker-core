@@ -193,7 +193,10 @@ func (s *Store) newID() (string, error) {
 }
 
 func (s *Store) loadCache() error {
-	q := query.Query{Prefix: dsPrefixBatchableBrokerRequest.String()}
+	q := query.Query{
+		Prefix: dsPrefixBatchableBrokerRequest.String(),
+		Orders: []query.Order{query.OrderByKey{}},
+	}
 	res, err := s.ds.Query(q)
 	if err != nil {
 		return fmt.Errorf("creating query: %s", err)
