@@ -143,6 +143,7 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 }
 
 // ValidateKeyDID validates the key DID.
+// See: https://w3c-ccg.github.io/did-method-key/
 func ValidateKeyDID(sub string, x string) (bool, error) {
 	subDID, err := did.Parse(sub)
 	if err != nil {
