@@ -153,11 +153,11 @@ func ValidateKeyDID(sub string, x string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("Error decoding DID: %s", err)
 	}
+	// Checks that the first two bytes are multicodec prefix values (according to spec)
 	_, n, err := varint.FromUvarint(bytes)
 	if err != nil {
 		return false, fmt.Errorf("DID multiformat error: %s", err)
 	}
-	// Checks that the first two bytes are multicodec prefix values (according to spec)
 	if n != 2 {
 		return false, errors.New("key DID format error")
 	}
