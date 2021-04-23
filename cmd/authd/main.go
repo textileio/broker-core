@@ -22,7 +22,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "near.api.addr", DefValue: "", Description: "neard service api address"},
+		{Name: "near.addr", DefValue: "", Description: "neard service api address"},
 		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
 	}
@@ -49,7 +49,7 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		chainAPIClientConn, err := grpc.Dial(v.GetString("near.api.addr"), grpc.WithInsecure())
+		chainAPIClientConn, err := grpc.Dial(v.GetString("near.addr"), grpc.WithInsecure())
 		if err != nil {
 			log.Fatalf("creating near api connection: %v", err)
 		}
