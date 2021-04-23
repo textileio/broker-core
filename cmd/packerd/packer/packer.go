@@ -201,12 +201,12 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 
 		// 2- Build path through 3 layers.
 		layer0LinkName := "ba.." + base32Cid[base32CidLen-2:base32CidLen]
-		layer1Node, err := getOrCreateLayerNode(ctx, batchRoot, layer0LinkName, batchNodes)
+		layer1Node, err := getOrCreateLayerNode(batchRoot, layer0LinkName, batchNodes)
 		if err != nil {
 			return cid.Undef, nil, 0, fmt.Errorf("get/create layer0 node: %s", err)
 		}
 		layer1LinkName := "ba.." + base32Cid[base32CidLen-4:base32CidLen]
-		layer2Node, err := getOrCreateLayerNode(ctx, layer1Node, layer1LinkName, batchNodes)
+		layer2Node, err := getOrCreateLayerNode(layer1Node, layer1LinkName, batchNodes)
 		if err != nil {
 			return cid.Undef, nil, 0, fmt.Errorf("get/create layer1 node: %s", err)
 		}
@@ -226,7 +226,6 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 			}
 			if err := updateNodeLink(batchRoot, layer0LinkName, layer1Node, batchNodes); err != nil {
 				return cid.Undef, nil, 0, fmt.Errorf("updating layer 1 node: %s", err)
-
 			}
 			numBatchedCids++
 		} else {
@@ -260,7 +259,6 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 }
 
 func getOrCreateLayerNode(
-	ctx context.Context,
 	parentNode *merkledag.ProtoNode,
 	layerLinkName string,
 	batchNodes map[cid.Cid]*merkledag.ProtoNode) (*merkledag.ProtoNode, error) {
@@ -292,7 +290,11 @@ func getOrCreateLayerNode(
 	return layerNode, nil
 }
 
-func updateNodeLink(node *merkledag.ProtoNode, linkName string, newNode ipld.Node, batchNodes map[cid.Cid]*merkledag.ProtoNode) error {
+func updateNodeLink(
+	node *merkledag.ProtoNode,
+	linkName string,
+	newNode ipld.Node,
+	batchNodes map[cid.Cid]*merkledag.ProtoNode) error {
 	delete(batchNodes, node.Cid())
 	if err := node.RemoveNodeLink(linkName); err != nil && err != merkledag.ErrLinkNotFound {
 		return fmt.Errorf("removing link name: %s", err)
