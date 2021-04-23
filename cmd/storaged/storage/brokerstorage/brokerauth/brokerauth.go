@@ -9,25 +9,25 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Authd provides authentication resolution for the storage service.
-type Authd struct {
+// AuthdService provides authentication resolution for the storage service.
+type AuthdService struct {
 	client authd.AuthAPIServiceClient
 }
 
 // New returns a new BrokerAuth.
-func New(addr string) (*Authd, error) {
+func New(addr string) (*AuthdService, error) {
 	conn, connErr := grpc.Dial(addr, grpc.WithInsecure())
 	if connErr != nil {
 		return nil, fmt.Errorf("creating authd client connection: %v", connErr)
 	}
 	client := authd.NewAuthAPIServiceClient(conn)
-	return &Authd{client: client}, nil
+	return &AuthdService{client: client}, nil
 }
 
-var _ auth.Authorizer = (*Authd)(nil)
+var _ auth.Authorizer = (*AuthdService)(nil)
 
 // IsAuthorized returns the identity that is authorized to use the storage service, otherwise returning an error.
-func (a *Authd) IsAuthorized(ctx context.Context, jwtBase64URL string) (bool, string, error) {
+func (a *AuthdService) IsAuthorized(ctx context.Context, jwtBase64URL string) (bool, string, error) {
 	req := &authd.AuthRequest{JwtBase64URL: jwtBase64URL}
 	res, err := a.client.Auth(ctx, req)
 	if err != nil {
