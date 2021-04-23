@@ -21,9 +21,9 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "repo", DefValue: ".miner", Description: "Repo path"},
-		{Name: "host.multiaddr", DefValue: "/ip4/127.0.0.1/tcp/4001", Description: "Libp2p host listen multiaddr"},
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "host-multiaddr", DefValue: "/ip4/127.0.0.1/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "MINER", flags, rootCmd)
@@ -35,7 +35,7 @@ var rootCmd = &cobra.Command{
 	Long:  "minerd is used by a miner to listen for deals from the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log.debug") {
+		if v.GetBool("log-debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},
@@ -52,7 +52,7 @@ var rootCmd = &cobra.Command{
 			RepoPath: v.GetString("repo"),
 			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
-				HostMultiaddr: v.GetString("host.multiaddr"),
+				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
 		}
 		serv, err := service.New(config)

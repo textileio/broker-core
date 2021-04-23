@@ -20,15 +20,15 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "auctioneer.addr", DefValue: ":5001", Description: "Auctioneer address"},
-		{Name: "packer.addr", DefValue: "", Description: "Packer API address"},
-		{Name: "mongo.uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo.dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
-		{Name: "ipfs.multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "auctioneer-addr", DefValue: ":5001", Description: "Auctioneer address"},
+		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
+		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
+		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "BROKER", flags, rootCmd)
@@ -40,7 +40,7 @@ var rootCmd = &cobra.Command{
 	Long:  `brokerd is a Broker to store data in Filecoin`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log.debug") {
+		if v.GetBool("log-debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},
@@ -54,15 +54,15 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			GrpcListenAddress: v.GetString("rpc.addr"),
+			GrpcListenAddress: v.GetString("rpc-addr"),
 
-			AuctioneerAddr: v.GetString("auctioneer.addr"),
-			PackerAddr:     v.GetString("packer.addr"),
+			AuctioneerAddr: v.GetString("auctioneer-addr"),
+			PackerAddr:     v.GetString("packer-addr"),
 
-			MongoURI:    v.GetString("mongo.uri"),
-			MongoDBName: v.GetString("mongo.dbname"),
+			MongoURI:    v.GetString("mongo-uri"),
+			MongoDBName: v.GetString("mongo-dbname"),
 
-			IpfsMultiaddr: v.GetString("ipfs.multiaddr"),
+			IpfsMultiaddr: v.GetString("ipfs-multiaddr"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

@@ -29,7 +29,7 @@ type Flag struct {
 func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra.Command) {
 	v.SetEnvPrefix(envPrefix)
 	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 
 	for _, flag := range flags {
 		switch defval := flag.DefValue.(type) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -33,6 +34,9 @@ type Config struct {
 
 	IpfsAPIMultiaddr string
 	BrokerAPIAddr    string
+
+	BatchFrequency   time.Duration
+	TargetSectorSize int64
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -72,7 +76,11 @@ func New(conf Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating broker client: %s", err)
 	}
-	lib, err := packer.New(ds, ipfsClient, brokerClient)
+	opts := []packer.Option{
+		packer.WithFrequency(conf.BatchFrequency),
+		packer.WithSectorSize(conf.TargetSectorSize),
+	}
+	lib, err := packer.New(ds, ipfsClient, brokerClient, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
