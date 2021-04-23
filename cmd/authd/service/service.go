@@ -143,7 +143,7 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 }
 
 // ValidateKeyDID validates the key DID.
-// See: https://w3c-ccg.github.io/did-method-key/
+// See the spec: https://w3c-ccg.github.io/did-method-key/
 func ValidateKeyDID(sub string, x string) (bool, error) {
 	subDID, err := did.Parse(sub)
 	if err != nil {
@@ -157,6 +157,7 @@ func ValidateKeyDID(sub string, x string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("DID multiformat error: %s", err)
 	}
+	// Checks that the first two bytes are multicodec prefix values (according to spec)
 	if n != 2 {
 		return false, errors.New("key DID format error")
 	}
