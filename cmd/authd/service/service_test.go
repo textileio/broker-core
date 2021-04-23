@@ -111,7 +111,7 @@ func TestService_validateInput(t *testing.T) {
 	token := TOKEN
 	input, err := service.ValidateInput(token)
 	require.NoError(t, err)
-	require.Equal(t, token, input.JwtBase64URL)
+	require.Equal(t, token, input.Token)
 
 	// Invalid token with valid height
 	token = "INVALID_TOKEN"
@@ -123,7 +123,7 @@ func TestService_validateInput(t *testing.T) {
 	token = TOKEN
 	input, err = service.ValidateInput(token)
 	require.NoError(t, err)
-	require.Equal(t, token, input.JwtBase64URL)
+	require.Equal(t, token, input.Token)
 }
 
 func TestService_ValidateLockedFunds(t *testing.T) {
@@ -166,7 +166,7 @@ func TestClient_Setup(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	req := &pb.AuthRequest{JwtBase64URL: TOKEN}
+	req := &pb.AuthRequest{Token: TOKEN}
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, res.Identity, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")

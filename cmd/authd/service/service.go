@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	logging "github.com/ipfs/go-log/v2"
+	golog "github.com/ipfs/go-log/v2"
 	mbase "github.com/multiformats/go-multibase"
 	varint "github.com/multiformats/go-varint"
 	"github.com/ockam-network/did"
@@ -18,6 +17,7 @@ import (
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
+	"github.com/textileio/broker-core/rpc"
 
 	// This import runs the init, which registers the algo with jwt-go.
 	_ "github.com/textileio/jwt-go-eddsa"
@@ -26,14 +26,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	// LogName is our auth logger.
-	LogName = "auth/service"
-)
-
-var (
-	log = logging.Logger(LogName)
-)
+var log = golog.Logger("auth/service")
 
 // Service is a gRPC service for authorization.
 type Service struct {
@@ -76,25 +69,14 @@ func New(config Config, deps Deps) (*Service, error) {
 
 // Close the service.
 func (s *Service) Close() error {
-	stopped := make(chan struct{})
-	go func() {
-		s.server.GracefulStop()
-		close(stopped)
-	}()
-	timer := time.NewTimer(10 * time.Second)
-	select {
-	case <-timer.C:
-		s.server.Stop()
-	case <-stopped:
-		timer.Stop()
-	}
+	rpc.StopServer(s.server)
 	log.Info("service was shutdown")
 	return nil
 }
 
 // ValidatedInput represents input that has been validated.
 type ValidatedInput struct {
-	JwtBase64URL string
+	Token string // The base64 URL encoded JWT token
 }
 
 // ValidatedToken represents token data that has been validated.
@@ -116,7 +98,7 @@ func ValidateInput(jwtBase64URL string) (*ValidatedInput, error) {
 		return nil, errors.New("token contains invalid number of segments")
 	}
 	return &ValidatedInput{
-		JwtBase64URL: jwtBase64URL,
+		Token: jwtBase64URL,
 	}, nil
 }
 
@@ -126,11 +108,10 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
 		jwk := token.Header["jwk"]
 		for k, v := range jwk.(map[string]interface{}) {
-			foo, ok := v.(string)
-			if !ok {
+			if val, ok := v.(string); !ok {
 				continue
 			} else {
-				jwkMap[k] = foo
+				jwkMap[k] = val
 			}
 		}
 		x := jwkMap["x"]
@@ -147,7 +128,7 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 
 	claims, ok := token.Claims.(*AuthClaims)
 	if claims.Valid() != nil {
-		return nil, errors.New("Invalid JWT claims: %s")
+		return nil, errors.New("invalid JWT claims")
 	}
 	if !ok {
 		return nil, errors.New("invalid JWT claims")
@@ -165,7 +146,7 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 func ValidateKeyDID(sub string, x string) (bool, error) {
 	subDID, err := did.Parse(sub)
 	if err != nil {
-		return false, fmt.Errorf("Error parsing DID: %s", err)
+		return false, fmt.Errorf("error parsing DID: %s", err)
 	}
 	_, bytes, err := mbase.Decode(subDID.ID)
 	if err != nil {
@@ -201,15 +182,19 @@ func ValidateLockedFunds(ctx context.Context, iss string, s chainapi.ChainApiSer
 	return true, nil
 }
 
-// Auth takes in a base64 encoded JWT, verifies it, checks the indentity (by comparing key DIDs) and returns DID.
+// Auth authenticates a user storage request containing a URL encoded base64 JWT with an Ed25519 signature.
+// 1. Validates the JWT
+// 2. Validates that the key DID in the JWT ("sub" in the payload) was created with the public key ("x" in the header)
+// 3. Validates that the user has locked funds on-chain using a service provided by neard.
+// It returns the key DID.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	// Validate the request input.
-	validInput, InputErr := ValidateInput(req.JwtBase64URL)
+	validInput, InputErr := ValidateInput(req.Token)
 	if InputErr != nil {
 		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid request input: %s (%s)", req, InputErr))
 	}
 	// Validate the JWT token.
-	token, tokenErr := ValidateToken(validInput.JwtBase64URL)
+	token, tokenErr := ValidateToken(validInput.Token)
 	if tokenErr != nil {
 		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("Invalid JWT: %s", tokenErr))
 	}
