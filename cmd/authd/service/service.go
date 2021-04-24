@@ -38,8 +38,7 @@ type Service struct {
 
 // Config is the service config.
 type Config struct {
-	ListenAddr string
-	Listener   net.Listener
+	Listener net.Listener
 }
 
 // Deps comprises the service dependencies.
@@ -62,8 +61,6 @@ func New(config Config, deps Deps) (*Service, error) {
 			log.Errorf("server error: %v", err)
 		}
 	}()
-
-	log.Infof("service listening at %s", config.ListenAddr)
 	return s, nil
 }
 
@@ -210,6 +207,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	if !fundsOk || fundsErr != nil {
 		return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("Locked funds error: %v", fundsErr))
 	}
+	log.Info(fmt.Sprintf("Authenticated successfully: %s", token.Iss))
 	return &pb.AuthResponse{
 		Identity: token.Sub,
 	}, nil

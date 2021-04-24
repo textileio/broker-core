@@ -21,16 +21,11 @@ func init() {
 	flags := []common.Flag{
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
-
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
-
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-
 		{Name: "batch-frequency", DefValue: "20s", Description: "Frequency in which a new batch gets created"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
-
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
@@ -53,7 +48,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
+		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 

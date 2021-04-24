@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net"
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -55,9 +56,12 @@ var rootCmd = &cobra.Command{
 		}
 		chainAPIClient := chainapi.NewChainApiServiceClient(chainAPIClientConn)
 
-		config := service.Config{ListenAddr: v.GetString("grpc-listen-addr")}
+		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
+		if err != nil {
+			log.Fatalf("creating listener connection: %v", err)
+		}
+		config := service.Config{Listener: listener}
 		deps := service.Deps{ChainAPIServiceClient: chainAPIClient}
-
 		serv, err := service.New(config, deps)
 		common.CheckErr(err)
 
