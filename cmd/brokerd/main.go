@@ -26,7 +26,6 @@ func init() {
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
-
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
@@ -49,7 +48,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
+		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 

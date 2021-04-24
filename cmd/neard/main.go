@@ -25,7 +25,7 @@ var (
 )
 
 var flags = []common.Flag{
-	{Name: "listen-addr", DefValue: ":5000", Description: "The host and port the gRPC service should listen on."},
+	{Name: "rpc-addr", DefValue: "", Description: "The host and port the gRPC service should listen on."},
 	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus endpoint"},
 	{Name: "endpoint-url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
 	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
@@ -54,7 +54,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		listenAddr := v.GetString("listen-addr")
+		listenAddr := v.GetString("rpc-addr")
 		metricsAddr := v.GetString("metrics-addr")
 		endpointURL := v.GetString("endpoint-url")
 		endpointTimeout := v.GetDuration("endpoint-timeout")
