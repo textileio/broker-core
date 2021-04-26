@@ -31,11 +31,7 @@ services:
       dockerfile: ./cmd/storaged/Dockerfile
     environment:
       - STORAGE_DEBUG=true
-<<<<<<< HEAD
-      - STORAGE_HTTP_LISTEN_ADDR=:8888
-=======
       - STORAGE_HTTP_ADDR=:8888
->>>>>>> wire up authd and neard with new config/env command format
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - STORAGE_BROKER_ADDR=brokerd:5000
       - STORAGE_AUTH_ADDR=authd:5000
@@ -54,11 +50,7 @@ services:
       dockerfile: ./cmd/brokerd/Dockerfile
     environment:
       - BROKER_DEBUG=true
-<<<<<<< HEAD
-      - BROKER_GRPC_LISTEN_ADDR=:5000
-=======
       - BROKER_RPC_ADDR=:5000
->>>>>>> wire up authd and neard with new config/env command format
       - BROKER_MONGO_URI=mongodb://mongo:27017
       - BROKER_MONGO_DBNAME=brokerd
       - BROKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
@@ -77,11 +69,7 @@ services:
       dockerfile: ./cmd/packerd/Dockerfile
     environment:
       - PACKER_DEBUG=true
-<<<<<<< HEAD
-      - PACKER_GRPC_LISTEN_ADDR=:5000
-=======
       - PACKER_RPC_ADDR=:5000
->>>>>>> wire up authd and neard with new config/env command format
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
       - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
