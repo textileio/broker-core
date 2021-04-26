@@ -25,7 +25,7 @@ func init() {
 
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "authd-addr", DefValue: "TODO", Description: "The authd address"},
-		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "STORAGE", flags, rootCmd)
@@ -37,7 +37,7 @@ var rootCmd = &cobra.Command{
 	Long:  `storaged provides a synchronous data uploader endpoint to store data in a Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log-debug") {
+		if v.GetBool("debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},

@@ -28,7 +28,7 @@ func init() {
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "BROKER", flags, rootCmd)
@@ -40,7 +40,7 @@ var rootCmd = &cobra.Command{
 	Long:  `brokerd is a Broker to store data in Filecoin`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log-debug") {
+		if v.GetBool("debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},

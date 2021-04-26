@@ -24,7 +24,7 @@ func init() {
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "near-addr", DefValue: "", Description: "neard service api address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "AUTH", flags, rootCmd)
@@ -36,7 +36,7 @@ var rootCmd = &cobra.Command{
 	Long:  `authd provides authentication services for the Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log-debug") {
+		if v.GetBool("debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},

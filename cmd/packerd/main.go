@@ -32,7 +32,7 @@ func init() {
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "packer", flags, rootCmd)
@@ -44,7 +44,7 @@ var rootCmd = &cobra.Command{
 	Long:  "packerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log-debug") {
+		if v.GetBool("debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},
