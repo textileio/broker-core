@@ -199,7 +199,7 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 		}
 		base32CidLen := len(base32Cid)
 
-		// 2- Build path through 3 layers.
+		// 3- Build path through 3 layers.
 		layer0LinkName := "ba.." + base32Cid[base32CidLen-2:base32CidLen]
 		layer1Node, err := getOrCreateLayerNode(batchRoot, layer0LinkName, batchNodes)
 		if err != nil {
@@ -211,7 +211,7 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 			return cid.Undef, nil, 0, fmt.Errorf("get/create layer1 node: %s", err)
 		}
 
-		// 3- Add the target Cid in the layer 3 node, and bubble up parent nodes
+		// 4- Add the target Cid in the layer 3 node, and bubble up parent nodes
 		//    changes up to the updated batchRoot that now includes this cid.
 		_, err = layer2Node.GetNodeLink(base32Cid)
 		if err != nil && err != merkledag.ErrLinkNotFound {
@@ -315,7 +315,7 @@ func updateNodeLink(
 //             2(varint)+34(cid-size)+~1024(small-block) -> ~4% overhead.
 //
 // Note that this limit is a worst-case scenario for a perfectly calculated size for a DAG,
-// that's to say, accouting fro deduplication. TL;DR: safe boundaries.
+// that's to say, accounting for deduplication. TL;DR: safe boundaries.
 func calcBatchLimit(sectorSize int64) int64 {
 	return int64(float64(sectorSize) * float64(127) / float64(128) / 1.04)
 }
