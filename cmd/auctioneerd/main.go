@@ -21,10 +21,10 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "repo", DefValue: ".auctioneer", Description: "Repo path"},
-		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "host.multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd)
@@ -36,7 +36,7 @@ var rootCmd = &cobra.Command{
 	Long:  "auctioneerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log.debug") {
+		if v.GetBool("debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},
@@ -51,10 +51,10 @@ var rootCmd = &cobra.Command{
 
 		config := service.Config{
 			RepoPath:   v.GetString("repo"),
-			ListenAddr: v.GetString("rpc.addr"),
+			ListenAddr: v.GetString("rpc-addr"),
 			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
-				HostMultiaddr: v.GetString("host.multiaddr"),
+				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
 		}
 		serv, err := service.New(config)

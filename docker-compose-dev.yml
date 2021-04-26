@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: ./cmd/storaged/Dockerfile
     environment:
-      - STORAGE_LOG_DEBUG=true
+      - STORAGE_DEBUG=true
       - STORAGE_HTTP_LISTEN_ADDR=:8888
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - STORAGE_BROKER_ADDR=brokerd:5000
@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: ./cmd/brokerd/Dockerfile
     environment:
-      - BROKER_LOG_DEBUG=true
+      - BROKER_DEBUG=true
       - BROKER_GRPC_LISTEN_ADDR=:5000
       - BROKER_MONGO_URI=mongodb://mongo:27017
       - BROKER_MONGO_DBNAME=brokerd
@@ -41,7 +41,7 @@ services:
       context: .
       dockerfile: ./cmd/packerd/Dockerfile
     environment:
-      - PACKER_LOG_DEBUG=true
+      - PACKER_DEBUG=true
       - PACKER_GRPC_LISTEN_ADDR=:5000
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd

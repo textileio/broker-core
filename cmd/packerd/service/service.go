@@ -5,10 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ipfs/go-cid"
+	httpapi "github.com/ipfs/go-ipfs-http-client"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	"github.com/textileio/broker-core/finalizer"
@@ -30,6 +34,9 @@ type Config struct {
 
 	IpfsAPIMultiaddr string
 	BrokerAPIAddr    string
+
+	BatchFrequency   time.Duration
+	TargetSectorSize int64
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -57,7 +64,23 @@ func New(conf Config) (*Service, error) {
 	}
 	fin.Add(ds)
 
-	lib, err := packer.New(ds, conf.IpfsAPIMultiaddr, conf.BrokerAPIAddr)
+	ma, err := multiaddr.NewMultiaddr(conf.IpfsAPIMultiaddr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
+	}
+	ipfsClient, err := httpapi.NewApi(ma)
+	if err != nil {
+		return nil, fmt.Errorf("creating ipfs client: %s", err)
+	}
+	brokerClient, err := client.New(conf.BrokerAPIAddr)
+	if err != nil {
+		return nil, fmt.Errorf("creating broker client: %s", err)
+	}
+	opts := []packer.Option{
+		packer.WithFrequency(conf.BatchFrequency),
+		packer.WithSectorSize(conf.TargetSectorSize),
+	}
+	lib, err := packer.New(ds, ipfsClient, brokerClient, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
