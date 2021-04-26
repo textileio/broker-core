@@ -1,0 +1,15 @@
+syntax = "proto3";
+package broker.dealer.v1;
+option go_package = "github.com/textileio/broker-core/broker/dealer/v1;dealer";
+
+import "google/protobuf/timestamp.proto";
+
+message ExecuteBidsRequest {
+}
+
+message ExecuteBidsResponse {
+}
+
+service APIService {
+    rpc ExecuteBids(ExecuteBidsRequest) returns (ExecuteBidsResponse) {}
+}
