@@ -35,15 +35,24 @@ type Broker struct {
 	packer     packer.Packer
 	piecer     piecer.Piecer
 	auctioneer auctioneer.Auctioneer
+	dealEpochs uint64
 }
 
-// New creates a Broker backed by the provdied `ds`.
+// New creates a Broker backed by the provided `ds`.
 func New(
 	ds txndswrap.TxnDatastore,
 	packer packer.Packer,
 	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,
+	dealEpochs uint64,
 ) (*Broker, error) {
+	if dealEpochs < broker.MinDealEpochs {
+		return nil, fmt.Errorf("deal epochs is less than minimum allowed: %d", broker.MinDealEpochs)
+	}
+	if dealEpochs > broker.MaxDealEpochs {
+		return nil, fmt.Errorf("deal epochs is greater than maximum allowed: %d", broker.MaxDealEpochs)
+	}
+
 	store, err := srstore.New(txndswrap.Wrap(ds, "/broker-store"))
 	if err != nil {
 		return nil, fmt.Errorf("initializing broker request store: %s", err)
@@ -54,6 +63,7 @@ func New(
 		packer:     packer,
 		piecer:     piecer,
 		auctioneer: auctioneer,
+		dealEpochs: dealEpochs,
 	}
 	return b, nil
 }
@@ -171,7 +181,7 @@ func (b *Broker) StorageDealPrepared(
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call WinningBids(..) to tell
 	// us about who won things.
-	if err := b.auctioneer.ReadyToAuction(ctx, id, po.PieceSize, auctioneer.DealDuration); err != nil {
+	if err := b.auctioneer.ReadyToAuction(ctx, id, po.PieceSize, b.dealEpochs); err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
 

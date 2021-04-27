@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-datastore"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	ipld "github.com/ipfs/go-ipld-format"
 	logger "github.com/ipfs/go-log/v2"
@@ -46,7 +45,7 @@ var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
 func New(
-	ds datastore.TxnDatastore,
+	ds txndswrap.TxnDatastore,
 	ipfsClient *httpapi.HttpApi,
 	broker broker.Broker,
 	opts ...Option) (*Packer, error) {

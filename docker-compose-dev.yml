@@ -49,8 +49,10 @@ services:
       context: .
       dockerfile: ./cmd/auctioneerd/Dockerfile
     environment:
-      - AUCTIONEER_RPC_ADDR=:5000
       - AUCTIONEER_DEBUG=true
+      - AUCTIONEER_RPC_ADDR=:5000
+      - AUCTIONEER_BROKER_ADDR=brokerd:5000
+      - AUCTIONEER_AUCTION_DURATION=10000000000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -69,6 +71,7 @@ services:
       - BROKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - BROKER_PACKER_ADDR=packerd:5000
       - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
+      - BROKER_DEAL_EPOCHS=1051200
     security_opt:
       - "seccomp:unconfined"
     cap_add:

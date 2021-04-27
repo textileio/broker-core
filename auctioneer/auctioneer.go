@@ -9,12 +9,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 )
 
-const epochsPerDay uint64 = 60 * 24 * 2 // 1 epoch = ~30s
-
-// DealDuration is the deal duration requested of miners.
-// TODO (@sander): Move to config param.
-const DealDuration = epochsPerDay * 365 / 2 // ~6 months
-
 // AuctionTopic is used by brokers to publish and by miners to subscribe to deal auctions.
 const AuctionTopic string = "/textile/auction/0.0.1"
 

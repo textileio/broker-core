@@ -32,7 +32,12 @@ func New(addr string) (*Auctioneer, error) {
 // ReadyToAuction signals the auctioneer that this storage deal is ready to be included
 // in an auction. At some point it will call the broker telling who wons the bids to continue
 // with deal making.
-func (a *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dealSize uint64, dealDuration uint64) error {
+func (a *Auctioneer) ReadyToAuction(
+	ctx context.Context,
+	id broker.StorageDealID,
+	dealSize uint64,
+	dealDuration uint64,
+) error {
 	res, err := a.c.CreateAuction(ctx, id, dealSize, dealDuration)
 	if err != nil {
 		return fmt.Errorf("creating auction: %v", err)

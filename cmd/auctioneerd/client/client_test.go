@@ -96,6 +96,7 @@ func newClient(t *testing.T) *client.Client {
 	config := service.Config{
 		RepoPath:   dir,
 		ListenAddr: listenAddr,
+		// TODO: Add mocked broker client.
 		Peer: marketpeer.Config{
 			RepoPath: dir,
 		},
@@ -136,8 +137,8 @@ func addMiners(t *testing.T, n int) {
 			},
 			AuctionFilters: minersrv.AuctionFilters{
 				DealDuration: minersrv.MinMaxFilter{
-					Min: 60 * 24 * 2 * 30,
-					Max: 60 * 24 * 2 * 365,
+					Min: broker.MinDealEpochs,
+					Max: broker.MaxDealEpochs,
 				},
 				DealSize: minersrv.MinMaxFilter{
 					Min: 56 * 1024,

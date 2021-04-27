@@ -134,7 +134,7 @@ func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer) {
 	packer := &dumbPacker{}
 	piecer := &dumbPiecer{}
 	auctioneer := &dumbAuctioneer{}
-	b, err := New(ds, packer, piecer, auctioneer)
+	b, err := New(ds, packer, piecer, auctioneer, broker.MaxDealEpochs)
 	require.NoError(t, err)
 
 	return b, packer, piecer

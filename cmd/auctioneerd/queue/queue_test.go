@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,7 +51,7 @@ func TestQueue_ListRequests(t *testing.T) {
 		ids := make([]string, limit)
 		for i := 0; i < limit; i++ {
 			now = now.Add(time.Millisecond)
-			id, err := q.CreateAuction(time.Second)
+			id, err := q.CreateAuction(uuid.NewString(), 0, 0, time.Second)
 			require.NoError(t, err)
 			ids[i] = id
 		}
@@ -87,7 +88,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(time.Millisecond)
+	id, err := q.CreateAuction(uuid.NewString(), 0, 0, time.Millisecond)
 	require.NoError(t, err)
 
 	// Allow to finish

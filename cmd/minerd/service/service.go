@@ -1,6 +1,6 @@
 package service
 
-// TODO: Store bids (bid history)
+// TODO: Store bids (bid history).
 
 import (
 	"context"
@@ -175,7 +175,7 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	return nil
 }
 
-// TODO: Add defaults
+// TODO: Add defaults.
 func (s *Service) filterAuction(auction *pb.Auction) bool {
 	// Check if auction is still in progress.
 	if !auction.EndsAt.IsValid() || auction.EndsAt.AsTime().Before(time.Now()) {

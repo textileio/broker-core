@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
-
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/service"
 	"github.com/textileio/broker-core/cmd/common"
 )
@@ -27,6 +27,7 @@ func init() {
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "deal-epochs", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
@@ -53,7 +54,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			GrpcListenAddress: v.GetString("rpc-addr"),
+			ListenAddr: v.GetString("rpc-addr"),
 
 			AuctioneerAddr: v.GetString("auctioneer-addr"),
 			PackerAddr:     v.GetString("packer-addr"),
@@ -62,6 +63,8 @@ var rootCmd = &cobra.Command{
 			MongoDBName: v.GetString("mongo-dbname"),
 
 			IpfsMultiaddr: v.GetString("ipfs-multiaddr"),
+
+			DealEpochs: v.GetUint64("deal-epochs"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

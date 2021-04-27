@@ -2,7 +2,7 @@ package queue
 
 // TODO: Restart started auctions?
 // TODO: Handle canceling auctions? When queued? When already started?
-// TODO: Handle retries if auction fails (got no bids / ome other error)
+// TODO: Handle retries if auction fails (got no bids / or other error).
 
 import (
 	"bytes"

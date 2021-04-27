@@ -7,6 +7,15 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
+const (
+	epochsPerDay uint64 = 60 * 24 * 2 // 1 epoch = ~30s
+
+	// MinDealEpochs is the minimum allowed deal duration requested of miners.
+	MinDealEpochs = epochsPerDay * 30 // ~1 month
+	// MaxDealEpochs is the maximum allowed deal duration requested of miners.
+	MaxDealEpochs = epochsPerDay * 365 // ~1 year
+)
+
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
 	BrokerRequestor

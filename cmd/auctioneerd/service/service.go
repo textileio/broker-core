@@ -10,6 +10,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
@@ -24,6 +25,7 @@ var log = golog.Logger("auctioneer/service")
 type Config struct {
 	RepoPath   string
 	ListenAddr string
+	BrokerAddr string
 	Peer       marketpeer.Config
 	Auction    auctioneer.AuctionConfig
 }
@@ -32,8 +34,9 @@ type Config struct {
 type Service struct {
 	pb.UnimplementedAPIServiceServer
 
-	server    *grpc.Server
-	lib       *auctioneer.Auctioneer
+	server *grpc.Server
+	lib    *auctioneer.Auctioneer
+
 	finalizer *finalizer.Finalizer
 }
 
@@ -41,7 +44,18 @@ var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
 func New(conf Config) (*Service, error) {
+	if err := validateConfig(conf); err != nil {
+		return nil, fmt.Errorf("invalid config: %s", err)
+	}
+
 	fin := finalizer.NewFinalizer()
+
+	// Create broker client
+	broker, err := client.New(conf.BrokerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("creating broker client: %s", err)
+	}
+	fin.Add(broker)
 
 	// Create auctioneer peer
 	p, err := marketpeer.New(conf.Peer)
@@ -56,7 +70,7 @@ func New(conf Config) (*Service, error) {
 		return nil, fin.Cleanupf("creating repo: %v", err)
 	}
 	fin.Add(store)
-	lib, err := auctioneer.New(p, store, auctioneer.AuctionConfig{
+	lib, err := auctioneer.New(p, store, broker, auctioneer.AuctionConfig{
 		Duration: conf.Auction.Duration,
 	})
 	if err != nil {
@@ -83,6 +97,17 @@ func New(conf Config) (*Service, error) {
 
 	log.Infof("service listening at %s", conf.ListenAddr)
 	return s, nil
+}
+
+func validateConfig(conf Config) error {
+	if conf.ListenAddr == "" {
+		return fmt.Errorf("listen address is empty")
+	}
+	// TODO: Re-enable when mocks are in place.
+	// if conf.BrokerAddr == "" {
+	// 	return fmt.Errorf("broker address is empty")
+	// }
+	return nil
 }
 
 // Close the service.

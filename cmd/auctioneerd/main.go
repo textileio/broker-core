@@ -1,5 +1,7 @@
 package main
 
+// TODO: Use mongo for auction persistence.
+
 import (
 	"encoding/json"
 	_ "net/http/pprof"
@@ -22,12 +24,12 @@ var (
 
 func init() {
 	flags := []common.Flag{
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 		{Name: "repo", DefValue: ".auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
-
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
 	}
 
@@ -56,12 +58,13 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			RepoPath:   v.GetString("repo"),
 			ListenAddr: v.GetString("rpc-addr"),
+			BrokerAddr: v.GetString("broker-addr"),
 			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
 				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
 			Auction: auctioneer.AuctionConfig{
-				Duration: v.GetDuration("auctions.duration"),
+				Duration: v.GetDuration("auctions-duration"),
 			},
 		}
 		serv, err := service.New(config)

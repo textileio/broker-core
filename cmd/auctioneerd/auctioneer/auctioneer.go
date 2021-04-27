@@ -1,6 +1,8 @@
 package auctioneer
 
 // TODO: Add ACK response to incoming bids.
+// TODO: Allow for multiple winners.
+// TODO: Notify broker of winners.
 
 import (
 	"context"
@@ -13,6 +15,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
@@ -51,12 +54,19 @@ type Auctioneer struct {
 	auctions *pubsub.Topic
 	bids     map[string]chan core.Bid
 
+	broker broker.Broker
+
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
 }
 
 // New returns a new Auctioneer.
-func New(peer *marketpeer.Peer, store txndswrap.TxnDatastore, auctionConf AuctionConfig) (*Auctioneer, error) {
+func New(
+	peer *marketpeer.Peer,
+	store txndswrap.TxnDatastore,
+	broker broker.Broker,
+	auctionConf AuctionConfig,
+) (*Auctioneer, error) {
 	auctionConf, err := setDefaults(auctionConf)
 	if err != nil {
 		return nil, fmt.Errorf("setting defaults: %v", err)
@@ -69,6 +79,7 @@ func New(peer *marketpeer.Peer, store txndswrap.TxnDatastore, auctionConf Auctio
 	a := &Auctioneer{
 		peer:        peer,
 		bids:        make(map[string]chan core.Bid),
+		broker:      broker,
 		auctionConf: auctionConf,
 	}
 

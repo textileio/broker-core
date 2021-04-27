@@ -7,6 +7,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/minerd/service"
 	"github.com/textileio/broker-core/marketpeer"
@@ -20,10 +21,10 @@ var (
 
 func init() {
 	flags := []common.Flag{
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 		{Name: "repo", DefValue: ".miner", Description: "Repo path"},
 		{Name: "host-multiaddr", DefValue: "/ip4/127.0.0.1/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "MINER", flags, rootCmd)
@@ -57,11 +58,10 @@ var rootCmd = &cobra.Command{
 			BidParams: service.BidParams{
 				AskPrice: 100, // Just plugged a number here
 			},
-			// TODO: Add these to config
 			AuctionFilters: service.AuctionFilters{
 				DealDuration: service.MinMaxFilter{
-					Min: 60 * 24 * 2 * 30,  // 1 month
-					Max: 60 * 24 * 2 * 365, // 1 year
+					Min: broker.MinDealEpochs,
+					Max: broker.MaxDealEpochs,
 				},
 				DealSize: service.MinMaxFilter{
 					Min: 56 * 1024,               // 56KiB
