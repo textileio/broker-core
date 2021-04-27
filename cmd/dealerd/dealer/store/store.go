@@ -19,39 +19,63 @@ import (
 )
 
 var (
-	ErrNotFound = fmt.Errorf("bid doesn't exist")
+	ErrNotFound = fmt.Errorf("key isn't found")
 
-	dsPrefixBid = datastore.NewKey("/bid")
+	dsPrefixAuctionData = datastore.NewKey("/auction-data")
+	dsPrefixAuctionDeal = datastore.NewKey("/auction-deal")
 
 	log = logger.Logger("dealer/store")
 )
 
-type Bid struct {
+type AuctionData struct {
 	ID string
 
-	DataCid           cid.Cid
-	DealStartEpoch    int64
-	DealCommP         cid.Cid
-	DealSize          int64
-	DealPricePerEpoch int64
-	DealDuration      int64
-	Verified          bool
-	Miner             string
+	AuctionID  string
+	PayloadCid cid.Cid
+	PieceCid   cid.Cid
+	PieceSize  int64
+	Duration   int64
+}
+
+type AuctionDealStatus int
+
+const (
+	Pending AuctionDealStatus = iota
+	CreatingDeal
+	WaitingConfirmation
+	Error
+	Success
+)
+
+type AuctionDeal struct {
+	ID string
+
+	AuctionDataID       string
+	Miner               string
+	PricePerGiBPerEpoch int64
+	StartEpoch          int64
+	Verified            bool
+	FastRetrieval       bool
+
+	Status     AuctionDealStatus
+	ErrorCause string
 }
 
 // Store provides persistent storage for Bids.
 type Store struct {
-	ds datastore.TxnDatastore
-
-	lock    sync.Mutex
-	queue   []Bid
+	ds      datastore.TxnDatastore
 	entropy *ulid.MonotonicEntropy
+
+	lock         sync.Mutex
+	auctionData  map[string]AuctionData
+	auctionDeals []AuctionDeal
 }
 
 // New returns a *Store.
 func New(ds datastore.TxnDatastore) (*Store, error) {
 	s := &Store{
-		ds: ds,
+		ds:          ds,
+		auctionData: map[string]AuctionData{},
 	}
 	if err := s.loadCache(); err != nil {
 		return nil, fmt.Errorf("loading in-memory cache: %s", err)
@@ -60,24 +84,56 @@ func New(ds datastore.TxnDatastore) (*Store, error) {
 	return s, nil
 }
 
-// Enqueue enqueue a new bid ready for execution.
-func (s *Store) Enqueue(br Bid) error {
+func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
+	if err := validate(ad, ads); err != nil {
+		return fmt.Errorf("invalid auction data: %s", err)
+	}
+
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating txn: %s", err)
+	}
+	defer txn.Discard()
+
+	// Save AuctionData.
 	newID, err := s.newID()
 	if err != nil {
 		return fmt.Errorf("generating new id: %s", err)
 	}
-	br.ID = newID
-	if err := s.save(br); err != nil {
-		return fmt.Errorf("saving bid in datastore: %s", err)
+	ad.ID = newID
+	if err := s.save(txn, makeAuctionDataKey(ad.ID), ad); err != nil {
+		return fmt.Errorf("saving auction data in datastore: %s", err)
 	}
 
+	// Save all AuctionDeals linked to this AuctionData.
+	for _, auctionDeal := range ads {
+		newID, err := s.newID()
+		if err != nil {
+			return fmt.Errorf("generating new id: %s", err)
+		}
+		auctionDeal.ID = newID
+		auctionDeal.AuctionDataID = ad.ID // Link with its AuctionData.
+		auctionDeal.Status = Pending
+		if err := s.save(txn, makeAuctionDealKey(auctionDeal.ID), auctionDeal); err != nil {
+			return fmt.Errorf("saving auction deal in datastore: %s", err)
+		}
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %s", err)
+	}
+
+	// Include them in our in-memory cache.
 	s.lock.Lock()
-	s.queue = append(s.queue, br)
-	// Since we generate the monotonic ID outside of the lock
-	// there's a chance that appending to the `queue` might be out of
-	// order if other `Enqueue` call is too fast.
-	sort.Slice(s.queue, func(i, j int) bool {
-		return s.queue[i].ID < s.queue[j].ID
+	s.auctionData[ad.ID] = ad
+	for _, auctionDeal := range ads {
+		s.auctionDeals = append(s.auctionDeals, auctionDeal)
+	}
+	// Re-sorting since the lock wasn't adquired at the start
+	// of the func for performance reasons, so many calls can race
+	// at different times concurrently.
+	sort.Slice(s.auctionDeals, func(i, j int) bool {
+		return s.auctionDeals[i].ID < s.auctionDeals[j].ID
 	})
 	s.lock.Unlock()
 
@@ -127,13 +183,12 @@ func (s *Store) Dequeue(bbrs []Bid) error {
 	return nil
 }
 
-func (s *Store) save(br Bid) error {
-	key := makeBidKey(br.ID)
+func (s *Store) save(dsWrite datastore.Write, id datastore.Key, b interface{}) error {
 	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(br); err != nil {
+	if err := gob.NewEncoder(&buf).Encode(b); err != nil {
 		return fmt.Errorf("gob encoding: %s", err)
 	}
-	if err := s.ds.Put(key, buf.Bytes()); err != nil {
+	if err := dsWrite.Put(id, buf.Bytes()); err != nil {
 		return fmt.Errorf("put in datastore: %s", err)
 	}
 
@@ -161,8 +216,10 @@ func (s *Store) newID() (string, error) {
 }
 
 func (s *Store) loadCache() error {
+	// AuctionData
+	log.Debugf("loading auction data")
 	q := query.Query{
-		Prefix: dsPrefixBid.String(),
+		Prefix: dsPrefixAuctionData.String(),
 		Orders: []query.Order{query.OrderByKey{}},
 	}
 	res, err := s.ds.Query(q)
@@ -177,19 +234,83 @@ func (s *Store) loadCache() error {
 
 	for item := range res.Next() {
 		if item.Error != nil {
-			return fmt.Errorf("fetching query item result: %s", item.Error)
+			return fmt.Errorf("fetching auction data item result: %s", item.Error)
 		}
-		var bbr Bid
+		var ad AuctionData
 		d := gob.NewDecoder(bytes.NewReader(item.Value))
-		if err := d.Decode(&bbr); err != nil {
+		if err := d.Decode(&ad); err != nil {
 			return fmt.Errorf("unmarshaling gob: %s", err)
 		}
-		s.queue = append(s.queue, bbr)
+		s.auctionData[item.Key] = ad
+	}
+
+	// AuctionDeals
+	log.Debugf("loading auction deals")
+	q = query.Query{
+		Prefix: dsPrefixAuctionDeal.String(),
+		Orders: []query.Order{query.OrderByKey{}},
+	}
+	res, err = s.ds.Query(q)
+	if err != nil {
+		return fmt.Errorf("creating query: %s", err)
+	}
+	defer func() {
+		if err := res.Close(); err != nil {
+			log.Errorf("closing query result: %s", err)
+		}
+	}()
+
+	for item := range res.Next() {
+		if item.Error != nil {
+			return fmt.Errorf("fetching auction deal item result: %s", item.Error)
+		}
+		var ad AuctionDeal
+		d := gob.NewDecoder(bytes.NewReader(item.Value))
+		if err := d.Decode(&ad); err != nil {
+			return fmt.Errorf("unmarshaling gob: %s", err)
+		}
+		s.auctionDeals = append(s.auctionDeals, ad)
 	}
 
 	return nil
 }
 
-func makeBidKey(id string) datastore.Key {
-	return dsPrefixBid.ChildString(id)
+func validate(ad AuctionData, ads []AuctionDeal) error {
+	if ad.Duration <= 0 {
+		return fmt.Errorf("invalid duration: %d", ad.Duration)
+	}
+	if ad.AuctionID == "" {
+		return fmt.Errorf("auction-id is empty")
+	}
+	if !ad.PayloadCid.Defined() {
+		return fmt.Errorf("payload-cid is undefined")
+	}
+	if !ad.PieceCid.Defined() {
+		return fmt.Errorf("piece-cid is undefined")
+	}
+	if ad.PieceSize <= 0 {
+		return fmt.Errorf("piece-size is zero")
+	}
+
+	for _, auctionDeal := range ads {
+		if auctionDeal.Miner == "" {
+			return fmt.Errorf("miner address is empty")
+		}
+		if auctionDeal.PricePerGiBPerEpoch < 0 {
+			return fmt.Errorf("price-per-gib-per-epoch is negative")
+		}
+		if auctionDeal.StartEpoch <- 0 {
+			return fmt.Errorf("start-epoch isn't positive")
+		}
+	}
+
+	return nil
+}
+
+func makeAuctionDataKey(id string) datastore.Key {
+	return dsPrefixAuctionData.ChildString(id)
+}
+
+func makeAuctionDealKey(id string) datastore.Key {
+	return dsPrefixAuctionDeal.ChildString(id)
 }
