@@ -55,12 +55,17 @@ var rootCmd = &cobra.Command{
 				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
 			BidParams: service.BidParams{
-				AttoFilPerBytePerEpoch: 100, // Just plugged a number here; no idea if it's reasonable
+				AskPrice: 100, // Just plugged a number here
 			},
+			// TODO: Add these to config
 			AuctionFilters: service.AuctionFilters{
 				DealDuration: service.MinMaxFilter{
 					Min: 60 * 24 * 2 * 30,  // 1 month
 					Max: 60 * 24 * 2 * 365, // 1 year
+				},
+				DealSize: service.MinMaxFilter{
+					Min: 56 * 1024,               // 56KiB
+					Max: 32 * 1000 * 1000 * 1000, // 32GiB
 				},
 			},
 		}

@@ -82,7 +82,7 @@ func (as AuctionStatus) String() string {
 type Bid struct {
 	Broker     peer.ID
 	From       peer.ID
-	AttoFil    int64
+	NanoFil    int64
 	ReceivedAt time.Time
 }
 

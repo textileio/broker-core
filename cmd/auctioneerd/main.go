@@ -28,7 +28,7 @@ func init() {
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 
-		{Name: "auction.duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
+		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
 	}
 
 	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd)

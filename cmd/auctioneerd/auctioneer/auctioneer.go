@@ -196,7 +196,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 			return nil
 		case bid, ok := <-resCh:
 			if ok {
-				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.From, bid.AttoFil)
+				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.From, bid.NanoFil)
 
 				id, err := a.queue.NewID(bid.ReceivedAt)
 				if err != nil {
@@ -225,7 +225,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	if ok {
 		ch <- core.Bid{
 			From:       from,
-			AttoFil:    bid.AttoFil,
+			NanoFil:    bid.NanoFil,
 			ReceivedAt: time.Now(),
 		}
 	}
@@ -235,8 +235,8 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 	var winner peer.ID
 	topBid := math.MaxInt64
 	for k, v := range auction.Bids {
-		if int(v.AttoFil) < topBid {
-			topBid = int(v.AttoFil)
+		if int(v.NanoFil) < topBid {
+			topBid = int(v.NanoFil)
 			winner = v.From
 			auction.WinningBid = k
 		}

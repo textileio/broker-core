@@ -23,7 +23,10 @@ import (
 	"github.com/textileio/broker-core/rpc"
 )
 
-const twoMonths = 60 * 24 * 2 * 60
+const (
+	oneGiB    = 1024 * 1024 * 1024
+	twoMonths = 60 * 24 * 2 * 60
+)
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
@@ -40,7 +43,7 @@ func init() {
 func TestClient_CreateAuction(t *testing.T) {
 	c := newClient(t)
 
-	res, err := c.CreateAuction(context.Background(), newDealID(), 1024, twoMonths)
+	res, err := c.CreateAuction(context.Background(), newDealID(), oneGiB, twoMonths)
 	require.NoError(t, err)
 	assert.NotEmpty(t, res.Id)
 }
@@ -48,7 +51,7 @@ func TestClient_CreateAuction(t *testing.T) {
 func TestClient_GetAuction(t *testing.T) {
 	c := newClient(t)
 
-	res, err := c.CreateAuction(context.Background(), newDealID(), 1024, twoMonths)
+	res, err := c.CreateAuction(context.Background(), newDealID(), oneGiB, twoMonths)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), res.Id)
@@ -69,7 +72,7 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	res, err := c.CreateAuction(context.Background(), newDealID(), 1024, twoMonths)
+	res, err := c.CreateAuction(context.Background(), newDealID(), oneGiB, twoMonths)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -129,12 +132,16 @@ func addMiners(t *testing.T, n int) {
 				RepoPath: dir,
 			},
 			BidParams: minersrv.BidParams{
-				AttoFilPerBytePerEpoch: 100, // Just plugged a number here; no idea if it's reasonable
+				AskPrice: 100,
 			},
 			AuctionFilters: minersrv.AuctionFilters{
 				DealDuration: minersrv.MinMaxFilter{
-					Min: 60 * 24 * 2 * 30,  // 1 month
-					Max: 60 * 24 * 2 * 365, // 1 year
+					Min: 60 * 24 * 2 * 30,
+					Max: 60 * 24 * 2 * 365,
+				},
+				DealSize: minersrv.MinMaxFilter{
+					Min: 56 * 1024,
+					Max: 32 * 1000 * 1000 * 1000,
 				},
 			},
 		}

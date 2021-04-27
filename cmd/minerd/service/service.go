@@ -28,12 +28,13 @@ type Config struct {
 
 // BidParams defines how bids are made.
 type BidParams struct {
-	AttoFilPerBytePerEpoch int64
+	AskPrice int64 // nanoFIL per GiB per epoch
 }
 
 // AuctionFilters specifies filters used when selecting auctions to bid on.
 type AuctionFilters struct {
 	DealDuration MinMaxFilter
+	DealSize     MinMaxFilter
 }
 
 // MinMaxFilter is used to specify a range for an auction filter.
@@ -158,10 +159,12 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	defer func() { _ = bids.Close() }()
 	bids.SetEventHandler(s.eventHandler)
 
+	dealSizeGiB := float64(auction.DealSize) / 1024 / 1024 / 1024
+
 	// Submit bid to auctioneer.
 	msg, err := proto.Marshal(&pb.Bid{
 		AuctionId: auction.Id,
-		AttoFil:   int64(auction.DealSize*auction.DealDuration) * s.bidParams.AttoFilPerBytePerEpoch,
+		NanoFil:   int64(dealSizeGiB*float64(auction.DealDuration)) * s.bidParams.AskPrice,
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
@@ -172,9 +175,16 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	return nil
 }
 
+// TODO: Add defaults
 func (s *Service) filterAuction(auction *pb.Auction) bool {
 	// Check if auction is still in progress.
 	if !auction.EndsAt.IsValid() || auction.EndsAt.AsTime().Before(time.Now()) {
+		return false
+	}
+
+	// Check if deal size is within configured bounds.
+	if auction.DealSize < s.auctionFilters.DealSize.Min ||
+		auction.DealSize > s.auctionFilters.DealSize.Max {
 		return false
 	}
 
