@@ -26,12 +26,19 @@ type AccountView struct {
 	StoragePaidAt int    `json:"storage_paid_at"`
 }
 
+type PermissionType int
+
+const (
+	FullAccessPermissionType PermissionType = iota
+	FunctionCallPermissionType
+)
+
 // AccessKeyView contains information about an access key.
 type AccessKeyView struct {
 	types.QueryResponse
-	Nonce int `json:"nonce"`
-	// Permission can be a string "FullAccess" or a FunctionCallPermissionView.
-	Permission interface{} `json:"permission"`
+	Nonce                      uint64
+	PermissionType             PermissionType
+	FunctionCallPermissionView *FunctionCallPermissionView
 }
 
 // FunctionCall provides information about the allowed function call.

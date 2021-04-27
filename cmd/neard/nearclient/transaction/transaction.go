@@ -27,14 +27,14 @@ type Transaction struct {
 	PublicKey  PublicKey
 	Nonce      uint64
 	ReceiverID string
-	BlockHash  [32]byte
+	BlockHash  []byte //[32]byte
 	Actions    []Action
 }
 
 // PublicKey asdf.
 type PublicKey struct {
 	KeyType uint8
-	Data    [32]byte
+	Data    []byte //[32]byte
 }
 
 // AccessKey asdf.
@@ -78,13 +78,13 @@ type CreateAccount struct{}
 
 // DeployContract asdf.
 type DeployContract struct {
-	Code []uint8
+	Code []byte
 }
 
 // FunctionCall asdf.
 type FunctionCall struct {
 	MethodName string
-	Args       []uint8
+	Args       []byte
 	Gas        uint64
 	Deposit    big.Int
 }
@@ -116,13 +116,88 @@ type DeleteAccount struct {
 	BeneficiaryID string
 }
 
+func CreateAccountAction() Action {
+	return Action{Enum: 1, CreateAccount: CreateAccount{}}
+}
+
+func DeployContractAction(code []byte) Action {
+	return Action{Enum: 2, DeployContract: DeployContract{Code: code}}
+}
+
+func FunctionCallAction(methodName string, args []byte, gas uint64, deposit big.Int) Action {
+	return Action{
+		Enum: 3,
+		FunctionCall: FunctionCall{
+			MethodName: methodName,
+			Args:       args,
+			Gas:        gas,
+			Deposit:    deposit,
+		},
+	}
+}
+
+func TransferAction(deposit big.Int) Action {
+	return Action{Enum: 4, Transfer: Transfer{Deposit: deposit}}
+}
+
+func StakeAction(stake big.Int, publicKey keys.PublicKey) Action {
+	// TODO: make keys.PublicKey the serializable model.
+	return Action{
+		Enum: 5,
+		Stake: Stake{
+			Stake: stake,
+			PublicKey: PublicKey{
+				KeyType: uint8(publicKey.Type),
+				Data:    publicKey.Data,
+			},
+		},
+	}
+}
+
+func AddKeyAction(publicKey keys.PublicKey, accessKey AccessKey) Action {
+	// TODO: make keys.PublicKey the serializable model.
+	// TODO: better way of specifying AccessKey.
+	return Action{
+		Enum: 6,
+		AddKey: AddKey{
+			PublicKey: PublicKey{
+				KeyType: uint8(publicKey.Type),
+				Data:    publicKey.Data,
+			},
+			AccessKey: accessKey,
+		},
+	}
+}
+
+func DeleteKeyAction(publicKey keys.PublicKey) Action {
+	// TODO: make keys.PublicKey the serializable model.
+	return Action{
+		Enum: 7,
+		DeleteKey: DeleteKey{
+			PublicKey: PublicKey{
+				KeyType: uint8(publicKey.Type),
+				Data:    publicKey.Data,
+			},
+		},
+	}
+}
+
+func DeleteAccountAction(beneficiaryID string) Action {
+	return Action{
+		Enum: 8,
+		DeleteAccount: DeleteAccount{
+			BeneficiaryID: beneficiaryID,
+		},
+	}
+}
+
 // NewTransaction creates a new Transaction.
 func NewTransaction(
 	signerID string,
 	publicKey PublicKey,
 	nonce uint64,
 	receiverID string,
-	blockHash [32]byte,
+	blockHash []byte,
 	actions []Action,
 ) *Transaction {
 	return &Transaction{

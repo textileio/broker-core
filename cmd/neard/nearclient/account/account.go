@@ -2,10 +2,13 @@ package account
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/mr-tron/base58/base58"
 	itypes "github.com/textileio/broker-core/cmd/neard/nearclient/internal/types"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/transaction"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 )
@@ -84,7 +87,7 @@ func (a *Account) FindAccessKey(
 	ctx context.Context,
 	receiverID string,
 	actions []transaction.Action,
-) (*AccessKeyView, error) {
+) (*keys.PublicKey, *AccessKeyView, error) {
 	// TODO: Find matching access key based on transaction (i.e. receiverId and actions)
 	_ = receiverID
 	_ = actions
@@ -95,7 +98,7 @@ func (a *Account) FindAccessKey(
 
 	pubKeyStr, err := pubKey.ToString()
 	if err != nil {
-		return nil, fmt.Errorf("converting public key to string: %v", err)
+		return nil, nil, fmt.Errorf("converting public key to string: %v", err)
 	}
 
 	req := &itypes.QueryRequest{
@@ -105,10 +108,76 @@ func (a *Account) FindAccessKey(
 		Finality:    "optimistic",
 	}
 
-	var res AccessKeyView
-	if err := a.config.RPCClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req)); err != nil {
-		return nil, fmt.Errorf("calling rpc: %v", err)
+	type viewAccessKeyResp struct {
+		itypes.QueryResponse
+		Nonce      uint64           `json:"nonce"`
+		Permission *json.RawMessage `json:"permission"`
 	}
 
-	return &res, nil
+	var raw json.RawMessage
+	resp := &viewAccessKeyResp{Permission: &raw}
+
+	// var res AccessKeyView
+	if err := a.config.RPCClient.CallContext(ctx, &resp, "query", rpc.NewNamedParams(req)); err != nil {
+		return nil, nil, fmt.Errorf("calling rpc: %v", err)
+	}
+
+	ret := &AccessKeyView{
+		QueryResponse: itypes.QueryResponse{
+			BlockHash:   resp.BlockHash,
+			BlockHeight: resp.BlockHeight,
+		},
+		Nonce: resp.Nonce,
+	}
+
+	if string(raw) == "\"FullAccess\"" {
+		ret.PermissionType = FullAccessPermissionType
+	} else {
+		var view FunctionCallPermissionView
+		if err := json.Unmarshal(raw, &view); err != nil {
+			return nil, nil, fmt.Errorf("unmarshaling permission: %v", err)
+		}
+		ret.FunctionCallPermissionView = &view
+		ret.PermissionType = FunctionCallPermissionType
+	}
+
+	return &pubKey, ret, nil
+}
+
+func (a *Account) SignTransaction(ctx context.Context, receiverID string, actions ...transaction.Action) ([]byte, *transaction.SignedTransaction, error) {
+	_, accessKeyView, err := a.FindAccessKey(ctx, receiverID, actions)
+	if err != nil {
+		return nil, nil, fmt.Errorf("finding access key: %v", err)
+	}
+	if accessKeyView == nil {
+		return nil, nil, fmt.Errorf("no access key view founf") // TODO: Better error message.
+	}
+	var res itypes.BlockResult
+	if err := a.config.RPCClient.CallContext(ctx, &res, "block", rpc.NewNamedParams(itypes.BlockRequest{Finality: "final"})); err != nil {
+		return nil, nil, fmt.Errorf("calling block rpc: %v", err)
+	}
+	blockHash, err := base58.Decode(res.Header.Hash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decoding hash: %v", err)
+	}
+	nonce := accessKeyView.Nonce + 1
+
+	pk := a.config.Signer.GetPublicKey()
+
+	t := transaction.Transaction{
+		SignerID: a.accountID,
+		PublicKey: transaction.PublicKey{
+			KeyType: uint8(pk.Type),
+			Data:    pk.Data,
+		},
+		Nonce:      nonce,
+		ReceiverID: receiverID,
+		BlockHash:  blockHash,
+		Actions:    actions,
+	}
+	hash, signedTransaction, err := transaction.SignTransaction(t, a.config.Signer, a.accountID, a.config.NetworkID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("signing transaction: %v", err)
+	}
+	return hash, signedTransaction, nil
 }
