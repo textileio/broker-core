@@ -87,9 +87,9 @@ func New(
 	return d, nil
 }
 
-func (d *Dealer) ReadyToExecuteBids(ctx context.Context, ca dealeri.ClosedAuction) error {
-	if err := d.store.Enqueue(ca); err != nil {
-		return fmt.Errorf("enqueueing bids: %s", err)
+func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals) error {
+	if err := d.store.Enqueue(ad); err != nil {
+		return fmt.Errorf("enqueueing auction deals: %s", err)
 	}
 
 	return nil
