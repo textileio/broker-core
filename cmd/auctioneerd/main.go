@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"net"
 	_ "net/http/pprof"
 	"time"
 
@@ -13,7 +14,10 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/finalizer"
+	broker "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/marketpeer"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -47,18 +51,26 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(c *cobra.Command, args []string) {
+		fin := finalizer.NewFinalizer()
+
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
-		common.CheckErr(err)
+		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
-			log.Fatalf("booting instrumentation: %s", err)
-		}
+		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
+		common.CheckErrf("booting instrumentation: %v", err)
+
+		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
+		common.CheckErrf("creating listener: %v", err)
+		fin.Add(listener)
+
+		brokerConn, err := grpc.Dial(v.GetString("broker-addr"), grpc.WithInsecure())
+		common.CheckErrf("dialing broker: %v", err)
+		fin.Add(brokerConn)
 
 		config := service.Config{
-			RepoPath:   v.GetString("repo"),
-			ListenAddr: v.GetString("rpc-addr"),
-			BrokerAddr: v.GetString("broker-addr"),
+			RepoPath: v.GetString("repo"),
+			Listener: listener,
 			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
 				HostMultiaddr: v.GetString("host-multiaddr"),
@@ -67,13 +79,12 @@ var rootCmd = &cobra.Command{
 				Duration: v.GetDuration("auctions-duration"),
 			},
 		}
-		serv, err := service.New(config)
-		common.CheckErr(err)
+		serv, err := service.New(config, broker.NewAPIServiceClient(brokerConn))
+		common.CheckErrf("starting service: %v", err)
+		fin.Add(serv)
 
 		common.HandleInterrupt(func() {
-			if err := serv.Close(); err != nil {
-				log.Errorf("closing service: %s", err)
-			}
+			common.CheckErr(fin.Cleanup(nil))
 		})
 	},
 }

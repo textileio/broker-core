@@ -199,7 +199,8 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// Validate the request input.
 	validInput, InputErr := ValidateInput(req.Token)
 	if InputErr != nil {
-		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("invalid request input: %s (%v)", req, InputErr))
+		return nil, status.Errorf(
+			codes.InvalidArgument, fmt.Sprintf("invalid request input: %s (%v)", req, InputErr))
 	}
 	// Validate the JWT token.
 	token, tokenErr := ValidateToken(validInput.Token)

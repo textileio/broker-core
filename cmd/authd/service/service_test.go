@@ -1,7 +1,5 @@
 package service_test
 
-// @todo: on save file, run "goimports" to clean up imports
-
 import (
 	"context"
 	"net"
@@ -171,30 +169,21 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 }
 
 func TestClient_Setup(t *testing.T) {
-	s, err := newService()
-	if err != nil {
-		t.Fail()
-	}
-	c, err := newClient(s.Config.Listener.(*bufconn.Listener))
-	if err != nil {
-		t.Fail()
-	}
+	s := newService(t)
+	c := newClient(t, s.Config.Listener.(*bufconn.Listener))
 	req := &pb.AuthRequest{Token: TOKEN}
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, res.Identity, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")
 }
 
-func newClient(listener *bufconn.Listener) (pb.AuthAPIServiceClient, error) {
+func newClient(t *testing.T, listener *bufconn.Listener) pb.AuthAPIServiceClient {
 	bufDialer := func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
 	}
 	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	client := pb.NewAuthAPIServiceClient(conn)
-	return client, nil
+	require.NoError(t, err)
+	return pb.NewAuthAPIServiceClient(conn)
 }
 
 func newChainAPIClientMock() chainapi.ChainApiServiceClient {
@@ -209,13 +198,11 @@ func newChainAPIClientMock() chainapi.ChainApiServiceClient {
 	return mockChain
 }
 
-func newService() (*service.Service, error) {
+func newService(t *testing.T) *service.Service {
 	listener := bufconn.Listen(bufSize)
 	config := service.Config{Listener: listener}
 	deps := service.Deps{ChainAPIServiceClient: newChainAPIClientMock()}
 	serv, err := service.New(config, deps)
-	if err != nil {
-		return nil, err
-	}
-	return serv, nil
+	require.NoError(t, err)
+	return serv
 }

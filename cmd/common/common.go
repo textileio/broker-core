@@ -75,6 +75,13 @@ func CheckErr(err error) {
 	}
 }
 
+// CheckErrf ends in a fatal log if err is not nil.
+func CheckErrf(format string, err error) {
+	if err != nil {
+		log.Fatalf(format, err)
+	}
+}
+
 // HandleInterrupt attempts to cleanup while allowing the user to force stop the process.
 func HandleInterrupt(cleanup func()) {
 	quit := make(chan os.Signal, 1)

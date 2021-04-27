@@ -15,11 +15,11 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/auctioneer"
-	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
+	broker "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/pubsub"
 	"google.golang.org/protobuf/proto"
@@ -54,7 +54,7 @@ type Auctioneer struct {
 	auctions *pubsub.Topic
 	bids     map[string]chan core.Bid
 
-	broker broker.Broker
+	broker broker.APIServiceClient
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
@@ -64,7 +64,7 @@ type Auctioneer struct {
 func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
-	broker broker.Broker,
+	broker broker.APIServiceClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
 	auctionConf, err := setDefaults(auctionConf)

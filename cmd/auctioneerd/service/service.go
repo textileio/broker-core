@@ -3,17 +3,16 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"path/filepath"
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
+	"github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
@@ -23,11 +22,10 @@ var log = golog.Logger("auctioneer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	RepoPath   string
-	ListenAddr string
-	BrokerAddr string
-	Peer       marketpeer.Config
-	Auction    auctioneer.AuctionConfig
+	RepoPath string
+	Listener net.Listener
+	Peer     marketpeer.Config
+	Auction  auctioneer.AuctionConfig
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
@@ -43,19 +41,8 @@ type Service struct {
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config) (*Service, error) {
-	if err := validateConfig(conf); err != nil {
-		return nil, fmt.Errorf("invalid config: %s", err)
-	}
-
+func New(conf Config, broker broker.APIServiceClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()
-
-	// Create broker client
-	broker, err := client.New(conf.BrokerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating broker client: %s", err)
-	}
-	fin.Add(broker)
 
 	// Create auctioneer peer
 	p, err := marketpeer.New(conf.Peer)
@@ -84,30 +71,15 @@ func New(conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	listener, err := net.Listen("tcp", conf.ListenAddr)
-	if err != nil {
-		return nil, fmt.Errorf("getting net listener: %v", err)
-	}
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
-		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+		if err := s.server.Serve(conf.Listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Errorf("server error: %v", err)
 		}
 	}()
 
-	log.Infof("service listening at %s", conf.ListenAddr)
+	log.Info("service started")
 	return s, nil
-}
-
-func validateConfig(conf Config) error {
-	if conf.ListenAddr == "" {
-		return fmt.Errorf("listen address is empty")
-	}
-	// TODO: Re-enable when mocks are in place.
-	// if conf.BrokerAddr == "" {
-	// 	return fmt.Errorf("broker address is empty")
-	// }
-	return nil
 }
 
 // Close the service.

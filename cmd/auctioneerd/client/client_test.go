@@ -2,14 +2,13 @@ package client_test
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	golog "github.com/ipfs/go-log/v2"
-	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
@@ -17,13 +16,18 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	minersrv "github.com/textileio/broker-core/cmd/minerd/service"
+	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
-	"github.com/textileio/broker-core/rpc"
+	mocks "github.com/textileio/broker-core/mocks/broker/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 const (
+	bufConnSize = 1024 * 1024
+
 	oneGiB    = 1024 * 1024 * 1024
 	twoMonths = 60 * 24 * 2 * 60
 )
@@ -86,17 +90,19 @@ func TestClient_RunAuction(t *testing.T) {
 }
 
 func newClient(t *testing.T) *client.Client {
+	fin := finalizer.NewFinalizer()
+	t.Cleanup(func() {
+		require.NoError(t, fin.Cleanup(nil))
+	})
+
 	dir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 
-	listenPort, err := freeport.GetFreePort()
-	require.NoError(t, err)
-	listenAddr := fmt.Sprintf("127.0.0.1:%d", listenPort)
-
+	listener := bufconn.Listen(bufConnSize)
+	fin.Add(listener)
 	config := service.Config{
-		RepoPath:   dir,
-		ListenAddr: listenAddr,
-		// TODO: Add mocked broker client.
+		RepoPath: dir,
+		Listener: listener,
 		Peer: marketpeer.Config{
 			RepoPath: dir,
 		},
@@ -104,23 +110,19 @@ func newClient(t *testing.T) *client.Client {
 			Duration: time.Second * 10,
 		},
 	}
-	s, err := service.New(config)
+	s, err := service.New(config, &mocks.APIServiceClient{})
 	require.NoError(t, err)
+	fin.Add(s)
 	err = s.EnableMDNS(1)
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		require.NoError(t, s.Close())
-	})
-
-	c, err := client.NewClient(listenAddr, rpc.GetClientOpts(listenAddr)...)
+	dialer := func(context.Context, string) (net.Conn, error) {
+		return listener.Dial()
+	}
+	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		require.NoError(t, c.Close())
-	})
-
-	return c
+	fin.Add(conn)
+	return client.NewClient(conn)
 }
 
 func addMiners(t *testing.T, n int) {
