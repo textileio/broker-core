@@ -9,13 +9,16 @@ import (
 // AuctionToPb returns pb.Auction from auctioneer.Auction.
 func AuctionToPb(a *core.Auction) *pb.Auction {
 	pba := &pb.Auction{
-		Id:        a.ID,
-		Status:    AuctionStatusToPb(a.Status),
-		Bids:      AuctionBidsToPb(a.Bids),
-		Winner:    a.WinningBid,
-		StartedAt: timestamppb.New(a.StartedAt),
-		Duration:  a.Duration,
-		Error:     a.Error,
+		Id:           a.ID,
+		DealId:       a.DealID,
+		DealSize:     a.DealSize,
+		DealDuration: a.DealDuration,
+		Status:       AuctionStatusToPb(a.Status),
+		Bids:         AuctionBidsToPb(a.Bids),
+		WinningBid:   a.WinningBid,
+		StartedAt:    timestamppb.New(a.StartedAt),
+		Duration:     int64(a.Duration),
+		Error:        a.Error,
 	}
 	return pba
 }
@@ -44,7 +47,7 @@ func AuctionBidsToPb(bids map[string]core.Bid) map[string]*pb.Auction_Bid {
 	for k, v := range bids {
 		pbbids[k] = &pb.Auction_Bid{
 			From:       v.From.String(),
-			Amount:     v.Amount,
+			AttoFil:    v.AttoFil,
 			ReceivedAt: timestamppb.New(v.ReceivedAt),
 		}
 	}

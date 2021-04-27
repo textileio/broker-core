@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 
+	"github.com/textileio/broker-core/broker"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"google.golang.org/grpc"
 )
@@ -31,8 +32,16 @@ func (c *Client) Close() error {
 }
 
 // CreateAuction creates an auction.
-func (c *Client) CreateAuction(ctx context.Context) (*pb.CreateAuctionResponse, error) {
-	return c.c.CreateAuction(ctx, &pb.CreateAuctionRequest{})
+func (c *Client) CreateAuction(
+	ctx context.Context,
+	dealID broker.StorageDealID,
+	dealSize, dealDuration uint64,
+) (*pb.CreateAuctionResponse, error) {
+	return c.c.CreateAuction(ctx, &pb.CreateAuctionRequest{
+		DealId:       string(dealID),
+		DealSize:     dealSize,
+		DealDuration: dealDuration,
+	})
 }
 
 // GetAuction returns an auction by id.

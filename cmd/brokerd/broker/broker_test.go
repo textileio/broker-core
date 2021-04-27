@@ -174,7 +174,11 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 type dumbAuctioneer struct {
 }
 
-func (dp *dumbAuctioneer) ReadyToAuction(ctx context.Context, sd broker.StorageDeal) error {
+func (dp *dumbAuctioneer) ReadyToAuction(
+	ctx context.Context,
+	id broker.StorageDealID,
+	dealSize, dealDuration uint64,
+) error {
 	return nil
 }
 

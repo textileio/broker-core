@@ -6,12 +6,15 @@ import "google/protobuf/timestamp.proto";
 
 message Auction {
     string id = 1;
-    Status status = 2;
-    map<string, Bid> bids = 3;
-    string winner = 4;
-    google.protobuf.Timestamp started_at = 5;
-    int64 duration = 6;
-    string error = 7;
+    string deal_id = 2;
+    uint64 deal_size = 3;
+    uint64 deal_duration = 4;
+    Status status = 5;
+    map<string, Bid> bids = 6;
+    string winning_bid = 7;
+    google.protobuf.Timestamp started_at = 8;
+    int64 duration = 9;
+    string error = 10;
 
     enum Status {
         STATUS_UNSPECIFIED = 0;
@@ -23,13 +26,15 @@ message Auction {
 
     message Bid {
         string from = 1;
-        int64 amount = 2;
+        int64 atto_fil = 2;
         google.protobuf.Timestamp received_at = 3;
     }
 }
 
 message CreateAuctionRequest {
-    // TODO: Fill in with real stuff
+    string deal_id = 1;
+    uint64 deal_size = 2;
+    uint64 deal_duration = 3;
 }
 
 message CreateAuctionResponse {

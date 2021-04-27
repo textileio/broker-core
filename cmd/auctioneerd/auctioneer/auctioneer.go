@@ -119,8 +119,8 @@ func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queud if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction() (string, error) {
-	id, err := a.queue.CreateAuction(a.auctionConf.Duration)
+func (a *Auctioneer) CreateAuction(dealID string, dealSize, dealDuration uint64) (string, error) {
+	id, err := a.queue.CreateAuction(dealID, dealSize, dealDuration, a.auctionConf.Duration)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
 	}
@@ -166,12 +166,14 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 	bids.SetMessageHandler(a.bidsHandler)
 
 	// Set deadline
-	deadline := auction.StartedAt.Add(time.Duration(auction.Duration))
+	deadline := auction.StartedAt.Add(auction.Duration)
 
 	// Publish the auction.
 	msg, err := proto.Marshal(&pb.Auction{
-		Id:     auction.ID,
-		EndsAt: timestamppb.New(deadline),
+		Id:           auction.ID,
+		DealSize:     auction.DealSize,
+		DealDuration: auction.DealDuration,
+		EndsAt:       timestamppb.New(deadline),
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
@@ -194,7 +196,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 			return nil
 		case bid, ok := <-resCh:
 			if ok {
-				log.Debugf("auction %s received bid from %s for %d", auction.ID, bid.From, bid.Amount)
+				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.From, bid.AttoFil)
 
 				id, err := a.queue.NewID(bid.ReceivedAt)
 				if err != nil {
@@ -210,9 +212,7 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
 }
 
-func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
-	log.Debugf("%s received bid from %s", topic, from)
-
+func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	bid := &pb.Bid{}
 	if err := proto.Unmarshal(msg, bid); err != nil {
 		log.Errorf("unmarshaling message: %v", err)
@@ -225,7 +225,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
 	if ok {
 		ch <- core.Bid{
 			From:       from,
-			Amount:     bid.Amount,
+			AttoFil:    bid.AttoFil,
 			ReceivedAt: time.Now(),
 		}
 	}
@@ -233,10 +233,10 @@ func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
 
 func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) error {
 	var winner peer.ID
-	topBid := math.MinInt64
+	topBid := math.MaxInt64
 	for k, v := range auction.Bids {
-		if int(v.Amount) > topBid {
-			topBid = int(v.Amount)
+		if int(v.AttoFil) < topBid {
+			topBid = int(v.AttoFil)
 			winner = v.From
 			auction.WinningBid = k
 		}

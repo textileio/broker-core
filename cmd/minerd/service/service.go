@@ -1,12 +1,10 @@
 package service
 
 // TODO: Store bids (bid history)
-// TODO: Add filters via config
 
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
 
 	golog "github.com/ipfs/go-log/v2"
@@ -22,13 +20,34 @@ var log = golog.Logger("miner/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	RepoPath string
-	Peer     marketpeer.Config
+	RepoPath       string
+	Peer           marketpeer.Config
+	BidParams      BidParams
+	AuctionFilters AuctionFilters
+}
+
+// BidParams defines how bids are made.
+type BidParams struct {
+	AttoFilPerBytePerEpoch int64
+}
+
+// AuctionFilters specifies filters used when selecting auctions to bid on.
+type AuctionFilters struct {
+	DealDuration MinMaxFilter
+}
+
+// MinMaxFilter is used to specify a range for an auction filter.
+type MinMaxFilter struct {
+	Min uint64
+	Max uint64
 }
 
 // Service is a miner service that subscribes to brokered deals.
 type Service struct {
 	peer *marketpeer.Peer
+
+	bidParams      BidParams
+	auctionFilters AuctionFilters
 
 	ctx       context.Context
 	finalizer *finalizer.Finalizer
@@ -47,7 +66,12 @@ func New(conf Config) (*Service, error) {
 	}
 	fin.Add(p)
 
-	s := &Service{peer: p, ctx: ctx}
+	s := &Service{
+		peer:           p,
+		bidParams:      conf.BidParams,
+		auctionFilters: conf.AuctionFilters,
+		ctx:            ctx,
+	}
 
 	// Subscribe to the global auctions topic
 	auctions, err := p.NewTopic(ctx, core.AuctionTopic, true)
@@ -118,7 +142,7 @@ func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) {
 		log.Errorf("unmarshaling message: %v", err)
 		return
 	}
-	log.Infof("deal won in auction %s with bid %s", win.AuctionId, win.BidId)
+	log.Infof("bid %s won in auction %s", win.BidId, win.AuctionId)
 }
 
 func (s *Service) makeBid(auction *pb.Auction) error {
@@ -137,9 +161,7 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	// Submit bid to auctioneer.
 	msg, err := proto.Marshal(&pb.Bid{
 		AuctionId: auction.Id,
-
-		// TODO: Figure out what this should really look like.
-		Amount: int64(rand.Intn(100)),
+		AttoFil:   int64(auction.DealSize*auction.DealDuration) * s.bidParams.AttoFilPerBytePerEpoch,
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
@@ -151,9 +173,16 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 }
 
 func (s *Service) filterAuction(auction *pb.Auction) bool {
-	if auction.EndsAt.IsValid() && auction.EndsAt.AsTime().After(time.Now()) {
-		// Bid on them all, yolo
-		return true
+	// Check if auction is still in progress.
+	if !auction.EndsAt.IsValid() || auction.EndsAt.AsTime().Before(time.Now()) {
+		return false
 	}
-	return false
+
+	// Check if deal duration is within configured bounds.
+	if auction.DealDuration < s.auctionFilters.DealDuration.Min ||
+		auction.DealDuration > s.auctionFilters.DealDuration.Max {
+		return false
+	}
+
+	return true
 }

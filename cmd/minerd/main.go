@@ -54,6 +54,15 @@ var rootCmd = &cobra.Command{
 				RepoPath:      v.GetString("repo"),
 				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
+			BidParams: service.BidParams{
+				AttoFilPerBytePerEpoch: 100, // Just plugged a number here; no idea if it's reasonable
+			},
+			AuctionFilters: service.AuctionFilters{
+				DealDuration: service.MinMaxFilter{
+					Min: 60 * 24 * 2 * 30,  // 1 month
+					Max: 60 * 24 * 2 * 365, // 1 year
+				},
+			},
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)

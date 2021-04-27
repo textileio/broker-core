@@ -7,10 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
@@ -20,6 +22,8 @@ import (
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/rpc"
 )
+
+const twoMonths = 60 * 24 * 2 * 60
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
@@ -36,7 +40,7 @@ func init() {
 func TestClient_CreateAuction(t *testing.T) {
 	c := newClient(t)
 
-	res, err := c.CreateAuction(context.Background())
+	res, err := c.CreateAuction(context.Background(), newDealID(), 1024, twoMonths)
 	require.NoError(t, err)
 	assert.NotEmpty(t, res.Id)
 }
@@ -44,7 +48,7 @@ func TestClient_CreateAuction(t *testing.T) {
 func TestClient_GetAuction(t *testing.T) {
 	c := newClient(t)
 
-	res, err := c.CreateAuction(context.Background())
+	res, err := c.CreateAuction(context.Background(), newDealID(), 1024, twoMonths)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), res.Id)
@@ -65,7 +69,7 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	res, err := c.CreateAuction(context.Background())
+	res, err := c.CreateAuction(context.Background(), newDealID(), 1024, twoMonths)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -74,8 +78,8 @@ func TestClient_RunAuction(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, res.Id, got.Auction.Id)
 	assert.Equal(t, pb.Auction_STATUS_ENDED, got.Auction.Status)
-	assert.NotEmpty(t, got.Auction.Winner)
-	assert.NotNil(t, got.Auction.Bids[got.Auction.Winner])
+	assert.NotEmpty(t, got.Auction.WinningBid)
+	assert.NotNil(t, got.Auction.Bids[got.Auction.WinningBid])
 }
 
 func newClient(t *testing.T) *client.Client {
@@ -124,6 +128,15 @@ func addMiners(t *testing.T, n int) {
 			Peer: marketpeer.Config{
 				RepoPath: dir,
 			},
+			BidParams: minersrv.BidParams{
+				AttoFilPerBytePerEpoch: 100, // Just plugged a number here; no idea if it's reasonable
+			},
+			AuctionFilters: minersrv.AuctionFilters{
+				DealDuration: minersrv.MinMaxFilter{
+					Min: 60 * 24 * 2 * 30,  // 1 month
+					Max: 60 * 24 * 2 * 365, // 1 year
+				},
+			},
 		}
 		s, err := minersrv.New(config)
 		require.NoError(t, err)
@@ -134,4 +147,8 @@ func addMiners(t *testing.T, n int) {
 			require.NoError(t, s.Close())
 		})
 	}
+}
+
+func newDealID() broker.StorageDealID {
+	return broker.StorageDealID(uuid.New().String())
 }

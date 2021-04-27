@@ -9,6 +9,12 @@ import (
 	"github.com/textileio/broker-core/broker"
 )
 
+const epochsPerDay uint64 = 60 * 24 * 2 // 1 epoch = ~30s
+
+// DealDuration is the deal duration requested of miners.
+// TODO (@sander): Move to config param.
+const DealDuration = epochsPerDay * 365 / 2 // ~6 months
+
 // AuctionTopic is used by brokers to publish and by miners to subscribe to deal auctions.
 const AuctionTopic string = "/textile/auction/0.0.1"
 
@@ -26,13 +32,16 @@ func WinsTopic(pid peer.ID) string {
 
 // Auction defines the core auction model.
 type Auction struct {
-	ID         string
-	Status     AuctionStatus
-	Bids       map[string]Bid
-	WinningBid string
-	StartedAt  time.Time
-	Duration   int64
-	Error      string
+	ID           string
+	DealID       string
+	DealSize     uint64
+	DealDuration uint64
+	Status       AuctionStatus
+	Bids         map[string]Bid
+	WinningBid   string
+	StartedAt    time.Time
+	Duration     time.Duration
+	Error        string
 }
 
 // AuctionStatus is the status of an auction.
@@ -71,13 +80,15 @@ func (as AuctionStatus) String() string {
 
 // Bid defines the core bid model.
 type Bid struct {
+	Broker     peer.ID
 	From       peer.ID
-	Amount     int64
+	AttoFil    int64
 	ReceivedAt time.Time
 }
 
 // Auctioneer creates auctions and decides on winning bids.
 type Auctioneer interface {
 	// ReadyToAuction signals the auctioneer that this storage deal is ready to be included in an auction.
-	ReadyToAuction(ctx context.Context, sd broker.StorageDeal) error
+	// dealDuration is in units of Filecoin epochs (~30s).
+	ReadyToAuction(ctx context.Context, id broker.StorageDealID, dealSize, dealDuration uint64) error
 }

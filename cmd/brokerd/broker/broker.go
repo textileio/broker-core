@@ -166,12 +166,12 @@ func (b *Broker) StorageDealPrepared(
 ) error {
 	// TODO: include the data preparation result (piece-size and CommP) in StorageDeal data.
 	// @jsign: I'll do this tomorrow.
-	var sd broker.StorageDeal // assume this variable will exist...
+	// var sd broker.StorageDeal // assume this variable will exist...
 
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call WinningBids(..) to tell
 	// us about who won things.
-	if err := b.auctioneer.ReadyToAuction(ctx, sd); err != nil {
+	if err := b.auctioneer.ReadyToAuction(ctx, id, po.PieceSize, auctioneer.DealDuration); err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
 

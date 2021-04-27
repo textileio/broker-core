@@ -125,15 +125,22 @@ func (q *Queue) NewID(t time.Time) (string, error) {
 
 // CreateAuction adds a new auction to the queue.
 // The new auction will be handled immediately if workers are not busy.
-func (q *Queue) CreateAuction(duration time.Duration) (string, error) {
+func (q *Queue) CreateAuction(
+	dealID string,
+	dealSize, dealDuration uint64,
+	auctionDuration time.Duration,
+) (string, error) {
 	id, err := q.NewID(time.Now())
 	if err != nil {
 		return "", fmt.Errorf("creating id: %v", err)
 	}
 	a := &core.Auction{
-		ID:       id,
-		Status:   core.AuctionStatusUnspecified,
-		Duration: int64(duration),
+		ID:           id,
+		DealID:       dealID,
+		DealSize:     dealSize,
+		DealDuration: dealDuration,
+		Status:       core.AuctionStatusUnspecified,
+		Duration:     auctionDuration,
 	}
 	if err := q.enqueue(a); err != nil {
 		return "", fmt.Errorf("enqueueing: %v", err)

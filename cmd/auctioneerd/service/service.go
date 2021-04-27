@@ -104,8 +104,8 @@ func (s *Service) EnableMDNS(intervalSecs int) error {
 }
 
 // CreateAuction creates a new auction.
-func (s *Service) CreateAuction(_ context.Context, _ *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
-	id, err := s.lib.CreateAuction()
+func (s *Service) CreateAuction(_ context.Context, req *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
+	id, err := s.lib.CreateAuction(req.DealId, req.DealSize, req.DealDuration)
 	if err != nil {
 		return nil, err
 	}
