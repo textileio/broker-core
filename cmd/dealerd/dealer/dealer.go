@@ -88,7 +88,25 @@ func New(
 }
 
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals) error {
-	if err := d.store.Enqueue(ad); err != nil {
+	auctionData := store.AuctionData{
+		AuctionID:  ad.AuctionID,
+		PayloadCid: ad.PayloadCid,
+		PieceCid:   ad.PieceCid,
+		PieceSize:  ad.PieceSize,
+		Duration:   ad.Duration,
+	}
+	auctionDeals := make([]store.AuctionDeal, len(ad.Targets))
+	for i, t := range ad.Targets {
+		auctionDeal := store.AuctionDeal{
+			Miner:               t.Miner,
+			PricePerGiBPerEpoch: t.PricePerGiBPerEpoch,
+			StartEpoch:          t.StartEpoch,
+			Verified:            t.Verified,
+			FastRetrieval:       t.FastRetrieval,
+		}
+		auctionDeals[i] = auctionDeal
+	}
+	if err := d.store.Create(auctionData, auctionDeals); err != nil {
 		return fmt.Errorf("enqueueing auction deals: %s", err)
 	}
 

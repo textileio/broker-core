@@ -140,45 +140,32 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 	return nil
 }
 
-// Dequeue removes the provided bids.
-func (s *Store) Dequeue(bbrs []Bid) error {
-	txn, err := s.ds.NewTransaction(false)
-	if err != nil {
-		return fmt.Errorf("creating transaction: %s", err)
-	}
-	defer txn.Discard()
-
-	for _, bbr := range bbrs {
-		key := makeBidKey(bbr.ID)
-		exists, err := txn.Has(key)
-		if err != nil {
-			return fmt.Errorf("checking if bid exists: %s", err)
-		}
-		if !exists {
-			return ErrNotFound
-		}
-		if err := txn.Delete(key); err != nil {
-			return fmt.Errorf("deleting bid in txn: %s", err)
-		}
-	}
-	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %s", err)
-	}
-
+func (s *Store) StatusChange(auctionDealID string, newStatus AuctionDealStatus) error {
 	s.lock.Lock()
-	for _, bbr := range bbrs {
-		for i := range s.queue {
-			if s.queue[i].ID == bbr.ID {
-				s.queue[i] = s.queue[len(s.queue)-1]
-				s.queue = s.queue[:len(s.queue)-1]
-				break
-			}
+	var ad *AuctionDeal
+	for i := range s.auctionDeals {
+		if s.auctionDeals[i].ID == auctionDealID {
+			ad = &s.auctionDeals[i]
 		}
 	}
-	sort.Slice(s.queue, func(i, j int) bool {
-		return s.queue[i].ID < s.queue[j].ID
-	})
 	s.lock.Unlock()
+	if ad == nil {
+		return ErrNotFound
+	}
+
+	if err := isValidStatusChange(ad.Status, newStatus); err != nil {
+		return fmt.Errorf("invalid status change: %s", err)
+	}
+
+	// Change auction-deal status, and at the same time update it in the cache,
+	// since `ad` is a pointer to the corresponding item.
+	s.lock.Lock()
+	ad.Status = newStatus
+	s.lock.Unlock()
+
+	if err := s.save(s.ds, makeAuctionDealKey(ad.ID), ad); err != nil {
+		return fmt.Errorf("saving auction deal status change: %s", err)
+	}
 
 	return nil
 }
@@ -299,9 +286,33 @@ func validate(ad AuctionData, ads []AuctionDeal) error {
 		if auctionDeal.PricePerGiBPerEpoch < 0 {
 			return fmt.Errorf("price-per-gib-per-epoch is negative")
 		}
-		if auctionDeal.StartEpoch <- 0 {
+		if auctionDeal.StartEpoch <= 0 {
 			return fmt.Errorf("start-epoch isn't positive")
 		}
+	}
+
+	return nil
+}
+
+func isValidStatusChange(pre AuctionDealStatus, post AuctionDealStatus) error {
+	switch pre {
+	case Pending:
+		if post != CreatingDeal {
+			return fmt.Errorf("expecting CreatingDeal but found: %s", post)
+		}
+	case CreatingDeal:
+		if post != WaitingConfirmation {
+			return fmt.Errorf("expecting WaitingConfirmation but found: %s", post)
+		}
+	case WaitingConfirmation:
+		if post != Error && post != Success {
+			return fmt.Errorf("expecting final status but found: %s", post)
+		}
+	case Success:
+	case Error:
+		return fmt.Errorf("error/success status are final, so %s isn't allowed", post)
+	default:
+		return fmt.Errorf("unknown status: %s", pre)
 	}
 
 	return nil
@@ -313,4 +324,21 @@ func makeAuctionDataKey(id string) datastore.Key {
 
 func makeAuctionDealKey(id string) datastore.Key {
 	return dsPrefixAuctionDeal.ChildString(id)
+}
+
+func (ads AuctionDealStatus) String() string {
+	switch ads {
+	case Pending:
+		return "Pending"
+	case CreatingDeal:
+		return "CreatingDeal"
+	case WaitingConfirmation:
+		return "WaitingConfirmation"
+	case Success:
+		return "Success"
+	case Error:
+		return "Error"
+	default:
+		panic("unknown deal status")
+	}
 }

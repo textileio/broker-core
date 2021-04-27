@@ -17,8 +17,8 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 )
 
-func (d *Dealer) executeBid(ctx context.Context, b store.Bid) (*network.Proposal, error) {
-	collBounds, err := d.gateway.StateDealProviderCollateralBounds(ctx, abi.PaddedPieceSize(b.DealSize), b.Verified, types.EmptyTSK)
+func (d *Dealer) executeBid(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (*network.Proposal, error) {
+	collBounds, err := d.gateway.StateDealProviderCollateralBounds(ctx, abi.PaddedPieceSize(ad.PieceSize), aud.Verified, types.EmptyTSK)
 	if err != nil {
 		return nil, fmt.Errorf("calculating provider collateral: %s", err)
 	}
@@ -26,25 +26,25 @@ func (d *Dealer) executeBid(ctx context.Context, b store.Bid) (*network.Proposal
 	// set provider collateral 10% above minimum to avoid fluctuations causing deal failure
 	provCol := big.Div(big.Mul(collBounds.Min, big.NewInt(11)), big.NewInt(10))
 
-	dealStart := b.DealStartEpoch
+	dealStart := aud.StartEpoch
 
-	end := dealStart + b.DealDuration
+	end := dealStart + ad.Duration
 
-	pricePerEpoch := big.Div(big.Mul(big.NewInt(b.DealSize), big.NewInt(b.DealPricePerEpoch)), big.NewInt(1<<30))
+	pricePerEpoch := big.Div(big.Mul(big.NewInt(ad.PieceSize), big.NewInt(aud.PricePerGiBPerEpoch)), big.NewInt(1<<30))
 
-	label, err := clientutils.LabelField(b.DataCid)
+	label, err := clientutils.LabelField(ad.PayloadCid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct label field: %w", err)
 	}
 
-	miner, err := address.NewFromString(b.Miner)
+	miner, err := address.NewFromString(aud.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("parsing miner address: %s", err)
 	}
 	proposal := &market.DealProposal{
-		PieceCID:     b.DealCommP,
-		PieceSize:    abi.PaddedPieceSize(b.DealSize), // Check padding vs not padding.
-		VerifiedDeal: b.Verified,
+		PieceCID:     ad.PieceCid,
+		PieceSize:    abi.PaddedPieceSize(ad.PieceSize), // Check padding vs not padding.
+		VerifiedDeal: aud.Verified,
 		Client:       d.walletAddr,
 		Provider:     miner,
 
@@ -76,7 +76,7 @@ func (d *Dealer) executeBid(ctx context.Context, b store.Bid) (*network.Proposal
 		DealProposal: sigprop,
 		Piece: &storagemarket.DataRef{
 			TransferType: storagemarket.TTManual,
-			Root:         b.DataCid,
+			Root:         ad.PayloadCid,
 		},
 		FastRetrieval: true,
 	}, nil
