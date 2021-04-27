@@ -61,6 +61,20 @@ var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1A
 //     "aud": "https://broker.staging.textile.io/",
 // }
 
+func TestService_isWhitelisted(t *testing.T) {
+	// Whitelisted
+	var iss = "carsonfarmer.testnet"
+	var whitelist = map[string]bool{iss: true}
+	whitelisted := service.IsWhitelisted(iss, whitelist)
+	require.True(t, whitelisted)
+
+	// Not whitelisted
+	iss = "imposter.testnet"
+	whitelist = map[string]bool{iss: false}
+	whitelisted = service.IsWhitelisted(iss, whitelist)
+	require.False(t, whitelisted)
+}
+
 func TestService_validateKeyDID(t *testing.T) {
 	// Valid sub, valid x
 	sub := "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4"
