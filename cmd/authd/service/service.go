@@ -88,6 +88,9 @@ type AuthClaims struct {
 	jwt.StandardClaims
 }
 
+// Whitelist defines the list of accounts that can use the service.
+var whiteList = map[string]bool{"carsonfarmer.testnet": true}
+
 // ValidateInput sanity checks the raw inputs to the service.
 func ValidateInput(jwtBase64URL string) (*ValidatedInput, error) {
 	parts := strings.Split(jwtBase64URL, ".")
@@ -137,6 +140,12 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		Iss: claims.Issuer,
 	}
 	return validatedToken, err
+}
+
+// IsWhitelisted checks if the given iss (issuer) is whitelisted.
+func IsWhitelisted(iss string, whitelist map[string]bool) bool {
+	v, _ := whitelist[iss]
+	return v
 }
 
 // ValidateKeyDID validates the key DID.
@@ -190,12 +199,16 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// Validate the request input.
 	validInput, InputErr := ValidateInput(req.Token)
 	if InputErr != nil {
-		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("Invalid request input: %s (%v)", req, InputErr))
+		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("invalid request input: %s (%v)", req, InputErr))
 	}
 	// Validate the JWT token.
 	token, tokenErr := ValidateToken(validInput.Token)
 	if tokenErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("Invalid JWT: %v", tokenErr))
+		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("invalid JWT: %v", tokenErr))
+	}
+	whitelisted := IsWhitelisted(token.Iss, whiteList)
+	if !whitelisted {
+		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("account not whitelisted: %v", token.Iss))
 	}
 	// Validate the key DID.
 	keyOk, keyErr := ValidateKeyDID(token.Sub, token.X)
