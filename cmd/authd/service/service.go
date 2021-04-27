@@ -120,7 +120,7 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		return pkey, err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse JWT: %v", err)
+		return nil, fmt.Errorf("unable to parse JWT: %v", err)
 	}
 	if !token.Valid {
 		return nil, errors.New("the JWT is invalid")
@@ -144,7 +144,7 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 
 // IsWhitelisted checks if the given iss (issuer) is whitelisted.
 func IsWhitelisted(iss string, whitelist map[string]bool) bool {
-	v, _ := whitelist[iss]
+	v := whitelist[iss]
 	return v
 }
 
@@ -157,7 +157,7 @@ func ValidateKeyDID(sub string, x string) (bool, error) {
 	}
 	_, bytes, err := mbase.Decode(subDID.ID)
 	if err != nil {
-		return false, fmt.Errorf("Error decoding DID: %v", err)
+		return false, fmt.Errorf("error decoding DID: %v", err)
 	}
 	// Checks that the first two bytes are multicodec prefix values (according to spec)
 	_, n, err := varint.FromUvarint(bytes)
@@ -182,7 +182,7 @@ func ValidateLockedFunds(ctx context.Context, iss string, s chainapi.ChainApiSer
 	}
 	chainRes, err := s.HasFunds(ctx, chainReq)
 	if err != nil {
-		return false, fmt.Errorf("Locked funds error: %v", err)
+		return false, fmt.Errorf("locked funds error: %v", err)
 	}
 	if !chainRes.HasFunds {
 		return false, errors.New("account doesn't have locked funds")
@@ -213,12 +213,12 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// Validate the key DID.
 	keyOk, keyErr := ValidateKeyDID(token.Sub, token.X)
 	if !keyOk || keyErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("Invalid Key DID: %v", keyErr))
+		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("invalid Key DID: %v", keyErr))
 	}
 	// Check for locked funds
 	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Iss, s.Deps.ChainAPIServiceClient)
 	if !fundsOk || fundsErr != nil {
-		return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("Locked funds error: %v", fundsErr))
+		return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("locked funds error: %v", fundsErr))
 	}
 	log.Info(fmt.Sprintf("Authenticated successfully: %s", token.Iss))
 	return &pb.AuthResponse{
