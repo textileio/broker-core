@@ -11,12 +11,77 @@ import (
 	"github.com/mr-tron/base58/base58"
 )
 
+// KeyType is the type of key.
+type KeyType int
+
+const (
+	// ED25519 represents an ed25519 key.
+	ED25519 KeyType = iota
+)
+
+// NewPublicKeyFromString creates a new public key from a base58 encoded string prefixed with the key type string.
+func NewPublicKeyFromString(str string) (*PublicKey, error) {
+	parts := strings.Split(str, ":")
+	if len(parts) == 1 {
+		data, err := base58.Decode(parts[0])
+		if err != nil {
+			return nil, fmt.Errorf("decoding key string: %v", err)
+		}
+		return &PublicKey{Type: ED25519, Data: data}, nil
+	} else if len(parts) == 2 {
+		keyType, err := stringToKeyType(parts[0])
+		if err != nil {
+			return nil, fmt.Errorf("decoding key type string: %v", err)
+		}
+		data, err := base58.Decode(parts[1])
+		if err != nil {
+			return nil, fmt.Errorf("decoding key data: %v", err)
+		}
+		return &PublicKey{Type: keyType, Data: data}, nil
+	} else {
+		return nil, fmt.Errorf("invalid encoded key format, must be <curve>:<encoded key>")
+	}
+}
+
+// PublicKey represents a public key.
+type PublicKey struct {
+	Type KeyType
+	Data []byte
+}
+
+// ToString creates a string representation of the public key of the form <curve>:<base58 encoded key>.
+func (pk *PublicKey) ToString() (string, error) {
+	typeStr, err := keyTypeToString(pk.Type)
+	if err != nil {
+		return "", fmt.Errorf("converting key type to string: %v", err)
+	}
+	return fmt.Sprintf("%s:%s", typeStr, base58.Encode(pk.Data)), nil
+}
+
+func keyTypeToString(keyType KeyType) (string, error) {
+	switch keyType {
+	case ED25519:
+		return "ed25519", nil
+	default:
+		return "", fmt.Errorf("unknown key type: %v", keyType)
+	}
+}
+
+func stringToKeyType(str string) (KeyType, error) {
+	switch strings.ToLower(str) {
+	case "ed25519":
+		return ED25519, nil
+	default:
+		return -1, fmt.Errorf("unknown key type string: %s", str)
+	}
+}
+
 // KeyPair represents a public/private key pair.
 type KeyPair interface {
 	fmt.Stringer
 	Sign(message []byte) ([]byte, error)
 	Verify(message, signature []byte) bool
-	GetPublicKey() crypto.PublicKey
+	GetPublicKey() PublicKey
 }
 
 // NewKeyPairFromRandom creates a random KeyPair using the specified curve.
@@ -36,20 +101,20 @@ func NewKeyPairFromRandom(curve string) (KeyPair, error) {
 // NewKeyPairFromString creates a new KeyPair from a optionally curve-prefixed base58 string.
 func NewKeyPairFromString(secretKey string) (KeyPair, error) {
 	parts := strings.Split(secretKey, ":")
-	b58 := ""
+	base58string := ""
 	if len(parts) == 1 {
-		b58 = parts[0]
+		base58string = parts[0]
 	} else if len(parts) == 2 {
 		switch strings.ToUpper(parts[0]) {
 		case "ED25519":
-			b58 = parts[1]
+			base58string = parts[1]
 		default:
 			return nil, fmt.Errorf("unknown curve %s", parts[0])
 		}
 	} else {
 		return nil, fmt.Errorf("Invalid encoded key format, must be <curve>:<encoded key>")
 	}
-	kp, err := keyPairEd25519FromString(b58)
+	kp, err := keyPairEd25519FromString(base58string)
 	if err != nil {
 		return nil, fmt.Errorf("creating ed25519 key from string: %v", err)
 	}
@@ -76,16 +141,19 @@ func (k *KeyPairEd25519) Verify(message, signature []byte) bool {
 }
 
 // GetPublicKey returns the PublicKey corresponding to the KeyPair's private key.
-func (k *KeyPairEd25519) GetPublicKey() crypto.PublicKey {
-	return k.privateKey.Public()
+func (k *KeyPairEd25519) GetPublicKey() PublicKey {
+	return PublicKey{
+		Type: ED25519,
+		Data: k.privateKey.Public().(ed25519.PublicKey),
+	}
 }
 
 func (k *KeyPairEd25519) String() string {
-	return string(k.GetPublicKey().(ed25519.PublicKey))
+	return string(k.privateKey)
 }
 
-func keyPairEd25519FromString(s string) (*KeyPairEd25519, error) {
-	data, err := base58.Decode(s)
+func keyPairEd25519FromString(base58string string) (*KeyPairEd25519, error) {
+	data, err := base58.Decode(base58string)
 	if err != nil {
 		return nil, fmt.Errorf("decoding secret key: %v", err)
 	}

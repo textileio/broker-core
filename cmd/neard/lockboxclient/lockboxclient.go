@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/account"
 )
 
 // LockInfo models user locked funds.
@@ -59,7 +60,7 @@ func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
 
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.nc.ViewState(ctx, c.accountID, nearclient.ViewStateWithFinality("final"))
+	res, err := c.nc.Account(c.accountID).ViewState(ctx, account.ViewStateWithFinality("final"))
 	if err != nil {
 		return nil, fmt.Errorf("calling view state: %v", err)
 	}
@@ -87,8 +88,8 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 }
 
 // GetAccount gets information about the lock box account.
-func (c *Client) GetAccount(ctx context.Context) (*nearclient.ViewAccountResponse, error) {
-	return c.nc.ViewAccount(ctx, c.accountID, nearclient.ViewAccountWithFinality("final"))
+func (c *Client) GetAccount(ctx context.Context) (*account.AccountView, error) {
+	return c.nc.Account(c.accountID).State(ctx, account.StateWithFinality("final"))
 }
 
 // HasLocked calls the lock box hasLocked function.

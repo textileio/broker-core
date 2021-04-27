@@ -7,49 +7,10 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/account"
+	itypes "github.com/textileio/broker-core/cmd/neard/nearclient/internal/types"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 )
-
-type queryRequest struct {
-	RequestType  string      `json:"request_type"`
-	Finality     string      `json:"finality,omitempty"`
-	BlockID      interface{} `json:"block_id,omitempty"`
-	AccountID    string      `json:"account_id,omitempty"`
-	PrefixBase64 string      `json:"prefix_base64"`
-	MethodName   string      `json:"method_name,omitempty"`
-	ArgsBase64   string      `json:"args_base64,omitempty"`
-}
-
-type changesRequest struct {
-	ChangesType     string      `json:"changes_type"`
-	AccountIDs      []string    `json:"account_ids"`
-	KeyPrefixBase64 string      `json:"key_prefix_base64"`
-	Finality        string      `json:"finality,omitempty"`
-	BlockID         interface{} `json:"block_id,omitempty"`
-}
-
-// Value models a state key-value pair.
-type Value struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-// ViewStateResponse holds information about contract state.
-type ViewStateResponse struct {
-	Values      []Value `json:"values"`
-	BlockHash   string  `json:"block_hash"`
-	BlockHeight int     `json:"block_height"`
-}
-
-// ViewAccountResponse holds information about an account.
-type ViewAccountResponse struct {
-	Amount        string `json:"amount"`
-	Locked        string `json:"locked"`
-	CodeHash      string `json:"code_hash"`
-	StorageUsage  int    `json:"storage_usage"`
-	StoragePaidAt int    `json:"storage_paid_at"`
-	BlockHeight   int    `json:"block_height"`
-	BlockHash     string `json:"block_hash"`
-}
 
 // CallFunctionResponse holds information about the result of a function call.
 type CallFunctionResponse struct {
@@ -87,134 +48,27 @@ type DataChangesResponse struct {
 
 // Client communicates with the NEAR API.
 type Client struct {
-	rpcClient *rpc.Client
+	config *types.Config
 }
 
 // NewClient creates a new Client.
-func NewClient(rpcClient *rpc.Client) (*Client, error) {
+func NewClient(config *types.Config) (*Client, error) {
 	return &Client{
-		rpcClient: rpcClient,
+		config: config,
 	}, nil
 }
 
-// ViewStateOption controls the behavior when calling ViewState.
-type ViewStateOption func(*queryRequest)
-
-// ViewStateWithFinality specifies the finality to be used when querying the state.
-func ViewStateWithFinality(finalaity string) ViewStateOption {
-	return func(qr *queryRequest) {
-		qr.Finality = finalaity
-	}
-}
-
-// ViewStateWithBlockHeight specifies the block height to query the state for.
-func ViewStateWithBlockHeight(blockHeight int) ViewStateOption {
-	return func(qr *queryRequest) {
-		qr.BlockID = blockHeight
-	}
-}
-
-// ViewStateWithBlockHash specifies the block hash to query the state for.
-func ViewStateWithBlockHash(blockHash string) ViewStateOption {
-	return func(qr *queryRequest) {
-		qr.BlockID = blockHash
-	}
-}
-
-// ViewStateWithPrefix specifies the state key prefix to query for.
-func ViewStateWithPrefix(prefix string) ViewStateOption {
-	return func(qr *queryRequest) {
-		qr.PrefixBase64 = base64.StdEncoding.EncodeToString([]byte(prefix))
-	}
-}
-
-// ViewState queries the contract state.
-func (c *Client) ViewState(ctx context.Context, accountID string, opts ...ViewStateOption) (*ViewStateResponse, error) {
-	req := &queryRequest{
-		RequestType:  "view_state",
-		AccountID:    accountID,
-		PrefixBase64: "",
-	}
-	for _, opt := range opts {
-		opt(req)
-	}
-	if req.BlockID == nil && req.Finality == "" {
-		return nil, fmt.Errorf("you must provide ViewStateWithBlockHeight, ViewStateWithBlockHash or ViewStateWithFinality")
-	}
-	if req.BlockID != nil && req.Finality != "" {
-		return nil, fmt.Errorf(
-			"you must provide one of ViewStateWithBlockHeight, ViewStateWithBlockHash or ViewStateWithFinality",
-		)
-	}
-	var res ViewStateResponse
-	err := c.rpcClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req))
-	if err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-// ViewAccountOption controls the behavior when calling ViewAccount.
-type ViewAccountOption func(*queryRequest)
-
-// ViewAccountWithFinality specifies the finality to be used when querying the account.
-func ViewAccountWithFinality(finalaity string) ViewAccountOption {
-	return func(qr *queryRequest) {
-		qr.Finality = finalaity
-	}
-}
-
-// ViewAccountWithBlockHeight specifies the block height to query the account for.
-func ViewAccountWithBlockHeight(blockHeight int) ViewAccountOption {
-	return func(qr *queryRequest) {
-		qr.BlockID = blockHeight
-	}
-}
-
-// ViewAccountWithBlockHash specifies the block hash to query the account for.
-func ViewAccountWithBlockHash(blockHash string) ViewAccountOption {
-	return func(qr *queryRequest) {
-		qr.BlockID = blockHash
-	}
-}
-
-// ViewAccount queries information about an account.
-func (c *Client) ViewAccount(
-	ctx context.Context,
-	accountID string,
-	opts ...ViewAccountOption,
-) (*ViewAccountResponse, error) {
-	req := &queryRequest{
-		RequestType: "view_account",
-		AccountID:   accountID,
-	}
-	for _, opt := range opts {
-		opt(req)
-	}
-	if req.BlockID == nil && req.Finality == "" {
-		return nil, fmt.Errorf(
-			"you must provide ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
-		)
-	}
-	if req.BlockID != nil && req.Finality != "" {
-		return nil, fmt.Errorf(
-			"you must provide one of ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
-		)
-	}
-	var res ViewAccountResponse
-	err := c.rpcClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req))
-	if err != nil {
-		return nil, err
-	}
-	return &res, nil
+// Account provides an API for the provided account ID.
+func (c *Client) Account(accountID string) *account.Account {
+	return account.NewAccount(c.config, accountID)
 }
 
 // CallFunctionOption controls the behavior when calling CallFunction.
-type CallFunctionOption func(*queryRequest) error
+type CallFunctionOption func(*itypes.QueryRequest) error
 
 // CallFunctionWithFinality specifies the finality to be used when calling the function.
 func CallFunctionWithFinality(finalaity string) CallFunctionOption {
-	return func(qr *queryRequest) error {
+	return func(qr *itypes.QueryRequest) error {
 		qr.Finality = finalaity
 		return nil
 	}
@@ -222,7 +76,7 @@ func CallFunctionWithFinality(finalaity string) CallFunctionOption {
 
 // CallFunctionWithBlockHeight specifies the block height to call the function for.
 func CallFunctionWithBlockHeight(blockHeight int) CallFunctionOption {
-	return func(qr *queryRequest) error {
+	return func(qr *itypes.QueryRequest) error {
 		qr.BlockID = blockHeight
 		return nil
 	}
@@ -230,7 +84,7 @@ func CallFunctionWithBlockHeight(blockHeight int) CallFunctionOption {
 
 // CallFunctionWithBlockHash specifies the block hash to call the function for.
 func CallFunctionWithBlockHash(blockHash string) CallFunctionOption {
-	return func(qr *queryRequest) error {
+	return func(qr *itypes.QueryRequest) error {
 		qr.BlockID = blockHash
 		return nil
 	}
@@ -239,7 +93,7 @@ func CallFunctionWithBlockHash(blockHash string) CallFunctionOption {
 // CallFunctionWithArgs specified the args to call the function with.
 // Should be a JSON encodable object.
 func CallFunctionWithArgs(args interface{}) CallFunctionOption {
-	return func(qr *queryRequest) error {
+	return func(qr *itypes.QueryRequest) error {
 		if args == nil {
 			args = make(map[string]interface{})
 		}
@@ -259,7 +113,7 @@ func (c *Client) CallFunction(
 	methodName string,
 	opts ...CallFunctionOption,
 ) (*CallFunctionResponse, error) {
-	req := &queryRequest{
+	req := &itypes.QueryRequest{
 		RequestType: "call_function",
 		AccountID:   accountID,
 		MethodName:  methodName,
@@ -280,39 +134,39 @@ func (c *Client) CallFunction(
 		)
 	}
 	var res CallFunctionResponse
-	if err := c.rpcClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req)); err != nil {
+	if err := c.config.RPCClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req)); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
 // DataChangesOption controls behavior when calling DataChanges.
-type DataChangesOption func(*changesRequest)
+type DataChangesOption func(*itypes.ChangesRequest)
 
 // DataChangesWithPrefix sets the data key prefix to query for.
 func DataChangesWithPrefix(prefix string) DataChangesOption {
-	return func(cr *changesRequest) {
+	return func(cr *itypes.ChangesRequest) {
 		cr.KeyPrefixBase64 = base64.StdEncoding.EncodeToString([]byte(prefix))
 	}
 }
 
 // DataChangesWithFinality specifies the finality to be used when querying data changes.
 func DataChangesWithFinality(finalaity string) DataChangesOption {
-	return func(qr *changesRequest) {
+	return func(qr *itypes.ChangesRequest) {
 		qr.Finality = finalaity
 	}
 }
 
 // DataChangesWithBlockHeight specifies the block id to query data changes for.
 func DataChangesWithBlockHeight(blockHeight int) DataChangesOption {
-	return func(qr *changesRequest) {
+	return func(qr *itypes.ChangesRequest) {
 		qr.BlockID = blockHeight
 	}
 }
 
 // DataChangesWithBlockHash specifies the block id to query data changes for.
 func DataChangesWithBlockHash(blockHash string) DataChangesOption {
-	return func(qr *changesRequest) {
+	return func(qr *itypes.ChangesRequest) {
 		qr.BlockID = blockHash
 	}
 }
@@ -323,7 +177,7 @@ func (c *Client) DataChanges(
 	accountIDs []string,
 	opts ...DataChangesOption,
 ) (*DataChangesResponse, error) {
-	req := &changesRequest{
+	req := &itypes.ChangesRequest{
 		ChangesType: "data_changes",
 		AccountIDs:  accountIDs,
 	}
@@ -341,7 +195,7 @@ func (c *Client) DataChanges(
 		)
 	}
 	var res DataChangesResponse
-	if err := c.rpcClient.CallContext(ctx, &res, "EXPERIMENTAL_changes", rpc.NewNamedParams(req)); err != nil {
+	if err := c.config.RPCClient.CallContext(ctx, &res, "EXPERIMENTAL_changes", rpc.NewNamedParams(req)); err != nil {
 		return nil, err
 	}
 	return &res, nil

@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 )
 
 var ctx = context.Background()
@@ -33,7 +34,7 @@ func TestHasLocked(t *testing.T) {
 func makeClient(t *testing.T) (*Client, func()) {
 	rpcClient, err := rpc.DialContext(ctx, "https://rpc.testnet.near.org")
 	require.NoError(t, err)
-	nc, err := nearclient.NewClient(rpcClient)
+	nc, err := nearclient.NewClient(&types.Config{RPCClient: rpcClient})
 	require.NoError(t, err)
 	c, err := NewClient(nc, "lock-box.testnet")
 	require.NoError(t, err)

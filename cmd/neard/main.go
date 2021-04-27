@@ -13,6 +13,7 @@ import (
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/service"
 	"github.com/textileio/broker-core/cmd/neard/statecache"
 	"github.com/textileio/broker-core/cmd/neard/updater"
@@ -72,7 +73,7 @@ var rootCmd = &cobra.Command{
 		rpcClient, err := rpc.DialContext(ctx, endpointURL)
 		common.CheckErr(err)
 
-		nc, err := nearclient.NewClient(rpcClient)
+		nc, err := nearclient.NewClient(&types.Config{RPCClient: rpcClient})
 		common.CheckErr(err)
 
 		lc, err := lockboxclient.NewClient(nc, accountID)
