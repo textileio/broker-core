@@ -64,14 +64,13 @@ var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1A
 func TestService_isWhitelisted(t *testing.T) {
 	// Whitelisted
 	var iss = "carsonfarmer.testnet"
-	var whitelist = map[string]bool{iss: true}
+	var whitelist = map[string]struct{}{iss: {}}
 	whitelisted := service.IsWhitelisted(iss, whitelist)
 	require.True(t, whitelisted)
 
 	// Not whitelisted
-	iss = "imposter.testnet"
-	whitelist = map[string]bool{iss: false}
-	whitelisted = service.IsWhitelisted(iss, whitelist)
+	whitelist = map[string]struct{}{iss: {}}
+	whitelisted = service.IsWhitelisted("imposter.testnet", whitelist)
 	require.False(t, whitelisted)
 }
 

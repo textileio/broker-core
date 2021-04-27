@@ -58,7 +58,7 @@ func New(config Config, deps Deps) (*Service, error) {
 	go func() {
 		pb.RegisterAuthAPIServiceServer(s.server, s)
 		if err := s.server.Serve(config.Listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Errorf("server error: %v", err)
+			log.Errorf("creating new server: %v", err)
 		}
 	}()
 	return s, nil
@@ -89,7 +89,7 @@ type AuthClaims struct {
 }
 
 // Whitelist defines the list of accounts that can use the service.
-var whiteList = map[string]bool{"carsonfarmer.testnet": true}
+var whiteList = map[string]struct{}{"carsonfarmer.testnet": {}}
 
 // ValidateInput sanity checks the raw inputs to the service.
 func ValidateInput(jwtBase64URL string) (*ValidatedInput, error) {
@@ -143,9 +143,9 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 }
 
 // IsWhitelisted checks if the given iss (issuer) is whitelisted.
-func IsWhitelisted(iss string, whitelist map[string]bool) bool {
-	v := whitelist[iss]
-	return v
+func IsWhitelisted(iss string, whitelist map[string]struct{}) bool {
+	_, prs := whitelist[iss]
+	return prs
 }
 
 // ValidateKeyDID validates the key DID.
@@ -153,19 +153,19 @@ func IsWhitelisted(iss string, whitelist map[string]bool) bool {
 func ValidateKeyDID(sub string, x string) (bool, error) {
 	subDID, err := did.Parse(sub)
 	if err != nil {
-		return false, fmt.Errorf("error parsing DID: %v", err)
+		return false, fmt.Errorf("parsing DID: %v", err)
 	}
 	_, bytes, err := mbase.Decode(subDID.ID)
 	if err != nil {
-		return false, fmt.Errorf("error decoding DID: %v", err)
+		return false, fmt.Errorf("decoding DID: %v", err)
 	}
 	// Checks that the first two bytes are multicodec prefix values (according to spec)
 	_, n, err := varint.FromUvarint(bytes)
 	if err != nil {
-		return false, fmt.Errorf("DID multiformat error: %v", err)
+		return false, fmt.Errorf("DID multiformat: %v", err)
 	}
 	if n != 2 {
-		return false, errors.New("key DID format error")
+		return false, errors.New("key DID format")
 	}
 	dx, _ := base64.URLEncoding.DecodeString(x)
 	if string(dx) != string(bytes[2:]) {
@@ -182,7 +182,7 @@ func ValidateLockedFunds(ctx context.Context, iss string, s chainapi.ChainApiSer
 	}
 	chainRes, err := s.HasFunds(ctx, chainReq)
 	if err != nil {
-		return false, fmt.Errorf("locked funds error: %v", err)
+		return false, fmt.Errorf("locked funds: %v", err)
 	}
 	if !chainRes.HasFunds {
 		return false, errors.New("account doesn't have locked funds")
@@ -218,7 +218,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// Check for locked funds
 	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Iss, s.Deps.ChainAPIServiceClient)
 	if !fundsOk || fundsErr != nil {
-		return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("locked funds error: %v", fundsErr))
+		return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("locked funds: %v", fundsErr))
 	}
 	log.Info(fmt.Sprintf("Authenticated successfully: %s", token.Iss))
 	return &pb.AuthResponse{
