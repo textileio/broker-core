@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	logger "github.com/ipfs/go-log/v2"
@@ -27,6 +28,15 @@ var (
 
 type Bid struct {
 	ID string
+
+	DataCid           cid.Cid
+	DealStartEpoch    int64
+	DealCommP         cid.Cid
+	DealSize          int64
+	DealPricePerEpoch int64
+	DealDuration      int64
+	Verified          bool
+	Miner             string
 }
 
 // Store provides persistent storage for Bids.

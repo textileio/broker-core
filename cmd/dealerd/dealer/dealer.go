@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/ipfs/go-datastore"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
@@ -21,6 +25,10 @@ type Dealer struct {
 	store  *store.Store
 	broker broker.Broker
 
+	walletAddr address.Address
+	wallet     *wallet.LocalWallet
+	gateway    api.GatewayAPI
+
 	onceClose       sync.Once
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
@@ -29,7 +37,7 @@ type Dealer struct {
 
 var _ dealeri.Dealer = (*Dealer)(nil)
 
-// New returns a new Packer.
+// New returns a new Dealer.
 func New(
 	ds datastore.TxnDatastore,
 	broker broker.Broker,
@@ -46,10 +54,28 @@ func New(
 		return nil, fmt.Errorf("initializing store: %s", err)
 	}
 
+	memks := wallet.NewMemKeyStore()
+	w, err := wallet.NewWallet(memks)
+	if err != nil {
+		return nil, fmt.Errorf("creating local wallet: %s", err)
+	}
+
+	ki := &types.KeyInfo{
+		Type:       cfg.keyType,
+		PrivateKey: cfg.keyPrivate,
+	}
+	waddr, err := w.WalletImport(context.Background(), ki)
+	if err != nil {
+		return nil, fmt.Errorf("importing wallet addr: %s", err)
+	}
+
 	ctx, cls := context.WithCancel(context.Background())
 	d := &Dealer{
 		store:  store,
 		broker: broker,
+
+		walletAddr: waddr,
+		wallet:     w,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
@@ -61,25 +87,33 @@ func New(
 	return d, nil
 }
 
+func (d *Dealer) ReadyToExecuteBids(ctx context.Context, ca dealeri.ClosedAuction) error {
+	if err := d.store.Enqueue(ca); err != nil {
+		return fmt.Errorf("enqueueing bids: %s", err)
+	}
+
+	return nil
+}
+
 // Close closes the dealer.
-func (p *Dealer) Close() error {
-	p.onceClose.Do(func() {
-		p.daemonCancelCtx()
-		<-p.daemonClosed
+func (d *Dealer) Close() error {
+	d.onceClose.Do(func() {
+		d.daemonCancelCtx()
+		<-d.daemonClosed
 	})
 	return nil
 }
 
-func (p *Dealer) daemon() {
-	defer close(p.daemonClosed)
+func (d *Dealer) daemon() {
+	defer close(d.daemonClosed)
 	for {
 		select {
-		case <-p.daemonCtx.Done():
+		case <-d.daemonCtx.Done():
 			log.Infof("dealer closed")
 			return
 		}
 	}
 }
 
-func (p *Dealer) makeDeals(ctx context.Context) {
+func (d *Dealer) makeDeals(ctx context.Context) {
 }

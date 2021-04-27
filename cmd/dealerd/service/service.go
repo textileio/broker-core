@@ -9,7 +9,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
-	"github.com/textileio/broker-core/cmd/dealderd/dealer"
+	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/dealer/v1"
 	"github.com/textileio/broker-core/rpc"
@@ -35,7 +35,7 @@ type Service struct {
 	pb.UnimplementedAPIServiceServer
 
 	server    *grpc.Server
-	dealer    *dealer.dealer
+	dealer    *dealer.Dealer
 	finalizer *finalizer.Finalizer
 }
 
