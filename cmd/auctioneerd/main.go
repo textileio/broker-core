@@ -92,6 +92,8 @@ var rootCmd = &cobra.Command{
 		fin.Add(serv)
 
 		serv.Bootstrap()
+		err = serv.EnableMDNS(1)
+		common.CheckErrf("enabling mdns: %v", err)
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

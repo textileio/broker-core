@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
+	auctioneercast "github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
@@ -196,6 +197,26 @@ func (s *Service) CreateStorageDeal(
 	}
 
 	return &pb.CreateStorageDealResponse{Id: string(sd)}, nil
+}
+
+// StorageDealAuctioned indicated that an auction has completed.
+func (s *Service) StorageDealAuctioned(
+	ctx context.Context,
+	r *pb.StorageDealAuctionedRequest) (*pb.StorageDealAuctionedResponse, error) {
+	if r == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+
+	auction, err := auctioneercast.AuctionFromPb(r.Auction)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid auction")
+	}
+
+	if err := s.broker.StorageDealAuctioned(ctx, auction); err != nil {
+		return nil, status.Errorf(codes.Internal, "storage deal auctioned: %s", err)
+	}
+
+	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
 // Close gracefully closes the service.
