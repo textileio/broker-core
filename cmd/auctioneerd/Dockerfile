@@ -3,7 +3,7 @@
 FROM golang:1.16-buster as builder
 
 RUN mkdir /app 
-WORKDIR /app 
+WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -13,5 +13,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM alpine
 COPY --from=builder /app/auctioneerd /app/auctioneerd
-WORKDIR /app 
+WORKDIR /app
+
+ENV REPO_PATH /data/auctioneerd
+RUN mkdir -p $REPO_PATH \
+  && adduser -D -h $REPO_PATH -u 1000 -G users auctioneerd \
+  && chown auctioneerd:users $REPO_PATH
+USER auctioneerd
+VOLUME $REPO_PATH
+
 ENTRYPOINT ["./auctioneerd"]
+CMD ["--repo=/data/auctioneerd"]

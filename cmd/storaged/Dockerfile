@@ -3,7 +3,7 @@
 FROM golang:1.16-buster as builder
 
 RUN mkdir /app 
-WORKDIR /app 
+WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -13,5 +13,5 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM alpine
 COPY --from=builder /app/storaged /app/storaged
-WORKDIR /app 
+WORKDIR /app
 ENTRYPOINT ["./storaged"]

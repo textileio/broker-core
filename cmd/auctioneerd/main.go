@@ -76,12 +76,14 @@ var rootCmd = &cobra.Command{
 				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
 			Auction: auctioneer.AuctionConfig{
-				Duration: v.GetDuration("auctions-duration"),
+				Duration: v.GetDuration("auction-duration"),
 			},
 		}
 		serv, err := service.New(config, broker)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
+
+		serv.Bootstrap()
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanup(nil))

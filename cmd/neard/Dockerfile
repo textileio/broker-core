@@ -3,7 +3,7 @@
 FROM golang:1.16-buster as builder
 
 RUN mkdir /app 
-WORKDIR /app 
+WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download -x

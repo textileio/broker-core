@@ -25,7 +25,7 @@ func init() {
 	flags := []common.Flag{
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 		{Name: "repo", DefValue: ".miner", Description: "Repo path"},
-		{Name: "host-multiaddr", DefValue: "/ip4/127.0.0.1/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 	}
 
@@ -67,12 +67,14 @@ var rootCmd = &cobra.Command{
 				},
 				DealSize: service.MinMaxFilter{
 					Min: 56 * 1024,               // 56KiB
-					Max: 32 * 1000 * 1000 * 1000, // 32GiB
+					Max: 32 * 1000 * 1000 * 1000, // 32GB
 				},
 			},
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)
+
+		serv.Bootstrap()
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
