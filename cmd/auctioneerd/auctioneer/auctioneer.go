@@ -65,9 +65,8 @@ func New(
 	broker core.Broker,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
-	auctionConf, err := setDefaults(auctionConf)
-	if err != nil {
-		return nil, fmt.Errorf("setting defaults: %v", err)
+	if err := checkConfig(auctionConf); err != nil {
+		return nil, fmt.Errorf("checking config: %v", err)
 	}
 
 	fin := finalizer.NewFinalizer()
@@ -101,13 +100,13 @@ func New(
 	return a, nil
 }
 
-func setDefaults(c AuctionConfig) (AuctionConfig, error) {
+func checkConfig(c AuctionConfig) error {
 	if c.Duration <= 0 {
-		return c, fmt.Errorf("duration must be greater than zero")
+		return fmt.Errorf("duration must be greater than zero")
 	} else if c.Duration > maxAuctionDuration {
-		return c, fmt.Errorf("duration must be less than or equal to %v", maxAuctionDuration)
+		return fmt.Errorf("duration must be less than or equal to %v", maxAuctionDuration)
 	}
-	return c, nil
+	return nil
 }
 
 // Close the auctioneer.

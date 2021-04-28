@@ -73,9 +73,12 @@ services:
     volumes:
       - "${REPO_PATH}/minerd:/data/minerd"
     environment:
-      - AUTH_RPC_ADDR=:5000
-      - AUTH_NEAR_ADDR=neard:5000
-      - AUTH_DEBUG=true
+      - MINER_DEBUG=true
+      - MINER_ASK_PRICE=100000000000
+      - MINER_DEAL_DURATION_MIN=525600
+      - MINER_DEAL_DURATION_MAX=1051200
+      - MINER_DEAL_SIZE_MIN=57344
+      - MINER_DEAL_SIZE_MAX=32000000000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
