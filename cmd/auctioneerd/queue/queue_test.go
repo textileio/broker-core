@@ -29,7 +29,7 @@ func TestQueue_NewID(t *testing.T) {
 	q := newQueue(t)
 
 	// Ensure monotonic
-	var last string
+	var last broker.AuctionID
 	for i := 0; i < 10000; i++ {
 		id, err := q.NewID(time.Now())
 		require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestQueue_ListRequests(t *testing.T) {
 	t.Run("pagination", func(t *testing.T) {
 		limit := 100
 		now := time.Now()
-		ids := make([]string, limit)
+		ids := make([]broker.AuctionID, limit)
 		for i := 0; i < limit; i++ {
 			now = now.Add(time.Millisecond)
 			id, err := q.CreateAuction(uuid.NewString(), 0, 0, time.Second)

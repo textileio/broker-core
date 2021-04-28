@@ -103,7 +103,7 @@ func (q *Queue) Close() error {
 }
 
 // NewID returns new monotonically increasing auction ids.
-func (q *Queue) NewID(t time.Time) (string, error) {
+func (q *Queue) NewID(t time.Time) (broker.AuctionID, error) {
 	q.lk.Lock() // entropy is not safe for concurrent use
 
 	if q.entropy == nil {
@@ -119,7 +119,7 @@ func (q *Queue) NewID(t time.Time) (string, error) {
 		return "", fmt.Errorf("generating id: %v", err)
 	}
 	q.lk.Unlock()
-	return strings.ToLower(id.String()), nil
+	return broker.AuctionID(strings.ToLower(id.String())), nil
 }
 
 // CreateAuction adds a new auction to the queue.
@@ -128,13 +128,13 @@ func (q *Queue) CreateAuction(
 	dealID string,
 	dealSize, dealDuration uint64,
 	auctionDuration time.Duration,
-) (string, error) {
+) (broker.AuctionID, error) {
 	id, err := q.NewID(time.Now())
 	if err != nil {
 		return "", fmt.Errorf("creating id: %v", err)
 	}
 	a := &broker.Auction{
-		ID:           broker.AuctionID(id),
+		ID:           id,
 		DealID:       dealID,
 		DealSize:     dealSize,
 		DealDuration: dealDuration,
@@ -148,7 +148,7 @@ func (q *Queue) CreateAuction(
 }
 
 // GetAuction returns an auction by id.
-func (q *Queue) GetAuction(id string) (*broker.Auction, error) {
+func (q *Queue) GetAuction(id broker.AuctionID) (*broker.Auction, error) {
 	a, err := getAuction(q.store, id)
 	if err != nil {
 		return nil, err
@@ -156,8 +156,8 @@ func (q *Queue) GetAuction(id string) (*broker.Auction, error) {
 	return a, err
 }
 
-func getAuction(reader ds.Read, id string) (*broker.Auction, error) {
-	val, err := reader.Get(dsPrefix.ChildString(id))
+func getAuction(reader ds.Read, id broker.AuctionID) (*broker.Auction, error) {
+	val, err := reader.Get(dsPrefix.ChildString(string(id)))
 	if errors.Is(err, ds.ErrNotFound) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -368,7 +368,7 @@ func (q *Queue) getQueued() (*broker.Auction, error) {
 		return nil, fmt.Errorf("getting next result: %v", res.Error)
 	}
 
-	a, err := getAuction(txn, path.Base(res.Key))
+	a, err := getAuction(txn, broker.AuctionID(path.Base(res.Key)))
 	if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}

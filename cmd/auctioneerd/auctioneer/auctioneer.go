@@ -128,7 +128,7 @@ func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queud if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(dealID string, dealSize, dealDuration uint64) (string, error) {
+func (a *Auctioneer) CreateAuction(dealID string, dealSize, dealDuration uint64) (core.AuctionID, error) {
 	id, err := a.queue.CreateAuction(dealID, dealSize, dealDuration, a.auctionConf.Duration)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
@@ -139,7 +139,7 @@ func (a *Auctioneer) CreateAuction(dealID string, dealSize, dealDuration uint64)
 }
 
 // GetAuction returns an auction by id.
-func (a *Auctioneer) GetAuction(id string) (*core.Auction, error) {
+func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
 	auction, err := a.queue.GetAuction(id)
 	if errors.Is(q.ErrNotFound, err) {
 		return nil, ErrNotFound

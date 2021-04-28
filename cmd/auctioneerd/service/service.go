@@ -107,13 +107,13 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		return nil, err
 	}
 	return &pb.ReadyToAuctionResponse{
-		Id: id,
+		Id: string(id),
 	}, nil
 }
 
 // GetAuction gets an auction by id.
 func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.GetAuctionResponse, error) {
-	a, err := s.lib.GetAuction(req.Id)
+	a, err := s.lib.GetAuction(broker.AuctionID(req.Id))
 	if err != nil {
 		return nil, err
 	}
