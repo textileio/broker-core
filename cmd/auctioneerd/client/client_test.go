@@ -146,7 +146,7 @@ func addMiners(t *testing.T, n int) {
 				RepoPath: dir,
 			},
 			BidParams: minersrv.BidParams{
-				AskPrice: 100,
+				AskPrice: 100000000000,
 			},
 			AuctionFilters: minersrv.AuctionFilters{
 				DealDuration: minersrv.MinMaxFilter{

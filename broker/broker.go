@@ -217,6 +217,6 @@ type BidID string
 type Bid struct {
 	Broker     peer.ID
 	From       peer.ID
-	NanoFil    int64
+	AskPrice   int64 // attoFIL per GiB per epoch
 	ReceivedAt time.Time
 }

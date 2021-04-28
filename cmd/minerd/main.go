@@ -1,5 +1,7 @@
 package main
 
+// TODO: Add filter and bid params to config.
+
 import (
 	"encoding/json"
 	_ "net/http/pprof"
@@ -56,7 +58,7 @@ var rootCmd = &cobra.Command{
 				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
 			BidParams: service.BidParams{
-				AskPrice: 100, // Just plugged a number here
+				AskPrice: 100000000000,
 			},
 			AuctionFilters: service.AuctionFilters{
 				DealDuration: service.MinMaxFilter{

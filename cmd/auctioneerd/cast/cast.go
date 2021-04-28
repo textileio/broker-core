@@ -55,7 +55,7 @@ func AuctionBidsToPb(bids map[broker.BidID]broker.Bid) map[string]*pb.Auction_Bi
 	for k, v := range bids {
 		pbbids[string(k)] = &pb.Auction_Bid{
 			From:       v.From.String(),
-			NanoFil:    v.NanoFil,
+			AskPrice:   v.AskPrice,
 			ReceivedAt: timestamppb.New(v.ReceivedAt),
 		}
 	}
@@ -115,7 +115,7 @@ func AuctionBidsFromPb(pbbids map[string]*pb.Auction_Bid) (map[broker.BidID]brok
 		}
 		bids[broker.BidID(k)] = broker.Bid{
 			From:       from,
-			NanoFil:    v.NanoFil,
+			AskPrice:   v.AskPrice,
 			ReceivedAt: v.ReceivedAt.AsTime(),
 		}
 	}

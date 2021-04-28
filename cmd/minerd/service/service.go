@@ -28,7 +28,7 @@ type Config struct {
 
 // BidParams defines how bids are made.
 type BidParams struct {
-	AskPrice int64 // nanoFIL per GiB per epoch
+	AskPrice int64 // attoFIL per GiB per epoch
 }
 
 // AuctionFilters specifies filters used when selecting auctions to bid on.
@@ -159,12 +159,10 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	defer func() { _ = bids.Close() }()
 	bids.SetEventHandler(s.eventHandler)
 
-	dealSizeGiB := float64(auction.DealSize) / 1024 / 1024 / 1024
-
 	// Submit bid to auctioneer.
 	msg, err := proto.Marshal(&pb.Bid{
 		AuctionId: auction.Id,
-		NanoFil:   int64(dealSizeGiB*float64(auction.DealDuration)) * s.bidParams.AskPrice,
+		AskPrice:  s.bidParams.AskPrice,
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
