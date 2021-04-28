@@ -199,27 +199,27 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	// Validate the request input.
 	validInput, InputErr := ValidateInput(req.Token)
 	if InputErr != nil {
-		return nil, status.Errorf(
-			codes.InvalidArgument, fmt.Sprintf("invalid request input: %s (%v)", req, InputErr))
+		return nil, status.Errorf(codes.InvalidArgument, "invalid request input: %s (%v)", req, InputErr)
 	}
 	// Validate the JWT token.
 	token, tokenErr := ValidateToken(validInput.Token)
 	if tokenErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("invalid JWT: %v", tokenErr))
+		return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", tokenErr)
 	}
+	// Check that the issuer is whitelisted.
 	whitelisted := IsWhitelisted(token.Iss, whiteList)
 	if !whitelisted {
-		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("account not whitelisted: %v", token.Iss))
+		return nil, status.Errorf(codes.Unauthenticated, "account not whitelisted: %v", token.Iss)
 	}
 	// Validate the key DID.
 	keyOk, keyErr := ValidateKeyDID(token.Sub, token.X)
 	if !keyOk || keyErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, fmt.Sprintf("invalid Key DID: %v", keyErr))
+		return nil, status.Errorf(codes.Unauthenticated, "invalid Key DID: %v", keyErr)
 	}
 	// Check for locked funds
 	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Iss, s.Deps.ChainAPIServiceClient)
 	if !fundsOk || fundsErr != nil {
-		return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("locked funds: %v", fundsErr))
+		return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", fundsErr)
 	}
 	log.Info(fmt.Sprintf("Authenticated successfully: %s", token.Iss))
 	return &pb.AuthResponse{
