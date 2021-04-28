@@ -16,7 +16,7 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
-	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -29,7 +29,7 @@ var (
 
 // Config provides configuration to the broker service.
 type Config struct {
-	GrpcListenAddress string
+	ListenAddr string
 
 	AuctioneerAddr string
 	PackerAddr     string
@@ -38,6 +38,8 @@ type Config struct {
 	MongoURI    string
 
 	IpfsMultiaddr string
+
+	DealEpochs uint64
 }
 
 // Service provides an implementation of the broker API.
@@ -55,12 +57,12 @@ var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
 func New(config Config) (*Service, error) {
-	listener, err := net.Listen("tcp", config.GrpcListenAddress)
+	listener, err := net.Listen("tcp", config.ListenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	ds, err := common.CreateMongoTxnDatastore(config.MongoURI, config.MongoDBName)
+	ds, err := dshelper.NewMongoTxnDatastore(config.MongoURI, config.MongoDBName)
 	if err != nil {
 		return nil, fmt.Errorf("creating datastore: %s", err)
 	}
@@ -80,7 +82,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
 	}
 
-	broker, err := brokeri.New(ds, packer, piecer, auctioneer)
+	broker, err := brokeri.New(ds, packer, piecer, auctioneer, config.DealEpochs)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
@@ -101,7 +103,7 @@ func New(config Config) (*Service, error) {
 		}
 	}()
 
-	log.Infof("service listening at %s", config.GrpcListenAddress)
+	log.Infof("service listening at %s", config.ListenAddr)
 
 	return s, nil
 }

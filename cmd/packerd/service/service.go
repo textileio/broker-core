@@ -13,8 +13,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
-	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/packer/v1"
 	"github.com/textileio/broker-core/rpc"
@@ -58,7 +58,7 @@ func New(conf Config) (*Service, error) {
 
 	fin := finalizer.NewFinalizer()
 
-	ds, err := common.CreateMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
+	ds, err := dshelper.NewMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
 	if err != nil {
 		return nil, fmt.Errorf("creating datastore: %s", err)
 	}

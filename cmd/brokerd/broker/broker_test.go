@@ -134,7 +134,7 @@ func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer) {
 	packer := &dumbPacker{}
 	piecer := &dumbPiecer{}
 	auctioneer := &dumbAuctioneer{}
-	b, err := New(ds, packer, piecer, auctioneer)
+	b, err := New(ds, packer, piecer, auctioneer, broker.MaxDealEpochs)
 	require.NoError(t, err)
 
 	return b, packer, piecer
@@ -174,8 +174,16 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 type dumbAuctioneer struct {
 }
 
-func (dp *dumbAuctioneer) ReadyToAuction(ctx context.Context, sd broker.StorageDeal) error {
-	return nil
+func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error) {
+	panic("shouldn't be called")
+}
+
+func (dp *dumbAuctioneer) ReadyToAuction(
+	ctx context.Context,
+	id broker.StorageDealID,
+	dealSize, dealDuration uint64,
+) (broker.AuctionID, error) {
+	return "", nil
 }
 
 func createCidFromString(s string) cid.Cid {

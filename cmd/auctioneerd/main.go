@@ -1,15 +1,23 @@
 package main
 
+// TODO: Use mongo for auction persistence.
+
 import (
 	"encoding/json"
+	"net"
 	_ "net/http/pprof"
+	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -20,11 +28,13 @@ var (
 
 func init() {
 	flags := []common.Flag{
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 		{Name: "repo", DefValue: ".auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
 	}
 
 	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd)
@@ -41,29 +51,40 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(c *cobra.Command, args []string) {
+		fin := finalizer.NewFinalizer()
+
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
-		common.CheckErr(err)
+		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
-			log.Fatalf("booting instrumentation: %s", err)
-		}
+		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
+		common.CheckErrf("booting instrumentation: %v", err)
+
+		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
+		common.CheckErrf("creating listener: %v", err)
+		fin.Add(listener)
+
+		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
+		common.CheckErrf("dialing broker: %v", err)
+		fin.Add(broker)
 
 		config := service.Config{
-			RepoPath:   v.GetString("repo"),
-			ListenAddr: v.GetString("rpc-addr"),
+			RepoPath: v.GetString("repo"),
+			Listener: listener,
 			Peer: marketpeer.Config{
 				RepoPath:      v.GetString("repo"),
 				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
+			Auction: auctioneer.AuctionConfig{
+				Duration: v.GetDuration("auctions-duration"),
+			},
 		}
-		serv, err := service.New(config)
-		common.CheckErr(err)
+		serv, err := service.New(config, broker)
+		common.CheckErrf("starting service: %v", err)
+		fin.Add(serv)
 
 		common.HandleInterrupt(func() {
-			if err := serv.Close(); err != nil {
-				log.Errorf("closing service: %s", err)
-			}
+			common.CheckErr(fin.Cleanup(nil))
 		})
 	},
 }

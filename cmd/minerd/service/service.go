@@ -1,14 +1,15 @@
 package service
 
+// TODO: Store bids (bid history).
+
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
-	core "github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
@@ -19,13 +20,35 @@ var log = golog.Logger("miner/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	RepoPath string
-	Peer     marketpeer.Config
+	RepoPath       string
+	Peer           marketpeer.Config
+	BidParams      BidParams
+	AuctionFilters AuctionFilters
+}
+
+// BidParams defines how bids are made.
+type BidParams struct {
+	AskPrice int64 // attoFIL per GiB per epoch
+}
+
+// AuctionFilters specifies filters used when selecting auctions to bid on.
+type AuctionFilters struct {
+	DealDuration MinMaxFilter
+	DealSize     MinMaxFilter
+}
+
+// MinMaxFilter is used to specify a range for an auction filter.
+type MinMaxFilter struct {
+	Min uint64
+	Max uint64
 }
 
 // Service is a miner service that subscribes to brokered deals.
 type Service struct {
 	peer *marketpeer.Peer
+
+	bidParams      BidParams
+	auctionFilters AuctionFilters
 
 	ctx       context.Context
 	finalizer *finalizer.Finalizer
@@ -44,10 +67,15 @@ func New(conf Config) (*Service, error) {
 	}
 	fin.Add(p)
 
-	s := &Service{peer: p, ctx: ctx}
+	s := &Service{
+		peer:           p,
+		bidParams:      conf.BidParams,
+		auctionFilters: conf.AuctionFilters,
+		ctx:            ctx,
+	}
 
 	// Subscribe to the global auctions topic
-	auctions, err := p.NewTopic(ctx, core.AuctionTopic, true)
+	auctions, err := p.NewTopic(ctx, broker.AuctionTopic, true)
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctions topic: %v", err)
 	}
@@ -56,7 +84,7 @@ func New(conf Config) (*Service, error) {
 	auctions.SetMessageHandler(s.auctionsHandler)
 
 	// Subscribe to our own wins topic
-	wins, err := p.NewTopic(ctx, core.WinsTopic(p.Self()), true)
+	wins, err := p.NewTopic(ctx, broker.WinsTopic(p.Self()), true)
 	if err != nil {
 		return nil, fin.Cleanupf("creating wins topic: %v", err)
 	}
@@ -115,7 +143,7 @@ func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) {
 		log.Errorf("unmarshaling message: %v", err)
 		return
 	}
-	log.Infof("deal won in auction %s with bid %s", win.AuctionId, win.BidId)
+	log.Infof("bid %s won in auction %s", win.BidId, win.AuctionId)
 }
 
 func (s *Service) makeBid(auction *pb.Auction) error {
@@ -124,7 +152,7 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	}
 
 	// Create bids topic.
-	bids, err := s.peer.NewTopic(s.ctx, core.BidsTopic(auction.Id), false)
+	bids, err := s.peer.NewTopic(s.ctx, broker.BidsTopic(broker.AuctionID(auction.Id)), false)
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
 	}
@@ -134,9 +162,7 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	// Submit bid to auctioneer.
 	msg, err := proto.Marshal(&pb.Bid{
 		AuctionId: auction.Id,
-
-		// @todo: Figure out what this should really look like.
-		Amount: int64(rand.Intn(100)),
+		AskPrice:  s.bidParams.AskPrice,
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
@@ -147,10 +173,24 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	return nil
 }
 
+// TODO: Add defaults.
 func (s *Service) filterAuction(auction *pb.Auction) bool {
-	if auction.EndsAt.IsValid() && auction.EndsAt.AsTime().After(time.Now()) {
-		// Bid on them all, yolo
-		return true
+	// Check if auction is still in progress.
+	if !auction.EndsAt.IsValid() || auction.EndsAt.AsTime().Before(time.Now()) {
+		return false
 	}
-	return false
+
+	// Check if deal size is within configured bounds.
+	if auction.DealSize < s.auctionFilters.DealSize.Min ||
+		auction.DealSize > s.auctionFilters.DealSize.Max {
+		return false
+	}
+
+	// Check if deal duration is within configured bounds.
+	if auction.DealDuration < s.auctionFilters.DealDuration.Min ||
+		auction.DealDuration > s.auctionFilters.DealDuration.Max {
+		return false
+	}
+
+	return true
 }

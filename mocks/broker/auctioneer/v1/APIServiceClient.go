@@ -17,36 +17,6 @@ type APIServiceClient struct {
 	mock.Mock
 }
 
-// CreateAuction provides a mock function with given fields: ctx, in, opts
-func (_m *APIServiceClient) CreateAuction(ctx context.Context, in *auctioneer.CreateAuctionRequest, opts ...grpc.CallOption) (*auctioneer.CreateAuctionResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *auctioneer.CreateAuctionResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *auctioneer.CreateAuctionRequest, ...grpc.CallOption) *auctioneer.CreateAuctionResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*auctioneer.CreateAuctionResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *auctioneer.CreateAuctionRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetAuction provides a mock function with given fields: ctx, in, opts
 func (_m *APIServiceClient) GetAuction(ctx context.Context, in *auctioneer.GetAuctionRequest, opts ...grpc.CallOption) (*auctioneer.GetAuctionResponse, error) {
 	_va := make([]interface{}, len(opts))
@@ -69,6 +39,36 @@ func (_m *APIServiceClient) GetAuction(ctx context.Context, in *auctioneer.GetAu
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *auctioneer.GetAuctionRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ReadyToAuction provides a mock function with given fields: ctx, in, opts
+func (_m *APIServiceClient) ReadyToAuction(ctx context.Context, in *auctioneer.ReadyToAuctionRequest, opts ...grpc.CallOption) (*auctioneer.ReadyToAuctionResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *auctioneer.ReadyToAuctionResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *auctioneer.ReadyToAuctionRequest, ...grpc.CallOption) *auctioneer.ReadyToAuctionResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*auctioneer.ReadyToAuctionResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *auctioneer.ReadyToAuctionRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)

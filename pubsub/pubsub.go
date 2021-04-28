@@ -110,6 +110,8 @@ func (t *Topic) watch() {
 			msg = "JOINED"
 		case pubsub.PeerLeave:
 			msg = "LEFT"
+		default:
+			continue
 		}
 		t.lk.Lock()
 		if t.eventHandler != nil {

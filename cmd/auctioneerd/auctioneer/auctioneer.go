@@ -1,5 +1,8 @@
 package auctioneer
 
+// TODO: Add ACK response to incoming bids.
+// TODO: Allow for multiple winners.
+
 import (
 	"context"
 	"errors"
@@ -10,11 +13,11 @@ import (
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
-	core "github.com/textileio/broker-core/auctioneer"
+	core "github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
-	kt "github.com/textileio/broker-core/keytransform"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/pubsub"
 	"google.golang.org/protobuf/proto"
@@ -24,33 +27,59 @@ import (
 var (
 	log = golog.Logger("auctioneer")
 
-	// AuctionDuration is the duration of time auctions run for.
-	// TODO (@sander): Move this to a configuration param.
-	AuctionDuration = time.Second * 10
+	// maxAuctionDuration is the max duration an auction can run for.
+	maxAuctionDuration = time.Minute * 10
+
+	// ErrNotFound indicates the requested auction was not found.
+	ErrNotFound = errors.New("auction not found")
 
 	// ErrAuctionFailed indicates an auction was not successful.
 	ErrAuctionFailed = errors.New("auction failed; no acceptable bids")
 )
 
+// AuctionConfig defines auction params.
+type AuctionConfig struct {
+	// Duration auctions will be held for.
+	Duration time.Duration
+}
+
 // Auctioneer handles deal auctions for a broker.
 type Auctioneer struct {
-	queue *q.Queue
+	queue       *q.Queue
+	auctionConf AuctionConfig
 
 	peer     *marketpeer.Peer
 	auctions *pubsub.Topic
-	bids     map[string]chan core.Bid
+	bids     map[core.AuctionID]chan core.Bid
+
+	broker core.Broker
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
 }
 
 // New returns a new Auctioneer.
-func New(peer *marketpeer.Peer, store kt.TxnDatastoreExtended) (*Auctioneer, error) {
+func New(
+	peer *marketpeer.Peer,
+	store txndswrap.TxnDatastore,
+	broker core.Broker,
+	auctionConf AuctionConfig,
+) (*Auctioneer, error) {
+	auctionConf, err := setDefaults(auctionConf)
+	if err != nil {
+		return nil, fmt.Errorf("setting defaults: %v", err)
+	}
+
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
 
-	a := &Auctioneer{peer: peer, bids: make(map[string]chan core.Bid)}
+	a := &Auctioneer{
+		peer:        peer,
+		bids:        make(map[core.AuctionID]chan core.Bid),
+		broker:      broker,
+		auctionConf: auctionConf,
+	}
 
 	// Create the global auctions topic
 	auctions, err := peer.NewTopic(ctx, core.AuctionTopic, false)
@@ -72,6 +101,15 @@ func New(peer *marketpeer.Peer, store kt.TxnDatastoreExtended) (*Auctioneer, err
 	return a, nil
 }
 
+func setDefaults(c AuctionConfig) (AuctionConfig, error) {
+	if c.Duration <= 0 {
+		return c, fmt.Errorf("duration must be greater than zero")
+	} else if c.Duration > maxAuctionDuration {
+		return c, fmt.Errorf("duration must be less than or equal to %v", maxAuctionDuration)
+	}
+	return c, nil
+}
+
 // Close the auctioneer.
 func (a *Auctioneer) Close() error {
 	return a.finalizer.Cleanup(nil)
@@ -90,8 +128,8 @@ func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queud if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction() (string, error) {
-	id, err := a.queue.CreateAuction(AuctionDuration)
+func (a *Auctioneer) CreateAuction(dealID string, dealSize, dealDuration uint64) (core.AuctionID, error) {
+	id, err := a.queue.CreateAuction(dealID, dealSize, dealDuration, a.auctionConf.Duration)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
 	}
@@ -101,8 +139,14 @@ func (a *Auctioneer) CreateAuction() (string, error) {
 }
 
 // GetAuction returns an auction by id.
-func (a *Auctioneer) GetAuction(id string) (*core.Auction, error) {
-	return a.queue.GetAuction(id)
+func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
+	auction, err := a.queue.GetAuction(id)
+	if errors.Is(q.ErrNotFound, err) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("getting auction: %v", err)
+	}
+	return auction, nil
 }
 
 func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) error {
@@ -131,12 +175,14 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 	bids.SetMessageHandler(a.bidsHandler)
 
 	// Set deadline
-	deadline := auction.StartedAt.Add(time.Duration(auction.Duration))
+	deadline := auction.StartedAt.Add(auction.Duration)
 
 	// Publish the auction.
 	msg, err := proto.Marshal(&pb.Auction{
-		Id:     auction.ID,
-		EndsAt: timestamppb.New(deadline),
+		Id:           string(auction.ID),
+		DealSize:     auction.DealSize,
+		DealDuration: auction.DealDuration,
+		EndsAt:       timestamppb.New(deadline),
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
@@ -145,7 +191,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 		return fmt.Errorf("publishing auction: %v", err)
 	}
 
-	auction.Bids = make(map[string]core.Bid)
+	auction.Bids = make(map[core.BidID]core.Bid)
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	for {
@@ -155,17 +201,23 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 				return fmt.Errorf("selecting winner: %v", err)
 			}
 
+			// TODO: Ensure auction state is persisted before notifying broker?
+			auction.Status = core.AuctionStatusEnded
+			if err := a.broker.StorageDealAuctioned(ctx, *auction); err != nil {
+				return fmt.Errorf("signaling broker: %v", err)
+			}
+
 			log.Debugf("auction %s completed; total bids: %d", auction.ID, len(auction.Bids))
 			return nil
 		case bid, ok := <-resCh:
 			if ok {
-				log.Debugf("auction %s received bid from %s for %d", auction.ID, bid.From, bid.Amount)
+				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.From, bid.AskPrice)
 
 				id, err := a.queue.NewID(bid.ReceivedAt)
 				if err != nil {
 					return fmt.Errorf("generating bid id: %v", err)
 				}
-				auction.Bids[id] = bid
+				auction.Bids[core.BidID(id)] = bid
 			}
 		}
 	}
@@ -175,9 +227,7 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
 }
 
-func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
-	log.Debugf("%s received bid from %s", topic, from)
-
+func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	bid := &pb.Bid{}
 	if err := proto.Unmarshal(msg, bid); err != nil {
 		log.Errorf("unmarshaling message: %v", err)
@@ -186,11 +236,11 @@ func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
 
 	a.lk.Lock()
 	defer a.lk.Unlock()
-	ch, ok := a.bids[bid.AuctionId]
+	ch, ok := a.bids[core.AuctionID(bid.AuctionId)]
 	if ok {
 		ch <- core.Bid{
 			From:       from,
-			Amount:     bid.Amount,
+			AskPrice:   bid.AskPrice,
 			ReceivedAt: time.Now(),
 		}
 	}
@@ -198,12 +248,12 @@ func (a *Auctioneer) bidsHandler(from peer.ID, topic string, msg []byte) {
 
 func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) error {
 	var winner peer.ID
-	topBid := math.MinInt64
+	topBid := math.MaxInt64
 	for k, v := range auction.Bids {
-		if int(v.Amount) > topBid {
-			topBid = int(v.Amount)
+		if int(v.AskPrice) < topBid {
+			topBid = int(v.AskPrice)
 			winner = v.From
-			auction.Winner = k
+			auction.WinningBids = append(auction.WinningBids, k)
 		}
 	}
 
@@ -221,8 +271,8 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 
 	// Notify winner.
 	msg, err := proto.Marshal(&pb.Win{
-		AuctionId: auction.ID,
-		BidId:     auction.Winner,
+		AuctionId: string(auction.ID),
+		BidId:     string(auction.WinningBids[0]),
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
