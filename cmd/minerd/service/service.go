@@ -9,7 +9,7 @@ import (
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
-	core "github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
@@ -75,7 +75,7 @@ func New(conf Config) (*Service, error) {
 	}
 
 	// Subscribe to the global auctions topic
-	auctions, err := p.NewTopic(ctx, core.AuctionTopic, true)
+	auctions, err := p.NewTopic(ctx, broker.AuctionTopic, true)
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctions topic: %v", err)
 	}
@@ -84,7 +84,7 @@ func New(conf Config) (*Service, error) {
 	auctions.SetMessageHandler(s.auctionsHandler)
 
 	// Subscribe to our own wins topic
-	wins, err := p.NewTopic(ctx, core.WinsTopic(p.Self()), true)
+	wins, err := p.NewTopic(ctx, broker.WinsTopic(p.Self()), true)
 	if err != nil {
 		return nil, fin.Cleanupf("creating wins topic: %v", err)
 	}
@@ -152,7 +152,7 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	}
 
 	// Create bids topic.
-	bids, err := s.peer.NewTopic(s.ctx, core.BidsTopic(auction.Id), false)
+	bids, err := s.peer.NewTopic(s.ctx, broker.BidsTopic(broker.AuctionID(auction.Id)), false)
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
 	}

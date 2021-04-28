@@ -174,12 +174,16 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 type dumbAuctioneer struct {
 }
 
+func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error) {
+	panic("shouldn't be called")
+}
+
 func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
 	id broker.StorageDealID,
 	dealSize, dealDuration uint64,
-) error {
-	return nil
+) (broker.AuctionID, error) {
+	return "", nil
 }
 
 func createCidFromString(s string) cid.Cid {

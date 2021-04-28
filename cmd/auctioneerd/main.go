@@ -13,9 +13,9 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/finalizer"
-	broker "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/marketpeer"
 	"google.golang.org/grpc"
 )
@@ -64,9 +64,9 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("creating listener: %v", err)
 		fin.Add(listener)
 
-		brokerConn, err := grpc.Dial(v.GetString("broker-addr"), grpc.WithInsecure())
+		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
 		common.CheckErrf("dialing broker: %v", err)
-		fin.Add(brokerConn)
+		fin.Add(broker)
 
 		config := service.Config{
 			RepoPath: v.GetString("repo"),
@@ -79,7 +79,7 @@ var rootCmd = &cobra.Command{
 				Duration: v.GetDuration("auctions-duration"),
 			},
 		}
-		serv, err := service.New(config, broker.NewAPIServiceClient(brokerConn))
+		serv, err := service.New(config, broker)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 

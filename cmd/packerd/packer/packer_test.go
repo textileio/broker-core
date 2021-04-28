@@ -206,7 +206,6 @@ func (bm *brokerMock) CreateStorageDeal(
 	return broker.StorageDealID("DUKE"), nil
 }
 
-// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
 func (bm *brokerMock) StorageDealPrepared(
 	ctx context.Context,
 	id broker.StorageDealID,
@@ -214,11 +213,14 @@ func (bm *brokerMock) StorageDealPrepared(
 	panic("shouldn't be called")
 }
 
+func (bm *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
+	panic("shouldn't be called")
+}
+
 func (bm *brokerMock) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }
 
-// Get returns a broker request from an id.
 func (bm *brokerMock) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }

@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
-	"github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
@@ -41,7 +41,7 @@ type Service struct {
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config, broker broker.APIServiceClient) (*Service, error) {
+func New(conf Config, broker broker.Broker) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer
@@ -100,13 +100,13 @@ func (s *Service) EnableMDNS(intervalSecs int) error {
 	return s.lib.EnableMDNS(intervalSecs)
 }
 
-// CreateAuction creates a new auction.
-func (s *Service) CreateAuction(_ context.Context, req *pb.CreateAuctionRequest) (*pb.CreateAuctionResponse, error) {
+// ReadyToAuction creates a new auction.
+func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	id, err := s.lib.CreateAuction(req.DealId, req.DealSize, req.DealDuration)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.CreateAuctionResponse{
+	return &pb.ReadyToAuctionResponse{
 		Id: id,
 	}, nil
 }
@@ -118,6 +118,6 @@ func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.
 		return nil, err
 	}
 	return &pb.GetAuctionResponse{
-		Auction: cast.AuctionToPb(a),
+		Auction: cast.AuctionToPb(*a),
 	}, nil
 }

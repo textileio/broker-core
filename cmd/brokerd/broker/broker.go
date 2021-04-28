@@ -179,12 +179,22 @@ func (b *Broker) StorageDealPrepared(
 	// var sd broker.StorageDeal // assume this variable will exist...
 
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
-	// Signal the Auctioneer to create an auction. It will eventually call WinningBids(..) to tell
+	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
 	// us about who won things.
-	if err := b.auctioneer.ReadyToAuction(ctx, id, po.PieceSize, b.dealEpochs); err != nil {
+	auctionID, err := b.auctioneer.ReadyToAuction(ctx, id, po.PieceSize, b.dealEpochs)
+	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
 
+	log.Debugf("created auction %s", auctionID)
+	return nil
+}
+
+// StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
+func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
+	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.DealID)
+
+	// TODO: Signal dealer to start the deal.
 	return nil
 }
 

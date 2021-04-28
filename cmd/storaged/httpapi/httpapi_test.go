@@ -118,7 +118,8 @@ func TestFail(t *testing.T) {
 		req, res := makeRequestWithFile(t)
 
 		usm := &uploaderMock{}
-		usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(storage.Request{}, fmt.Errorf("oops"))
+		usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).
+			Return(storage.Request{}, fmt.Errorf("oops"))
 		usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
 
 		mux := createMux(usm)

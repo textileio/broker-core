@@ -2,7 +2,6 @@ package auctioneer
 
 // TODO: Add ACK response to incoming bids.
 // TODO: Allow for multiple winners.
-// TODO: Notify broker of winners.
 
 import (
 	"context"
@@ -14,12 +13,11 @@ import (
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
-	core "github.com/textileio/broker-core/auctioneer"
+	core "github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
-	broker "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/pubsub"
 	"google.golang.org/protobuf/proto"
@@ -52,9 +50,9 @@ type Auctioneer struct {
 
 	peer     *marketpeer.Peer
 	auctions *pubsub.Topic
-	bids     map[string]chan core.Bid
+	bids     map[core.AuctionID]chan core.Bid
 
-	broker broker.APIServiceClient
+	broker core.Broker
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
@@ -64,7 +62,7 @@ type Auctioneer struct {
 func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
-	broker broker.APIServiceClient,
+	broker core.Broker,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
 	auctionConf, err := setDefaults(auctionConf)
@@ -78,7 +76,7 @@ func New(
 
 	a := &Auctioneer{
 		peer:        peer,
-		bids:        make(map[string]chan core.Bid),
+		bids:        make(map[core.AuctionID]chan core.Bid),
 		broker:      broker,
 		auctionConf: auctionConf,
 	}
@@ -181,7 +179,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 
 	// Publish the auction.
 	msg, err := proto.Marshal(&pb.Auction{
-		Id:           auction.ID,
+		Id:           string(auction.ID),
 		DealSize:     auction.DealSize,
 		DealDuration: auction.DealDuration,
 		EndsAt:       timestamppb.New(deadline),
@@ -193,7 +191,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 		return fmt.Errorf("publishing auction: %v", err)
 	}
 
-	auction.Bids = make(map[string]core.Bid)
+	auction.Bids = make(map[core.BidID]core.Bid)
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	for {
@@ -201,6 +199,12 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 		case <-actx.Done():
 			if err := a.selectWinner(ctx, auction); err != nil {
 				return fmt.Errorf("selecting winner: %v", err)
+			}
+
+			// TODO: Ensure auction state is persisted before notifying broker?
+			auction.Status = core.AuctionStatusEnded
+			if err := a.broker.StorageDealAuctioned(ctx, *auction); err != nil {
+				return fmt.Errorf("signaling broker: %v", err)
 			}
 
 			log.Debugf("auction %s completed; total bids: %d", auction.ID, len(auction.Bids))
@@ -213,7 +217,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 				if err != nil {
 					return fmt.Errorf("generating bid id: %v", err)
 				}
-				auction.Bids[id] = bid
+				auction.Bids[core.BidID(id)] = bid
 			}
 		}
 	}
@@ -232,7 +236,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 
 	a.lk.Lock()
 	defer a.lk.Unlock()
-	ch, ok := a.bids[bid.AuctionId]
+	ch, ok := a.bids[core.AuctionID(bid.AuctionId)]
 	if ok {
 		ch <- core.Bid{
 			From:       from,
@@ -249,7 +253,7 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 		if int(v.NanoFil) < topBid {
 			topBid = int(v.NanoFil)
 			winner = v.From
-			auction.WinningBid = k
+			auction.WinningBids = append(auction.WinningBids, k)
 		}
 	}
 
@@ -267,8 +271,8 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 
 	// Notify winner.
 	msg, err := proto.Marshal(&pb.Win{
-		AuctionId: auction.ID,
-		BidId:     auction.WinningBid,
+		AuctionId: string(auction.ID),
+		BidId:     string(auction.WinningBids[0]),
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)

@@ -10,7 +10,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	core "github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
 	. "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/logging"
 	badger "github.com/textileio/go-ds-badger3"
@@ -68,7 +68,7 @@ func TestQueue_ListRequests(t *testing.T) {
 
 		// Get next page, should return next 10 records
 		offset := l[len(l)-1].ID
-		l, err = q.ListAuctions(Query{Offset: offset})
+		l, err = q.ListAuctions(Query{Offset: string(offset)})
 		require.NoError(t, err)
 		assert.Len(t, l, 10)
 		assert.Equal(t, ids[limit-11], l[0].ID)
@@ -76,7 +76,7 @@ func TestQueue_ListRequests(t *testing.T) {
 
 		// Get previous page, should return the first page in reverse order
 		offset = l[0].ID
-		l, err = q.ListAuctions(Query{Offset: offset, Order: OrderAscending})
+		l, err = q.ListAuctions(Query{Offset: string(offset), Order: OrderAscending})
 		require.NoError(t, err)
 		assert.Len(t, l, 10)
 		assert.Equal(t, ids[limit-10], l[0].ID)
@@ -96,7 +96,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
-	assert.Equal(t, core.AuctionStatusEnded, got.Status)
+	assert.Equal(t, broker.AuctionStatusEnded, got.Status)
 }
 
 func newQueue(t *testing.T) *Queue {
@@ -113,7 +113,7 @@ func newQueue(t *testing.T) *Queue {
 	return q
 }
 
-func handler(_ context.Context, _ *core.Auction) error {
+func handler(_ context.Context, _ *broker.Auction) error {
 	time.Sleep(time.Millisecond * 100)
 	return nil
 }

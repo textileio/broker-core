@@ -8,16 +8,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/broker"
+	core "github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	minersrv "github.com/textileio/broker-core/cmd/minerd/service"
 	"github.com/textileio/broker-core/finalizer"
-	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
+	brokerpb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 	mocks "github.com/textileio/broker-core/mocks/broker/v1"
@@ -44,30 +47,30 @@ func init() {
 	}
 }
 
-func TestClient_CreateAuction(t *testing.T) {
+func TestClient_ReadyToAuction(t *testing.T) {
 	c := newClient(t)
 
-	res, err := c.CreateAuction(context.Background(), newDealID(), oneGiB, twoMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, twoMonths)
 	require.NoError(t, err)
-	assert.NotEmpty(t, res.Id)
+	assert.NotEmpty(t, id)
 }
 
 func TestClient_GetAuction(t *testing.T) {
 	c := newClient(t)
 
-	res, err := c.CreateAuction(context.Background(), newDealID(), oneGiB, twoMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, twoMonths)
 	require.NoError(t, err)
 
-	got, err := c.GetAuction(context.Background(), res.Id)
+	got, err := c.GetAuction(context.Background(), id)
 	require.NoError(t, err)
-	assert.Equal(t, res.Id, got.Auction.Id)
-	assert.Equal(t, pb.Auction_STATUS_STARTED, got.Auction.Status)
+	assert.Equal(t, id, got.ID)
+	assert.Equal(t, core.AuctionStatusStarted, got.Status)
 
-	time.Sleep(time.Second * 10) // Allow to finish
+	time.Sleep(time.Second * 15) // Allow to finish
 
-	got, err = c.GetAuction(context.Background(), res.Id)
+	got, err = c.GetAuction(context.Background(), id)
 	require.NoError(t, err)
-	assert.Equal(t, pb.Auction_STATUS_ERROR, got.Auction.Status) // no miners making bids
+	assert.Equal(t, core.AuctionStatusError, got.Status) // no miners making bids
 }
 
 func TestClient_RunAuction(t *testing.T) {
@@ -76,17 +79,17 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	res, err := c.CreateAuction(context.Background(), newDealID(), oneGiB, twoMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, twoMonths)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
-	got, err := c.GetAuction(context.Background(), res.Id)
+	got, err := c.GetAuction(context.Background(), id)
 	require.NoError(t, err)
-	assert.Equal(t, res.Id, got.Auction.Id)
-	assert.Equal(t, pb.Auction_STATUS_ENDED, got.Auction.Status)
-	assert.NotEmpty(t, got.Auction.WinningBid)
-	assert.NotNil(t, got.Auction.Bids[got.Auction.WinningBid])
+	assert.Equal(t, id, got.ID)
+	assert.Equal(t, core.AuctionStatusEnded, got.Status)
+	assert.NotEmpty(t, got.WinningBids)
+	assert.NotNil(t, got.Bids[got.WinningBids[0]])
 }
 
 func newClient(t *testing.T) *client.Client {
@@ -110,7 +113,15 @@ func newClient(t *testing.T) *client.Client {
 			Duration: time.Second * 10,
 		},
 	}
-	s, err := service.New(config, &mocks.APIServiceClient{})
+
+	broker := &brokerMock{client: &mocks.APIServiceClient{}}
+	broker.client.On(
+		"StorageDealAuctioned",
+		mock.Anything,
+		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
+	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
+
+	s, err := service.New(config, broker)
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.EnableMDNS(1)
@@ -122,7 +133,7 @@ func newClient(t *testing.T) *client.Client {
 	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
 	fin.Add(conn)
-	return client.NewClient(conn)
+	return client.New(conn)
 }
 
 func addMiners(t *testing.T, n int) {
@@ -139,8 +150,8 @@ func addMiners(t *testing.T, n int) {
 			},
 			AuctionFilters: minersrv.AuctionFilters{
 				DealDuration: minersrv.MinMaxFilter{
-					Min: broker.MinDealEpochs,
-					Max: broker.MaxDealEpochs,
+					Min: core.MinDealEpochs,
+					Max: core.MaxDealEpochs,
 				},
 				DealSize: minersrv.MinMaxFilter{
 					Min: 56 * 1024,
@@ -159,6 +170,37 @@ func addMiners(t *testing.T, n int) {
 	}
 }
 
-func newDealID() broker.StorageDealID {
-	return broker.StorageDealID(uuid.New().String())
+func newDealID() core.StorageDealID {
+	return core.StorageDealID(uuid.New().String())
+}
+
+type brokerMock struct {
+	client *mocks.APIServiceClient
+}
+
+func (bm *brokerMock) CreateStorageDeal(
+	context.Context,
+	cid.Cid,
+	[]core.BrokerRequestID,
+) (core.StorageDealID, error) {
+	panic("shouldn't be called")
+}
+
+func (bm *brokerMock) StorageDealPrepared(context.Context, core.StorageDealID, core.DataPreparationResult) error {
+	panic("shouldn't be called")
+}
+
+func (bm *brokerMock) StorageDealAuctioned(ctx context.Context, auction core.Auction) error {
+	_, err := bm.client.StorageDealAuctioned(ctx, &brokerpb.StorageDealAuctionedRequest{
+		Auction: cast.AuctionToPb(auction),
+	})
+	return err
+}
+
+func (bm *brokerMock) Create(context.Context, cid.Cid, core.Metadata) (core.BrokerRequest, error) {
+	panic("shouldn't be called")
+}
+
+func (bm *brokerMock) Get(context.Context, core.BrokerRequestID) (core.BrokerRequest, error) {
+	panic("shouldn't be called")
 }
