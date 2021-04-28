@@ -27,14 +27,14 @@ type Transaction struct {
 	PublicKey  PublicKey
 	Nonce      uint64
 	ReceiverID string
-	BlockHash  []byte //[32]byte
+	BlockHash  [32]byte
 	Actions    []Action
 }
 
 // PublicKey asdf.
 type PublicKey struct {
 	KeyType uint8
-	Data    []byte //[32]byte
+	Data    [32]byte
 }
 
 // AccessKey asdf.
@@ -117,16 +117,16 @@ type DeleteAccount struct {
 }
 
 func CreateAccountAction() Action {
-	return Action{Enum: 1, CreateAccount: CreateAccount{}}
+	return Action{Enum: 0, CreateAccount: CreateAccount{}}
 }
 
 func DeployContractAction(code []byte) Action {
-	return Action{Enum: 2, DeployContract: DeployContract{Code: code}}
+	return Action{Enum: 1, DeployContract: DeployContract{Code: code}}
 }
 
 func FunctionCallAction(methodName string, args []byte, gas uint64, deposit big.Int) Action {
 	return Action{
-		Enum: 3,
+		Enum: 2,
 		FunctionCall: FunctionCall{
 			MethodName: methodName,
 			Args:       args,
@@ -137,18 +137,20 @@ func FunctionCallAction(methodName string, args []byte, gas uint64, deposit big.
 }
 
 func TransferAction(deposit big.Int) Action {
-	return Action{Enum: 4, Transfer: Transfer{Deposit: deposit}}
+	return Action{Enum: 3, Transfer: Transfer{Deposit: deposit}}
 }
 
 func StakeAction(stake big.Int, publicKey keys.PublicKey) Action {
 	// TODO: make keys.PublicKey the serializable model.
+	var dataArr [32]byte
+	copy(dataArr[:], publicKey.Data)
 	return Action{
-		Enum: 5,
+		Enum: 4,
 		Stake: Stake{
 			Stake: stake,
 			PublicKey: PublicKey{
 				KeyType: uint8(publicKey.Type),
-				Data:    publicKey.Data,
+				Data:    dataArr,
 			},
 		},
 	}
@@ -157,12 +159,14 @@ func StakeAction(stake big.Int, publicKey keys.PublicKey) Action {
 func AddKeyAction(publicKey keys.PublicKey, accessKey AccessKey) Action {
 	// TODO: make keys.PublicKey the serializable model.
 	// TODO: better way of specifying AccessKey.
+	var dataArr [32]byte
+	copy(dataArr[:], publicKey.Data)
 	return Action{
-		Enum: 6,
+		Enum: 5,
 		AddKey: AddKey{
 			PublicKey: PublicKey{
 				KeyType: uint8(publicKey.Type),
-				Data:    publicKey.Data,
+				Data:    dataArr,
 			},
 			AccessKey: accessKey,
 		},
@@ -171,12 +175,14 @@ func AddKeyAction(publicKey keys.PublicKey, accessKey AccessKey) Action {
 
 func DeleteKeyAction(publicKey keys.PublicKey) Action {
 	// TODO: make keys.PublicKey the serializable model.
+	var dataArr [32]byte
+	copy(dataArr[:], publicKey.Data)
 	return Action{
-		Enum: 7,
+		Enum: 6,
 		DeleteKey: DeleteKey{
 			PublicKey: PublicKey{
 				KeyType: uint8(publicKey.Type),
-				Data:    publicKey.Data,
+				Data:    dataArr,
 			},
 		},
 	}
@@ -184,7 +190,7 @@ func DeleteKeyAction(publicKey keys.PublicKey) Action {
 
 func DeleteAccountAction(beneficiaryID string) Action {
 	return Action{
-		Enum: 8,
+		Enum: 7,
 		DeleteAccount: DeleteAccount{
 			BeneficiaryID: beneficiaryID,
 		},
@@ -200,12 +206,14 @@ func NewTransaction(
 	blockHash []byte,
 	actions []Action,
 ) *Transaction {
+	var blockHashArr [32]byte
+	copy(blockHashArr[:], blockHash)
 	return &Transaction{
 		SignerID:   signerID,
 		PublicKey:  publicKey,
 		Nonce:      nonce,
 		ReceiverID: receiverID,
-		BlockHash:  blockHash,
+		BlockHash:  blockHashArr,
 		Actions:    actions,
 	}
 }

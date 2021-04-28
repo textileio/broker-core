@@ -2,11 +2,13 @@ package account
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/mr-tron/base58/base58"
+	"github.com/near/borsh-go"
 	itypes "github.com/textileio/broker-core/cmd/neard/nearclient/internal/types"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/transaction"
@@ -153,26 +155,35 @@ func (a *Account) SignTransaction(ctx context.Context, receiverID string, action
 		return nil, nil, fmt.Errorf("no access key view founf") // TODO: Better error message.
 	}
 	var res itypes.BlockResult
-	if err := a.config.RPCClient.CallContext(ctx, &res, "block", rpc.NewNamedParams(itypes.BlockRequest{Finality: "final"})); err != nil {
+	if err := a.config.RPCClient.CallContext(
+		ctx,
+		&res,
+		"block",
+		rpc.NewNamedParams(itypes.BlockRequest{Finality: "final"}),
+	); err != nil {
 		return nil, nil, fmt.Errorf("calling block rpc: %v", err)
 	}
 	blockHash, err := base58.Decode(res.Header.Hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("decoding hash: %v", err)
 	}
+	var blockHashArr [32]byte
+	copy(blockHashArr[:], blockHash)
 	nonce := accessKeyView.Nonce + 1
 
 	pk := a.config.Signer.GetPublicKey()
+	var dataArr [32]byte
+	copy(dataArr[:], pk.Data)
 
 	t := transaction.Transaction{
 		SignerID: a.accountID,
 		PublicKey: transaction.PublicKey{
 			KeyType: uint8(pk.Type),
-			Data:    pk.Data,
+			Data:    dataArr,
 		},
 		Nonce:      nonce,
 		ReceiverID: receiverID,
-		BlockHash:  blockHash,
+		BlockHash:  blockHashArr,
 		Actions:    actions,
 	}
 	hash, signedTransaction, err := transaction.SignTransaction(t, a.config.Signer, a.accountID, a.config.NetworkID)
@@ -180,4 +191,21 @@ func (a *Account) SignTransaction(ctx context.Context, receiverID string, action
 		return nil, nil, fmt.Errorf("signing transaction: %v", err)
 	}
 	return hash, signedTransaction, nil
+}
+
+func (a *Account) SignAndSendTransaction(ctx context.Context, receiverID string, actions ...transaction.Action) (string, error) {
+	// TODO: exponential backoff retry in case of failed nonce
+	_, signedTransaction, err := a.SignTransaction(ctx, receiverID, actions...)
+	if err != nil {
+		return "", fmt.Errorf("signing transaction: %v", err)
+	}
+	bytes, err := borsh.Serialize(*signedTransaction)
+	if err != nil {
+		return "", fmt.Errorf("serializing signed transaction: %v", err)
+	}
+	var res json.RawMessage
+	if err := a.config.RPCClient.CallContext(ctx, &res, "broadcast_tx_commit", base64.StdEncoding.EncodeToString(bytes)); err != nil {
+		return "", err
+	}
+	return string(res), nil
 }

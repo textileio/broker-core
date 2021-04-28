@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -43,12 +44,31 @@ func TestFindAccessKey(t *testing.T) {
 func TestSignTransaction(t *testing.T) {
 	a, cleanup := makeAccount(t)
 	defer cleanup()
-	amt := big.NewInt(1000000)
+	amt := big.NewInt(1000)
 	sendAction := transaction.TransferAction(*amt)
-	hash, signedTxn, err := a.SignTransaction(ctx, "carson.testnet", sendAction)
+	hash, signedTxn, err := a.SignTransaction(ctx, "carsonfarmer.testnet", sendAction)
 	require.NoError(t, err)
 	require.NotEmpty(t, hash)
 	require.NotNil(t, signedTxn)
+}
+
+func TestSignAndSendTransaction(t *testing.T) {
+	a, cleanup := makeAccount(t)
+	defer cleanup()
+	amt, ok := (&big.Int{}).SetString("1000000000000000000000000", 10)
+	require.True(t, ok)
+	sendAction := transaction.TransferAction(*amt)
+	res, err := a.SignAndSendTransaction(ctx, "carsonfarmer.testnet", sendAction)
+
+	// TODO: something to incorporate this error type data in to api.
+	// dataerror := err.(rpc.DataError)
+	// bytes, err := json.MarshalIndent(dataerror, "", "  ")
+	// require.NoError(t, err)
+	// fmt.Println(string(bytes))
+
+	require.NoError(t, err)
+	require.NotEmpty(t, res)
+	fmt.Println(res)
 }
 
 func makeAccount(t *testing.T) (*Account, func()) {

@@ -28,6 +28,7 @@ func NewStateCache() (*StateCache, error) {
 
 // HandleIntialStateUpdate receives a new state.
 func (sc *StateCache) HandleIntialStateUpdate(state *lockboxclient.State) {
+	log.Info("handling initial state update")
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	sc.state = *state
@@ -35,6 +36,7 @@ func (sc *StateCache) HandleIntialStateUpdate(state *lockboxclient.State) {
 
 // HandleStateChanges handles state changes.
 func (sc *StateCache) HandleStateChanges(changes []lockboxclient.Change, blockHash string, blockHeight int) {
+	log.Info("handling state changes")
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	sc.state.BlockHash = blockHash

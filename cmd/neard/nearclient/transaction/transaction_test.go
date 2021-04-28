@@ -17,7 +17,7 @@ func TestIt(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, hash)
 	require.NotNil(t, signedT)
-	payload, err := borsh.Serialize(signedT)
+	payload, err := borsh.Serialize(*signedT)
 	require.NoError(t, err)
 	s := base64.StdEncoding.EncodeToString(payload)
 	require.NotEmpty(t, s)
