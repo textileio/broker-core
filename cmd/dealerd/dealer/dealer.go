@@ -5,10 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/ipfs/go-datastore"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
@@ -17,22 +13,17 @@ import (
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 )
 
-var (
-	log = logger.Logger("dealer")
-)
+var log = logger.Logger("dealer")
 
 type Dealer struct {
 	store  *store.Store
 	broker broker.Broker
 
-	walletAddr address.Address
-	wallet     *wallet.LocalWallet
-	gateway    api.GatewayAPI
-
 	onceClose       sync.Once
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
+	daemonWg        sync.WaitGroup
 }
 
 var _ dealeri.Dealer = (*Dealer)(nil)
@@ -54,28 +45,10 @@ func New(
 		return nil, fmt.Errorf("initializing store: %s", err)
 	}
 
-	memks := wallet.NewMemKeyStore()
-	w, err := wallet.NewWallet(memks)
-	if err != nil {
-		return nil, fmt.Errorf("creating local wallet: %s", err)
-	}
-
-	ki := &types.KeyInfo{
-		Type:       cfg.keyType,
-		PrivateKey: cfg.keyPrivate,
-	}
-	waddr, err := w.WalletImport(context.Background(), ki)
-	if err != nil {
-		return nil, fmt.Errorf("importing wallet addr: %s", err)
-	}
-
 	ctx, cls := context.WithCancel(context.Background())
 	d := &Dealer{
 		store:  store,
 		broker: broker,
-
-		walletAddr: waddr,
-		wallet:     w,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
@@ -107,7 +80,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 		auctionDeals[i] = auctionDeal
 	}
 	if err := d.store.Create(auctionData, auctionDeals); err != nil {
-		return fmt.Errorf("enqueueing auction deals: %s", err)
+		return fmt.Errorf("creating auction deals: %s", err)
 	}
 
 	return nil
@@ -124,14 +97,22 @@ func (d *Dealer) Close() error {
 
 func (d *Dealer) daemon() {
 	defer close(d.daemonClosed)
-	for {
-		select {
-		case <-d.daemonCtx.Done():
-			log.Infof("dealer closed")
-			return
-		}
-	}
-}
 
-func (d *Dealer) makeDeals(ctx context.Context) {
+	d.daemonWg.Add(3)
+
+	// daemonDealMaker make status changes from Pending -> (Watching | Error).
+	// i.e: takes Pending deals, executes them, and leave them ready
+	// to be confirmed on-chain.
+	go d.daemonDealMaker()
+	// daemonDealWatcher makes status changes from Pending -> (Successs | Error)
+	// i.e: monitors the fired deal until is confirmed on-chain.
+	go d.daemonDealWatcher()
+	// daemonDealWatcher takes statuses (Success | Error) and reports the results
+	// back to the broker, deleting them after geting ACK from it.
+	go d.daemonDealReporter()
+
+	<-d.daemonCtx.Done()
+	log.Infof("closing dealer daemons")
+	d.daemonWg.Wait() // Wait for all sub-daemons to finish.
+	log.Infof("closing dealer daemons")
 }

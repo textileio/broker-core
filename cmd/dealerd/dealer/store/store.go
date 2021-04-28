@@ -41,7 +41,6 @@ type AuctionDealStatus int
 
 const (
 	Pending AuctionDealStatus = iota
-	CreatingDeal
 	WaitingConfirmation
 	Error
 	Success
@@ -297,10 +296,6 @@ func validate(ad AuctionData, ads []AuctionDeal) error {
 func isValidStatusChange(pre AuctionDealStatus, post AuctionDealStatus) error {
 	switch pre {
 	case Pending:
-		if post != CreatingDeal {
-			return fmt.Errorf("expecting CreatingDeal but found: %s", post)
-		}
-	case CreatingDeal:
 		if post != WaitingConfirmation {
 			return fmt.Errorf("expecting WaitingConfirmation but found: %s", post)
 		}
@@ -330,8 +325,6 @@ func (ads AuctionDealStatus) String() string {
 	switch ads {
 	case Pending:
 		return "Pending"
-	case CreatingDeal:
-		return "CreatingDeal"
 	case WaitingConfirmation:
 		return "WaitingConfirmation"
 	case Success:
