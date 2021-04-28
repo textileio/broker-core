@@ -36,6 +36,15 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 		case bool:
 			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
+		case int:
+			rootCmd.Flags().Int(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
+		case int64:
+			rootCmd.Flags().Int64(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
+		case uint64:
+			rootCmd.Flags().Uint64(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
 		case time.Duration:
 			rootCmd.Flags().Duration(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)

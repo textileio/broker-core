@@ -32,7 +32,7 @@ const (
 	bufConnSize = 1024 * 1024
 
 	oneGiB    = 1024 * 1024 * 1024
-	twoMonths = 60 * 24 * 2 * 60
+	sixMonths = 60 * 24 * 2 * 365 / 2
 )
 
 func init() {
@@ -50,7 +50,7 @@ func init() {
 func TestClient_ReadyToAuction(t *testing.T) {
 	c := newClient(t)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, twoMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
@@ -58,7 +58,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 func TestClient_GetAuction(t *testing.T) {
 	c := newClient(t)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, twoMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -79,7 +79,7 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, twoMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -89,7 +89,9 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 	assert.NotEmpty(t, got.WinningBids)
-	assert.NotNil(t, got.Bids[got.WinningBids[0]])
+	if len(got.WinningBids) != 0 {
+		assert.NotNil(t, got.Bids[got.WinningBids[0]])
+	}
 }
 
 func newClient(t *testing.T) *client.Client {

@@ -8,7 +8,7 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
+	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -16,13 +16,14 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/finalizer"
+	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 	"google.golang.org/grpc"
 )
 
 var (
 	daemonName = "auctioneerd"
-	log        = logging.Logger(daemonName)
+	log        = golog.Logger(daemonName)
 	v          = viper.New()
 )
 
@@ -45,10 +46,17 @@ var rootCmd = &cobra.Command{
 	Short: "auctioneerd handles deal auctions for the Broker",
 	Long:  "auctioneerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		logging.SetAllLoggers(logging.LevelInfo)
+		ll := golog.LevelInfo
 		if v.GetBool("debug") {
-			logging.SetAllLoggers(logging.LevelDebug)
+			ll = golog.LevelDebug
 		}
+		err := logging.SetLogLevels(map[string]golog.LogLevel{
+			"auctioneer":         ll,
+			"auctioneer/queue":   ll,
+			"auctioneer/service": ll,
+			"mpeer":              ll,
+		})
+		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
 		fin := finalizer.NewFinalizer()
@@ -76,15 +84,19 @@ var rootCmd = &cobra.Command{
 				HostMultiaddr: v.GetString("host-multiaddr"),
 			},
 			Auction: auctioneer.AuctionConfig{
-				Duration: v.GetDuration("auctions-duration"),
+				Duration: v.GetDuration("auction-duration"),
 			},
 		}
 		serv, err := service.New(config, broker)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
+		serv.Bootstrap()
+		err = serv.EnableMDNS(1)
+		common.CheckErrf("enabling mdns: %v", err)
+
 		common.HandleInterrupt(func() {
-			common.CheckErr(fin.Cleanup(nil))
+			common.CheckErr(fin.Cleanupf("closing service: %v", nil))
 		})
 	},
 }

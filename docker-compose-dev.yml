@@ -4,7 +4,8 @@ services:
     build:
       context: .
       dockerfile: ./cmd/authd/Dockerfile
-    environment: 
+    platform: linux/amd64
+    environment:
       - AUTH_RPC_ADDR=:5000
       - AUTH_NEAR_ADDR=neard:5000
       - AUTH_DEBUG=true
@@ -18,9 +19,10 @@ services:
     build:
       context: .
       dockerfile: ./cmd/neard/Dockerfile
-    environment: 
-        - NEAR_RPC_ADDR=:5000
-        - NEAR_DEBUG=true
+    platform: linux/amd64
+    environment:
+      - NEAR_RPC_ADDR=:5000
+      - NEAR_DEBUG=true
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -29,6 +31,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/storaged/Dockerfile
+    platform: linux/amd64
     environment:
       - STORAGE_DEBUG=true
       - STORAGE_HTTP_ADDR=:8888
@@ -48,6 +51,9 @@ services:
     build:
       context: .
       dockerfile: ./cmd/auctioneerd/Dockerfile
+    platform: linux/amd64
+    volumes:
+      - "${REPO_PATH}/auctioneerd:/data/auctioneerd"
     environment:
       - AUCTIONEER_DEBUG=true
       - AUCTIONEER_RPC_ADDR=:5000
@@ -59,10 +65,29 @@ services:
       - SYS_PTRACE
     depends_on:
       - brokerd
+  minerd:
+    build:
+      context: .
+      dockerfile: ./cmd/minerd/Dockerfile
+    platform: linux/amd64
+    volumes:
+      - "${REPO_PATH}/minerd:/data/minerd"
+    environment:
+      - MINER_DEBUG=true
+      - MINER_ASK_PRICE=100000000000
+      - MINER_DEAL_DURATION_MIN=525600
+      - MINER_DEAL_DURATION_MAX=1051200
+      - MINER_DEAL_SIZE_MIN=57344
+      - MINER_DEAL_SIZE_MAX=32000000000
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE
   brokerd:
     build:
       context: .
       dockerfile: ./cmd/brokerd/Dockerfile
+    platform: linux/amd64
     environment:
       - BROKER_DEBUG=true
       - BROKER_RPC_ADDR=:5000
@@ -84,6 +109,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/packerd/Dockerfile
+    platform: linux/amd64
     environment:
       - PACKER_DEBUG=true
       - PACKER_RPC_ADDR=:5000
@@ -100,6 +126,7 @@ services:
       - ipfs
   mongo:
     image: mongo:latest
+    platform: linux/amd64
     ports:
       - "127.0.0.1:27017:27017"
     logging:
@@ -113,6 +140,7 @@ services:
         tail -f /var/log/mongod.log
   ipfs:
     image: ipfs/go-ipfs:v0.8.0
+    platform: linux/amd64
     environment:
       - IPFS_PROFILE=test
     ports:

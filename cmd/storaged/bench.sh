@@ -18,5 +18,3 @@ echo "Uploading file..."
 curl -v -H "Authorization: $TOKEN" -F "region=europe" -F "file=@$TMPFILE" $TARGET
 echo "Cleaning..."
 rm $TMPFILE
-
-
