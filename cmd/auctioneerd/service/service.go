@@ -6,6 +6,7 @@ import (
 	"net"
 	"path/filepath"
 
+	"github.com/gogo/status"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -16,6 +17,7 @@ import (
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 var log = golog.Logger("auctioneer/service")
@@ -104,7 +106,7 @@ func (s *Service) EnableMDNS(intervalSecs int) error {
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	id, err := s.lib.CreateAuction(broker.StorageDealID(req.StorageDealId), req.DealSize, req.DealDuration)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "creating auction: %s", err)
 	}
 	return &pb.ReadyToAuctionResponse{
 		Id: string(id),
