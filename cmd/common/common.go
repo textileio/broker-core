@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -102,4 +103,9 @@ func HandleInterrupt(cleanup func()) {
 	fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 	cleanup()
 	os.Exit(1)
+}
+
+func MustJsonIndent(b interface{}) string {
+	jsn, _ := json.MarshalIndent(b, "", " ")
+	return string(jsn)
 }
