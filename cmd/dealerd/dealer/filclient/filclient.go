@@ -1,6 +1,7 @@
 package filclient
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -116,6 +117,68 @@ func (fc *FilClient) GetChainHeight(ctx context.Context) (int64, error) {
 	}
 
 	return int64(tip.Height()), nil
+}
+
+// ResolveDealIDFromMessage looks for a publish deal message by its Cid and resolves the deal-id from the receipt.
+// If the message isn't found, the return parameters are 0,nil.
+// If the message is found, a deal-id is returned which can be trusted to match the original ProposalCid.
+// This method is mostly what Estuary does with some tweaks, kudos to them!
+func (fc *FilClient) ResolveDealIDFromMessage(
+	ctx context.Context,
+	aud store.AuctionDeal,
+	publishDealMessage cid.Cid) (int64, error) {
+	mlookup, err := fc.api.StateSearchMsg(ctx, publishDealMessage)
+	if err != nil {
+		return 0, xerrors.Errorf("could not find published deal on chain: %w", err)
+	}
+
+	if mlookup == nil {
+		return 0, nil
+	}
+
+	msg, err := fc.api.ChainGetMessage(ctx, publishDealMessage)
+	if err != nil {
+		return 0, fmt.Errorf("get chain message; %s", err)
+	}
+
+	var params market.PublishStorageDealsParams
+	if err := params.UnmarshalCBOR(bytes.NewReader(msg.Params)); err != nil {
+		return 0, fmt.Errorf("unmarshaling publish storage deal params: %s", err)
+	}
+
+	dealix := -1
+	for i, pd := range params.Deals {
+		nd, err := cborutil.AsIpld(&pd)
+		if err != nil {
+			return 0, xerrors.Errorf("failed to compute deal proposal ipld node: %w", err)
+		}
+
+		// If we find a proposal in the message that matches our AuctionDeal proposal cid, we can be sure
+		// that this deal-id is the one we're looking for. The proposal cid summarizes the deal information.
+		if nd.Cid() == aud.ProposalCid {
+			dealix = i
+			break
+		}
+	}
+
+	if dealix == -1 {
+		return 0, fmt.Errorf("deal isn't part of the published message")
+	}
+
+	if mlookup.Receipt.ExitCode != 0 {
+		return 0, xerrors.Errorf("the message failed to execute (exit: %d)", mlookup.Receipt.ExitCode)
+	}
+
+	var retval market.PublishStorageDealsReturn
+	if err := retval.UnmarshalCBOR(bytes.NewReader(mlookup.Receipt.Return)); err != nil {
+		return 0, xerrors.Errorf("publish deal return was improperly formatted: %w", err)
+	}
+
+	if len(retval.IDs) != len(params.Deals) {
+		return 0, fmt.Errorf("return value from publish deals did not match length of params")
+	}
+
+	return int64(retval.IDs[dealix]), nil
 }
 
 func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (*network.Proposal, error) {
