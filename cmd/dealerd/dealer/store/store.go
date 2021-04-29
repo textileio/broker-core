@@ -24,6 +24,8 @@ var (
 	dsPrefixAuctionData = datastore.NewKey("/auction-data")
 	dsPrefixAuctionDeal = datastore.NewKey("/auction-deal")
 
+	FailureUnfulfilledStartEpoch = "the deal won't be active on-chain"
+
 	log = logger.Logger("dealer/store")
 )
 
@@ -35,6 +37,9 @@ type AuctionData struct {
 	PieceCid   cid.Cid
 	PieceSize  int64
 	Duration   int64
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type AuctionDealStatus int
@@ -58,6 +63,12 @@ type AuctionDeal struct {
 
 	Status     AuctionDealStatus
 	ErrorCause string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	ProposalCid cid.Cid
+	DealID      int64
 }
 
 // Store provides persistent storage for Bids.
@@ -100,6 +111,7 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 		return fmt.Errorf("generating new id: %s", err)
 	}
 	ad.ID = newID
+	ad.CreatedAt = time.Now()
 	if err := s.save(txn, makeAuctionDataKey(ad.ID), ad); err != nil {
 		return fmt.Errorf("saving auction data in datastore: %s", err)
 	}
@@ -113,6 +125,7 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 		auctionDeal.ID = newID
 		auctionDeal.AuctionDataID = ad.ID // Link with its AuctionData.
 		auctionDeal.Status = Pending
+		auctionDeal.CreatedAt = ad.CreatedAt
 		if err := s.save(txn, makeAuctionDealKey(auctionDeal.ID), auctionDeal); err != nil {
 			return fmt.Errorf("saving auction deal in datastore: %s", err)
 		}
@@ -139,34 +152,61 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 	return nil
 }
 
-func (s *Store) StatusChange(auctionDealID string, newStatus AuctionDealStatus) error {
+func (s *Store) SaveAuctionDeal(aud AuctionDeal) error {
 	s.lock.Lock()
-	var ad *AuctionDeal
+	defer s.lock.Unlock()
+	cacheIdx := -1
 	for i := range s.auctionDeals {
-		if s.auctionDeals[i].ID == auctionDealID {
-			ad = &s.auctionDeals[i]
+		if s.auctionDeals[i].ID == aud.ID {
+			cacheIdx = i
+			break
 		}
 	}
-	s.lock.Unlock()
-	if ad == nil {
+	if cacheIdx == -1 {
 		return ErrNotFound
 	}
+	currentAud := s.auctionDeals[cacheIdx]
 
-	if err := isValidStatusChange(ad.Status, newStatus); err != nil {
-		return fmt.Errorf("invalid status change: %s", err)
+	if currentAud.Status != aud.Status {
+		if err := isValidStatusChange(currentAud.Status, aud); err != nil {
+			return fmt.Errorf("invalid status change: %s", err)
+		}
 	}
 
-	// Change auction-deal status, and at the same time update it in the cache,
-	// since `ad` is a pointer to the corresponding item.
-	s.lock.Lock()
-	ad.Status = newStatus
-	s.lock.Unlock()
-
-	if err := s.save(s.ds, makeAuctionDealKey(ad.ID), ad); err != nil {
+	aud.UpdatedAt = time.Now()
+	if err := s.save(s.ds, makeAuctionDealKey(aud.ID), aud); err != nil {
 		return fmt.Errorf("saving auction deal status change: %s", err)
 	}
 
+	// After we're sure was updated in the datastore, update it in the cache.
+	s.auctionDeals[cacheIdx] = aud
+
 	return nil
+}
+
+func (s *Store) GetAllAuctionDeals(status AuctionDealStatus) ([]AuctionDeal, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	var res []AuctionDeal
+	for _, aud := range s.auctionDeals {
+		if aud.Status != status {
+			continue
+		}
+		res = append(res, aud)
+	}
+
+	return res, nil
+}
+
+func (s *Store) GetAuctionData(auctionDataID string) (AuctionData, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ad, ok := s.auctionData[auctionDataID]
+	if !ok {
+		return AuctionData{}, ErrNotFound
+	}
+	return ad, nil
 }
 
 func (s *Store) save(dsWrite datastore.Write, id datastore.Key, b interface{}) error {
@@ -293,21 +333,30 @@ func validate(ad AuctionData, ads []AuctionDeal) error {
 	return nil
 }
 
-func isValidStatusChange(pre AuctionDealStatus, post AuctionDealStatus) error {
+func isValidStatusChange(pre AuctionDealStatus, aud AuctionDeal) error {
 	switch pre {
 	case Pending:
-		if post != WaitingConfirmation {
-			return fmt.Errorf("expecting WaitingConfirmation but found: %s", post)
+		if aud.Status != WaitingConfirmation {
+			return fmt.Errorf("expecting WaitingConfirmation but found: %s", aud.Status)
+		}
+		if !aud.ProposalCid.Defined() {
+			return fmt.Errorf("proposal cid should be set to transition to WaitingConfirmation")
 		}
 	case WaitingConfirmation:
-		if post != Error && post != Success {
-			return fmt.Errorf("expecting final status but found: %s", post)
+		if aud.Status != Error && aud.Status != Success {
+			return fmt.Errorf("expecting final status but found: %s", aud.Status)
+		}
+		if aud.Status == Error && aud.ErrorCause == "" {
+			return fmt.Errorf("an error status should have an error cause")
+		}
+		if aud.Status == Success && aud.ErrorCause != "" {
+			return fmt.Errorf("a success status can't have an error cause: %s", aud.ErrorCause)
 		}
 	case Success:
 	case Error:
-		return fmt.Errorf("error/success status are final, so %s isn't allowed", post)
+		return fmt.Errorf("error/success status are final, so %s isn't allowed", aud.Status)
 	default:
-		return fmt.Errorf("unknown status: %s", pre)
+		return fmt.Errorf("unknown status: %s", aud.Status)
 	}
 
 	return nil
