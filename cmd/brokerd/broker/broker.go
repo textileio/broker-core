@@ -35,8 +35,8 @@ type Broker struct {
 	store      *srstore.Store
 	packer     packer.Packer
 	piecer     piecer.Piecer
-	dealer     dealer.Dealer
 	auctioneer auctioneer.Auctioneer
+	dealer     dealer.Dealer
 	dealEpochs uint64
 }
 
@@ -46,6 +46,7 @@ func New(
 	packer packer.Packer,
 	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,
+	dealer dealer.Dealer,
 	dealEpochs uint64,
 ) (*Broker, error) {
 	if dealEpochs < broker.MinDealEpochs {
@@ -64,7 +65,7 @@ func New(
 		store:      store,
 		packer:     packer,
 		piecer:     piecer,
-		dealer:     nil, // (jsign) TODO.
+		dealer:     dealer,
 		auctioneer: auctioneer,
 		dealEpochs: dealEpochs,
 	}
@@ -212,7 +213,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	_ = sd
 
 	ads := dealer.AuctionDeals{
-		AuctionID: auction.ID,
+		StorageDealID: sd.ID,
 		//PayloadCid: sd.PayloadCid, // TODO: this attribute doesn't exist yet but will.
 		//PieceCid:   sd.PieceCid,   // TODO: ^
 		//PieceSize:  sd.PieceSize,  // TODO: ^
@@ -237,6 +238,14 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	if err := b.dealer.ReadyToCreateDeals(ctx, ads); err != nil {
 		return fmt.Errorf("signaling dealer to execute winning bids: %s", err)
 	}
+
+	return nil
+}
+
+func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
+	// TODO: change StorageDeal status from DealMaking -> Reporting?
+	// TODO: signal some external component (neard?), about this data so it can put things on chain. All
+	//       needed data from our notion doc about on-chain reporting should be available now.
 
 	return nil
 }

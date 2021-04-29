@@ -15,6 +15,7 @@ import (
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
+	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
 	"github.com/textileio/broker-core/dshelper"
@@ -32,8 +33,9 @@ var (
 type Config struct {
 	ListenAddr string
 
-	AuctioneerAddr string
 	PackerAddr     string
+	AuctioneerAddr string
+	DealerAddr     string
 
 	MongoDBName string
 	MongoURI    string
@@ -83,7 +85,12 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
 	}
 
-	broker, err := brokeri.New(ds, packer, piecer, auctioneer, config.DealEpochs)
+	dealer, err := dealeri.New(config.DealerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
+	}
+
+	broker, err := brokeri.New(ds, packer, piecer, auctioneer, dealer, config.DealEpochs)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
@@ -217,6 +224,40 @@ func (s *Service) StorageDealAuctioned(
 	}
 
 	return &pb.StorageDealAuctionedResponse{}, nil
+}
+
+func (s *Service) StorageDealFinalizedDeals(
+	ctx context.Context,
+	r *pb.StorageDealFinalizedDealsRequest) (*pb.StorageDealFinalizedDealsResponse, error) {
+	if r == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+
+	if len(r.FinalizedDeals) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "finalized deals list is empty")
+	}
+
+	fads := make([]broker.FinalizedAuctionDeal, len(r.FinalizedDeals))
+	for i, fd := range r.FinalizedDeals {
+		if fd.StorageDealId == "" {
+			return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
+		}
+		if fd.DealId <= 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "deal id is %d and should be positive", fd.DealId)
+		}
+		fads[i] = broker.FinalizedAuctionDeal{
+			StorageDealID:  broker.StorageDealID(fd.StorageDealId),
+			DealID:         fd.DealId,
+			DealExpiration: fd.DealExpiration,
+			ErrorCause:     fd.ErrorCause,
+		}
+	}
+
+	if err := s.broker.StorageDealFinalizedDeals(ctx, fads); err != nil {
+		return nil, status.Errorf(codes.Internal, "processing finalized deals: %s", err)
+	}
+
+	return &pb.StorageDealFinalizedDealsResponse{}, nil
 }
 
 // Close gracefully closes the service.

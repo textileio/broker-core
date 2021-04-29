@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/srstore"
+	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
 	"github.com/textileio/broker-core/tests"
@@ -134,7 +135,8 @@ func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer) {
 	packer := &dumbPacker{}
 	piecer := &dumbPiecer{}
 	auctioneer := &dumbAuctioneer{}
-	b, err := New(ds, packer, piecer, auctioneer, broker.MaxDealEpochs)
+	dealer := &dumbDealer{}
+	b, err := New(ds, packer, piecer, auctioneer, dealer, broker.MaxDealEpochs)
 	require.NoError(t, err)
 
 	return b, packer, piecer
@@ -184,6 +186,15 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dealSize, dealDuration uint64,
 ) (broker.AuctionID, error) {
 	return "", nil
+}
+
+type dumbDealer struct {
+}
+
+var _ dealer.Dealer = (*dumbDealer)(nil)
+
+func (dd *dumbDealer) ReadyToCreateDeals(ctx context.Context, sdb dealer.AuctionDeals) error {
+	panic("shouldn't be called")
 }
 
 func createCidFromString(s string) cid.Cid {
