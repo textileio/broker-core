@@ -31,6 +31,9 @@ type Broker interface {
 
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
 	StorageDealAuctioned(ctx context.Context, auction Auction) error
+
+	// StorageDealFinalizedDeals signals to the broker results about deal making.
+	StorageDealFinalizedDeals(ctx context.Context, res []FinalizedAuctionDeal) error
 }
 
 // BrokerRequestor alows to create and query BrokerRequests.
@@ -223,4 +226,13 @@ type Bid struct {
 	StartEpoch       uint64
 	FastRetrieval    bool
 	ReceivedAt       time.Time
+}
+
+// FinalizedAuctionDeal contains information about final status of an executed
+// winning bid.
+type FinalizedAuctionDeal struct {
+	StorageDealID  StorageDealID
+	DealID         int64
+	DealExpiration uint64
+	ErrorCause     string
 }
