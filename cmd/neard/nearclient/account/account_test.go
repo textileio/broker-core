@@ -59,16 +59,14 @@ func TestSignAndSendTransaction(t *testing.T) {
 	require.True(t, ok)
 	sendAction := transaction.TransferAction(*amt)
 	res, err := a.SignAndSendTransaction(ctx, "carsonfarmer.testnet", sendAction)
-
-	// TODO: something to incorporate this error type data in to api.
-	// dataerror := err.(rpc.DataError)
-	// bytes, err := json.MarshalIndent(dataerror, "", "  ")
-	// require.NoError(t, err)
-	// fmt.Println(string(bytes))
-
 	require.NoError(t, err)
-	require.NotEmpty(t, res)
-	fmt.Println(res)
+	require.NotNil(t, res)
+
+	status, ok := res.GetStatus()
+	fmt.Println(status, ok)
+
+	status2, ok := res.GetStatusBasic()
+	fmt.Println(status2, ok)
 }
 
 func makeAccount(t *testing.T) (*Account, func()) {

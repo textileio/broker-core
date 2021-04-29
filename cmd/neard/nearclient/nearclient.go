@@ -7,9 +7,15 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/account"
 	itypes "github.com/textileio/broker-core/cmd/neard/nearclient/internal/types"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/util"
+)
+
+var (
+	log = logging.Logger("nearclient")
 )
 
 // CallFunctionResponse holds information about the result of a function call.
@@ -135,7 +141,7 @@ func (c *Client) CallFunction(
 	}
 	var res CallFunctionResponse
 	if err := c.config.RPCClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("calling query rpc: %v", util.MapRPCError(err))
 	}
 	return &res, nil
 }
@@ -196,7 +202,7 @@ func (c *Client) DataChanges(
 	}
 	var res DataChangesResponse
 	if err := c.config.RPCClient.CallContext(ctx, &res, "EXPERIMENTAL_changes", rpc.NewNamedParams(req)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("calling changes rpc: %v", util.MapRPCError(err))
 	}
 	return &res, nil
 }

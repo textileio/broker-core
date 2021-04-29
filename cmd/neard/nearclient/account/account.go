@@ -5,14 +5,28 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/near/borsh-go"
 	itypes "github.com/textileio/broker-core/cmd/neard/nearclient/internal/types"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/transaction"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/util"
+)
+
+const (
+	nonceRetryCount   = 12
+	nonceRetryWait    = time.Millisecond * 500
+	nonceRetryBackoff = 1.5
+)
+
+var (
+	log = logging.Logger("nearclient/account")
 )
 
 // Account provides functions for a single account.
@@ -49,7 +63,7 @@ func (a *Account) ViewState(ctx context.Context, opts ...ViewStateOption) (*Acco
 	}
 	var res AccountStateView
 	if err := a.config.RPCClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req)); err != nil {
-		return nil, fmt.Errorf("calling rpc: %v", err)
+		return nil, fmt.Errorf("calling rpc: %v", util.MapRPCError(err))
 	}
 	return &res, nil
 }
@@ -79,7 +93,7 @@ func (a *Account) State(
 	}
 	var res AccountView
 	if err := a.config.RPCClient.CallContext(ctx, &res, "query", rpc.NewNamedParams(req)); err != nil {
-		return nil, fmt.Errorf("calling rpc: %v", err)
+		return nil, fmt.Errorf("calling rpc: %v", util.MapRPCError(err))
 	}
 	return &res, nil
 }
@@ -121,7 +135,7 @@ func (a *Account) FindAccessKey(
 
 	// var res AccessKeyView
 	if err := a.config.RPCClient.CallContext(ctx, &resp, "query", rpc.NewNamedParams(req)); err != nil {
-		return nil, nil, fmt.Errorf("calling rpc: %v", err)
+		return nil, nil, fmt.Errorf("calling rpc: %v", util.MapRPCError(err))
 	}
 
 	ret := &AccessKeyView{
@@ -146,13 +160,18 @@ func (a *Account) FindAccessKey(
 	return &pubKey, ret, nil
 }
 
-func (a *Account) SignTransaction(ctx context.Context, receiverID string, actions ...transaction.Action) ([]byte, *transaction.SignedTransaction, error) {
+// SignTransaction creates and signs a transaction from the supplied actions.
+func (a *Account) SignTransaction(
+	ctx context.Context,
+	receiverID string,
+	actions ...transaction.Action,
+) ([]byte, *transaction.SignedTransaction, error) {
 	_, accessKeyView, err := a.FindAccessKey(ctx, receiverID, actions)
 	if err != nil {
 		return nil, nil, fmt.Errorf("finding access key: %v", err)
 	}
 	if accessKeyView == nil {
-		return nil, nil, fmt.Errorf("no access key view founf") // TODO: Better error message.
+		return nil, nil, fmt.Errorf("no access key view found") // TODO: Better error message.
 	}
 	var res itypes.BlockResult
 	if err := a.config.RPCClient.CallContext(
@@ -161,7 +180,7 @@ func (a *Account) SignTransaction(ctx context.Context, receiverID string, action
 		"block",
 		rpc.NewNamedParams(itypes.BlockRequest{Finality: "final"}),
 	); err != nil {
-		return nil, nil, fmt.Errorf("calling block rpc: %v", err)
+		return nil, nil, fmt.Errorf("calling block rpc: %v", util.MapRPCError(err))
 	}
 	blockHash, err := base58.Decode(res.Header.Hash)
 	if err != nil {
@@ -193,19 +212,76 @@ func (a *Account) SignTransaction(ctx context.Context, receiverID string, action
 	return hash, signedTransaction, nil
 }
 
-func (a *Account) SignAndSendTransaction(ctx context.Context, receiverID string, actions ...transaction.Action) (string, error) {
-	// TODO: exponential backoff retry in case of failed nonce
-	_, signedTransaction, err := a.SignTransaction(ctx, receiverID, actions...)
-	if err != nil {
-		return "", fmt.Errorf("signing transaction: %v", err)
+// SignAndSendTransaction creates, signs and sends a tranaction for the supplied actions.
+func (a *Account) SignAndSendTransaction(
+	ctx context.Context,
+	receiverID string,
+	actions ...transaction.Action,
+) (*FinalExecutionOutcome, error) {
+	var result *FinalExecutionOutcome
+	if err := util.Retry(nonceRetryCount, nonceRetryWait, nonceRetryBackoff, func(done *bool) error {
+		txHash, signedTransaction, err := a.SignTransaction(ctx, receiverID, actions...)
+		if err != nil {
+			return fmt.Errorf("signing transaction: %v", err)
+		}
+		bytes, err := borsh.Serialize(*signedTransaction)
+		if err != nil {
+			return fmt.Errorf("serializing signed transaction: %v", err)
+		}
+		var res FinalExecutionOutcome
+		if err := a.config.RPCClient.CallContext(
+			ctx,
+			&res,
+			"broadcast_tx_commit",
+			base64.StdEncoding.EncodeToString(bytes),
+		); err != nil {
+			mappedErr := util.MapRPCError(err)
+			if strings.Contains(mappedErr.Error(), "InvalidNonce") {
+				// Swallow the error and let Retry continue.
+				log.Warnf("Retrying transaction %s:%s with new nonce.", receiverID, base58.Encode(txHash))
+				return nil
+			}
+			return mappedErr
+		}
+
+		// TODO: inspect res for error conditions like js code.
+
+		result = &res
+		*done = true
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("signing and sending transaction: %v", err)
 	}
-	bytes, err := borsh.Serialize(*signedTransaction)
-	if err != nil {
-		return "", fmt.Errorf("serializing signed transaction: %v", err)
+	if result == nil {
+		return nil, fmt.Errorf("failed to send transaction, but no error was returned")
 	}
-	var res json.RawMessage
-	if err := a.config.RPCClient.CallContext(ctx, &res, "broadcast_tx_commit", base64.StdEncoding.EncodeToString(bytes)); err != nil {
-		return "", err
+
+	// TODO: Log logs and failures.
+
+	// if (typeof result.status === 'object' && typeof result.status.Failure === 'object') {
+	// 	// if error data has error_message and error_type properties, node returned an error in the old format
+	// 	if (result.status.Failure.error_message && result.status.Failure.error_type) {
+	// 			throw new TypedError(
+	// 					`Transaction ${result.transaction_outcome.id} failed. ${result.status.Failure.error_message}`,
+	// 					result.status.Failure.error_type);
+	// 	} else {
+	// 			throw parseResultError(result);
+	// 	}
+	// }
+
+	status, ok := result.GetStatus()
+	if ok && status.Failure != nil {
+		if status.Failure.ErrorMessage != "" && status.Failure.ErrorType != "" {
+			return nil, fmt.Errorf(
+				"transaction %s failed with message < %s > and type < %s > ",
+				result.TransactionOutcome.ID,
+				status.Failure.ErrorMessage,
+				status.Failure.ErrorType,
+			)
+		}
+		// TODO the parse result error thing
+		return nil, fmt.Errorf("TODO error")
 	}
-	return string(res), nil
+
+	return result, nil
 }
