@@ -46,7 +46,9 @@ func (d *Dealer) daemonDealWatcherTick() error {
 		if len(ps) == 0 {
 			break
 		}
-		chainHeight, err := d.filclient.GetChainHeight()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+		defer cancel()
+		chainHeight, err := d.filclient.GetChainHeight(ctx)
 		if err != nil {
 			return fmt.Errorf("get chain height: %s", err)
 		}
@@ -137,6 +139,10 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 	return nil
 }
 
+// tryResolvingDealID tries to resolve the deal-id from an AuctionDeal.
+// It asks the miner for the message Cid that published the deal. If a DealID is returned,
+// we can be sure is the correct one for AuctionDeal, since this method checks that the miner
+// isn't playing tricks reporting a DealID from other data.
 func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch int64) (int64, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
@@ -146,17 +152,11 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch int
 	}
 	log.Debugf("check-deal-status: %s", common.MustJsonIndent(pds))
 
-	// Do best effort to resolve DealID if possible.
-	if pds.DealID > 0 {
-		log.Debugf("deal-id %d already resolved by miner %s", pds.DealID, aud.Miner)
-		return int64(pds.DealID), true, nil
-	}
-
 	if pds.PublishCid != nil {
 		log.Debugf("miner published the deal in message %s, trying to resolve on-chain...", pds.PublishCid)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
-		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, aud, pds.PublishCid)
+		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, aud, *pds.PublishCid)
 		if err != nil {
 			return 0, false, fmt.Errorf("trying to resolve deal-id from message %s: %s", pds.PublishCid, err)
 		}
