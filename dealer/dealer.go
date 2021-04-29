@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/broker-core/broker"
 )
 
 type Dealer interface {
@@ -11,11 +12,11 @@ type Dealer interface {
 }
 
 type AuctionDeals struct {
-	AuctionID  string // TODO: would be good to make a type
+	AuctionID  broker.AuctionID
 	PayloadCid cid.Cid
 	PieceCid   cid.Cid
-	PieceSize  int64
-	Duration   int64
+	PieceSize  uint64
+	Duration   uint64
 	Targets    []AuctionDealsTarget
 }
 

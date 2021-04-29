@@ -37,7 +37,7 @@ type AuctionData struct {
 	PayloadCid cid.Cid
 	PieceCid   cid.Cid
 	PieceSize  int64
-	Duration   int64
+	Duration   uint64
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -58,7 +58,7 @@ type AuctionDeal struct {
 	AuctionDataID       string
 	Miner               string
 	PricePerGiBPerEpoch int64
-	StartEpoch          int64
+	StartEpoch          uint64
 	Verified            bool
 	FastRetrieval       bool
 
