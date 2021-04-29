@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type APIServiceClient interface {
-	ExecuteBids(ctx context.Context, in *ExecuteBidsRequest, opts ...grpc.CallOption) (*ExecuteBidsResponse, error)
+	ReadyToCreateDeals(ctx context.Context, in *ReadyToCreateDealsRequest, opts ...grpc.CallOption) (*ReadyToCreateDealsResponse, error)
 }
 
 type aPIServiceClient struct {
@@ -29,9 +29,9 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 	return &aPIServiceClient{cc}
 }
 
-func (c *aPIServiceClient) ExecuteBids(ctx context.Context, in *ExecuteBidsRequest, opts ...grpc.CallOption) (*ExecuteBidsResponse, error) {
-	out := new(ExecuteBidsResponse)
-	err := c.cc.Invoke(ctx, "/broker.dealer.v1.APIService/ExecuteBids", in, out, opts...)
+func (c *aPIServiceClient) ReadyToCreateDeals(ctx context.Context, in *ReadyToCreateDealsRequest, opts ...grpc.CallOption) (*ReadyToCreateDealsResponse, error) {
+	out := new(ReadyToCreateDealsResponse)
+	err := c.cc.Invoke(ctx, "/broker.dealer.v1.APIService/ReadyToCreateDeals", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (c *aPIServiceClient) ExecuteBids(ctx context.Context, in *ExecuteBidsReque
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
 type APIServiceServer interface {
-	ExecuteBids(context.Context, *ExecuteBidsRequest) (*ExecuteBidsResponse, error)
+	ReadyToCreateDeals(context.Context, *ReadyToCreateDealsRequest) (*ReadyToCreateDealsResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -50,8 +50,8 @@ type APIServiceServer interface {
 type UnimplementedAPIServiceServer struct {
 }
 
-func (UnimplementedAPIServiceServer) ExecuteBids(context.Context, *ExecuteBidsRequest) (*ExecuteBidsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ExecuteBids not implemented")
+func (UnimplementedAPIServiceServer) ReadyToCreateDeals(context.Context, *ReadyToCreateDealsRequest) (*ReadyToCreateDealsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadyToCreateDeals not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -66,20 +66,20 @@ func RegisterAPIServiceServer(s grpc.ServiceRegistrar, srv APIServiceServer) {
 	s.RegisterService(&APIService_ServiceDesc, srv)
 }
 
-func _APIService_ExecuteBids_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExecuteBidsRequest)
+func _APIService_ReadyToCreateDeals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadyToCreateDealsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).ExecuteBids(ctx, in)
+		return srv.(APIServiceServer).ReadyToCreateDeals(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.dealer.v1.APIService/ExecuteBids",
+		FullMethod: "/broker.dealer.v1.APIService/ReadyToCreateDeals",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).ExecuteBids(ctx, req.(*ExecuteBidsRequest))
+		return srv.(APIServiceServer).ReadyToCreateDeals(ctx, req.(*ReadyToCreateDealsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -92,8 +92,8 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ExecuteBids",
-			Handler:    _APIService_ExecuteBids_Handler,
+			MethodName: "ReadyToCreateDeals",
+			Handler:    _APIService_ReadyToCreateDeals_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
