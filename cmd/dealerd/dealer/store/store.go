@@ -16,6 +16,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/oklog/ulid/v2"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 )
 
@@ -33,11 +34,11 @@ var (
 type AuctionData struct {
 	ID string
 
-	AuctionID  string
-	PayloadCid cid.Cid
-	PieceCid   cid.Cid
-	PieceSize  int64
-	Duration   uint64
+	StorageDealID broker.StorageDealID
+	PayloadCid    cid.Cid
+	PieceCid      cid.Cid
+	PieceSize     uint64
+	Duration      uint64
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -68,8 +69,9 @@ type AuctionDeal struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	ProposalCid cid.Cid
-	DealID      int64
+	ProposalCid    cid.Cid
+	DealID         int64
+	DealExpiration uint64
 }
 
 // Store provides persistent storage for Bids.
@@ -210,6 +212,48 @@ func (s *Store) GetAuctionData(auctionDataID string) (AuctionData, error) {
 	return ad, nil
 }
 
+func (s *Store) RemoveAuctionDeals(ids []string) error {
+	for _, id := range ids {
+		if err := s.ds.Delete(makeAuctionDealKey(id)); err != nil {
+			return fmt.Errorf("deleting auction deal: %s", err)
+		}
+		s.lock.Lock()
+		for i := range s.auctionDeals {
+			if s.auctionDeals[i].ID == id {
+				s.auctionDeals = append(s.auctionDeals[:i], s.auctionDeals[i+1:]...)
+				break
+			}
+		}
+		s.lock.Unlock()
+	}
+
+	// Investigate AuctionData that are still alive, so we can GC orpahaned
+	// AuctionData that we can also delete.
+	var aliveADs map[string]struct{}
+	s.lock.Lock()
+	for _, aud := range s.auctionDeals {
+		aliveADs[aud.AuctionDataID] = struct{}{}
+	}
+	var deletableADs []string
+	for adID := range s.auctionData {
+		if _, ok := aliveADs[adID]; !ok {
+			deletableADs = append(deletableADs, adID)
+		}
+	}
+	s.lock.Unlock()
+
+	for _, id := range deletableADs {
+		if err := s.ds.Delete(makeAuctionDataKey(id)); err != nil {
+			return fmt.Errorf("deleting auction data: %s", err)
+		}
+		s.lock.Lock()
+		delete(s.auctionData, id)
+		s.lock.Unlock()
+	}
+
+	return nil
+}
+
 func (s *Store) save(dsWrite datastore.Write, id datastore.Key, b interface{}) error {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(b); err != nil {
@@ -306,17 +350,17 @@ func validate(ad AuctionData, ads []AuctionDeal) error {
 	if ad.Duration <= 0 {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
 	}
-	if ad.AuctionID == "" {
-		return fmt.Errorf("auction-id is empty")
+	if ad.StorageDealID == "" {
+		return fmt.Errorf("storage deal id is empty")
 	}
 	if !ad.PayloadCid.Defined() {
-		return fmt.Errorf("payload-cid is undefined")
+		return fmt.Errorf("payload cid is undefined")
 	}
 	if !ad.PieceCid.Defined() {
-		return fmt.Errorf("piece-cid is undefined")
+		return fmt.Errorf("piece cid is undefined")
 	}
 	if ad.PieceSize <= 0 {
-		return fmt.Errorf("piece-size is zero")
+		return fmt.Errorf("piece size is zero")
 	}
 
 	for _, auctionDeal := range ads {
