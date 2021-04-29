@@ -2,7 +2,6 @@ package filclient
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -27,6 +26,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	"golang.org/x/xerrors"
 )
@@ -89,7 +89,7 @@ func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 	if err != nil {
 		return cid.Undef, fmt.Errorf("creating deal proposal: %s", err)
 	}
-	log.Debugf("created proposal: %s", jsonize(p))
+	log.Debugf("created proposal: %s", common.MustJsonIndent(p))
 	pr, err := fc.sendProposal(ctx, p)
 	if err != nil {
 		return cid.Undef, fmt.Errorf("sending proposal to miner: %s", err)
@@ -97,9 +97,9 @@ func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 
 	switch pr.Response.State {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal accepted: %s", jsonize(p))
+		log.Debugf("proposal accepted: %s", common.MustJsonIndent(p))
 	default:
-		log.Warnf("proposal failed: %s", jsonize(p))
+		log.Warnf("proposal failed: %s", common.MustJsonIndent(p))
 		return cid.Undef,
 			fmt.Errorf("failed proposal (%s): %s",
 				storagemarket.DealStates[pr.Response.State],
@@ -107,6 +107,15 @@ func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 	}
 
 	return pr.Response.Proposal, nil
+}
+
+func (fc *FilClient) GetChainHeight(ctx context.Context) (int64, error) {
+	tip, err := fc.api.ChainHead(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("getting chain head: %s", err)
+	}
+
+	return int64(tip.Height()), nil
 }
 
 func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (*network.Proposal, error) {
@@ -177,7 +186,11 @@ func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionDat
 	}, nil
 }
 
-func (fc *FilClient) CheckDealStatus(ctx context.Context, miner address.Address, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
+func (fc *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerAddr string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
+	miner, err := address.NewFromString(minerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid miner address %s: %s", minerAddr, err)
+	}
 	cidb, err := cborutil.Dump(propCid)
 	if err != nil {
 		return nil, err
@@ -275,8 +288,8 @@ func (fc *FilClient) sendProposal(ctx context.Context, netprop *network.Proposal
 	return &resp, nil
 }
 
-func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid abi.DealID) (bool, error) {
-	deal, err := fc.api.StateMarketStorageDeal(ctx, dealid, types.EmptyTSK)
+func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, error) {
+	deal, err := fc.api.StateMarketStorageDeal(ctx, abi.DealID(dealid), types.EmptyTSK)
 	if err != nil {
 		nfs := fmt.Sprintf("deal %d not found", dealid)
 		if strings.Contains(err.Error(), nfs) {
@@ -291,9 +304,4 @@ func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid abi.DealID) (boo
 	}
 
 	return true, nil
-}
-
-func jsonize(b interface{}) string {
-	jsn, _ := json.MarshalIndent(b, "", " ")
-	return string(jsn)
 }
