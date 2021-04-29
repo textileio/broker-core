@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ipfs/go-datastore"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
@@ -32,7 +31,7 @@ var _ dealeri.Dealer = (*Dealer)(nil)
 
 // New returns a new Dealer.
 func New(
-	ds datastore.TxnDatastore,
+	ds txndswrap.TxnDatastore,
 	broker broker.Broker,
 	opts ...Option) (*Dealer, error) {
 	cfg := defaultConfig

@@ -27,8 +27,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/logging"
 	"golang.org/x/xerrors"
 )
 
@@ -90,7 +90,7 @@ func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 	if err != nil {
 		return cid.Undef, fmt.Errorf("creating deal proposal: %s", err)
 	}
-	log.Debugf("created proposal: %s", common.MustJsonIndent(p))
+	log.Debugf("created proposal: %s", logging.MustJsonIndent(p))
 	pr, err := fc.sendProposal(ctx, p)
 	if err != nil {
 		return cid.Undef, fmt.Errorf("sending proposal to miner: %s", err)
@@ -98,9 +98,9 @@ func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 
 	switch pr.Response.State {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal accepted: %s", common.MustJsonIndent(p))
+		log.Debugf("proposal accepted: %s", logging.MustJsonIndent(p))
 	default:
-		log.Warnf("proposal failed: %s", common.MustJsonIndent(p))
+		log.Warnf("proposal failed: %s", logging.MustJsonIndent(p))
 		return cid.Undef,
 			fmt.Errorf("failed proposal (%s): %s",
 				storagemarket.DealStates[pr.Response.State],

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/ratelim"
 )
 
@@ -150,7 +150,7 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch int
 	if err != nil {
 		return 0, false, fmt.Errorf("checking deal status with miner: %s", err)
 	}
-	log.Debugf("check-deal-status: %s", common.MustJsonIndent(pds))
+	log.Debugf("check-deal-status: %s", logging.MustJsonIndent(pds))
 
 	if pds.PublishCid != nil {
 		log.Debugf("miner published the deal in message %s, trying to resolve on-chain...", pds.PublishCid)

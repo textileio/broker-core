@@ -8,7 +8,7 @@ import (
 	"github.com/textileio/broker-core/ratelim"
 )
 
-func (d *Dealer) daemonDealReporting() {
+func (d *Dealer) daemonDealReporter() {
 	defer d.daemonWg.Done()
 
 	for {

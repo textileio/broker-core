@@ -1,6 +1,8 @@
 package logging
 
 import (
+	"encoding/json"
+
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/zap/zapcore"
 )
@@ -21,4 +23,11 @@ func SetLogLevels(systems map[string]logging.LogLevel) error {
 		}
 	}
 	return nil
+}
+
+// MustJsonIndent is an errorless method to json indent structs so they can be printed
+// in log.XXXf in a single line.
+func MustJsonIndent(b interface{}) string {
+	jsn, _ := json.MarshalIndent(b, "", " ")
+	return string(jsn)
 }

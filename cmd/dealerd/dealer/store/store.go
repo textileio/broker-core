@@ -16,6 +16,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/oklog/ulid/v2"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 )
 
 var (
@@ -82,7 +83,7 @@ type Store struct {
 }
 
 // New returns a *Store.
-func New(ds datastore.TxnDatastore) (*Store, error) {
+func New(ds txndswrap.TxnDatastore) (*Store, error) {
 	s := &Store{
 		ds:          ds,
 		auctionData: map[string]AuctionData{},
