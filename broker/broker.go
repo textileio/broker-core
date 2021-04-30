@@ -164,16 +164,16 @@ type AuctionID string
 
 // Auction defines the core auction model.
 type Auction struct {
-	ID           AuctionID
-	DealID       string
-	DealSize     uint64
-	DealDuration uint64
-	Status       AuctionStatus
-	Bids         map[BidID]Bid
-	WinningBids  []BidID
-	StartedAt    time.Time
-	Duration     time.Duration
-	Error        string
+	ID            AuctionID
+	StorageDealID StorageDealID
+	DealSize      uint64
+	DealDuration  uint64
+	Status        AuctionStatus
+	Bids          map[BidID]Bid
+	WinningBids   []BidID
+	StartedAt     time.Time
+	Duration      time.Duration
+	Error         string
 }
 
 // AuctionStatus is the status of an auction.
@@ -215,8 +215,12 @@ type BidID string
 
 // Bid defines the core bid model.
 type Bid struct {
-	Broker     peer.ID
-	From       peer.ID
-	AskPrice   int64 // attoFIL per GiB per epoch
-	ReceivedAt time.Time
+	MinerID          string
+	MinerPeerID      peer.ID
+	BrokerPeerID     peer.ID
+	AskPrice         int64 // attoFIL per GiB per epoch
+	VerifiedAskPrice int64 // attoFIL per GiB per epoch
+	StartEpoch       uint64
+	FastRetrieval    bool
+	ReceivedAt       time.Time
 }

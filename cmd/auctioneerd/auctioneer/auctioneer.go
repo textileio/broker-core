@@ -2,6 +2,7 @@ package auctioneer
 
 // TODO: Add ACK response to incoming bids.
 // TODO: Allow for multiple winners.
+// TODO: Handle verified ask price.
 
 import (
 	"context"
@@ -127,8 +128,11 @@ func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queud if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(dealID string, dealSize, dealDuration uint64) (core.AuctionID, error) {
-	id, err := a.queue.CreateAuction(dealID, dealSize, dealDuration, a.auctionConf.Duration)
+func (a *Auctioneer) CreateAuction(
+	storageDealID core.StorageDealID,
+	dealSize, dealDuration uint64,
+) (core.AuctionID, error) {
+	id, err := a.queue.CreateAuction(storageDealID, dealSize, dealDuration, a.auctionConf.Duration)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
 	}
@@ -210,7 +214,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 			return nil
 		case bid, ok := <-resCh:
 			if ok {
-				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.From, bid.AskPrice)
+				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.MinerPeerID, bid.AskPrice)
 
 				id, err := a.queue.NewID(bid.ReceivedAt)
 				if err != nil {
@@ -238,9 +242,13 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	ch, ok := a.bids[core.AuctionID(bid.AuctionId)]
 	if ok {
 		ch <- core.Bid{
-			From:       from,
-			AskPrice:   bid.AskPrice,
-			ReceivedAt: time.Now(),
+			MinerID:          bid.MinerId,
+			MinerPeerID:      from,
+			AskPrice:         bid.AskPrice,
+			VerifiedAskPrice: bid.VerifiedAskPrice,
+			StartEpoch:       bid.StartEpoch,
+			FastRetrieval:    bid.FastRetrieval,
+			ReceivedAt:       time.Now(),
 		}
 	}
 }
@@ -251,7 +259,7 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 	for k, v := range auction.Bids {
 		if int(v.AskPrice) < topBid {
 			topBid = int(v.AskPrice)
-			winner = v.From
+			winner = v.MinerPeerID
 			auction.WinningBids = append(auction.WinningBids, k)
 		}
 	}

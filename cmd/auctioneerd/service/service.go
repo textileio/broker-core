@@ -102,7 +102,7 @@ func (s *Service) EnableMDNS(intervalSecs int) error {
 
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
-	id, err := s.lib.CreateAuction(req.DealId, req.DealSize, req.DealDuration)
+	id, err := s.lib.CreateAuction(broker.StorageDealID(req.StorageDealId), req.DealSize, req.DealDuration)
 	if err != nil {
 		return nil, err
 	}

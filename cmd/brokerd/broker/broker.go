@@ -192,7 +192,7 @@ func (b *Broker) StorageDealPrepared(
 
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
-	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.DealID)
+	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.StorageDealID)
 
 	// TODO: Signal dealer to start the deal.
 	return nil
