@@ -125,7 +125,7 @@ func (q *Queue) NewID(t time.Time) (broker.AuctionID, error) {
 // CreateAuction adds a new auction to the queue.
 // The new auction will be handled immediately if workers are not busy.
 func (q *Queue) CreateAuction(
-	dealID string,
+	storageDealID broker.StorageDealID,
 	dealSize, dealDuration uint64,
 	auctionDuration time.Duration,
 ) (broker.AuctionID, error) {
@@ -134,12 +134,12 @@ func (q *Queue) CreateAuction(
 		return "", fmt.Errorf("creating id: %v", err)
 	}
 	a := &broker.Auction{
-		ID:           id,
-		DealID:       dealID,
-		DealSize:     dealSize,
-		DealDuration: dealDuration,
-		Status:       broker.AuctionStatusUnspecified,
-		Duration:     auctionDuration,
+		ID:            id,
+		StorageDealID: storageDealID,
+		DealSize:      dealSize,
+		DealDuration:  dealDuration,
+		Status:        broker.AuctionStatusUnspecified,
+		Duration:      auctionDuration,
 	}
 	if err := q.enqueue(a); err != nil {
 		return "", fmt.Errorf("enqueueing: %v", err)

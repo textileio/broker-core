@@ -27,13 +27,13 @@ func New(cc *grpc.ClientConn) *Client {
 // ReadyToAuction creates an auction.
 func (c *Client) ReadyToAuction(
 	ctx context.Context,
-	dealID broker.StorageDealID,
+	storageDealID broker.StorageDealID,
 	dealSize, dealDuration uint64,
 ) (broker.AuctionID, error) {
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
-		DealId:       string(dealID),
-		DealSize:     dealSize,
-		DealDuration: dealDuration,
+		StorageDealId: string(storageDealID),
+		DealSize:      dealSize,
+		DealDuration:  dealDuration,
 	})
 	if err != nil {
 		return "", err

@@ -61,7 +61,7 @@ message BrokerRequest {
     string region = 1;
   }
 }
- 
+
 service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
   rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}

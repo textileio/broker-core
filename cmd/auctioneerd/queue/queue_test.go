@@ -51,7 +51,7 @@ func TestQueue_ListRequests(t *testing.T) {
 		ids := make([]broker.AuctionID, limit)
 		for i := 0; i < limit; i++ {
 			now = now.Add(time.Millisecond)
-			id, err := q.CreateAuction(uuid.NewString(), 0, 0, time.Second)
+			id, err := q.CreateAuction(broker.StorageDealID(uuid.NewString()), 0, 0, time.Second)
 			require.NoError(t, err)
 			ids[i] = id
 		}
@@ -88,7 +88,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(uuid.NewString(), 0, 0, time.Millisecond)
+	id, err := q.CreateAuction(broker.StorageDealID(uuid.NewString()), 0, 0, time.Millisecond)
 	require.NoError(t, err)
 
 	// Allow to finish

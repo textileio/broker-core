@@ -17,16 +17,16 @@ func AuctionToPb(a broker.Auction) *pb.Auction {
 		wbids[i] = string(id)
 	}
 	pba := &pb.Auction{
-		Id:           string(a.ID),
-		DealId:       a.DealID,
-		DealSize:     a.DealSize,
-		DealDuration: a.DealDuration,
-		Status:       AuctionStatusToPb(a.Status),
-		Bids:         AuctionBidsToPb(a.Bids),
-		WinningBids:  wbids,
-		StartedAt:    timestamppb.New(a.StartedAt),
-		Duration:     int64(a.Duration),
-		Error:        a.Error,
+		Id:            string(a.ID),
+		StorageDealId: string(a.StorageDealID),
+		DealSize:      a.DealSize,
+		DealDuration:  a.DealDuration,
+		Status:        AuctionStatusToPb(a.Status),
+		Bids:          AuctionBidsToPb(a.Bids),
+		WinningBids:   wbids,
+		StartedAt:     timestamppb.New(a.StartedAt),
+		Duration:      int64(a.Duration),
+		Error:         a.Error,
 	}
 	return pba
 }
@@ -54,9 +54,13 @@ func AuctionBidsToPb(bids map[broker.BidID]broker.Bid) map[string]*pb.Auction_Bi
 	pbbids := make(map[string]*pb.Auction_Bid)
 	for k, v := range bids {
 		pbbids[string(k)] = &pb.Auction_Bid{
-			From:       v.From.String(),
-			AskPrice:   v.AskPrice,
-			ReceivedAt: timestamppb.New(v.ReceivedAt),
+			MinerId:          v.MinerID,
+			MinerPeerId:      v.MinerPeerID.String(),
+			AskPrice:         v.AskPrice,
+			VerifiedAskPrice: v.VerifiedAskPrice,
+			StartEpoch:       v.StartEpoch,
+			FastRetrieval:    v.FastRetrieval,
+			ReceivedAt:       timestamppb.New(v.ReceivedAt),
 		}
 	}
 	return pbbids
@@ -73,16 +77,16 @@ func AuctionFromPb(pba *pb.Auction) (broker.Auction, error) {
 		wbids[i] = broker.BidID(id)
 	}
 	a := broker.Auction{
-		ID:           broker.AuctionID(pba.Id),
-		DealID:       pba.DealId,
-		DealSize:     pba.DealSize,
-		DealDuration: pba.DealDuration,
-		Status:       AuctionStatusFromPb(pba.Status),
-		Bids:         bids,
-		WinningBids:  wbids,
-		StartedAt:    pba.StartedAt.AsTime(),
-		Duration:     time.Duration(pba.Duration),
-		Error:        pba.Error,
+		ID:            broker.AuctionID(pba.Id),
+		StorageDealID: broker.StorageDealID(pba.StorageDealId),
+		DealSize:      pba.DealSize,
+		DealDuration:  pba.DealDuration,
+		Status:        AuctionStatusFromPb(pba.Status),
+		Bids:          bids,
+		WinningBids:   wbids,
+		StartedAt:     pba.StartedAt.AsTime(),
+		Duration:      time.Duration(pba.Duration),
+		Error:         pba.Error,
 	}
 	return a, nil
 }
@@ -109,14 +113,18 @@ func AuctionStatusFromPb(pbs pb.Auction_Status) broker.AuctionStatus {
 func AuctionBidsFromPb(pbbids map[string]*pb.Auction_Bid) (map[broker.BidID]broker.Bid, error) {
 	bids := make(map[broker.BidID]broker.Bid)
 	for k, v := range pbbids {
-		from, err := peer.Decode(v.From)
+		from, err := peer.Decode(v.MinerPeerId)
 		if err != nil {
 			return nil, fmt.Errorf("decoding peer: %v", err)
 		}
 		bids[broker.BidID(k)] = broker.Bid{
-			From:       from,
-			AskPrice:   v.AskPrice,
-			ReceivedAt: v.ReceivedAt.AsTime(),
+			MinerID:          v.MinerId,
+			MinerPeerID:      from,
+			AskPrice:         v.AskPrice,
+			VerifiedAskPrice: v.VerifiedAskPrice,
+			StartEpoch:       v.StartEpoch,
+			FastRetrieval:    v.FastRetrieval,
+			ReceivedAt:       v.ReceivedAt.AsTime(),
 		}
 	}
 	return bids, nil

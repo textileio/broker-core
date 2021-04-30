@@ -209,7 +209,7 @@ func (s *Service) StorageDealAuctioned(
 
 	auction, err := auctioneercast.AuctionFromPb(r.Auction)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid auction")
+		return nil, status.Errorf(codes.InvalidArgument, "invalid auction: %s", err)
 	}
 
 	if err := s.broker.StorageDealAuctioned(ctx, auction); err != nil {

@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -115,6 +116,11 @@ func (s *Service) EnableMDNS(intervalSecs int) error {
 	return s.peer.EnableMDNS(intervalSecs)
 }
 
+// GetSigningMessage returns a message to be signed by a miner address.
+func (s *Service) GetSigningMessage() string {
+	return hex.EncodeToString([]byte(s.peer.Self()))
+}
+
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
 }
@@ -161,8 +167,12 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 
 	// Submit bid to auctioneer.
 	msg, err := proto.Marshal(&pb.Bid{
-		AuctionId: auction.Id,
-		AskPrice:  s.bidParams.AskPrice,
+		AuctionId:        auction.Id,
+		MinerId:          "f01123", // TODO
+		AskPrice:         s.bidParams.AskPrice,
+		VerifiedAskPrice: s.bidParams.AskPrice, // TODO
+		StartEpoch:       1234567890,           // TODO
+		FastRetrieval:    false,                // TODO
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
