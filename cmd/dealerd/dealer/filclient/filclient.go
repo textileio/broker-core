@@ -42,11 +42,11 @@ const DealProtocol = "/fil/storage/mk/1.1.0"
 type FilClient struct {
 	walletAddr address.Address
 	wallet     *wallet.LocalWallet
-	api        api.GatewayAPI
+	api        api.Gateway
 	host       host.Host
 }
 
-func New(api api.GatewayAPI, opts ...Option) (*FilClient, error) {
+func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
