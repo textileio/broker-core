@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
+	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/dealer/v1"
@@ -55,12 +58,12 @@ func New(conf Config) (*Service, error) {
 	}
 	fin.Add(ds)
 
-	brokerClient, err := client.New(conf.BrokerAPIAddr)
+	broker, err := client.New(conf.BrokerAPIAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker client: %s", err)
 	}
 	opts := []dealer.Option{}
-	lib, err := dealer.New(ds, brokerClient, opts...)
+	lib, err := dealer.New(ds, broker, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating dealer: %v", err)
 	}
@@ -87,13 +90,58 @@ func New(conf Config) (*Service, error) {
 	return s, nil
 }
 
-// ExecuteBids executes winning bids.
-func (s *Service) ExecuteBids(ctx context.Context, r *pb.ExecuteBidsRequest) (*pb.ExecuteBidsResponse, error) {
+func (s *Service) ReadyToCreateDeals(
+	ctx context.Context,
+	r *pb.ReadyToCreateDealsRequest) (*pb.ReadyToCreateDealsResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	return &pb.ExecuteBidsResponse{}, nil
+	if r.StorageDealId == "" {
+		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
+	}
+
+	payloadCid, err := cid.Decode(r.PayloadCid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "parsing payload cid %s: %s", r.PayloadCid, err)
+	}
+	pieceCid, err := cid.Decode(r.PieceCid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "parsing piece cid %s: %s", r.PieceCid, err)
+	}
+
+	ad := dealeri.AuctionDeals{
+		StorageDealID: broker.StorageDealID(r.StorageDealId),
+		PayloadCid:    payloadCid,
+		PieceCid:      pieceCid,
+		PieceSize:     r.PieceSize,
+		Duration:      r.Duration,
+		Targets:       make([]dealeri.AuctionDealsTarget, len(r.Targets)),
+	}
+	for i, t := range r.Targets {
+		if t.Miner == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "miner addr is empty")
+		}
+		if t.PricePerGibPerEpoch < 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "price per gib per epoch is negative")
+		}
+		if t.StartEpoch == 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "start epoch should be positive")
+		}
+		ad.Targets[i] = dealeri.AuctionDealsTarget{
+			Miner:               t.Miner,
+			PricePerGiBPerEpoch: t.PricePerGibPerEpoch,
+			StartEpoch:          t.StartEpoch,
+			Verified:            t.Verified,
+			FastRetrieval:       t.FastRetrieval,
+		}
+	}
+
+	if err := s.dealer.ReadyToCreateDeals(ctx, ad); err != nil {
+		return nil, status.Errorf(codes.Internal, "processing ready to create deals: %s", err)
+	}
+
+	return &pb.ReadyToCreateDealsResponse{}, nil
 }
 
 // Close the service.

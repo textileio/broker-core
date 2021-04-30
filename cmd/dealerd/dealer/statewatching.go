@@ -77,7 +77,7 @@ func (d *Dealer) daemonDealWatcherTick() error {
 	return nil
 }
 
-func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainHeight int64) error {
+func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainHeight uint64) error {
 	if aud.DealID == 0 {
 		dealID, stillHaveTime, err := d.tryResolvingDealID(aud, currentChainHeight)
 		if err != nil {
@@ -107,7 +107,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 	// We can ask the chain now for final confirmation.
 	// Now we can stop asking/trusting the miner for confirmation, and start asking
 	// the chain.
-	isActiveOnchain, err := d.filclient.CheckChainDeal(d.daemonCtx, aud.DealID)
+	isActiveOnchain, expiration, err := d.filclient.CheckChainDeal(d.daemonCtx, aud.DealID)
 	if err != nil {
 		return fmt.Errorf("checking if deal is active on-chain: %s", err)
 	}
@@ -131,6 +131,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 		return nil
 	}
 
+	aud.DealExpiration = expiration
 	aud.Status = store.Success
 	if err := d.store.SaveAuctionDeal(aud); err != nil {
 		return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
@@ -143,7 +144,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 // It asks the miner for the message Cid that published the deal. If a DealID is returned,
 // we can be sure is the correct one for AuctionDeal, since this method checks that the miner
 // isn't playing tricks reporting a DealID from other data.
-func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch int64) (int64, bool, error) {
+func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uint64) (int64, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	pds, err := d.filclient.CheckDealStatusWithMiner(ctx, aud.Miner, aud.ProposalCid)

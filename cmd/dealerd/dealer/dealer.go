@@ -47,7 +47,8 @@ func New(
 	}
 
 	// TODO: need opts
-	filclient, err := filclient.New()
+	// TODO: need interface
+	filclient, err := filclient.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating filecoin client: %s", err)
 	}
@@ -70,11 +71,11 @@ func New(
 
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals) error {
 	auctionData := store.AuctionData{
-		AuctionID:  ad.AuctionID,
-		PayloadCid: ad.PayloadCid,
-		PieceCid:   ad.PieceCid,
-		PieceSize:  ad.PieceSize,
-		Duration:   ad.Duration,
+		StorageDealID: ad.StorageDealID,
+		PayloadCid:    ad.PayloadCid,
+		PieceCid:      ad.PieceCid,
+		PieceSize:     ad.PieceSize,
+		Duration:      ad.Duration,
 	}
 	auctionDeals := make([]store.AuctionDeal, len(ad.Targets))
 	for i, t := range ad.Targets {

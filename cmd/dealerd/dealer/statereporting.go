@@ -1,9 +1,11 @@
 package dealer
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	"github.com/textileio/broker-core/ratelim"
 )
@@ -34,19 +36,37 @@ func (d *Dealer) daemonDealReporterTick() error {
 	for {
 		adSuccess, err := d.store.GetAllAuctionDeals(store.Success)
 		if err != nil {
-			return fmt.Errorf("get success deals: %s", err)
+			return fmt.Errorf("get successful deals: %s", err)
 		}
 		adError, err := d.store.GetAllAuctionDeals(store.Error)
 		if err != nil {
-			return fmt.Errorf("get success deals: %s", err)
+			return fmt.Errorf("get errored deals: %s", err)
 		}
 		ads := append(adSuccess, adError...)
 		if len(ads) == 0 {
 			break
 		}
 
+		res := make([]broker.FinalizedAuctionDeal, len(ads))
+		auctionDealIDs := make([]string, len(ads))
+		for i, aud := range ads {
+			ad, err := d.store.GetAuctionData(aud.AuctionDataID)
+			if err != nil {
+				return fmt.Errorf("get auction data: %s", err)
+			}
+			res[i] = broker.FinalizedAuctionDeal{
+				StorageDealID:  ad.StorageDealID,
+				ErrorCause:     aud.ErrorCause,
+				DealID:         aud.DealID,
+				DealExpiration: aud.DealExpiration,
+			}
+			auctionDealIDs = append(auctionDealIDs, aud.ID)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
 		// We report finalized Auction Deals to the broker.
-		if err := d.broker.ReportAuctionDealResults(ctx, results); err != nil {
+		if err := d.broker.StorageDealFinalizedDeals(ctx, res); err != nil {
 			return fmt.Errorf("reporting auction deal results to the broker: %s", err)
 		}
 

@@ -46,7 +46,7 @@ type FilClient struct {
 	host       host.Host
 }
 
-func New(opts ...Option) (*FilClient, error) {
+func New(api api.GatewayAPI, opts ...Option) (*FilClient, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
@@ -80,6 +80,7 @@ func New(opts ...Option) (*FilClient, error) {
 		walletAddr: waddr,
 		wallet:     w,
 		host:       h,
+		api:        api,
 	}
 
 	return fc, nil
@@ -110,13 +111,13 @@ func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 	return pr.Response.Proposal, nil
 }
 
-func (fc *FilClient) GetChainHeight(ctx context.Context) (int64, error) {
+func (fc *FilClient) GetChainHeight(ctx context.Context) (uint64, error) {
 	tip, err := fc.api.ChainHead(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("getting chain head: %s", err)
 	}
 
-	return int64(tip.Height()), nil
+	return uint64(tip.Height()), nil
 }
 
 // ResolveDealIDFromMessage looks for a publish deal message by its Cid and resolves the deal-id from the receipt.
@@ -192,7 +193,7 @@ func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionDat
 	}
 
 	pricePerEpoch := big.Div(
-		big.Mul(big.NewInt(ad.PieceSize), big.NewInt(aud.PricePerGiBPerEpoch)),
+		big.Mul(big.NewInt(int64(ad.PieceSize)), big.NewInt(aud.PricePerGiBPerEpoch)),
 		big.NewInt(1<<30),
 	)
 
@@ -351,20 +352,20 @@ func (fc *FilClient) sendProposal(ctx context.Context, netprop *network.Proposal
 	return &resp, nil
 }
 
-func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, error) {
+func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, uint64, error) {
 	deal, err := fc.api.StateMarketStorageDeal(ctx, abi.DealID(dealid), types.EmptyTSK)
 	if err != nil {
 		nfs := fmt.Sprintf("deal %d not found", dealid)
 		if strings.Contains(err.Error(), nfs) {
-			return false, nil
+			return false, 0, nil
 		}
 
-		return false, err
+		return false, 0, fmt.Errorf("calling state market storage deal: %s", err)
 	}
 
 	if deal.State.SlashEpoch > 0 {
-		return false, nil
+		return false, 0, fmt.Errorf("is active on chain but slashed: %d", deal.State.SlashEpoch)
 	}
 
-	return true, nil
+	return true, uint64(deal.Proposal.EndEpoch), nil
 }
