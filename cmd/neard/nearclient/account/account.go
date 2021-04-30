@@ -243,9 +243,6 @@ func (a *Account) SignAndSendTransaction(
 			}
 			return mappedErr
 		}
-
-		// TODO: inspect res for error conditions like js code.
-
 		result = &res
 		*done = true
 		return nil
@@ -279,8 +276,15 @@ func (a *Account) SignAndSendTransaction(
 				status.Failure.ErrorType,
 			)
 		}
-		// TODO the parse result error thing
-		return nil, fmt.Errorf("TODO error")
+		// TODO: the parse result error thing
+		// The JS client code looks wrong/conflicting because the TS types say that status.Failure is always
+		// and object of Execution error type. But then they have code that reads like it can be some complex
+		// schema type. Just going to dump the transaction outcome as json into an error for now.
+		bytes, err := json.MarshalIndent(result.TransactionOutcome, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("marshaling transaction outcome to json: %v", err)
+		}
+		return nil, fmt.Errorf("other error with transaction outcome: %s", string(bytes))
 	}
 
 	return result, nil
