@@ -200,7 +200,36 @@ func TestGetAuctionNotFound(t *testing.T) {
 
 func TestRemoveAuctionDeals(t *testing.T) {
 	t.Parallel()
-	t.Skip()
+
+	s, err := New(tests.NewTxMapDatastore())
+	require.NoError(t, err)
+	err = s.Create(gad1, []AuctionDeal{gaud1, gaud2})
+	require.NoError(t, err)
+
+	all, err := s.GetAllAuctionDeals(Pending)
+	require.NoError(t, err)
+	err = s.RemoveAuctionDeals([]AuctionDeal{all[0]})
+	require.Error(t, err) // Can't remove non-final status (i.e: Pending)
+
+	// Remove the first auction deal.
+	all[0].Status = Success
+	err = s.RemoveAuctionDeals([]AuctionDeal{all[0]})
+	require.NoError(t, err)
+
+	// Check the corresponding AuctionData wasn't removed from the store,
+	// since the second auction data is still linking to it.
+	_, err = s.GetAuctionData(all[1].AuctionDataID)
+	require.NoError(t, err)
+
+	// Remove the second.
+	all[1].Status = Error
+	err = s.RemoveAuctionDeals([]AuctionDeal{all[1]})
+	require.NoError(t, err)
+
+	// Check the corresponding AuctionData was also removed.
+	// No more auction datas linked to it.
+	_, err = s.GetAuctionData(all[1].AuctionDataID)
+	require.Equal(t, ErrNotFound, err)
 }
 
 func castCid(cidStr string) cid.Cid {

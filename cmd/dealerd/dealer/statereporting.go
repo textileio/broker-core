@@ -48,7 +48,6 @@ func (d *Dealer) daemonDealReporterTick() error {
 		}
 
 		res := make([]broker.FinalizedAuctionDeal, len(ads))
-		auctionDealIDs := make([]string, len(ads))
 		for i, aud := range ads {
 			ad, err := d.store.GetAuctionData(aud.AuctionDataID)
 			if err != nil {
@@ -60,7 +59,6 @@ func (d *Dealer) daemonDealReporterTick() error {
 				DealID:         aud.DealID,
 				DealExpiration: aud.DealExpiration,
 			}
-			auctionDealIDs = append(auctionDealIDs, aud.ID)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -72,7 +70,7 @@ func (d *Dealer) daemonDealReporterTick() error {
 
 		// We are safe to remove those from our store. This will indirectly remove also the linked
 		// AuctionData, if no pending/in-progress AuctionDeals exist for them.
-		if err := d.store.RemoveAuctionDeals(auctionDealIDs); err != nil {
+		if err := d.store.RemoveAuctionDeals(ads); err != nil {
 			return fmt.Errorf("removing auction deals: %s", err)
 		}
 	}

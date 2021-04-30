@@ -212,14 +212,17 @@ func (s *Store) GetAuctionData(auctionDataID string) (AuctionData, error) {
 	return ad, nil
 }
 
-func (s *Store) RemoveAuctionDeals(ids []string) error {
-	for _, id := range ids {
-		if err := s.ds.Delete(makeAuctionDealKey(id)); err != nil {
+func (s *Store) RemoveAuctionDeals(ads []AuctionDeal) error {
+	for _, aud := range ads {
+		if aud.Status != Error && aud.Status != Success {
+			return fmt.Errorf("only auction deals in final status can be removed")
+		}
+		if err := s.ds.Delete(makeAuctionDealKey(aud.ID)); err != nil {
 			return fmt.Errorf("deleting auction deal: %s", err)
 		}
 		s.lock.Lock()
 		for i := range s.auctionDeals {
-			if s.auctionDeals[i].ID == id {
+			if s.auctionDeals[i].ID == aud.ID {
 				s.auctionDeals = append(s.auctionDeals[:i], s.auctionDeals[i+1:]...)
 				break
 			}
@@ -229,7 +232,7 @@ func (s *Store) RemoveAuctionDeals(ids []string) error {
 
 	// Investigate AuctionData that are still alive, so we can GC orpahaned
 	// AuctionData that we can also delete.
-	var aliveADs map[string]struct{}
+	aliveADs := map[string]struct{}{}
 	s.lock.Lock()
 	for _, aud := range s.auctionDeals {
 		aliveADs[aud.AuctionDataID] = struct{}{}
