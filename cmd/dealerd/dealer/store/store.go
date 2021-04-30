@@ -120,16 +120,16 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 	}
 
 	// Save all AuctionDeals linked to this AuctionData.
-	for _, auctionDeal := range ads {
+	for i := range ads {
 		newID, err := s.newID()
 		if err != nil {
 			return fmt.Errorf("generating new id: %s", err)
 		}
-		auctionDeal.ID = newID
-		auctionDeal.AuctionDataID = ad.ID // Link with its AuctionData.
-		auctionDeal.Status = Pending
-		auctionDeal.CreatedAt = ad.CreatedAt
-		if err := s.save(txn, makeAuctionDealKey(auctionDeal.ID), auctionDeal); err != nil {
+		ads[i].ID = newID
+		ads[i].AuctionDataID = ad.ID // Link with its AuctionData.
+		ads[i].Status = Pending
+		ads[i].CreatedAt = ad.CreatedAt
+		if err := s.save(txn, makeAuctionDealKey(ads[i].ID), ads[i]); err != nil {
 			return fmt.Errorf("saving auction deal in datastore: %s", err)
 		}
 	}
