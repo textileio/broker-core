@@ -206,7 +206,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 		return fmt.Errorf("winning bids list is empty")
 	}
 
-	sd, err := b.store.GetStorageDeal(ctx, broker.StorageDealID(auction.DealID))
+	sd, err := b.store.GetStorageDeal(ctx, auction.StorageDealID)
 	if err != nil {
 		return fmt.Errorf("storage deal not found: %s", err)
 	}
@@ -227,11 +227,11 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 			return fmt.Errorf("winning bid %s wasn't found in bid map", wbid)
 		}
 		ads.Targets[i] = dealer.AuctionDealsTarget{
-			//Miner:               bid.Miner, // sander: Missing.
+			Miner:               bid.MinerID,
 			PricePerGiBPerEpoch: bid.AskPrice,
-			//	StartEpoch:          bid.StartEpoch,    // sander: Missing.
-			//	Verified:            bid.VerifiedDeal,  // sander: Missing.
-			//	FastRetrieval:       bid.FastRetrieval, // sander: Missing.
+			StartEpoch:          bid.StartEpoch,
+			Verified:            true, // Hardcoded for now.
+			FastRetrieval:       bid.FastRetrieval,
 		}
 	}
 
