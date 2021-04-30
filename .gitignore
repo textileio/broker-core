@@ -18,3 +18,6 @@
 # Project
 .env
 build/
+extern/
+.filecoin-install
+.update-modules

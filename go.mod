@@ -16,6 +16,7 @@ require (
 	github.com/filecoin-project/lotus v1.8.0
 	github.com/filecoin-project/specs-actors v0.9.13
 	github.com/go-ole/go-ole v1.2.5 // indirect
+	github.com/gogo/status v1.1.0
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hsanjuan/ipfs-lite v1.1.19
@@ -63,4 +64,4 @@ require (
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
 
-replace github.com/filecoin-project/filecoin-ffi => ../lotus/extern/filecoin-ffi
+replace github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
