@@ -60,11 +60,7 @@ func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 		return nil, fmt.Errorf("creating local wallet: %s", err)
 	}
 
-	ki := &types.KeyInfo{
-		Type:       cfg.keyType,
-		PrivateKey: cfg.keyPrivate,
-	}
-	waddr, err := w.WalletImport(context.Background(), ki)
+	waddr, err := w.WalletImport(context.Background(), &cfg.keyInfo)
 	if err != nil {
 		return nil, fmt.Errorf("importing wallet addr: %s", err)
 	}

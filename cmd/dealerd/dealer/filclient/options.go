@@ -1,10 +1,15 @@
 package filclient
 
-import "github.com/filecoin-project/lotus/chain/types"
+import (
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+
+	"github.com/filecoin-project/lotus/chain/types"
+)
 
 type config struct {
-	keyType    types.KeyType
-	keyPrivate []byte
+	keyInfo types.KeyInfo
 }
 
 var defaultConfig = config{}
@@ -12,10 +17,15 @@ var defaultConfig = config{}
 // Option applies a configuration change.
 type Option func(*config) error
 
-func WithKey(keyType string, keyPrivate []byte) Option {
+func WithExportedKey(exportedHexKey string) Option {
 	return func(c *config) error {
-		c.keyType = types.KeyType(keyType)
-		c.keyPrivate = keyPrivate
+		buf, err := hex.DecodeString(exportedHexKey)
+		if err != nil {
+			return fmt.Errorf("hex decoding: %s", err)
+		}
+		if err := json.Unmarshal(buf, &c.keyInfo); err != nil {
+			return fmt.Errorf("unmarshaling key info: %s", err)
+		}
 		return nil
 	}
 }
