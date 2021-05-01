@@ -26,15 +26,15 @@ build-authd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/authd
 .PHONY: build-authd
 
-build-neard:
+build-neard: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/neard
 .PHONY: build-neard
 
-build-auctioneerd:
+build-auctioneerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
 .PHONY: build-auctioneerd
 
-build-minerd:
+build-minerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
 .PHONY: build-minerd
 
@@ -68,6 +68,7 @@ up:
 down:
 	docker-compose -f docker-compose-dev.yml down
 .PHONY: down
+
 mocks: $(MOCKERY) clean-mocks
 	$(MOCKERY) --all --dir gen --keeptree
 .PHONY: mocks

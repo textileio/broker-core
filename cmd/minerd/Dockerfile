@@ -9,7 +9,7 @@ COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
-  CGO_ENABLED=0 GOOS=linux make build-minerd
+  BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-minerd
 
 FROM alpine
 COPY --from=builder /app/minerd /app/minerd

@@ -9,7 +9,7 @@ COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
-  CGO_ENABLED=0 GOOS=linux make build-packerd
+  BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-packerd
 
 FROM alpine
 COPY --from=builder /app/packerd /app/packerd

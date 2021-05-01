@@ -32,7 +32,7 @@ func NewServer(listenAddr string, s storage.Requester) (*http.Server, error) {
 		Handler:           createMux(s),
 	}
 
-	log.Infof("Running HTTP API...")
+	log.Infof("running HTTP API...")
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Errorf("stopping http server: %s", err)
@@ -45,6 +45,8 @@ func NewServer(listenAddr string, s storage.Requester) (*http.Server, error) {
 func createMux(s storage.Requester) *http.ServeMux {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/health", healthHandler)
+
 	uploadHandler := wrapMiddlewares(s, uploadHandler(s), "upload")
 	mux.Handle("/upload", uploadHandler)
 
@@ -52,6 +54,14 @@ func createMux(s storage.Requester) *http.ServeMux {
 	mux.Handle("/storagerequest/", storageRequest)
 
 	return mux
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		httpError(w, "only GET method is allowed", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func wrapMiddlewares(s storage.Requester, h http.HandlerFunc, name string) http.Handler {
