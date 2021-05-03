@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-datastore"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
@@ -36,15 +35,24 @@ type Broker struct {
 	packer     packer.Packer
 	piecer     piecer.Piecer
 	auctioneer auctioneer.Auctioneer
+	dealEpochs uint64
 }
 
-// New creates a Broker backed by the provdied `ds`.
+// New creates a Broker backed by the provided `ds`.
 func New(
-	ds datastore.TxnDatastore,
+	ds txndswrap.TxnDatastore,
 	packer packer.Packer,
 	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,
+	dealEpochs uint64,
 ) (*Broker, error) {
+	if dealEpochs < broker.MinDealEpochs {
+		return nil, fmt.Errorf("deal epochs is less than minimum allowed: %d", broker.MinDealEpochs)
+	}
+	if dealEpochs > broker.MaxDealEpochs {
+		return nil, fmt.Errorf("deal epochs is greater than maximum allowed: %d", broker.MaxDealEpochs)
+	}
+
 	store, err := srstore.New(txndswrap.Wrap(ds, "/broker-store"))
 	if err != nil {
 		return nil, fmt.Errorf("initializing broker request store: %s", err)
@@ -55,6 +63,7 @@ func New(
 		packer:     packer,
 		piecer:     piecer,
 		auctioneer: auctioneer,
+		dealEpochs: dealEpochs,
 	}
 	return b, nil
 }
@@ -167,15 +176,25 @@ func (b *Broker) StorageDealPrepared(
 ) error {
 	// TODO: include the data preparation result (piece-size and CommP) in StorageDeal data.
 	// @jsign: I'll do this tomorrow.
-	var sd broker.StorageDeal // assume this variable will exist...
+	// var sd broker.StorageDeal // assume this variable will exist...
 
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
-	// Signal the Auctioneer to create an auction. It will eventually call WinningBids(..) to tell
+	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
 	// us about who won things.
-	if err := b.auctioneer.ReadyToAuction(ctx, sd); err != nil {
+	auctionID, err := b.auctioneer.ReadyToAuction(ctx, id, po.PieceSize, b.dealEpochs)
+	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
 
+	log.Debugf("created auction %s", auctionID)
+	return nil
+}
+
+// StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
+func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
+	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.StorageDealID)
+
+	// TODO: Signal dealer to start the deal.
 	return nil
 }
 

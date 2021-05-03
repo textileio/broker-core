@@ -23,6 +23,8 @@ type Config struct {
 	UploaderIPFSMultiaddr string
 	// BrokerAPIAddr is the Broker API address.
 	BrokerAPIAddr string
+	// AuthAddr is the address of authd.
+	AuthAddr string
 }
 
 // Service provides an implementation of the Storage API.
@@ -55,7 +57,7 @@ func New(config Config) (*Service, error) {
 }
 
 func createStorage(config Config) (storage.Requester, error) {
-	auth, err := brokerauth.New()
+	auth, err := brokerauth.New(config.AuthAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker auth: %s", err)
 	}

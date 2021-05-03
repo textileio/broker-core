@@ -1,7 +1,7 @@
 package queue
 
-// @todo: Restart started auctions?
-// @todo: Handle canceling auctions? When queued? When already started?
+// TODO: Restart started auctions?
+// TODO: Handle retries if auction fails (got no bids / or other error).
 
 import (
 	"bytes"
@@ -19,8 +19,8 @@ import (
 	dsq "github.com/ipfs/go-datastore/query"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/oklog/ulid/v2"
-	core "github.com/textileio/broker-core/auctioneer"
-	kt "github.com/textileio/broker-core/keytransform"
+	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 	dsextensions "github.com/textileio/go-datastore-extensions"
 )
 
@@ -58,14 +58,14 @@ var (
 
 // Handler is called when an auction moves from "queued" to "started".
 // This separates the queue's job from the auction handling, making the queue logic easier to test.
-type Handler func(ctx context.Context, auction *core.Auction) error
+type Handler func(ctx context.Context, auction *broker.Auction) error
 
 // Queue is a persistent worker-based task queue.
 type Queue struct {
-	store kt.TxnDatastoreExtended
+	store txndswrap.TxnDatastore
 
 	handler Handler
-	jobCh   chan *core.Auction
+	jobCh   chan *broker.Auction
 	doneCh  chan struct{}
 	entropy *ulid.MonotonicEntropy
 
@@ -76,12 +76,12 @@ type Queue struct {
 }
 
 // NewQueue returns a new Queue using handler to process auctions.
-func NewQueue(store kt.TxnDatastoreExtended, handler Handler) (*Queue, error) {
+func NewQueue(store txndswrap.TxnDatastore, handler Handler) (*Queue, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	q := &Queue{
 		store:   store,
 		handler: handler,
-		jobCh:   make(chan *core.Auction, MaxConcurrency),
+		jobCh:   make(chan *broker.Auction, MaxConcurrency),
 		doneCh:  make(chan struct{}, MaxConcurrency),
 		ctx:     ctx,
 		cancel:  cancel,
@@ -103,7 +103,7 @@ func (q *Queue) Close() error {
 }
 
 // NewID returns new monotonically increasing auction ids.
-func (q *Queue) NewID(t time.Time) (string, error) {
+func (q *Queue) NewID(t time.Time) (broker.AuctionID, error) {
 	q.lk.Lock() // entropy is not safe for concurrent use
 
 	if q.entropy == nil {
@@ -119,20 +119,27 @@ func (q *Queue) NewID(t time.Time) (string, error) {
 		return "", fmt.Errorf("generating id: %v", err)
 	}
 	q.lk.Unlock()
-	return strings.ToLower(id.String()), nil
+	return broker.AuctionID(strings.ToLower(id.String())), nil
 }
 
 // CreateAuction adds a new auction to the queue.
 // The new auction will be handled immediately if workers are not busy.
-func (q *Queue) CreateAuction(duration time.Duration) (string, error) {
+func (q *Queue) CreateAuction(
+	storageDealID broker.StorageDealID,
+	dealSize, dealDuration uint64,
+	auctionDuration time.Duration,
+) (broker.AuctionID, error) {
 	id, err := q.NewID(time.Now())
 	if err != nil {
 		return "", fmt.Errorf("creating id: %v", err)
 	}
-	a := &core.Auction{
-		ID:       id,
-		Status:   core.AuctionStatusUnspecified,
-		Duration: int64(duration),
+	a := &broker.Auction{
+		ID:            id,
+		StorageDealID: storageDealID,
+		DealSize:      dealSize,
+		DealDuration:  dealDuration,
+		Status:        broker.AuctionStatusUnspecified,
+		Duration:      auctionDuration,
 	}
 	if err := q.enqueue(a); err != nil {
 		return "", fmt.Errorf("enqueueing: %v", err)
@@ -141,16 +148,16 @@ func (q *Queue) CreateAuction(duration time.Duration) (string, error) {
 }
 
 // GetAuction returns an auction by id.
-func (q *Queue) GetAuction(id string) (*core.Auction, error) {
-	a, err := q.getAuction(q.store, id)
+func (q *Queue) GetAuction(id broker.AuctionID) (*broker.Auction, error) {
+	a, err := getAuction(q.store, id)
 	if err != nil {
 		return nil, err
 	}
 	return a, err
 }
 
-func (q *Queue) getAuction(reader ds.Read, id string) (*core.Auction, error) {
-	val, err := reader.Get(dsPrefix.ChildString(id))
+func getAuction(reader ds.Read, id broker.AuctionID) (*broker.Auction, error) {
+	val, err := reader.Get(dsPrefix.ChildString(string(id)))
 	if errors.Is(err, ds.ErrNotFound) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -193,7 +200,7 @@ const (
 )
 
 // ListAuctions lists auctions by applying a Query.
-func (q *Queue) ListAuctions(query Query) ([]core.Auction, error) {
+func (q *Queue) ListAuctions(query Query) ([]broker.Auction, error) {
 	query = query.setDefaults()
 
 	var (
@@ -232,7 +239,7 @@ func (q *Queue) ListAuctions(query Query) ([]core.Auction, error) {
 	}
 	defer func() { _ = results.Close() }()
 
-	var list []core.Auction
+	var list []broker.Auction
 	for res := range results.Next() {
 		if res.Error != nil {
 			return nil, fmt.Errorf("getting next result: %v", res.Error)
@@ -252,9 +259,9 @@ func (q *Queue) ListAuctions(query Query) ([]core.Auction, error) {
 	return list, nil
 }
 
-func (q *Queue) enqueue(a *core.Auction) error {
+func (q *Queue) enqueue(a *broker.Auction) error {
 	// Set the auction to "started"
-	if err := q.setStatus(a, core.AuctionStatusStarted); err != nil {
+	if err := q.setStatus(a, broker.AuctionStatusStarted); err != nil {
 		return fmt.Errorf("updating status (started): %v", err)
 	}
 
@@ -265,7 +272,7 @@ func (q *Queue) enqueue(a *core.Auction) error {
 		default:
 			log.Debugf("workers are busy; queueing %s", a.ID)
 			// Workers are busy, set back to "queued"
-			if err := q.setStatus(a, core.AuctionStatusQueued); err != nil {
+			if err := q.setStatus(a, broker.AuctionStatusQueued); err != nil {
 				log.Errorf("error updating status (queued): %v", err)
 			}
 		}
@@ -286,9 +293,9 @@ func (q *Queue) worker(num int) {
 			log.Debugf("worker %d got job %s", num, a.ID)
 
 			// Handle the auction with the handler func
-			status := core.AuctionStatusEnded
+			status := broker.AuctionStatusEnded
 			if err := q.handler(q.ctx, a); err != nil {
-				status = core.AuctionStatusError
+				status = broker.AuctionStatusError
 				a.Error = err.Error()
 				log.Errorf("error handling auction: %v", err)
 			}
@@ -336,7 +343,7 @@ func (q *Queue) getNext() {
 	}
 }
 
-func (q *Queue) getQueued() (*core.Auction, error) {
+func (q *Queue) getQueued() (*broker.Auction, error) {
 	txn, err := q.store.NewTransaction(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating txn: %v", err)
@@ -361,14 +368,14 @@ func (q *Queue) getQueued() (*core.Auction, error) {
 		return nil, fmt.Errorf("getting next result: %v", res.Error)
 	}
 
-	a, err := q.getAuction(txn, path.Base(res.Key))
+	a, err := getAuction(txn, broker.AuctionID(path.Base(res.Key)))
 	if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}
 	return a, nil
 }
 
-func (q *Queue) setStatus(a *core.Auction, status core.AuctionStatus) error {
+func (q *Queue) setStatus(a *broker.Auction, status broker.AuctionStatus) error {
 	txn, err := q.store.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("creating txn: %v", err)
@@ -376,23 +383,23 @@ func (q *Queue) setStatus(a *core.Auction, status core.AuctionStatus) error {
 	defer txn.Discard()
 
 	// Handle currently "queued" and "started" status
-	if a.Status == core.AuctionStatusQueued {
-		if err := txn.Delete(dsQueuePrefix.ChildString(a.ID)); err != nil {
+	if a.Status == broker.AuctionStatusQueued {
+		if err := txn.Delete(dsQueuePrefix.ChildString(string(a.ID))); err != nil {
 			return fmt.Errorf("deleting from queue: %v", err)
 		}
-	} else if a.Status == core.AuctionStatusStarted {
-		if err := txn.Delete(dsStartedPrefix.ChildString(a.ID)); err != nil {
+	} else if a.Status == broker.AuctionStatusStarted {
+		if err := txn.Delete(dsStartedPrefix.ChildString(string(a.ID))); err != nil {
 			return fmt.Errorf("deleting from started: %v", err)
 		}
 	}
-	if status == core.AuctionStatusQueued {
+	if status == broker.AuctionStatusQueued {
 		a.StartedAt = time.Time{} // reset started
-		if err := txn.Put(dsQueuePrefix.ChildString(a.ID), nil); err != nil {
+		if err := txn.Put(dsQueuePrefix.ChildString(string(a.ID)), nil); err != nil {
 			return fmt.Errorf("putting to queue: %v", err)
 		}
-	} else if status == core.AuctionStatusStarted {
+	} else if status == broker.AuctionStatusStarted {
 		a.StartedAt = time.Now()
-		if err := txn.Put(dsStartedPrefix.ChildString(a.ID), nil); err != nil {
+		if err := txn.Put(dsStartedPrefix.ChildString(string(a.ID)), nil); err != nil {
 			return fmt.Errorf("putting to started: %v", err)
 		}
 	}
@@ -405,7 +412,7 @@ func (q *Queue) setStatus(a *core.Auction, status core.AuctionStatus) error {
 	}
 
 	// Set value
-	if err := txn.Put(dsPrefix.ChildString(a.ID), val); err != nil {
+	if err := txn.Put(dsPrefix.ChildString(string(a.ID)), val); err != nil {
 		return fmt.Errorf("putting value: %v", err)
 	}
 
@@ -423,7 +430,7 @@ func encode(v interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func decode(v []byte) (a core.Auction, err error) {
+func decode(v []byte) (a broker.Auction, err error) {
 	var buf bytes.Buffer
 	if _, err := buf.Write(v); err != nil {
 		return a, err

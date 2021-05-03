@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net"
 	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -9,6 +10,8 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/authd/service"
 	"github.com/textileio/broker-core/cmd/common"
+	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -19,9 +22,10 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc.addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log.debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "near-addr", DefValue: "", Description: "neard service api address"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 	}
 
 	common.ConfigureCLI(v, "AUTH", flags, rootCmd)
@@ -33,7 +37,7 @@ var rootCmd = &cobra.Command{
 	Long:  `authd provides authentication services for the Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log.debug") {
+		if v.GetBool("debug") {
 			logging.SetAllLoggers(logging.LevelDebug)
 		}
 	},
@@ -42,14 +46,29 @@ var rootCmd = &cobra.Command{
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
+		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		serv, err := service.New(v.GetString("grpc.listen.addr"))
+		chainAPIClientConn, err := grpc.Dial(v.GetString("near-addr"), grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("creating near api connection: %v", err)
+		}
+		chainAPIClient := chainapi.NewChainApiServiceClient(chainAPIClientConn)
+
+		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
+		if err != nil {
+			log.Fatalf("creating listener connection: %v", err)
+		}
+		config := service.Config{Listener: listener}
+		deps := service.Deps{ChainAPIServiceClient: chainAPIClient}
+		serv, err := service.New(config, deps)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
+			if err := chainAPIClientConn.Close(); err != nil {
+				log.Errorf("closing chain api client conn: %v", err)
+			}
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
 			}

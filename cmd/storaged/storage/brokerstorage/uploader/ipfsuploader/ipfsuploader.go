@@ -35,7 +35,11 @@ func New(ipfsAPIMultiaddr string) (*IpfsUploader, error) {
 
 // Store persists and pins the io.Reader and returns the corresponding Cid.
 func (iu *IpfsUploader) Store(ctx context.Context, r io.Reader) (cid.Cid, error) {
-	p, err := iu.client.Unixfs().Add(ctx, ipfsfiles.NewReaderFile(r), options.Unixfs.Pin(true))
+	p, err := iu.client.Unixfs().Add(
+		ctx,
+		ipfsfiles.NewReaderFile(r),
+		options.Unixfs.CidVersion(1),
+		options.Unixfs.Pin(true))
 	if err != nil {
 		return cid.Undef, fmt.Errorf("adding data to ipfs: %s", err)
 	}

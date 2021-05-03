@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,10 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	mongods "github.com/textileio/go-ds-mongo"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -29,7 +26,7 @@ type Flag struct {
 func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra.Command) {
 	v.SetEnvPrefix(envPrefix)
 	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 
 	for _, flag := range flags {
 		switch defval := flag.DefValue.(type) {
@@ -38,6 +35,15 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 			v.SetDefault(flag.Name, defval)
 		case bool:
 			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
+		case int:
+			rootCmd.Flags().Int(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
+		case int64:
+			rootCmd.Flags().Int64(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
+		case uint64:
+			rootCmd.Flags().Uint64(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case time.Duration:
 			rootCmd.Flags().Duration(flag.Name, defval, flag.Description)
@@ -78,6 +84,13 @@ func CheckErr(err error) {
 	}
 }
 
+// CheckErrf ends in a fatal log if err is not nil.
+func CheckErrf(format string, err error) {
+	if err != nil {
+		log.Fatalf(format, err)
+	}
+}
+
 // HandleInterrupt attempts to cleanup while allowing the user to force stop the process.
 func HandleInterrupt(cleanup func()) {
 	quit := make(chan os.Signal, 1)
@@ -86,23 +99,4 @@ func HandleInterrupt(cleanup func()) {
 	fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 	cleanup()
 	os.Exit(1)
-}
-
-// CreateMongoTxnDatastore creates a TxnDatastore backed by MongoDB.
-func CreateMongoTxnDatastore(uri, dbName string) (datastore.TxnDatastore, error) {
-	mongoCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	if uri == "" {
-		return nil, fmt.Errorf("mongo uri is empty")
-	}
-	if dbName == "" {
-		return nil, fmt.Errorf("mongo database name is empty")
-	}
-	ds, err := mongods.New(mongoCtx, uri, dbName)
-	if err != nil {
-		return nil, fmt.Errorf("opening mongo datastore: %s", err)
-	}
-
-	return ds, nil
 }

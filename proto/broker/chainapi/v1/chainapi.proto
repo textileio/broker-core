@@ -1,7 +1,5 @@
 syntax = "proto3";
-
 package chainapi.v1;
-
 option go_package = "github.com/textileio/broker-core/gen/broker/chainapi/v1;chainapi";
 
 message DepositInfo {

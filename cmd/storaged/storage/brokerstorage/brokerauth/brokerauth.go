@@ -2,26 +2,37 @@ package brokerauth
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/textileio/broker-core/auth"
+	authd "github.com/textileio/broker-core/gen/broker/auth/v1"
+	"google.golang.org/grpc"
 )
 
-// BrokerAuth provides authorization resolution for the storage service.
-type BrokerAuth struct {
+// AuthService provides authentication resolution for the storage service.
+type AuthService struct {
+	client authd.AuthAPIServiceClient
 }
 
 // New returns a new BrokerAuth.
-func New() (*BrokerAuth, error) {
-	return &BrokerAuth{}, nil
+func New(addr string) (*AuthService, error) {
+	conn, connErr := grpc.Dial(addr, grpc.WithInsecure())
+	if connErr != nil {
+		return nil, fmt.Errorf("creating authd client connection: %v", connErr)
+	}
+	client := authd.NewAuthAPIServiceClient(conn)
+	return &AuthService{client: client}, nil
 }
 
-var _ auth.Authorizer = (*BrokerAuth)(nil)
+var _ auth.Authorizer = (*AuthService)(nil)
 
-// IsAuthorized resolves if the provided identity is authorized to use
-// the storage service. If that isn't the case, an string is return explaining why.
-func (bs *BrokerAuth) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {
-	// TODO: Fill this implementation when the Auth API is ready.
-	// For now, authorize every request.
-
-	return true, "", nil
+// IsAuthorized returns the identity that is authorized to use the storage service, otherwise returning an error.
+// The token is a base64 URL encoded JWT.
+func (a *AuthService) IsAuthorized(ctx context.Context, token string) (bool, string, error) {
+	req := &authd.AuthRequest{Token: token}
+	res, err := a.client.Auth(ctx, req)
+	if err != nil {
+		return false, fmt.Sprintf("IsAuthorized error: %s", err), err
+	}
+	return true, res.Identity, nil
 }

@@ -2,9 +2,20 @@ package broker
 
 import (
 	"context"
+	"path"
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
+)
+
+const (
+	epochsPerDay uint64 = 60 * 24 * 2 // 1 epoch = ~30s
+
+	// MinDealEpochs is the minimum allowed deal duration requested of miners.
+	MinDealEpochs = epochsPerDay * 365 / 2 // ~6 months
+	// MaxDealEpochs is the maximum allowed deal duration requested of miners.
+	MaxDealEpochs = epochsPerDay * 365 // ~1 year
 )
 
 // Broker provides full set of functionalities for Filecoin brokering.
@@ -17,6 +28,9 @@ type Broker interface {
 
 	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
 	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
+
+	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
+	StorageDealAuctioned(ctx context.Context, auction Auction) error
 }
 
 // BrokerRequestor alows to create and query BrokerRequests.
@@ -128,4 +142,85 @@ type StorageDeal struct {
 type DataPreparationResult struct {
 	PieceSize uint64
 	PieceCid  cid.Cid
+}
+
+// AuctionTopic is used by brokers to publish and by miners to subscribe to deal auctions.
+const AuctionTopic string = "/textile/auction/0.0.1"
+
+// BidsTopic is used by miners to submit deal auction bids.
+// "/textile/auction/0.0.1/<auction_id>/bids".
+func BidsTopic(auctionID AuctionID) string {
+	return path.Join(AuctionTopic, string(auctionID), "bids")
+}
+
+// WinsTopic is used by brokers to notify a miner thay have won the deal auction.
+// "/textile/auction/0.0.1/<peer_id>/wins".
+func WinsTopic(pid peer.ID) string {
+	return path.Join(AuctionTopic, pid.String(), "wins")
+}
+
+// AuctionID is a unique identifier for an Auction.
+type AuctionID string
+
+// Auction defines the core auction model.
+type Auction struct {
+	ID            AuctionID
+	StorageDealID StorageDealID
+	DealSize      uint64
+	DealDuration  uint64
+	Status        AuctionStatus
+	Bids          map[BidID]Bid
+	WinningBids   []BidID
+	StartedAt     time.Time
+	Duration      time.Duration
+	Error         string
+}
+
+// AuctionStatus is the status of an auction.
+type AuctionStatus int
+
+const (
+	// AuctionStatusUnspecified indicates the initial or invalid status of an auction.
+	AuctionStatusUnspecified AuctionStatus = iota
+	// AuctionStatusQueued indicates the auction is currently queued.
+	AuctionStatusQueued
+	// AuctionStatusStarted indicates the auction has started.
+	AuctionStatusStarted
+	// AuctionStatusEnded indicates the auction has ended.
+	AuctionStatusEnded
+	// AuctionStatusError indicates the auction resulted in an error.
+	AuctionStatusError
+)
+
+// String returns a string-encoded status.
+func (as AuctionStatus) String() string {
+	switch as {
+	case AuctionStatusUnspecified:
+		return "unspecified"
+	case AuctionStatusQueued:
+		return "queued"
+	case AuctionStatusStarted:
+		return "started"
+	case AuctionStatusEnded:
+		return "ended"
+	case AuctionStatusError:
+		return "error"
+	default:
+		return "invalid"
+	}
+}
+
+// BidID is a unique identifier for a Bid.
+type BidID string
+
+// Bid defines the core bid model.
+type Bid struct {
+	MinerID          string
+	MinerPeerID      peer.ID
+	BrokerPeerID     peer.ID
+	AskPrice         int64 // attoFIL per GiB per epoch
+	VerifiedAskPrice int64 // attoFIL per GiB per epoch
+	StartEpoch       uint64
+	FastRetrieval    bool
+	ReceivedAt       time.Time
 }

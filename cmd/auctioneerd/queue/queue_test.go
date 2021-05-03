@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	core "github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
 	. "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/logging"
 	badger "github.com/textileio/go-ds-badger3"
@@ -28,7 +29,7 @@ func TestQueue_NewID(t *testing.T) {
 	q := newQueue(t)
 
 	// Ensure monotonic
-	var last string
+	var last broker.AuctionID
 	for i := 0; i < 10000; i++ {
 		id, err := q.NewID(time.Now())
 		require.NoError(t, err)
@@ -47,10 +48,10 @@ func TestQueue_ListRequests(t *testing.T) {
 	t.Run("pagination", func(t *testing.T) {
 		limit := 100
 		now := time.Now()
-		ids := make([]string, limit)
+		ids := make([]broker.AuctionID, limit)
 		for i := 0; i < limit; i++ {
 			now = now.Add(time.Millisecond)
-			id, err := q.CreateAuction(time.Second)
+			id, err := q.CreateAuction(broker.StorageDealID(uuid.NewString()), 0, 0, time.Second)
 			require.NoError(t, err)
 			ids[i] = id
 		}
@@ -67,7 +68,7 @@ func TestQueue_ListRequests(t *testing.T) {
 
 		// Get next page, should return next 10 records
 		offset := l[len(l)-1].ID
-		l, err = q.ListAuctions(Query{Offset: offset})
+		l, err = q.ListAuctions(Query{Offset: string(offset)})
 		require.NoError(t, err)
 		assert.Len(t, l, 10)
 		assert.Equal(t, ids[limit-11], l[0].ID)
@@ -75,7 +76,7 @@ func TestQueue_ListRequests(t *testing.T) {
 
 		// Get previous page, should return the first page in reverse order
 		offset = l[0].ID
-		l, err = q.ListAuctions(Query{Offset: offset, Order: OrderAscending})
+		l, err = q.ListAuctions(Query{Offset: string(offset), Order: OrderAscending})
 		require.NoError(t, err)
 		assert.Len(t, l, 10)
 		assert.Equal(t, ids[limit-10], l[0].ID)
@@ -87,7 +88,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(time.Millisecond)
+	id, err := q.CreateAuction(broker.StorageDealID(uuid.NewString()), 0, 0, time.Millisecond)
 	require.NoError(t, err)
 
 	// Allow to finish
@@ -95,7 +96,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
-	assert.Equal(t, core.AuctionStatusEnded, got.Status)
+	assert.Equal(t, broker.AuctionStatusEnded, got.Status)
 }
 
 func newQueue(t *testing.T) *Queue {
@@ -112,7 +113,7 @@ func newQueue(t *testing.T) *Queue {
 	return q
 }
 
-func handler(_ context.Context, _ *core.Auction) error {
+func handler(_ context.Context, _ *broker.Auction) error {
 	time.Sleep(time.Millisecond * 100)
 	return nil
 }

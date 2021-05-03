@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type APIServiceClient interface {
-	CreateAuction(ctx context.Context, in *CreateAuctionRequest, opts ...grpc.CallOption) (*CreateAuctionResponse, error)
+	ReadyToAuction(ctx context.Context, in *ReadyToAuctionRequest, opts ...grpc.CallOption) (*ReadyToAuctionResponse, error)
 	GetAuction(ctx context.Context, in *GetAuctionRequest, opts ...grpc.CallOption) (*GetAuctionResponse, error)
 }
 
@@ -30,9 +30,9 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 	return &aPIServiceClient{cc}
 }
 
-func (c *aPIServiceClient) CreateAuction(ctx context.Context, in *CreateAuctionRequest, opts ...grpc.CallOption) (*CreateAuctionResponse, error) {
-	out := new(CreateAuctionResponse)
-	err := c.cc.Invoke(ctx, "/broker.auctioneer.v1.APIService/CreateAuction", in, out, opts...)
+func (c *aPIServiceClient) ReadyToAuction(ctx context.Context, in *ReadyToAuctionRequest, opts ...grpc.CallOption) (*ReadyToAuctionResponse, error) {
+	out := new(ReadyToAuctionResponse)
+	err := c.cc.Invoke(ctx, "/broker.auctioneer.v1.APIService/ReadyToAuction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (c *aPIServiceClient) GetAuction(ctx context.Context, in *GetAuctionRequest
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
 type APIServiceServer interface {
-	CreateAuction(context.Context, *CreateAuctionRequest) (*CreateAuctionResponse, error)
+	ReadyToAuction(context.Context, *ReadyToAuctionRequest) (*ReadyToAuctionResponse, error)
 	GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
@@ -61,8 +61,8 @@ type APIServiceServer interface {
 type UnimplementedAPIServiceServer struct {
 }
 
-func (UnimplementedAPIServiceServer) CreateAuction(context.Context, *CreateAuctionRequest) (*CreateAuctionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateAuction not implemented")
+func (UnimplementedAPIServiceServer) ReadyToAuction(context.Context, *ReadyToAuctionRequest) (*ReadyToAuctionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadyToAuction not implemented")
 }
 func (UnimplementedAPIServiceServer) GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAuction not implemented")
@@ -80,20 +80,20 @@ func RegisterAPIServiceServer(s grpc.ServiceRegistrar, srv APIServiceServer) {
 	s.RegisterService(&APIService_ServiceDesc, srv)
 }
 
-func _APIService_CreateAuction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateAuctionRequest)
+func _APIService_ReadyToAuction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadyToAuctionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).CreateAuction(ctx, in)
+		return srv.(APIServiceServer).ReadyToAuction(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.auctioneer.v1.APIService/CreateAuction",
+		FullMethod: "/broker.auctioneer.v1.APIService/ReadyToAuction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).CreateAuction(ctx, req.(*CreateAuctionRequest))
+		return srv.(APIServiceServer).ReadyToAuction(ctx, req.(*ReadyToAuctionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -124,8 +124,8 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateAuction",
-			Handler:    _APIService_CreateAuction_Handler,
+			MethodName: "ReadyToAuction",
+			Handler:    _APIService_ReadyToAuction_Handler,
 		},
 		{
 			MethodName: "GetAuction",

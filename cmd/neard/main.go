@@ -26,13 +26,13 @@ var (
 )
 
 var flags = []common.Flag{
-	{Name: "listen.addr", DefValue: ":5000", Description: "The host and port the gRPC service should listen on."},
-	{Name: "metrics.addr", DefValue: ":9090", Description: "Prometheus endpoint"},
-	{Name: "endpoint.url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
-	{Name: "endpoint.timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
-	{Name: "account.id", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box smart contract."},
-	{Name: "update.frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state."},
-	{Name: "request.timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
+	{Name: "rpc-addr", DefValue: "", Description: "The host and port the gRPC service should listen on."},
+	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus endpoint"},
+	{Name: "endpoint-url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
+	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
+	{Name: "account-id", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box smart contract."},
+	{Name: "update-frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state."},
+	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
 	{Name: "debug", DefValue: false, Description: "Enable debug level logs."},
 }
 
@@ -55,13 +55,13 @@ var rootCmd = &cobra.Command{
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		listenAddr := v.GetString("listen.addr")
-		metricsAddr := v.GetString("metrics.addr")
-		endpointURL := v.GetString("endpoint.url")
-		endpointTimeout := v.GetDuration("endpoint.timeout")
-		accountID := v.GetString("account.id")
-		updateFrequency := v.GetDuration("update.frequency")
-		requestTimeout := v.GetDuration("request.timeout")
+		listenAddr := v.GetString("rpc-addr")
+		metricsAddr := v.GetString("metrics-addr")
+		endpointURL := v.GetString("endpoint-url")
+		endpointTimeout := v.GetDuration("endpoint-timeout")
+		accountID := v.GetString("account-id")
+		updateFrequency := v.GetDuration("update-frequency")
+		requestTimeout := v.GetDuration("request-timeout")
 
 		if err := common.SetupInstrumentation(metricsAddr); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)

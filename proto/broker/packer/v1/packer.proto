@@ -1,6 +1,6 @@
 syntax = "proto3";
 package broker.packer.v1;
-option go_package = "github.com/textileio/broker-core/broker/packer/v1;packer";
+option go_package = "github.com/textileio/broker-core/gen/broker/packer/v1;packer";
 
 import "google/protobuf/timestamp.proto";
 

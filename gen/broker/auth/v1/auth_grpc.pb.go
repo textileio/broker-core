@@ -14,86 +14,86 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// APIServiceClient is the client API for APIService service.
+// AuthAPIServiceClient is the client API for AuthAPIService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type APIServiceClient interface {
+type AuthAPIServiceClient interface {
 	Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 }
 
-type aPIServiceClient struct {
+type authAPIServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
-	return &aPIServiceClient{cc}
+func NewAuthAPIServiceClient(cc grpc.ClientConnInterface) AuthAPIServiceClient {
+	return &authAPIServiceClient{cc}
 }
 
-func (c *aPIServiceClient) Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
+func (c *authAPIServiceClient) Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
 	out := new(AuthResponse)
-	err := c.cc.Invoke(ctx, "/broker.auth.v1.APIService/Auth", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/broker.auth.v1.AuthAPIService/Auth", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// APIServiceServer is the server API for APIService service.
-// All implementations must embed UnimplementedAPIServiceServer
+// AuthAPIServiceServer is the server API for AuthAPIService service.
+// All implementations must embed UnimplementedAuthAPIServiceServer
 // for forward compatibility
-type APIServiceServer interface {
+type AuthAPIServiceServer interface {
 	Auth(context.Context, *AuthRequest) (*AuthResponse, error)
-	mustEmbedUnimplementedAPIServiceServer()
+	mustEmbedUnimplementedAuthAPIServiceServer()
 }
 
-// UnimplementedAPIServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedAPIServiceServer struct {
+// UnimplementedAuthAPIServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedAuthAPIServiceServer struct {
 }
 
-func (UnimplementedAPIServiceServer) Auth(context.Context, *AuthRequest) (*AuthResponse, error) {
+func (UnimplementedAuthAPIServiceServer) Auth(context.Context, *AuthRequest) (*AuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Auth not implemented")
 }
-func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
+func (UnimplementedAuthAPIServiceServer) mustEmbedUnimplementedAuthAPIServiceServer() {}
 
-// UnsafeAPIServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to APIServiceServer will
+// UnsafeAuthAPIServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AuthAPIServiceServer will
 // result in compilation errors.
-type UnsafeAPIServiceServer interface {
-	mustEmbedUnimplementedAPIServiceServer()
+type UnsafeAuthAPIServiceServer interface {
+	mustEmbedUnimplementedAuthAPIServiceServer()
 }
 
-func RegisterAPIServiceServer(s grpc.ServiceRegistrar, srv APIServiceServer) {
-	s.RegisterService(&APIService_ServiceDesc, srv)
+func RegisterAuthAPIServiceServer(s grpc.ServiceRegistrar, srv AuthAPIServiceServer) {
+	s.RegisterService(&AuthAPIService_ServiceDesc, srv)
 }
 
-func _APIService_Auth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AuthAPIService_Auth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AuthRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).Auth(ctx, in)
+		return srv.(AuthAPIServiceServer).Auth(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.auth.v1.APIService/Auth",
+		FullMethod: "/broker.auth.v1.AuthAPIService/Auth",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).Auth(ctx, req.(*AuthRequest))
+		return srv.(AuthAPIServiceServer).Auth(ctx, req.(*AuthRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
+// AuthAPIService_ServiceDesc is the grpc.ServiceDesc for AuthAPIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var APIService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "broker.auth.v1.APIService",
-	HandlerType: (*APIServiceServer)(nil),
+var AuthAPIService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "broker.auth.v1.AuthAPIService",
+	HandlerType: (*AuthAPIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "Auth",
-			Handler:    _APIService_Auth_Handler,
+			Handler:    _AuthAPIService_Auth_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
