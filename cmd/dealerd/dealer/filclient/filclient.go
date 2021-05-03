@@ -36,8 +36,8 @@ var (
 	log = logger.Logger("dealer/filclient")
 )
 
-const DealStatusProtocol = "/fil/storage/status/1.1.0"
-const DealProtocol = "/fil/storage/mk/1.1.0"
+const dealStatusProtocol = "/fil/storage/status/1.1.0"
+const dealProtocol = "/fil/storage/mk/1.1.0"
 
 type FilClient struct {
 	walletAddr address.Address
@@ -122,7 +122,7 @@ func (fc *FilClient) GetChainHeight(ctx context.Context) (uint64, error) {
 // This method is mostly what Estuary does with some tweaks, kudos to them!
 func (fc *FilClient) ResolveDealIDFromMessage(
 	ctx context.Context,
-	aud store.AuctionDeal,
+	proposalCid cid.Cid,
 	publishDealMessage cid.Cid) (int64, error) {
 	mlookup, err := fc.api.StateSearchMsg(ctx, publishDealMessage)
 	if err != nil {
@@ -152,7 +152,7 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 
 		// If we find a proposal in the message that matches our AuctionDeal proposal cid, we can be sure
 		// that this deal-id is the one we're looking for. The proposal cid summarizes the deal information.
-		if nd.Cid() == aud.ProposalCid {
+		if nd.Cid() == proposalCid {
 			dealix = i
 			break
 		}
@@ -176,6 +176,63 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 	}
 
 	return int64(retval.IDs[dealix]), nil
+}
+
+func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, uint64, error) {
+	deal, err := fc.api.StateMarketStorageDeal(ctx, abi.DealID(dealid), types.EmptyTSK)
+	if err != nil {
+		nfs := fmt.Sprintf("deal %d not found", dealid)
+		if strings.Contains(err.Error(), nfs) {
+			return false, 0, nil
+		}
+
+		return false, 0, fmt.Errorf("calling state market storage deal: %s", err)
+	}
+
+	if deal.State.SlashEpoch > 0 {
+		return false, 0, fmt.Errorf("is active on chain but slashed: %d", deal.State.SlashEpoch)
+	}
+
+	return true, uint64(deal.Proposal.EndEpoch), nil
+}
+
+func (fc *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerAddr string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
+	miner, err := address.NewFromString(minerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid miner address %s: %s", minerAddr, err)
+	}
+	cidb, err := cborutil.Dump(propCid)
+	if err != nil {
+		return nil, err
+	}
+
+	sig, err := fc.wallet.WalletSign(ctx, fc.walletAddr, cidb, api.MsgMeta{Type: api.MTUnknown})
+	if err != nil {
+		return nil, xerrors.Errorf("signing status request failed: %w", err)
+	}
+
+	req := &network.DealStatusRequest{
+		Proposal:  propCid,
+		Signature: *sig,
+	}
+
+	s, err := fc.streamToMiner(ctx, miner, dealStatusProtocol)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cborutil.WriteCborRPC(s, req); err != nil {
+		return nil, xerrors.Errorf("failed to write status request: %w", err)
+	}
+
+	var resp network.DealStatusResponse
+	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
+		return nil, xerrors.Errorf("reading response: %w", err)
+	}
+
+	// TODO: check the signatures and stuff?
+
+	return &resp.DealState, nil
 }
 
 func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (*network.Proposal, error) {
@@ -246,45 +303,6 @@ func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionDat
 	}, nil
 }
 
-func (fc *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerAddr string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
-	miner, err := address.NewFromString(minerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid miner address %s: %s", minerAddr, err)
-	}
-	cidb, err := cborutil.Dump(propCid)
-	if err != nil {
-		return nil, err
-	}
-
-	sig, err := fc.wallet.WalletSign(ctx, fc.walletAddr, cidb, api.MsgMeta{Type: api.MTUnknown})
-	if err != nil {
-		return nil, xerrors.Errorf("signing status request failed: %w", err)
-	}
-
-	req := &network.DealStatusRequest{
-		Proposal:  propCid,
-		Signature: *sig,
-	}
-
-	s, err := fc.streamToMiner(ctx, miner, DealStatusProtocol)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := cborutil.WriteCborRPC(s, req); err != nil {
-		return nil, xerrors.Errorf("failed to write status request: %w", err)
-	}
-
-	var resp network.DealStatusResponse
-	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
-		return nil, xerrors.Errorf("reading response: %w", err)
-	}
-
-	// TODO: check the signatures and stuff?
-
-	return &resp.DealState, nil
-}
-
 func (fc *FilClient) streamToMiner(ctx context.Context, maddr address.Address, protocol protocol.ID) (inet.Stream, error) {
 	mpid, err := fc.connectToMiner(ctx, maddr)
 	if err != nil {
@@ -302,7 +320,7 @@ func (fc *FilClient) streamToMiner(ctx context.Context, maddr address.Address, p
 func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) (peer.ID, error) {
 	minfo, err := fc.api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("state miner info call: %s", err)
 	}
 
 	if minfo.PeerId == nil {
@@ -322,14 +340,14 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 		ID:    *minfo.PeerId,
 		Addrs: maddrs,
 	}); err != nil {
-		return "", err
+		return "", fmt.Errorf("connecting to miner: %s", err)
 	}
 
 	return *minfo.PeerId, nil
 }
 
 func (fc *FilClient) sendProposal(ctx context.Context, netprop *network.Proposal) (*network.SignedResponse, error) {
-	s, err := fc.streamToMiner(ctx, netprop.DealProposal.Proposal.Provider, DealProtocol)
+	s, err := fc.streamToMiner(ctx, netprop.DealProposal.Proposal.Provider, dealProtocol)
 	if err != nil {
 		return nil, xerrors.Errorf("opening stream to miner: %w", err)
 	}
@@ -346,22 +364,4 @@ func (fc *FilClient) sendProposal(ctx context.Context, netprop *network.Proposal
 	}
 
 	return &resp, nil
-}
-
-func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, uint64, error) {
-	deal, err := fc.api.StateMarketStorageDeal(ctx, abi.DealID(dealid), types.EmptyTSK)
-	if err != nil {
-		nfs := fmt.Sprintf("deal %d not found", dealid)
-		if strings.Contains(err.Error(), nfs) {
-			return false, 0, nil
-		}
-
-		return false, 0, fmt.Errorf("calling state market storage deal: %s", err)
-	}
-
-	if deal.State.SlashEpoch > 0 {
-		return false, 0, fmt.Errorf("is active on chain but slashed: %d", deal.State.SlashEpoch)
-	}
-
-	return true, uint64(deal.Proposal.EndEpoch), nil
 }

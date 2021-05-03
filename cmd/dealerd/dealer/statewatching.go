@@ -157,7 +157,7 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uin
 		log.Debugf("miner published the deal in message %s, trying to resolve on-chain...", pds.PublishCid)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
-		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, aud, *pds.PublishCid)
+		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, aud.ProposalCid, *pds.PublishCid)
 		if err != nil {
 			return 0, false, fmt.Errorf("trying to resolve deal-id from message %s: %s", pds.PublishCid, err)
 		}
