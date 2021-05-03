@@ -93,6 +93,7 @@ func TestStateMachineExecPending(t *testing.T) {
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
 
+	// Tick deal making.
 	err = dealer.daemonDealMakerTick()
 	require.NoError(t, err)
 
@@ -112,6 +113,80 @@ func TestStateMachineExecPending(t *testing.T) {
 	require.Equal(t, fakeProposalCid, wc.ProposalCid) // Crucial check.
 	require.Equal(t, int64(0), wc.DealID)             // Can't be set at this stage.
 	require.Equal(t, uint64(0), wc.DealExpiration)    // Can't be set at this stage.
+
+	fc.AssertExpectations(t)
+}
+
+func TestStateMachineExecWaitingConfirmation(t *testing.T) {
+	fc := &fcMock{}
+
+	fakeProposalCid := castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHZ")
+	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, nil).Times(1)
+
+	fakePublishDealMessage := castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jZZ")
+	cdswmCall := fc.On("CheckDealStatusWithMiner", mock.Anything, mock.Anything, mock.Anything)
+	cdswmCall = cdswmCall.Return(&storagemarket.ProviderDealState{
+		PublishCid: &fakePublishDealMessage,
+	}, nil)
+	cdswmCall = cdswmCall.Times(1)
+
+	fakeDealID := int64(1337)
+	rdfmCall := fc.On("ResolveDealIDFromMessage", mock.Anything, fakeProposalCid, fakePublishDealMessage)
+	rdfmCall = rdfmCall.Return(fakeDealID, nil)
+	rdfmCall = rdfmCall.Times(1)
+
+	fakeExpiration := uint64(98765)
+	ccdCall := fc.On("CheckChainDeal", mock.Anything, fakeDealID)
+	ccdCall = ccdCall.Return(true, fakeExpiration, nil)
+	ccdCall = ccdCall.Times(1)
+
+	gchCall := fc.On("GetChainHeight", mock.Anything)
+	gchCall = gchCall.Return(uint64(1111111), nil)
+	gchCall = gchCall.Times(1)
+
+	dealer := newDealer(t, nil, fc)
+	auds := dealeri.AuctionDeals{
+		StorageDealID: "SD1",
+		PayloadCid:    castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
+		PieceCid:      castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
+		Duration:      123,
+		PieceSize:     456,
+		Targets: []dealeri.AuctionDealsTarget{
+			{
+				Miner:               "f0001",
+				FastRetrieval:       true,
+				PricePerGiBPerEpoch: 100,
+				StartEpoch:          200,
+				Verified:            true,
+			},
+		},
+	}
+	err := dealer.ReadyToCreateDeals(context.Background(), auds)
+	require.NoError(t, err)
+
+	// Tick deal making.
+	err = dealer.daemonDealMakerTick()
+	require.NoError(t, err)
+
+	// Tick deal monitoring.
+	err = dealer.daemonDealMonitoringTick()
+	require.NoError(t, err)
+
+	// Check there're no more deals waiting for confirmation.
+	waitingConfirmation, err := dealer.store.GetAllAuctionDeals(store.WaitingConfirmation)
+	require.Len(t, waitingConfirmation, 0)
+
+	// Check the deal moved to Success
+	success, err := dealer.store.GetAllAuctionDeals(store.Success)
+	require.NoError(t, err)
+	require.Len(t, success, 1)
+
+	wc := success[0]
+	require.Equal(t, store.Success, wc.Status)
+	require.Empty(t, wc.ErrorCause)
+	require.True(t, time.Since(wc.UpdatedAt) < time.Minute)
+	require.Equal(t, fakeDealID, wc.DealID)             // Crucial check
+	require.Equal(t, fakeExpiration, wc.DealExpiration) // Crucial check
 
 	fc.AssertExpectations(t)
 }

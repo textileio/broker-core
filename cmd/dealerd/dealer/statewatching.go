@@ -31,7 +31,6 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 	if err != nil {
 		return fmt.Errorf("create ratelim: %s", err)
 	}
-	defer rl.Wait()
 
 	for {
 		ps, err := d.store.GetAllAuctionDeals(store.WaitingConfirmation)
@@ -67,6 +66,7 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 				return nil
 			})
 		}
+		rl.Wait()
 	}
 
 	return nil
@@ -94,6 +94,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 		}
 
 		// We know the deal-id now. Persist it, and keep moving.
+		aud.DealID = dealID
 		if err := d.store.SaveAuctionDeal(aud); err != nil {
 			return fmt.Errorf("updating auction deal in store: %s", err)
 		}
