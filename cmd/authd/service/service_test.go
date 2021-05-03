@@ -140,6 +140,7 @@ func TestService_validateInput(t *testing.T) {
 func TestService_ValidateLockedFunds(t *testing.T) {
 	// Funds ok
 	sub := "sub"
+	aud := "aud"
 	mockChain := &mocks.ChainApiServiceClient{}
 	mockChain.On(
 		"HasFunds",
@@ -148,7 +149,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: true,
 	}, nil)
-	ok, err := service.ValidateLockedFunds(context.Background(), sub, mockChain)
+	ok, err := service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
 	require.NoError(t, err)
 	require.True(t, ok)
 	mockChain.AssertExpectations(t)
@@ -162,7 +163,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: false,
 	}, nil)
-	ok, err = service.ValidateLockedFunds(context.Background(), sub, mockChain)
+	ok, err = service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
 	require.Error(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
