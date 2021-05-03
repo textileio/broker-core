@@ -16,7 +16,6 @@ import (
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/service"
 	"github.com/textileio/broker-core/cmd/neard/statecache"
-	"github.com/textileio/broker-core/cmd/neard/updater"
 )
 
 var (
@@ -60,8 +59,8 @@ var rootCmd = &cobra.Command{
 		endpointURL := v.GetString("endpoint-url")
 		endpointTimeout := v.GetDuration("endpoint-timeout")
 		accountID := v.GetString("account-id")
-		updateFrequency := v.GetDuration("update-frequency")
-		requestTimeout := v.GetDuration("request-timeout")
+		// updateFrequency := v.GetDuration("update-frequency")
+		// requestTimeout := v.GetDuration("request-timeout")
 
 		if err := common.SetupInstrumentation(metricsAddr); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
@@ -82,12 +81,12 @@ var rootCmd = &cobra.Command{
 		sc, err := statecache.NewStateCache()
 		common.CheckErr(err)
 
-		u := updater.NewUpdater(updater.Config{
-			Lbc:             lc,
-			UpdateFrequency: updateFrequency,
-			RequestTimeout:  requestTimeout,
-			Delegate:        sc,
-		})
+		// u := updater.NewUpdater(updater.Config{
+		// 	Lbc:             lc,
+		// 	UpdateFrequency: updateFrequency,
+		// 	RequestTimeout:  requestTimeout,
+		// 	Delegate:        sc,
+		// })
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)
@@ -97,7 +96,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
-			common.CheckErr(u.Close())
+			// common.CheckErr(u.Close())
 			rpcClient.Close()
 			log.Info("Gracefully stopping... (press Ctrl+C again to force)")
 			common.CheckErr(service.Close())
