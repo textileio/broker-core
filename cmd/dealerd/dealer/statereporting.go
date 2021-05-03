@@ -31,7 +31,6 @@ func (d *Dealer) daemonDealReporterTick() error {
 	if err != nil {
 		return fmt.Errorf("create ratelim: %s", err)
 	}
-	defer rl.Wait()
 
 	for {
 		adSuccess, err := d.store.GetAllAuctionDeals(store.Success)
@@ -73,6 +72,7 @@ func (d *Dealer) daemonDealReporterTick() error {
 		if err := d.store.RemoveAuctionDeals(ads); err != nil {
 			return fmt.Errorf("removing auction deals: %s", err)
 		}
+		rl.Wait()
 	}
 
 	return nil
