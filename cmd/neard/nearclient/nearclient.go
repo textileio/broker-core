@@ -7,15 +7,10 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/account"
 	itypes "github.com/textileio/broker-core/cmd/neard/nearclient/internal/types"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/util"
-)
-
-var (
-	log = logging.Logger("nearclient")
 )
 
 // CallFunctionResponse holds information about the result of a function call.

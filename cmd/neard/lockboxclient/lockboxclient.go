@@ -9,15 +9,34 @@ import (
 	"strconv"
 	"strings"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/account"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/transaction"
 )
+
+var (
+	log = logging.Logger("lockboxclient")
+)
+
+// BrokerInfo holds information about a broker.
+type BrokerInfo struct {
+	BrokerID  string   `json:"brokerId"`
+	Addresses []string `json:"addresses"`
+}
+
+// DepositInfo holds information about a deposit.
+type DepositInfo struct {
+	Amount     *big.Int
+	Sender     string
+	Expiration uint64
+}
 
 // LockInfo models user locked funds.
 type LockInfo struct {
-	Deposit   *big.Int
-	Sender    string
 	AccountID string
+	BrokerID  string
+	Deposit   DepositInfo
 }
 
 // State models the lock box contract state.
@@ -58,9 +77,96 @@ func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
 	}, nil
 }
 
+// DeleteBroker deletes the specified broker from the state.
+func (c *Client) DeleteBroker(ctx context.Context, brokerID string) error {
+	if _, err := c.nc.Account(c.accountID).FunctionCall(
+		ctx,
+		c.accountID,
+		"deleteBroker",
+		transaction.FunctionCallWithArgs(map[string]interface{}{"brokerId": brokerID}),
+	); err != nil {
+		return fmt.Errorf("calling rpc function: %v", err)
+	}
+	return nil
+}
+
+// SetBroker adds a broker to the state.
+func (c *Client) SetBroker(ctx context.Context, brokerID string, addrs []string) (*BrokerInfo, error) {
+	args := map[string]interface{}{
+		"brokerId": brokerID,
+		"addrs":    addrs,
+	}
+	res, err := c.nc.Account(c.accountID).FunctionCall(
+		ctx,
+		c.accountID,
+		"setBroker",
+		transaction.FunctionCallWithArgs(args),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("calling rpc function: %v", err)
+	}
+	status, ok := res.GetStatus()
+	if !ok || status.SuccessValue == "" {
+		return nil, fmt.Errorf("didn't receive expected status success value")
+	}
+	bytes, err := base64.StdEncoding.DecodeString(status.SuccessValue)
+	if err != nil {
+		return nil, fmt.Errorf("decoding status value string: %v", err)
+	}
+	var brokerInfo BrokerInfo
+	if err := json.Unmarshal(bytes, &brokerInfo); err != nil {
+		return nil, fmt.Errorf("unmarshaling broker info: %v", err)
+	}
+	return &brokerInfo, nil
+}
+
+// GetBroker gets a broker by id.
+func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, error) {
+	res, err := c.nc.CallFunction(
+		ctx,
+		c.accountID,
+		"getBroker",
+		nearclient.CallFunctionWithFinality("final"),
+		nearclient.CallFunctionWithArgs(map[string]interface{}{"brokerId": brokerID}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("calling rpc function: %v", err)
+	}
+	if string(res.Result) == "null" {
+		return nil, nil
+	}
+	var brokerInfo BrokerInfo
+	if err := json.Unmarshal(res.Result, &brokerInfo); err != nil {
+		return nil, fmt.Errorf("unmarshaling broker info: %v", err)
+	}
+	return &brokerInfo, nil
+}
+
+// ListBrokers lists all brokers.
+func (c *Client) ListBrokers(ctx context.Context) ([]BrokerInfo, error) {
+	res, err := c.nc.CallFunction(
+		ctx,
+		c.accountID,
+		"listBrokers",
+		nearclient.CallFunctionWithFinality("final"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("calling rpc function: %v", err)
+	}
+	var brokers []BrokerInfo
+	if err := json.Unmarshal(res.Result, &brokers); err != nil {
+		return nil, fmt.Errorf("unmarshaling broker info: %v", err)
+	}
+	return brokers, nil
+}
+
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.nc.Account(c.accountID).ViewState(ctx, account.ViewStateWithFinality("final"))
+	res, err := c.nc.Account(c.accountID).ViewState(
+		ctx,
+		account.ViewStateWithFinality("final"),
+		account.ViewStateWithPrefix("u"),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("calling view state: %v", err)
 	}
@@ -72,8 +178,11 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 		if err != nil {
 			return nil, fmt.Errorf("extracting key: %v", err)
 		}
-
-		lockInfo, err := extractLockInfo(val.Value)
+		valueBytes, err := base64.StdEncoding.DecodeString(val.Value)
+		if err != nil {
+			return nil, fmt.Errorf("decoding value base64: %v", err)
+		}
+		lockInfo, err := extractLockInfo(valueBytes)
 		if err != nil {
 			return nil, fmt.Errorf("extracting lock info: %v", err)
 		}
@@ -92,14 +201,47 @@ func (c *Client) GetAccount(ctx context.Context) (*account.AccountView, error) {
 	return c.nc.Account(c.accountID).State(ctx, account.StateWithFinality("final"))
 }
 
+// LockFunds locks funds with the lock box contract.
+func (c *Client) LockFunds(ctx context.Context, brokerID string) (*LockInfo, error) {
+	deposit, ok := (&big.Int{}).SetString("1000000000000000000000000", 10)
+	if !ok {
+		return nil, fmt.Errorf("creating depoist amount")
+	}
+	res, err := c.nc.Account(c.accountID).FunctionCall(
+		ctx,
+		c.accountID,
+		"lockFunds",
+		transaction.FunctionCallWithArgs(map[string]interface{}{"brokerId": brokerID, "accountId": c.accountID}),
+		transaction.FunctionCallWithDeposit(*deposit),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("calling rpc: %v", err)
+	}
+	status, ok := res.GetStatus()
+	if !ok || status.SuccessValue == "" {
+		return nil, fmt.Errorf("didn't receive expected status success value")
+	}
+	bytes, err := base64.StdEncoding.DecodeString(status.SuccessValue)
+	if err != nil {
+		return nil, fmt.Errorf("decoding status value string: %v", err)
+	}
+	log.Errorf("json: %s", string(bytes))
+	lockInfo, err := extractLockInfo(bytes)
+	if err != nil {
+		return nil, fmt.Errorf("decoding lock info: %v", err)
+	}
+	return lockInfo, nil
+}
+
 // HasLocked calls the lock box hasLocked function.
-func (c *Client) HasLocked(ctx context.Context, accountID string) (bool, error) {
+func (c *Client) HasLocked(ctx context.Context, brokerID, accountID string) (bool, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
 		c.accountID,
 		"hasLocked",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{
+			"brokerId":  brokerID,
 			"accountId": accountID,
 		}),
 	)
@@ -136,7 +278,11 @@ func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, str
 		}
 		var lockInfo *LockInfo
 		if t == Update {
-			lockInfo, err = extractLockInfo(item.Change.ValueBase64)
+			valueBytes, err := base64.StdEncoding.DecodeString(item.Change.ValueBase64)
+			if err != nil {
+				return nil, "", fmt.Errorf("decoding value base64: %v", err)
+			}
+			lockInfo, err = extractLockInfo(valueBytes)
 			if err != nil {
 				return nil, "", fmt.Errorf("extracting lock info: %v", err)
 			}
@@ -158,30 +304,38 @@ func extractKey(encoded string) (string, error) {
 	return parts[1], nil
 }
 
-func extractLockInfo(encoded string) (*LockInfo, error) {
-	valueBytes, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return nil, err
-	}
-
+func extractLockInfo(bytes []byte) (*LockInfo, error) {
 	var j struct {
-		Deposit   string `json:"deposit"`
-		Sender    string `json:"sender"`
 		AccountID string `json:"accountId"`
+		BrokerID  string `json:"brokerId"`
+		Deposit   struct {
+			Amount     string `json:"amount"`
+			Sender     string `json:"sender"`
+			Expiration string `json:"expiration"`
+		} `json:"deposit"`
 	}
-	err = json.Unmarshal(valueBytes, &j)
+	err := json.Unmarshal(bytes, &j)
 	if err != nil {
 		return nil, err
 	}
 
-	deposit, ok := (&big.Int{}).SetString(j.Deposit, 10)
+	depositAmount, ok := (&big.Int{}).SetString(j.Deposit.Amount, 10)
 	if !ok {
-		return nil, fmt.Errorf("error parsing string to big int: %s", j.Deposit)
+		return nil, fmt.Errorf("error parsing string to big int: %s", j.Deposit.Amount)
+	}
+
+	expiration, err := strconv.ParseUint(j.Deposit.Expiration, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parsing expiration: %v", err)
 	}
 
 	return &LockInfo{
-		Deposit:   deposit,
-		Sender:    j.Sender,
 		AccountID: j.AccountID,
+		BrokerID:  j.BrokerID,
+		Deposit: DepositInfo{
+			Amount:     depositAmount,
+			Sender:     j.Deposit.Sender,
+			Expiration: expiration,
+		},
 	}, nil
 }

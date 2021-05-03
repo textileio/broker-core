@@ -2,11 +2,17 @@ package transaction
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"math/big"
 
 	"github.com/near/borsh-go"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
+)
+
+var (
+	defaultFunctionCallGas     uint64 = 30000000000000
+	defaultFunctionCallDeposit        = *((&big.Int{}).SetInt64(0))
 )
 
 // Signature asdf.
@@ -116,30 +122,71 @@ type DeleteAccount struct {
 	BeneficiaryID string
 }
 
+// CreateAccountAction is a helper to create a CreateAccount action.
 func CreateAccountAction() Action {
 	return Action{Enum: 0, CreateAccount: CreateAccount{}}
 }
 
+// DeployContractAction is a helper to create a DeployContract action.
 func DeployContractAction(code []byte) Action {
 	return Action{Enum: 1, DeployContract: DeployContract{Code: code}}
 }
 
-func FunctionCallAction(methodName string, args []byte, gas uint64, deposit big.Int) Action {
-	return Action{
-		Enum: 2,
-		FunctionCall: FunctionCall{
-			MethodName: methodName,
-			Args:       args,
-			Gas:        gas,
-			Deposit:    deposit,
-		},
+// FunctionCallOpton controls the behavior of a FunctionCall action.
+type FunctionCallOpton func(*FunctionCall) error
+
+// FunctionCallWithArgs allows you to pass JSON encodable args.
+func FunctionCallWithArgs(args interface{}) FunctionCallOpton {
+	return func(functionCall *FunctionCall) error {
+		bytes, err := json.Marshal(args)
+		if err != nil {
+			return fmt.Errorf("marshaling args: %v", err)
+		}
+		functionCall.Args = bytes
+		return nil
 	}
 }
 
+// FunctionCallWithGas allows you to specify a gas amount.
+func FunctionCallWithGas(gas uint64) FunctionCallOpton {
+	return func(functionCall *FunctionCall) error {
+		functionCall.Gas = gas
+		return nil
+	}
+}
+
+// FunctionCallWithDeposit allows you to attach a deposit.
+func FunctionCallWithDeposit(deposit big.Int) FunctionCallOpton {
+	return func(functionCall *FunctionCall) error {
+		functionCall.Deposit = deposit
+		return nil
+	}
+}
+
+// FunctionCallAction is a helper to create a FunctionCall action.
+func FunctionCallAction(methodName string, opts ...FunctionCallOpton) (*Action, error) {
+	functionCall := FunctionCall{
+		MethodName: methodName,
+		Gas:        defaultFunctionCallGas,
+		Deposit:    defaultFunctionCallDeposit,
+	}
+	for _, opt := range opts {
+		if err := opt(&functionCall); err != nil {
+			return nil, err
+		}
+	}
+	return &Action{
+		Enum:         2,
+		FunctionCall: functionCall,
+	}, nil
+}
+
+// TransferAction is a helper to create a Transfer action.
 func TransferAction(deposit big.Int) Action {
 	return Action{Enum: 3, Transfer: Transfer{Deposit: deposit}}
 }
 
+// StakeAction is a helper to create a Stake action.
 func StakeAction(stake big.Int, publicKey keys.PublicKey) Action {
 	// TODO: make keys.PublicKey the serializable model.
 	var dataArr [32]byte
@@ -156,6 +203,7 @@ func StakeAction(stake big.Int, publicKey keys.PublicKey) Action {
 	}
 }
 
+// AddKeyAction is a helper to create a AddKey action.
 func AddKeyAction(publicKey keys.PublicKey, accessKey AccessKey) Action {
 	// TODO: make keys.PublicKey the serializable model.
 	// TODO: better way of specifying AccessKey.
@@ -173,6 +221,7 @@ func AddKeyAction(publicKey keys.PublicKey, accessKey AccessKey) Action {
 	}
 }
 
+// DeleteKeyAction is a helper to create a DeleteKey action.
 func DeleteKeyAction(publicKey keys.PublicKey) Action {
 	// TODO: make keys.PublicKey the serializable model.
 	var dataArr [32]byte
@@ -188,6 +237,7 @@ func DeleteKeyAction(publicKey keys.PublicKey) Action {
 	}
 }
 
+// DeleteAccountAction is a helper to create a DeleteAccount action.
 func DeleteAccountAction(beneficiaryID string) Action {
 	return Action{
 		Enum: 7,

@@ -137,6 +137,9 @@ func (a *Account) FindAccessKey(
 	if err := a.config.RPCClient.CallContext(ctx, &resp, "query", rpc.NewNamedParams(req)); err != nil {
 		return nil, nil, fmt.Errorf("calling rpc: %v", util.MapRPCError(err))
 	}
+	if resp.Error != "" {
+		return nil, nil, fmt.Errorf("error returned in body: %s", resp.Error)
+	}
 
 	ret := &AccessKeyView{
 		QueryResponse: itypes.QueryResponse{
@@ -265,7 +268,6 @@ func (a *Account) SignAndSendTransaction(
 	// 			throw parseResultError(result);
 	// 	}
 	// }
-
 	status, ok := result.GetStatus()
 	if ok && status.Failure != nil {
 		if status.Failure.ErrorMessage != "" && status.Failure.ErrorType != "" {
@@ -288,4 +290,22 @@ func (a *Account) SignAndSendTransaction(
 	}
 
 	return result, nil
+}
+
+// FunctionCall calls a smart contract function.
+func (a *Account) FunctionCall(
+	ctx context.Context,
+	contractID,
+	methodName string,
+	opts ...transaction.FunctionCallOpton,
+) (*FinalExecutionOutcome, error) {
+	action, err := transaction.FunctionCallAction(methodName, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("creating function call action: %v", err)
+	}
+	res, err := a.SignAndSendTransaction(ctx, contractID, *action)
+	if err != nil {
+		return nil, fmt.Errorf("signing and sending transaction: %v", err)
+	}
+	return res, nil
 }

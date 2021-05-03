@@ -8,7 +8,7 @@ type QueryRequest struct {
 	AccountID    string      `json:"account_id,omitempty"`
 	PrefixBase64 string      `json:"prefix_base64"`
 	MethodName   string      `json:"method_name,omitempty"`
-	ArgsBase64   string      `json:"args_base64,omitempty"`
+	ArgsBase64   string      `json:"args_base64"`
 	PublicKey    string      `json:"public_key,omitempty"`
 }
 
@@ -16,6 +16,8 @@ type QueryRequest struct {
 type QueryResponse struct {
 	BlockHash   string `json:"block_hash"`
 	BlockHeight int    `json:"block_height"`
+	// TODO: this property is undocumented, but appears in some API responses. Is this the right place for it?
+	Error string `json:"error"`
 }
 
 // ChangesRequest is used for RPC changes requests.
@@ -33,6 +35,7 @@ type BlockRequest struct {
 	Finality string      `json:"finality,omitempty"`
 }
 
+// BlockHeader contains information about a block header.
 type BlockHeader struct {
 	Height                int           `json:"height"`
 	EpochID               string        `json:"epoch_id"`
@@ -65,6 +68,7 @@ type BlockHeader struct {
 	LatestProtocolVersion int           `json:"latest_protocol_version"`
 }
 
+// Chunk contains information about a chunk.
 type Chunk struct {
 	ChunkHash            string        `json:"chunk_hash"`
 	PrevBlockHash        string        `json:"prev_block_hash"`
@@ -86,6 +90,7 @@ type Chunk struct {
 	Signature            string        `json:"signature"`
 }
 
+// BlockResult contains information about a block result.
 type BlockResult struct {
 	Author string      `json:"author"`
 	Header BlockHeader `json:"header"`
