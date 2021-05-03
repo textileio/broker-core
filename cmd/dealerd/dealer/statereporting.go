@@ -18,7 +18,7 @@ func (d *Dealer) daemonDealReporter() {
 		case <-d.daemonCtx.Done():
 			log.Infof("deal reporter daemon closed")
 			return
-		case <-time.After(dealWatcherFreq):
+		case <-time.After(d.config.dealReportingFreq):
 			if err := d.daemonDealReporterTick(); err != nil {
 				log.Errorf("deal reporter tick: %s", err)
 			}
@@ -27,7 +27,7 @@ func (d *Dealer) daemonDealReporter() {
 }
 
 func (d *Dealer) daemonDealReporterTick() error {
-	rl, err := ratelim.New(dealWatcherRateLim)
+	rl, err := ratelim.New(d.config.dealReportingRateLim)
 	if err != nil {
 		return fmt.Errorf("create ratelim: %s", err)
 	}

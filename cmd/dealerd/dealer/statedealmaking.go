@@ -8,11 +8,6 @@ import (
 	"github.com/textileio/broker-core/ratelim"
 )
 
-var (
-	dealMakerFreq    = time.Second * 5
-	dealMakerRateLim = 20
-)
-
 func (d *Dealer) daemonDealMaker() {
 	defer d.daemonWg.Done()
 
@@ -21,7 +16,7 @@ func (d *Dealer) daemonDealMaker() {
 		case <-d.daemonCtx.Done():
 			log.Infof("deal maker daemon closed")
 			return
-		case <-time.After(dealMakerFreq):
+		case <-time.After(d.config.dealMakingFreq):
 			if err := d.daemonDealMakerTick(); err != nil {
 				log.Errorf("deal maker tick: %s", err)
 			}
@@ -30,11 +25,10 @@ func (d *Dealer) daemonDealMaker() {
 }
 
 func (d *Dealer) daemonDealMakerTick() error {
-	rl, err := ratelim.New(dealMakerRateLim)
+	rl, err := ratelim.New(d.config.dealMakingRateLim)
 	if err != nil {
 		return fmt.Errorf("create ratelim: %s", err)
 	}
-	defer rl.Wait()
 
 	for {
 		ps, err := d.store.GetAllAuctionDeals(store.Pending)
@@ -58,12 +52,16 @@ func (d *Dealer) daemonDealMakerTick() error {
 
 			rl.Exec(func() error {
 				if err := d.executePending(aud); err != nil {
+					// TODO: most probably we want to include logic
+					// to retry a bounded number of times (or similar)
+					// when went stop trying to make the deal with the miner.
 					log.Errorf("executing Pending: %s", err)
 				}
 				// We're not interested in ratelim error inspection.
 				return nil
 			})
 		}
+		rl.Wait()
 	}
 
 	return nil
@@ -74,7 +72,6 @@ func (d *Dealer) executePending(aud store.AuctionDeal) error {
 	if err != nil {
 		return fmt.Errorf("get auction data %s: %s", aud.AuctionDataID, err)
 	}
-
 	proposalCid, err := d.filclient.ExecuteAuctionDeal(d.daemonCtx, ad, aud)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)

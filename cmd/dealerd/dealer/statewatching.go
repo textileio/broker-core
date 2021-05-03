@@ -10,12 +10,7 @@ import (
 	"github.com/textileio/broker-core/ratelim"
 )
 
-var (
-	dealWatcherFreq    = time.Second * 15
-	dealWatcherRateLim = 20
-)
-
-func (d *Dealer) daemonDealWatcher() {
+func (d *Dealer) daemonDealMonitoring() {
 	defer d.daemonWg.Done()
 
 	for {
@@ -23,16 +18,16 @@ func (d *Dealer) daemonDealWatcher() {
 		case <-d.daemonCtx.Done():
 			log.Infof("deal watching daemon closed")
 			return
-		case <-time.After(dealWatcherFreq):
-			if err := d.daemonDealWatcherTick(); err != nil {
+		case <-time.After(d.config.dealMonitoringFreq):
+			if err := d.daemonDealMonitoringTick(); err != nil {
 				log.Errorf("deal watcher tick: %s", err)
 			}
 		}
 	}
 }
 
-func (d *Dealer) daemonDealWatcherTick() error {
-	rl, err := ratelim.New(dealWatcherRateLim)
+func (d *Dealer) daemonDealMonitoringTick() error {
+	rl, err := ratelim.New(d.config.dealMonitoringRateLim)
 	if err != nil {
 		return fmt.Errorf("create ratelim: %s", err)
 	}

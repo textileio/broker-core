@@ -15,6 +15,7 @@ import (
 var log = logger.Logger("dealer")
 
 type Dealer struct {
+	config    config
 	store     *store.Store
 	broker    broker.Broker
 	filclient Filclient
@@ -48,6 +49,7 @@ func New(
 
 	ctx, cls := context.WithCancel(context.Background())
 	d := &Dealer{
+		config:    cfg,
 		store:     store,
 		broker:    broker,
 		filclient: fc,
@@ -106,9 +108,9 @@ func (d *Dealer) daemon() {
 	// i.e: takes Pending deals, executes them, and leave them ready
 	// to be confirmed on-chain.
 	go d.daemonDealMaker()
-	// daemonDealWatcher makes status changes from Pending -> (Successs | Error)
+	// daemonDealMonitoring makes status changes from Pending -> (Successs | Error)
 	// i.e: monitors the fired deal until is confirmed on-chain.
-	go d.daemonDealWatcher()
+	go d.daemonDealMonitoring()
 	// daemonDealWatcher takes statuses (Success | Error) and reports the results
 	// back to the broker, deleting them after geting ACK from it.
 	go d.daemonDealReporter()
