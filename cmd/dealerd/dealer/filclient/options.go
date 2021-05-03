@@ -19,6 +19,9 @@ type Option func(*config) error
 
 func WithExportedKey(exportedHexKey string) Option {
 	return func(c *config) error {
+		if exportedHexKey == "" {
+			return fmt.Errorf("exported wallet key is empty")
+		}
 		buf, err := hex.DecodeString(exportedHexKey)
 		if err != nil {
 			return fmt.Errorf("hex decoding: %s", err)

@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 
+	filgatewayclient "github.com/filecoin-project/lotus/api/client"
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
+	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -29,6 +32,9 @@ type Config struct {
 
 	MongoDBName string
 	MongoURI    string
+
+	LotusGatewayURL         string
+	LotusExportedWalletAddr string
 
 	BrokerAPIAddr string
 }
@@ -62,8 +68,19 @@ func New(conf Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating broker client: %s", err)
 	}
-	opts := []dealer.Option{}
-	lib, err := dealer.New(ds, broker, opts...)
+
+	lotusAPI, closer, err := filgatewayclient.NewGatewayRPC(context.Background(), conf.LotusGatewayURL, http.Header{})
+	if err != nil {
+		return nil, fmt.Errorf("creating lotus gateway client: %s", err)
+	}
+	fin.Add(&nopCloser{closer})
+
+	filclient, err := filclient.New(lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
+	if err != nil {
+		return nil, fmt.Errorf("creating filecoin client: %s", err)
+	}
+
+	lib, err := dealer.New(ds, broker, filclient)
 	if err != nil {
 		return nil, fin.Cleanupf("creating dealer: %v", err)
 	}
@@ -165,5 +182,14 @@ func validateConfig(conf Config) error {
 		return fmt.Errorf("mongo uri is empty")
 	}
 
+	return nil
+}
+
+type nopCloser struct {
+	f func()
+}
+
+func (np *nopCloser) Close() error {
+	np.f()
 	return nil
 }

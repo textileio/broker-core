@@ -21,11 +21,13 @@ func init() {
 	flags := []common.Flag{
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
-
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-
+		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
+		{
+			Name:        "lotus-exported-wallet-address",
+			DefValue:    "",
+			Description: "Exported wallet address for deal making"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
 	}
@@ -58,6 +60,9 @@ var rootCmd = &cobra.Command{
 
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),
+
+			LotusGatewayURL:         v.GetString("lotus-gateway-url"),
+			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-addr"),
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)
