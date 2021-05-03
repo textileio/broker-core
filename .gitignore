@@ -18,7 +18,3 @@
 # Project
 .env
 build/
-
-# Docker compose REPO directories
-auctioneerd/
-minerd/
