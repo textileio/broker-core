@@ -7,7 +7,6 @@ import (
 
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -18,7 +17,7 @@ var log = logger.Logger("dealer")
 type Dealer struct {
 	store     *store.Store
 	broker    broker.Broker
-	filclient *filclient.FilClient
+	filclient Filclient
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -33,6 +32,7 @@ var _ dealeri.Dealer = (*Dealer)(nil)
 func New(
 	ds txndswrap.TxnDatastore,
 	broker broker.Broker,
+	fc Filclient,
 	opts ...Option) (*Dealer, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
@@ -46,18 +46,11 @@ func New(
 		return nil, fmt.Errorf("initializing store: %s", err)
 	}
 
-	// TODO: need opts
-	// TODO: need interface
-	filclient, err := filclient.New(nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating filecoin client: %s", err)
-	}
-
 	ctx, cls := context.WithCancel(context.Background())
 	d := &Dealer{
 		store:     store,
 		broker:    broker,
-		filclient: filclient,
+		filclient: fc,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
