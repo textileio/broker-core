@@ -2,6 +2,7 @@ package updater
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
@@ -59,7 +60,7 @@ func (u *Updater) run() {
 				initialState, err := u.config.Lbc.GetState(ctx)
 				cancel()
 				if err != nil {
-					u.config.Delegate.HandleError(err)
+					u.config.Delegate.HandleError(fmt.Errorf("getting initial state: %v", err))
 					updateFrequency *= 2
 					continue
 				}
@@ -71,7 +72,7 @@ func (u *Updater) run() {
 			account, err := u.config.Lbc.GetAccount(ctx)
 			cancel()
 			if err != nil {
-				u.config.Delegate.HandleError(err)
+				u.config.Delegate.HandleError(fmt.Errorf("getting account view: %v", err))
 				updateFrequency *= 2
 				continue
 			}
@@ -83,7 +84,7 @@ func (u *Updater) run() {
 				changes, blockHash, err := u.config.Lbc.GetChanges(ctx, i)
 				cancel()
 				if err != nil {
-					u.config.Delegate.HandleError(err)
+					u.config.Delegate.HandleError(fmt.Errorf("getting changes: %v", err))
 					updateFrequency *= 2
 					break Loop
 				}

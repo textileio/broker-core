@@ -67,7 +67,7 @@ func (s *Service) LockInfo(ctx context.Context, req *chainapi.LockInfoRequest) (
 
 // HasFunds returns whether or not the specified account id has locked funds.
 func (s *Service) HasFunds(ctx context.Context, req *chainapi.HasFundsRequest) (*chainapi.HasFundsResponse, error) {
-	res, err := s.lc.HasLocked(ctx, req.AccountId)
+	res, err := s.lc.HasLocked(ctx, req.BrokerId, req.AccountId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "calling has funds: %v", err)
 	}
@@ -111,8 +111,12 @@ func (s *Service) Close() error {
 
 func toPbLockInfo(li lockboxclient.LockInfo) *chainapi.LockInfo {
 	return &chainapi.LockInfo{
-		Deposit:   li.Deposit.String(),
-		Sender:    li.Sender,
 		AccountId: li.AccountID,
+		BrokerId:  li.BrokerID,
+		Deposit: &chainapi.DepositInfo{
+			Amount:     li.Deposit.Amount.String(),
+			Sender:     li.Deposit.Sender,
+			Expiration: li.Deposit.Expiration,
+		},
 	}
 }

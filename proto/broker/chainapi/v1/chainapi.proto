@@ -2,10 +2,16 @@ syntax = "proto3";
 package chainapi.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/chainapi/v1;chainapi";
 
-message LockInfo {
-  string deposit = 1;
+message DepositInfo {
+  string amount = 1;
   string sender = 2;
-  string account_id = 3;
+  uint64 expiration = 3;
+}
+
+message LockInfo {
+  string account_id = 1;
+  string broker_id = 2;
+  DepositInfo deposit = 3;
 }
 
 message LockInfoRequest {
@@ -18,8 +24,8 @@ message LockInfoResponse {
 }
 
 message HasFundsRequest {
-  string account_id = 1;
-  uint64 block_height = 2;
+  string broker_id = 1;
+  string account_id = 2;
 }
 
 message HasFundsResponse {

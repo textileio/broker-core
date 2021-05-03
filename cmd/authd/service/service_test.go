@@ -29,34 +29,36 @@ func init() {
 }
 
 // TOKEN is the JWT token for testing.
-var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6" +
-	"ImFlTWZ3WU5hSUZlc2xoUWRvdFc4UUJ1YzNNcXktaEFWcE91NGNOZXdHV009IiwidXNlIjoic2lnIn19.eyJpc3MiOiJjYXJzb25mYXJ" +
-	"tZXIudGVzdG5ldCIsInN1YiI6ImRpZDprZXk6ejZNa21hYml1bkF6V0U0WnFvWDRBbVB4Z1dFdm45UTR2clRNOGJqWDQzaEJpQ1g0Iiw" +
-	"ibmJmIjoxNjE4NTg5ODU2LCJpYXQiOjE2MTg1ODk4NTYsImV4cCI6MTAxNjE4NTg5ODU2LCJhdWQiOiJodHRwczovL2Jyb2tlci5zdGF" +
-	"naW5nLnRleHRpbGUuaW8vIn0=.ffEXF27CDug7F85JzpvHObAaALcV4X9_cTyfvpDqPWNejTT9SNceGD20TP6IOIDlHLZ20DLpVDamDwL" +
-	"FyiPFBA=="
+var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJr" +
+	"dHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IjZURnVRRzFGTHZ4UGxPdGFVbllF" +
+	"QlRlU3haa09GZ3VSSGZwNlN1Q1ZDbG89IiwidXNlIjoic2lnIn19.eyJhdWQiOiJhYXJ" +
+	"vbmJyb2tlciIsImlzcyI6ImNhcnNvbmZhcm1lci50ZXN0bmV0Iiwic3ViIjoiZGlkOmtl" +
+	"eTp6Nk1rdjlZa25rMzZlUzhwY1pkZjgyWXhIcnBpWmJZZDFFYlNld0R2WEM3amhRRDciL" +
+	"CJuYmYiOjE2MjAwODIwMzksImlhdCI6MTYyMDA4MjAzOSwiZXhwIjoxNjIwMDg1NjM5fQ" +
+	"==.iaRq6Gee5YcNWRgkkU-E1GXO8DxpU86faCdAVWXZeCT2z4V9kLiO7tepuGLBMG_xB7" +
+	"r4ho1MrthpwX-wRsZ-Cg=="
 
 // The unecoded TOKEN:
 //
 // Header:
 // {
-//     "alg": "EdDSA",
+//     "alg": "EdDSASha256",
 //     "typ": "JWT",
 //     "jwk": {
 //         "kty": "OKP",
 //         "crv": "Ed25519",
-//         "x": "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM=",
+//         "x": "6TFuQG1FLvxPlOtaUnYEBTeSxZkOFguRHfp6SuCVClo=",
 //         "use": "sig"
 //     }
 // }
 // Payload:
 // {
+//     "aud": "aaronbroker",
 //     "iss": "carsonfarmer.testnet",
-//     "sub": "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4",
-//     "nbf": 1618517489,
-//     "iat": 1618517489,
-//     "exp": 101618517489,
-//     "aud": "https://broker.staging.textile.io/",
+//     "sub": "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7",
+//     "nbf": 1620082039,
+//     "iat": 1620082039,
+//     "exp": 1620085639
 // }
 
 func TestService_isWhitelisted(t *testing.T) {
@@ -108,8 +110,9 @@ func TestService_validateToken(t *testing.T) {
 	output, err := service.ValidateToken(token)
 	require.NoError(t, err)
 	require.Equal(t, output.Iss, "carsonfarmer.testnet")
-	require.Equal(t, output.Sub, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")
-	require.Equal(t, output.X, "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM=")
+	require.Equal(t, output.Sub, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
+	require.Equal(t, output.X, "6TFuQG1FLvxPlOtaUnYEBTeSxZkOFguRHfp6SuCVClo=")
+	require.Equal(t, output.Aud, "aaronbroker")
 
 	// Invalid token
 	token = "INVALID_TOKEN"
@@ -140,6 +143,7 @@ func TestService_validateInput(t *testing.T) {
 func TestService_ValidateLockedFunds(t *testing.T) {
 	// Funds ok
 	sub := "sub"
+	aud := "aud"
 	mockChain := &mocks.ChainApiServiceClient{}
 	mockChain.On(
 		"HasFunds",
@@ -148,7 +152,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: true,
 	}, nil)
-	ok, err := service.ValidateLockedFunds(context.Background(), sub, mockChain)
+	ok, err := service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
 	require.NoError(t, err)
 	require.True(t, ok)
 	mockChain.AssertExpectations(t)
@@ -162,7 +166,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: false,
 	}, nil)
-	ok, err = service.ValidateLockedFunds(context.Background(), sub, mockChain)
+	ok, err = service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
 	require.Error(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
@@ -174,7 +178,7 @@ func TestClient_Setup(t *testing.T) {
 	req := &pb.AuthRequest{Token: TOKEN}
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, res.Identity, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")
+	require.Equal(t, res.Identity, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
 }
 
 func newClient(t *testing.T, listener *bufconn.Listener) pb.AuthAPIServiceClient {
