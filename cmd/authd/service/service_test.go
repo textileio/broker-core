@@ -42,23 +42,23 @@ var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJr" +
 //
 // Header:
 // {
-//     "alg": "EdDSA",
+//     "alg": "EdDSASha256",
 //     "typ": "JWT",
 //     "jwk": {
 //         "kty": "OKP",
 //         "crv": "Ed25519",
-//         "x": "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM=",
+//         "x": "6TFuQG1FLvxPlOtaUnYEBTeSxZkOFguRHfp6SuCVClo=",
 //         "use": "sig"
 //     }
 // }
 // Payload:
 // {
+//     "aud": "aaronbroker",
 //     "iss": "carsonfarmer.testnet",
-//     "sub": "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4",
-//     "nbf": 1618517489,
-//     "iat": 1618517489,
-//     "exp": 101618517489,
-//     "aud": "https://broker.staging.textile.io/",
+//     "sub": "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7",
+//     "nbf": 1620082039,
+//     "iat": 1620082039,
+//     "exp": 1620085639
 // }
 
 func TestService_isWhitelisted(t *testing.T) {
@@ -110,8 +110,9 @@ func TestService_validateToken(t *testing.T) {
 	output, err := service.ValidateToken(token)
 	require.NoError(t, err)
 	require.Equal(t, output.Iss, "carsonfarmer.testnet")
-	require.Equal(t, output.Sub, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")
-	require.Equal(t, output.X, "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM=")
+	require.Equal(t, output.Sub, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
+	require.Equal(t, output.X, "6TFuQG1FLvxPlOtaUnYEBTeSxZkOFguRHfp6SuCVClo=")
+	require.Equal(t, output.Aud, "aaronbroker")
 
 	// Invalid token
 	token = "INVALID_TOKEN"
@@ -177,7 +178,7 @@ func TestClient_Setup(t *testing.T) {
 	req := &pb.AuthRequest{Token: TOKEN}
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, res.Identity, "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4")
+	require.Equal(t, res.Identity, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
 }
 
 func newClient(t *testing.T, listener *bufconn.Listener) pb.AuthAPIServiceClient {
