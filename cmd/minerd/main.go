@@ -24,7 +24,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
-		{Name: "repo", DefValue: ".miner", Description: "Repo path"},
+		{Name: "repo", DefValue: "${HOME}/.miner", Description: "Repo path"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{

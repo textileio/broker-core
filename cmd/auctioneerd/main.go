@@ -30,7 +30,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
-		{Name: "repo", DefValue: ".auctioneer", Description: "Repo path"},
+		{Name: "repo", DefValue: "${HOME}/.auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},

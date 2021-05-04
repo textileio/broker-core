@@ -48,6 +48,10 @@ install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
 
+install-minerd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
+.PHONY: install-minerd
+
 define gen_release_files
 	$(GOX) -osarch=$(3) -output="build/$(2)/$(2)_${BIN_VERSION}_{{.OS}}-{{.Arch}}/$(2)" -ldflags="${GOVVV_FLAGS}" $(1)
 	mkdir -p build/dist; \

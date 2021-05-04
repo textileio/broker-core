@@ -54,6 +54,9 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 		if err := v.BindPFlag(flag.Name, rootCmd.Flags().Lookup(flag.Name)); err != nil {
 			log.Fatalf("binding flag %s: %s", flag.Name, err)
 		}
+		if str, ok := v.Get(flag.Name).(string); ok {
+			v.Set(flag.Name, os.ExpandEnv(str))
+		}
 	}
 }
 

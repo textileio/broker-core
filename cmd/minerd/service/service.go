@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -134,8 +135,15 @@ func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
 		return
 	}
 
+	auctionj, err := json.MarshalIndent(auction, "", "  ")
+	if err != nil {
+		log.Errorf("marshaling json: %v", err)
+		return
+	}
+	log.Infof("found auction %s from %s: \n%s", auction.Id, from, string(auctionj))
+
 	go func() {
-		if err := s.makeBid(auction); err != nil {
+		if err := s.makeBid(auction, from); err != nil {
 			log.Errorf("making bid: %v", err)
 		}
 	}()
@@ -152,8 +160,9 @@ func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) {
 	log.Infof("bid %s won in auction %s", win.BidId, win.AuctionId)
 }
 
-func (s *Service) makeBid(auction *pb.Auction) error {
+func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if ok := s.filterAuction(auction); !ok {
+		log.Infof("not bidding in auction %s from %s", auction.Id, from)
 		return nil
 	}
 
@@ -166,14 +175,21 @@ func (s *Service) makeBid(auction *pb.Auction) error {
 	bids.SetEventHandler(s.eventHandler)
 
 	// Submit bid to auctioneer.
-	msg, err := proto.Marshal(&pb.Bid{
+	bid := &pb.Bid{
 		AuctionId:        auction.Id,
 		MinerId:          "f01123", // TODO
 		AskPrice:         s.bidParams.AskPrice,
 		VerifiedAskPrice: s.bidParams.AskPrice, // TODO
 		StartEpoch:       1234567890,           // TODO
 		FastRetrieval:    false,                // TODO
-	})
+	}
+	bidj, err := json.MarshalIndent(bid, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling json: %v", err)
+	}
+	log.Infof("bidding in auction %s from %s: \n%s", auction.Id, from, string(bidj))
+
+	msg, err := proto.Marshal(bid)
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
