@@ -2,6 +2,8 @@ include .bingo/Variables.mk
 
 .DEFAULT_GOAL=build
 
+HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
+
 BIN_BUILD_FLAGS?=CGO_ENABLED=0
 BIN_VERSION?="git"
 GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
@@ -26,15 +28,15 @@ build-authd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/authd
 .PHONY: build-authd
 
-build-neard:
+build-neard: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/neard
 .PHONY: build-neard
 
-build-auctioneerd:
+build-auctioneerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
 .PHONY: build-auctioneerd
 
-build-minerd:
+build-minerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
 .PHONY: build-minerd
 
@@ -45,6 +47,10 @@ build-packerd: $(GOVVV)
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
+
+install-minerd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
+.PHONY: install-minerd
 
 define gen_release_files
 	$(GOX) -osarch=$(3) -output="build/$(2)/$(2)_${BIN_VERSION}_{{.OS}}-{{.Arch}}/$(2)" -ldflags="${GOVVV_FLAGS}" $(1)
@@ -68,6 +74,7 @@ up:
 down:
 	docker-compose -f docker-compose-dev.yml down
 .PHONY: down
+
 mocks: $(MOCKERY) clean-mocks
 	$(MOCKERY) --all --dir gen --keeptree
 .PHONY: mocks
@@ -106,3 +113,14 @@ buf-https: $(BUF)
 buf-ssh: $(BUF)
 	$(BUF) check lint
 	# $(BUF) check breaking --against-input "$(SSH_GIT)#branch=main"
+
+define docker_push_daemon_head
+	for daemon in $(1); do \
+		echo docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}/Dockerfile .; \
+		docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}/Dockerfile .; \
+	done
+endef
+
+docker-push-head:
+	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged)
+.PHONY: docker-push-head

@@ -37,7 +37,10 @@ func (r *Finalizer) Cleanup(err error) error {
 
 // Cleanupf closes all io.Closer and cancels all contexts with a formatted err.
 func (r *Finalizer) Cleanupf(format string, err error) error {
-	return r.Cleanup(fmt.Errorf(format, err))
+	if err != nil {
+		return r.Cleanup(fmt.Errorf(format, err))
+	}
+	return r.Cleanup(nil)
 }
 
 // NewContextCloser transforms context cancellation function to be used with finalizer.
