@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	_ "net/http/pprof"
 
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -26,6 +27,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 		{Name: "repo", DefValue: "${HOME}/.miner", Description: "Repo path"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "host-bootstrap-multiaddr", DefValue: "", Description: "Libp2p host bootstrap peer multiaddr"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{
 			Name:        "ask-price",
@@ -103,7 +105,10 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
-		serv.Bootstrap()
+		bootPeers, err := ipfsconfig.ParseBootstrapPeers(v.GetStringSlice("host-bootstrap-multiaddr"))
+		common.CheckErrf("parsing bootstrap peer addrs: %v", err)
+		serv.Bootstrap(bootPeers)
+
 		err = serv.EnableMDNS(1)
 		common.CheckErrf("enabling mdns: %v", err)
 

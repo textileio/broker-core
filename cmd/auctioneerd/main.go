@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"time"
 
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -33,6 +34,7 @@ func init() {
 		{Name: "repo", DefValue: "${HOME}/.auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
+		{Name: "host-bootstrap-multiaddr", DefValue: "", Description: "Libp2p host bootstrap peer multiaddr"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
@@ -87,7 +89,10 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
-		serv.Bootstrap()
+		bootPeers, err := ipfsconfig.ParseBootstrapPeers(v.GetStringSlice("host-bootstrap-multiaddr"))
+		common.CheckErrf("parsing bootstrap peer addrs: %v", err)
+		serv.Bootstrap(bootPeers)
+
 		err = serv.EnableMDNS(1)
 		common.CheckErrf("enabling mdns: %v", err)
 

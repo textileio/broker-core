@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogo/status"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
@@ -91,9 +92,10 @@ func (s *Service) Close() error {
 	return s.finalizer.Cleanup(nil)
 }
 
-// Bootstrap the market peer against well-known network peers.
-func (s *Service) Bootstrap() {
-	s.lib.Bootstrap()
+// Bootstrap the market peer against network peers.
+// Some well-known network peers are included as well.
+func (s *Service) Bootstrap(peers []peer.AddrInfo) {
+	s.lib.Bootstrap(peers)
 }
 
 // EnableMDNS enables an MDNS discovery service.

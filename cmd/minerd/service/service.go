@@ -106,9 +106,10 @@ func (s *Service) Close() error {
 	return s.finalizer.Cleanup(nil)
 }
 
-// Bootstrap the market peer against well-known network peers.
-func (s *Service) Bootstrap() {
-	s.peer.Bootstrap()
+// Bootstrap the market peer against network peers.
+// Some well-known network peers are included as well.
+func (s *Service) Bootstrap(peers []peer.AddrInfo) {
+	s.peer.Bootstrap(peers)
 }
 
 // EnableMDNS enables an MDNS discovery service.

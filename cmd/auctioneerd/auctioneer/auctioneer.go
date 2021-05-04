@@ -115,9 +115,10 @@ func (a *Auctioneer) Close() error {
 	return a.finalizer.Cleanup(nil)
 }
 
-// Bootstrap the market peer against well-known network peers.
-func (a *Auctioneer) Bootstrap() {
-	a.peer.Bootstrap()
+// Bootstrap the market peer against network peers.
+// Some well-known network peers are included as well.
+func (a *Auctioneer) Bootstrap(peers []peer.AddrInfo) {
+	a.peer.Bootstrap(peers)
 }
 
 // EnableMDNS enables an MDNS discovery service.

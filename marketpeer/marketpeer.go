@@ -136,9 +136,10 @@ func (p *Peer) Self() peer.ID {
 	return p.host.ID()
 }
 
-// Bootstrap the market peer against well-known network peers.
-func (p *Peer) Bootstrap() {
-	p.peer.Bootstrap(ipfslite.DefaultBootstrapPeers())
+// Bootstrap the market peer against network peers.
+// Some well-known network peers are included as well.
+func (p *Peer) Bootstrap(peers []peer.AddrInfo) {
+	p.peer.Bootstrap(append(peers, ipfslite.DefaultBootstrapPeers()...))
 	log.Info("peer was bootstapped")
 }
 
