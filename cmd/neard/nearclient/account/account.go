@@ -104,6 +104,10 @@ func (a *Account) FindAccessKey(
 	receiverID string,
 	actions []transaction.Action,
 ) (*keys.PublicKey, *AccessKeyView, error) {
+	if a.config.Signer == nil {
+		return nil, nil, fmt.Errorf("no signer configured")
+	}
+
 	// TODO: Find matching access key based on transaction (i.e. receiverId and actions)
 	_ = receiverID
 	_ = actions
@@ -169,6 +173,10 @@ func (a *Account) SignTransaction(
 	receiverID string,
 	actions ...transaction.Action,
 ) ([]byte, *transaction.SignedTransaction, error) {
+	if a.config.Signer == nil {
+		return nil, nil, fmt.Errorf("no signer configured")
+	}
+
 	_, accessKeyView, err := a.FindAccessKey(ctx, receiverID, actions)
 	if err != nil {
 		return nil, nil, fmt.Errorf("finding access key: %v", err)

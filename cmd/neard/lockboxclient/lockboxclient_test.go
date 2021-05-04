@@ -152,7 +152,7 @@ func makeClient(t *testing.T) (*Client, func()) {
 	}
 	nc, err := nearclient.NewClient(config)
 	require.NoError(t, err)
-	c, err := NewClient(nc, "asutula.testnet")
+	c, err := NewClient(nc, "asutula.testnet", "asutula.testnet")
 	require.NoError(t, err)
 	return c, func() {
 		rpcClient.Close()

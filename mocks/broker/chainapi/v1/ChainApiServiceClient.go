@@ -77,6 +77,36 @@ func (_m *ChainApiServiceClient) LockInfo(ctx context.Context, in *chainapi.Lock
 	return r0, r1
 }
 
+// ReportStorageInfo provides a mock function with given fields: ctx, in, opts
+func (_m *ChainApiServiceClient) ReportStorageInfo(ctx context.Context, in *chainapi.ReportStorageInfoRequest, opts ...grpc.CallOption) (*chainapi.ReportStorageInfoResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *chainapi.ReportStorageInfoResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *chainapi.ReportStorageInfoRequest, ...grpc.CallOption) *chainapi.ReportStorageInfoResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*chainapi.ReportStorageInfoResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *chainapi.ReportStorageInfoRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // State provides a mock function with given fields: ctx, in, opts
 func (_m *ChainApiServiceClient) State(ctx context.Context, in *chainapi.StateRequest, opts ...grpc.CallOption) (*chainapi.StateResponse, error) {
 	_va := make([]interface{}, len(opts))

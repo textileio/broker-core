@@ -115,15 +115,17 @@ type Change struct {
 
 // Client communicates with the lock box contract API.
 type Client struct {
-	nc        *nearclient.Client
-	accountID string
+	nc               *nearclient.Client
+	lockboxAccountID string
+	clientAccountID  string
 }
 
 // NewClient creates a new Client.
-func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
+func NewClient(nc *nearclient.Client, lockboxAccountID, clientAccountID string) (*Client, error) {
 	return &Client{
-		nc:        nc,
-		accountID: accountID,
+		nc:               nc,
+		lockboxAccountID: lockboxAccountID,
+		clientAccountID:  clientAccountID,
 	}, nil
 }
 
@@ -133,7 +135,7 @@ func NewClient(nc *nearclient.Client, accountID string) (*Client, error) {
 func (c *Client) HasLocked(ctx context.Context, brokerID, accountID string) (bool, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"hasLocked",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{
@@ -157,11 +159,11 @@ func (c *Client) LockFunds(ctx context.Context, brokerID string) (*LockInfo, err
 	if !ok {
 		return nil, fmt.Errorf("creating depoist amount")
 	}
-	res, err := c.nc.Account(c.accountID).FunctionCall(
+	res, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"lockFunds",
-		transaction.FunctionCallWithArgs(map[string]interface{}{"brokerId": brokerID, "accountId": c.accountID}),
+		transaction.FunctionCallWithArgs(map[string]interface{}{"brokerId": brokerID, "accountId": c.clientAccountID}),
 		transaction.FunctionCallWithDeposit(*deposit),
 	)
 	if err != nil {
@@ -185,7 +187,7 @@ func (c *Client) LockFunds(ctx context.Context, brokerID string) (*LockInfo, err
 
 // UnlockFunds unlocks all funds from expired sessions in the contract.
 func (c *Client) UnlockFunds(ctx context.Context) error {
-	_, err := c.nc.Account(c.accountID).FunctionCall(ctx, c.accountID, "unlockFunds")
+	_, err := c.nc.Account(c.clientAccountID).FunctionCall(ctx, c.lockboxAccountID, "unlockFunds")
 	if err != nil {
 		return fmt.Errorf("calling rpc unlock funds: %v", err)
 	}
@@ -196,9 +198,9 @@ func (c *Client) UnlockFunds(ctx context.Context) error {
 
 // DeleteBroker deletes the specified broker from the state.
 func (c *Client) DeleteBroker(ctx context.Context, brokerID string) error {
-	if _, err := c.nc.Account(c.accountID).FunctionCall(
+	if _, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"deleteBroker",
 		transaction.FunctionCallWithArgs(map[string]interface{}{"brokerId": brokerID}),
 	); err != nil {
@@ -213,9 +215,9 @@ func (c *Client) SetBroker(ctx context.Context, brokerID string, addrs []string)
 		"brokerId": brokerID,
 		"addrs":    addrs,
 	}
-	res, err := c.nc.Account(c.accountID).FunctionCall(
+	res, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"setBroker",
 		transaction.FunctionCallWithArgs(args),
 	)
@@ -241,7 +243,7 @@ func (c *Client) SetBroker(ctx context.Context, brokerID string, addrs []string)
 func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"getBroker",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{"brokerId": brokerID}),
@@ -263,7 +265,7 @@ func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, e
 func (c *Client) ListBrokers(ctx context.Context) ([]BrokerInfo, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"listBrokers",
 		nearclient.CallFunctionWithFinality("final"),
 	)
@@ -283,7 +285,7 @@ func (c *Client) ListBrokers(ctx context.Context) ([]BrokerInfo, error) {
 func (c *Client) ListPayloads(ctx context.Context, offset, maxLength int) ([]PayloadInfo, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"listPayloads",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{"offset": offset, "maxLength": maxLength}),
@@ -302,7 +304,7 @@ func (c *Client) ListPayloads(ctx context.Context, offset, maxLength int) ([]Pay
 func (c *Client) GetByPayload(ctx context.Context, payloadCid string) (*PayloadInfo, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"getByPayload",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{"payloadCid": payloadCid}),
@@ -324,7 +326,7 @@ func (c *Client) GetByPayload(ctx context.Context, payloadCid string) (*PayloadI
 func (c *Client) GetByCid(ctx context.Context, dataCid string) (*PayloadInfo, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"getByCid",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{"dataCid": dataCid}),
@@ -344,9 +346,9 @@ func (c *Client) GetByCid(ctx context.Context, dataCid string) (*PayloadInfo, er
 
 // PushPayload pushes a new payload record and optionally updates cid mappings.
 func (c *Client) PushPayload(ctx context.Context, payloadInfo PayloadInfo, dataCids []string) error {
-	_, err := c.nc.Account(c.accountID).FunctionCall(
+	_, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
-		c.accountID,
+		c.lockboxAccountID,
 		"pushPayload",
 		transaction.FunctionCallWithArgs(map[string]interface{}{
 			"payload":  payloadInfo,
@@ -363,7 +365,7 @@ func (c *Client) PushPayload(ctx context.Context, payloadInfo PayloadInfo, dataC
 
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.nc.Account(c.accountID).ViewState(
+	res, err := c.nc.Account(c.lockboxAccountID).ViewState(
 		ctx,
 		account.ViewStateWithFinality("final"),
 		account.ViewStateWithPrefix("u"),
@@ -399,12 +401,12 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 
 // GetAccount gets information about the lock box account.
 func (c *Client) GetAccount(ctx context.Context) (*account.AccountView, error) {
-	return c.nc.Account(c.accountID).State(ctx, account.StateWithFinality("final"))
+	return c.nc.Account(c.lockboxAccountID).State(ctx, account.StateWithFinality("final"))
 }
 
 // GetChanges gets the lock box state changes for a block height.
 func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
-	res, err := c.nc.DataChanges(ctx, []string{c.accountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
+	res, err := c.nc.DataChanges(ctx, []string{c.lockboxAccountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
 	if err != nil {
 		return nil, "", fmt.Errorf("calling data changes: %v", err)
 	}
