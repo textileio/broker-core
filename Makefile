@@ -127,7 +127,7 @@ define docker_push_daemon_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged)
+	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged dealerd)
 .PHONY: docker-push-head
 
 ################################################################

@@ -6,6 +6,7 @@ RUN mkdir /app
 WORKDIR /app
 
 COPY go.mod go.sum ./
+RUN sed -i '/filecoin-ffi/d' go.mod
 RUN go mod download -x
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
