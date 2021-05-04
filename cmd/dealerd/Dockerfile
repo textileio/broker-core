@@ -18,9 +18,9 @@ COPY . .
 RUN mkdir -p extern/filecoin-ffi
 RUN make build-ffi
 
-RUN go mod download -x
-RUN --mount=type=cache,target=/root/.cache/go-build \
-  CGO_ENABLED=0 GOOS=linux make build-dealerd
+RUN --mount=type=cache,target=/go/pkg/mod go mod download -x
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod go mod download -x &&\
+  GOOS=linux make build-dealerd
 
 FROM alpine
 COPY --from=builder /app/dealerd /app/dealerd

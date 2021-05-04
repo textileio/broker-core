@@ -14,6 +14,7 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
+	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
 	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -37,6 +38,8 @@ type Config struct {
 	LotusExportedWalletAddr string
 
 	BrokerAPIAddr string
+
+	Mock bool
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -44,7 +47,7 @@ type Service struct {
 	pb.UnimplementedAPIServiceServer
 
 	server    *grpc.Server
-	dealer    *dealer.Dealer
+	dealer    dealeri.Dealer
 	finalizer *finalizer.Finalizer
 }
 
@@ -69,7 +72,10 @@ func New(conf Config) (*Service, error) {
 		return nil, fmt.Errorf("creating broker client: %s", err)
 	}
 
-	lotusAPI, closer, err := filgatewayclient.NewGatewayRPC(context.Background(), conf.LotusGatewayURL, http.Header{})
+	lotusAPI, closer, err := filgatewayclient.NewGatewayRPC(
+		context.Background(),
+		conf.LotusGatewayURL,
+		http.Header{})
 	if err != nil {
 		return nil, fmt.Errorf("creating lotus gateway client: %s", err)
 	}
@@ -80,11 +86,18 @@ func New(conf Config) (*Service, error) {
 		return nil, fmt.Errorf("creating filecoin client: %s", err)
 	}
 
-	lib, err := dealer.New(ds, broker, filclient)
-	if err != nil {
-		return nil, fin.Cleanupf("creating dealer: %v", err)
+	var lib dealeri.Dealer
+	if conf.Mock {
+		log.Warnf("running in mocked mode")
+		lib = dealermock.New(broker)
+	} else {
+		libi, err := dealer.New(ds, broker, filclient)
+		if err != nil {
+			return nil, fin.Cleanupf("creating dealer: %v", err)
+		}
+		fin.Add(libi)
+		lib = libi
 	}
-	fin.Add(lib)
 
 	s := &Service{
 		server:    grpc.NewServer(),

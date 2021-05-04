@@ -30,9 +30,10 @@ func init() {
 			Description: "Exported wallet address for deal making"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
 	}
 
-	common.ConfigureCLI(v, "packer", flags, rootCmd)
+	common.ConfigureCLI(v, "dealer", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
@@ -63,6 +64,8 @@ var rootCmd = &cobra.Command{
 
 			LotusGatewayURL:         v.GetString("lotus-gateway-url"),
 			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-addr"),
+
+			Mock: v.GetBool("mock"),
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)
