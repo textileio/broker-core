@@ -27,10 +27,12 @@ func init() {
 		{
 			Name:        "lotus-exported-wallet-address",
 			DefValue:    "",
-			Description: "Exported wallet address for deal making"},
-		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "log-debug", DefValue: false, Description: "Enable debug level logs"},
+			Description: "Exported wallet address for deal making",
+		},
 		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
 	common.ConfigureCLI(v, "dealer", flags, rootCmd)
@@ -41,10 +43,8 @@ var rootCmd = &cobra.Command{
 	Short: "dealerd executes deals for winning bids",
 	Long:  "dealerd executes deals for winning bids",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("log-debug") {
-			logging.SetAllLoggers(logging.LevelDebug)
-		}
+		err := common.ConfigureLogging(v, nil)
+		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")

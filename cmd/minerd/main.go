@@ -11,7 +11,6 @@ import (
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/minerd/service"
 	"github.com/textileio/broker-core/finalizer"
-	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 )
 
@@ -24,6 +23,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 		{Name: "repo", DefValue: "${HOME}/.miner", Description: "Repo path"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -62,15 +62,12 @@ var rootCmd = &cobra.Command{
 	Short: "minerd is used by a miner to listen for deals from the Broker",
 	Long:  "minerd is used by a miner to listen for deals from the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		ll := golog.LevelInfo
-		if v.GetBool("debug") {
-			ll = golog.LevelDebug
-		}
-		err := logging.SetLogLevels(map[string]golog.LogLevel{
-			"miner/service": ll,
-			"mpeer":         ll,
+		err := common.ConfigureLogging(v, []string{
+			"miner/service",
+			"mpeer",
 		})
 		common.CheckErrf("setting log levels: %v", err)
+
 	},
 	Run: func(c *cobra.Command, args []string) {
 		fin := finalizer.NewFinalizer()

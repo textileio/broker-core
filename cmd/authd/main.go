@@ -26,6 +26,7 @@ func init() {
 		{Name: "near-addr", DefValue: "", Description: "neard service api address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
 	common.ConfigureCLI(v, "AUTH", flags, rootCmd)
@@ -36,10 +37,9 @@ var rootCmd = &cobra.Command{
 	Short: "authd provides authentication services for the Broker",
 	Long:  `authd provides authentication services for the Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("debug") {
-			logging.SetAllLoggers(logging.LevelDebug)
-		}
+		err := common.ConfigureLogging(v, nil)
+		common.CheckErrf("setting log levels: %v", err)
+
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
