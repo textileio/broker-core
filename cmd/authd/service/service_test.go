@@ -29,14 +29,14 @@ func init() {
 }
 
 // TOKEN is the JWT token for testing.
-var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJr" +
-	"dHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IjZURnVRRzFGTHZ4UGxPdGFVbllF" +
-	"QlRlU3haa09GZ3VSSGZwNlN1Q1ZDbG89IiwidXNlIjoic2lnIn19.eyJhdWQiOiJhYXJ" +
-	"vbmJyb2tlciIsImlzcyI6ImNhcnNvbmZhcm1lci50ZXN0bmV0Iiwic3ViIjoiZGlkOmtl" +
-	"eTp6Nk1rdjlZa25rMzZlUzhwY1pkZjgyWXhIcnBpWmJZZDFFYlNld0R2WEM3amhRRDciL" +
-	"CJuYmYiOjE2MjAwODIwMzksImlhdCI6MTYyMDA4MjAzOSwiZXhwIjoxNjIwMDg1NjM5fQ" +
-	"==.iaRq6Gee5YcNWRgkkU-E1GXO8DxpU86faCdAVWXZeCT2z4V9kLiO7tepuGLBMG_xB7" +
-	"r4ho1MrthpwX-wRsZ-Cg=="
+var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1" +
+	"AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IjZURnVRRzFGTHZ4UGxPdGFVbllFQlRlU3ha" +
+	"a09GZ3VSSGZwNlN1Q1ZDbG89IiwidXNlIjoic2lnIn19.eyJhdWQiOiJhYXJvbmJyb2" +
+	"tlciIsImlzcyI6ImNhcnNvbmZhcm1lci50ZXN0bmV0Iiwic3ViIjoiZGlkOmtleTp6N" +
+	"k1rdjlZa25rMzZlUzhwY1pkZjgyWXhIcnBpWmJZZDFFYlNld0R2WEM3amhRRDciLCJu" +
+	"YmYiOjE2MjAwODY2NDMsImlhdCI6MTYyMDA4NjY0MywiZXhwIjozNjAwMDAwMDE2MjA" +
+	"wODY2NjB9.XcGW8z7HEVy6gZl2ZP0yGPyetlcXal8d86_YKvIor8vFQWYS9zSu4vxYm" +
+	"KutmsVkVu2gsopkdF3hsw0_qjCLDQ=="
 
 // The unecoded TOKEN:
 //
@@ -56,9 +56,9 @@ var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJr" +
 //     "aud": "aaronbroker",
 //     "iss": "carsonfarmer.testnet",
 //     "sub": "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7",
-//     "nbf": 1620082039,
-//     "iat": 1620082039,
-//     "exp": 1620085639
+//     "nbf": 1620086643,
+//     "iat": 1620086643,
+//     "exp": 360000001620086660
 // }
 
 func TestService_isWhitelisted(t *testing.T) {
