@@ -28,8 +28,9 @@ import (
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/cmd/dealerd/metrics"
 	"github.com/textileio/broker-core/logging"
-	"golang.org/x/xerrors"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
@@ -39,13 +40,21 @@ var (
 const dealStatusProtocol = "/fil/storage/status/1.1.0"
 const dealProtocol = "/fil/storage/mk/1.1.0"
 
+// FilClient provides API to interact with the Filecoin network.
 type FilClient struct {
 	walletAddr address.Address
 	wallet     *wallet.LocalWallet
 	api        api.Gateway
 	host       host.Host
+
+	metricExecAuctionDeal          metric.Int64Counter
+	metricGetChainHeight           metric.Int64Counter
+	metricResolveDealIDFromMessage metric.Int64Counter
+	metricCheckDealStatusWithMiner metric.Int64Counter
+	metricCheckChainDeal           metric.Int64Counter
 }
 
+// New returns a new FilClient.
 func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
@@ -79,13 +88,22 @@ func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 		api:        api,
 	}
 
+	if err := fc.initMetrics(); err != nil {
+		return nil, fmt.Errorf("init metrics: %s", err)
+	}
+
 	return fc, nil
 }
 
+// ExecuteAuctionDeal creates a deal with a miner using the data described in an auction deal.
 func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
-	aud store.AuctionDeal) (cid.Cid, error) {
+	aud store.AuctionDeal) (propCid cid.Cid, err error) {
+	defer func() {
+		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal)
+	}()
+
 	p, err := fc.createDealProposal(ctx, ad, aud)
 	if err != nil {
 		return cid.Undef, fmt.Errorf("creating deal proposal: %s", err)
@@ -110,7 +128,11 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	return pr.Response.Proposal, nil
 }
 
-func (fc *FilClient) GetChainHeight(ctx context.Context) (uint64, error) {
+// GetChainHeight returns the current chain height.
+func (fc *FilClient) GetChainHeight(ctx context.Context) (height uint64, err error) {
+	defer func() {
+		metrics.MetricIncrCounter(ctx, err, fc.metricGetChainHeight)
+	}()
 	tip, err := fc.api.ChainHead(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("getting chain head: %s", err)
@@ -126,10 +148,13 @@ func (fc *FilClient) GetChainHeight(ctx context.Context) (uint64, error) {
 func (fc *FilClient) ResolveDealIDFromMessage(
 	ctx context.Context,
 	proposalCid cid.Cid,
-	publishDealMessage cid.Cid) (int64, error) {
+	publishDealMessage cid.Cid) (dealID int64, err error) {
+	defer func() {
+		metrics.MetricIncrCounter(ctx, err, fc.metricResolveDealIDFromMessage)
+	}()
 	mlookup, err := fc.api.StateSearchMsg(ctx, publishDealMessage)
 	if err != nil {
-		return 0, xerrors.Errorf("could not find published deal on chain: %w", err)
+		return 0, fmt.Errorf("could not find published deal on chain: %w", err)
 	}
 
 	if mlookup == nil {
@@ -150,7 +175,7 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 	for i, pd := range params.Deals {
 		nd, err := cborutil.AsIpld(&pd)
 		if err != nil {
-			return 0, xerrors.Errorf("failed to compute deal proposal ipld node: %w", err)
+			return 0, fmt.Errorf("failed to compute deal proposal ipld node: %w", err)
 		}
 
 		// If we find a proposal in the message that matches our AuctionDeal proposal cid, we can be sure
@@ -166,12 +191,12 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 	}
 
 	if mlookup.Receipt.ExitCode != 0 {
-		return 0, xerrors.Errorf("the message failed to execute (exit: %d)", mlookup.Receipt.ExitCode)
+		return 0, fmt.Errorf("the message failed to execute (exit: %d)", mlookup.Receipt.ExitCode)
 	}
 
 	var retval market.PublishStorageDealsReturn
 	if err := retval.UnmarshalCBOR(bytes.NewReader(mlookup.Receipt.Return)); err != nil {
-		return 0, xerrors.Errorf("publish deal return was improperly formatted: %w", err)
+		return 0, fmt.Errorf("publish deal return was improperly formatted: %w", err)
 	}
 
 	if len(retval.IDs) != len(params.Deals) {
@@ -181,7 +206,12 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 	return int64(retval.IDs[dealix]), nil
 }
 
-func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, uint64, error) {
+// CheckChainDeal checks if a deal is active on-chain. If that's the case, it also returns the
+// deal expiration as a second parameter.
+func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (active bool, expiration uint64, err error) {
+	defer func() {
+		metrics.MetricIncrCounter(ctx, err, fc.metricCheckChainDeal)
+	}()
 	deal, err := fc.api.StateMarketStorageDeal(ctx, abi.DealID(dealid), types.EmptyTSK)
 	if err != nil {
 		nfs := fmt.Sprintf("deal %d not found", dealid)
@@ -199,10 +229,16 @@ func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, ui
 	return true, uint64(deal.Proposal.EndEpoch), nil
 }
 
+// CheckDealStatusWithMiner checks a deal proposal status with a miner. The caller should be aware that
+// shouldn't fully trust data from miners. To fully confirm the deal, a call to CheckChainDeal
+// must be made after the miner publishes the deal on-chain.
 func (fc *FilClient) CheckDealStatusWithMiner(
 	ctx context.Context,
 	minerAddr string,
-	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
+	propCid cid.Cid) (status *storagemarket.ProviderDealState, err error) {
+	defer func() {
+		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithMiner)
+	}()
 	miner, err := address.NewFromString(minerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid miner address %s: %s", minerAddr, err)
@@ -214,7 +250,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 
 	sig, err := fc.wallet.WalletSign(ctx, fc.walletAddr, cidb, api.MsgMeta{Type: api.MTUnknown})
 	if err != nil {
-		return nil, xerrors.Errorf("signing status request failed: %w", err)
+		return nil, fmt.Errorf("signing status request failed: %w", err)
 	}
 
 	req := &network.DealStatusRequest{
@@ -228,12 +264,12 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 	}
 
 	if err := cborutil.WriteCborRPC(s, req); err != nil {
-		return nil, xerrors.Errorf("failed to write status request: %w", err)
+		return nil, fmt.Errorf("failed to write status request: %w", err)
 	}
 
 	var resp network.DealStatusResponse
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
-		return nil, xerrors.Errorf("reading response: %w", err)
+		return nil, fmt.Errorf("reading response: %w", err)
 	}
 
 	// TODO: check the signatures and stuff?
@@ -323,7 +359,7 @@ func (fc *FilClient) streamToMiner(
 
 	s, err := fc.host.NewStream(ctx, mpid, protocol)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to open stream to peer: %w", err)
+		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
 	}
 
 	return s, nil
@@ -358,21 +394,21 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 	return *minfo.PeerId, nil
 }
 
-func (fc *FilClient) sendProposal(ctx context.Context, netprop *network.Proposal) (*network.SignedResponse, error) {
+func (fc *FilClient) sendProposal(ctx context.Context, netprop *network.Proposal) (res *network.SignedResponse, err error) {
 	s, err := fc.streamToMiner(ctx, netprop.DealProposal.Proposal.Provider, dealProtocol)
 	if err != nil {
-		return nil, xerrors.Errorf("opening stream to miner: %w", err)
+		return nil, fmt.Errorf("opening stream to miner: %w", err)
 	}
 
 	defer s.Close()
 
 	if err := cborutil.WriteCborRPC(s, netprop); err != nil {
-		return nil, xerrors.Errorf("failed to write proposal to miner: %w", err)
+		return nil, fmt.Errorf("failed to write proposal to miner: %w", err)
 	}
 
 	var resp network.SignedResponse
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
-		return nil, xerrors.Errorf("failed to read response from miner: %w", err)
+		return nil, fmt.Errorf("failed to read response from miner: %w", err)
 	}
 
 	return &resp, nil

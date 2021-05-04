@@ -54,10 +54,10 @@ require (
 	github.com/textileio/jwt-go-eddsa v0.2.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.19.0
+	go.opentelemetry.io/otel v0.19.0
 	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0
 	go.opentelemetry.io/otel/metric v0.19.0
 	go.uber.org/zap v1.16.0
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
 )
