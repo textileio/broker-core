@@ -45,7 +45,7 @@ build-packerd: $(GOVVV)
 .PHONY: build-packerd
 
 build-dealerd: $(GOVVV)
-	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
+	go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
 .PHONY: build-dealerd
 
 
