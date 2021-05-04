@@ -7,6 +7,8 @@ import (
 	"github.com/textileio/broker-core/auth"
 	authd "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // AuthService provides authentication resolution for the storage service.
@@ -31,8 +33,10 @@ var _ auth.Authorizer = (*AuthService)(nil)
 func (a *AuthService) IsAuthorized(ctx context.Context, token string) (bool, string, error) {
 	req := &authd.AuthRequest{Token: token}
 	res, err := a.client.Auth(ctx, req)
-	if err != nil {
-		return false, fmt.Sprintf("IsAuthorized error: %s", err), err
+	if status.Code(err) == codes.Unauthenticated {
+		return false, err.Error(), nil
+	} else if err != nil {
+		return false, err.Error(), err
 	}
 	return true, res.Identity, nil
 }
