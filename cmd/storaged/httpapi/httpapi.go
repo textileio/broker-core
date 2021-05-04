@@ -95,8 +95,13 @@ func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
 			httpError(w, "there should only be one authorization value", http.StatusBadRequest)
 			return
 		}
+		authParts := strings.SplitN(authHeader[0], " ", 2)
+		if len(authParts) != 2 {
+			httpError(w, "invalid authorization value", http.StatusBadRequest)
+			return
+		}
 
-		ok, authErr, err := s.IsAuthorized(r.Context(), authHeader[0])
+		ok, authErr, err := s.IsAuthorized(r.Context(), authParts[1])
 		if err != nil {
 			httpError(w, fmt.Sprintf("calling authorizer: %s", err), http.StatusInternalServerError)
 			return
