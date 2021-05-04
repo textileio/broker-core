@@ -24,6 +24,7 @@ func NewClient(cc *grpc.ClientConn) *Client {
 	}
 }
 
+// ReadyToCreateDeals registers deals that are ready to be executed.
 func (c *Client) ReadyToCreateDeals(ctx context.Context, sdb dealer.AuctionDeals) error {
 	req := &pb.ReadyToCreateDealsRequest{
 		StorageDealId: string(sdb.StorageDealID),

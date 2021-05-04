@@ -90,6 +90,7 @@ func TestStateMachineExecPending(t *testing.T) {
 
 	// Check there're no more pending deals.
 	pendings, err := dealer.store.GetAllAuctionDeals(store.Pending)
+	require.NoError(t, err)
 	require.Len(t, pendings, 0)
 
 	// Check the deal moved to WaitingConfirmation
@@ -104,7 +105,6 @@ func TestStateMachineExecPending(t *testing.T) {
 	require.Equal(t, fakeProposalCid, wc.ProposalCid) // Crucial check.
 	require.Equal(t, int64(0), wc.DealID)             // Can't be set at this stage.
 	require.Equal(t, uint64(0), wc.DealExpiration)    // Can't be set at this stage.
-
 }
 
 func TestStateMachineExecWaitingConfirmation(t *testing.T) {
@@ -125,6 +125,7 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 
 	// Check there're no more deals waiting for confirmation.
 	waitingConfirmation, err := dealer.store.GetAllAuctionDeals(store.WaitingConfirmation)
+	require.NoError(t, err)
 	require.Len(t, waitingConfirmation, 0)
 
 	// Check the deal moved to Success
@@ -162,10 +163,13 @@ func TestStateMachineExecReporting(t *testing.T) {
 	// There shouldn't be ANY auction deal, since
 	// things get removed from the datastore after being reported.
 	ads, err := dealer.store.GetAllAuctionDeals(store.Pending)
+	require.NoError(t, err)
 	require.Len(t, ads, 0)
 	ads, err = dealer.store.GetAllAuctionDeals(store.WaitingConfirmation)
+	require.NoError(t, err)
 	require.Len(t, ads, 0)
 	ads, err = dealer.store.GetAllAuctionDeals(store.Success)
+	require.NoError(t, err)
 	require.Len(t, ads, 0)
 
 	// Check that the broker was reported with the deal
@@ -184,12 +188,12 @@ func newDealer(t *testing.T, broker broker.Broker) *Dealer {
 	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, nil)
 
 	cdswmCall := fc.On("CheckDealStatusWithMiner", mock.Anything, mock.Anything, mock.Anything)
-	cdswmCall = cdswmCall.Return(&storagemarket.ProviderDealState{
+	cdswmCall.Return(&storagemarket.ProviderDealState{
 		PublishCid: &fakePublishDealMessage,
 	}, nil)
 
 	rdfmCall := fc.On("ResolveDealIDFromMessage", mock.Anything, fakeProposalCid, fakePublishDealMessage)
-	rdfmCall = rdfmCall.Return(fakeDealID, nil)
+	rdfmCall.Return(fakeDealID, nil)
 
 	fc.On("CheckChainDeal", mock.Anything, fakeDealID).Return(true, fakeExpiration, nil)
 
@@ -216,16 +220,22 @@ type fcMock struct {
 	mock.Mock
 }
 
-func (fc *fcMock) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (cid.Cid, error) {
+func (fc *fcMock) ExecuteAuctionDeal(
+	ctx context.Context,
+	ad store.AuctionData,
+	aud store.AuctionDeal) (cid.Cid, error) {
 	args := fc.Called(ctx, ad, aud)
 	return args.Get(0).(cid.Cid), args.Error(1)
-
 }
+
 func (fc *fcMock) GetChainHeight(ctx context.Context) (uint64, error) {
 	args := fc.Called(ctx)
 	return args.Get(0).(uint64), args.Error(1)
 }
-func (fc *fcMock) ResolveDealIDFromMessage(ctx context.Context, proposalCid cid.Cid, publishDealMessage cid.Cid) (int64, error) {
+func (fc *fcMock) ResolveDealIDFromMessage(
+	ctx context.Context,
+	proposalCid cid.Cid,
+	publishDealMessage cid.Cid) (int64, error) {
 	args := fc.Called(ctx, proposalCid, publishDealMessage)
 	return args.Get(0).(int64), args.Error(1)
 }
@@ -233,7 +243,6 @@ func (fc *fcMock) ResolveDealIDFromMessage(ctx context.Context, proposalCid cid.
 func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, error) {
 	args := fc.Called(ctx, dealID)
 	return args.Bool(0), args.Get(1).(uint64), args.Error(2)
-
 }
 func (fc *fcMock) CheckDealStatusWithMiner(
 	ctx context.Context,
@@ -248,11 +257,17 @@ type brokerMock struct {
 	calledFAD []broker.FinalizedAuctionDeal
 }
 
-func (b *brokerMock) CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+func (b *brokerMock) CreateStorageDeal(
+	ctx context.Context,
+	batchCid cid.Cid,
+	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
 	panic("shouldn't be called")
 }
 
-func (b *brokerMock) StorageDealPrepared(ctx context.Context, id broker.StorageDealID, pr broker.DataPreparationResult) error {
+func (b *brokerMock) StorageDealPrepared(
+	ctx context.Context,
+	id broker.StorageDealID,
+	pr broker.DataPreparationResult) error {
 	panic("shouldn't be called")
 }
 
@@ -263,11 +278,12 @@ func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.Au
 func (b *brokerMock) StorageDealFinalizedDeals(ctx context.Context, res []broker.FinalizedAuctionDeal) error {
 	b.calledFAD = res
 	return nil
-
 }
+
 func (b *brokerMock) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }
+
 func (b *brokerMock) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }

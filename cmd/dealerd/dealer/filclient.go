@@ -8,7 +8,8 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 )
 
-type Filclient interface {
+// FilClient provides functionalities to create and monitor Filecoin deals.
+type FilClient interface {
 	ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (cid.Cid, error)
 	GetChainHeight(ctx context.Context) (uint64, error)
 	ResolveDealIDFromMessage(ctx context.Context, proposalCid cid.Cid, publishDealMessage cid.Cid) (int64, error)

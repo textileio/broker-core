@@ -107,6 +107,7 @@ func New(conf Config) (*Service, error) {
 	return s, nil
 }
 
+// ReadyToCreateDeals registers deals that are ready to be executed.
 func (s *Service) ReadyToCreateDeals(
 	ctx context.Context,
 	r *pb.ReadyToCreateDealsRequest) (*pb.ReadyToCreateDealsResponse, error) {

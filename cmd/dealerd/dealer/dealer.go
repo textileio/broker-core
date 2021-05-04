@@ -18,7 +18,7 @@ type Dealer struct {
 	config    config
 	store     *store.Store
 	broker    broker.Broker
-	filclient Filclient
+	filclient FilClient
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -33,7 +33,7 @@ var _ dealeri.Dealer = (*Dealer)(nil)
 func New(
 	ds txndswrap.TxnDatastore,
 	broker broker.Broker,
-	fc Filclient,
+	fc FilClient,
 	opts ...Option) (*Dealer, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
@@ -108,11 +108,11 @@ func (d *Dealer) daemon() {
 	// i.e: takes Pending deals, executes them, and leave them ready
 	// to be confirmed on-chain.
 	go d.daemonDealMaker()
-	// daemonDealMonitoring makes status changes from Pending -> (Successs | Error)
+	// daemonDealMonitoring makes status changes from Pending -> (Success | Error)
 	// i.e: monitors the fired deal until is confirmed on-chain.
 	go d.daemonDealMonitoring()
 	// daemonDealWatcher takes statuses (Success | Error) and reports the results
-	// back to the broker, deleting them after geting ACK from it.
+	// back to the broker, deleting them after getting ACK from it.
 	go d.daemonDealReporter()
 
 	<-d.daemonCtx.Done()

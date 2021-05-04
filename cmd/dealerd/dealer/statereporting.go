@@ -7,7 +7,6 @@ import (
 
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
-	"github.com/textileio/broker-core/ratelim"
 )
 
 func (d *Dealer) daemonDealReporter() {
@@ -27,11 +26,6 @@ func (d *Dealer) daemonDealReporter() {
 }
 
 func (d *Dealer) daemonDealReporterTick() error {
-	rl, err := ratelim.New(d.config.dealReportingRateLim)
-	if err != nil {
-		return fmt.Errorf("create ratelim: %s", err)
-	}
-
 	for {
 		adSuccess, err := d.store.GetAllAuctionDeals(store.Success)
 		if err != nil {
@@ -72,7 +66,6 @@ func (d *Dealer) daemonDealReporterTick() error {
 		if err := d.store.RemoveAuctionDeals(ads); err != nil {
 			return fmt.Errorf("removing auction deals: %s", err)
 		}
-		rl.Wait()
 	}
 
 	return nil

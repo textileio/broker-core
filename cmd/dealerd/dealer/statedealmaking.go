@@ -30,7 +30,14 @@ func (d *Dealer) daemonDealMakerTick() error {
 		return fmt.Errorf("create ratelim: %s", err)
 	}
 
+Loop1:
 	for {
+		select {
+		case <-d.daemonCtx.Done():
+			break Loop1
+		default:
+		}
+
 		ps, err := d.store.GetAllAuctionDeals(store.Pending)
 		if err != nil {
 			return fmt.Errorf("get pending auction deals: %s", err)
@@ -38,18 +45,13 @@ func (d *Dealer) daemonDealMakerTick() error {
 		if len(ps) == 0 {
 			break
 		}
+	Loop2:
 		for _, aud := range ps {
 			select {
 			case <-d.daemonCtx.Done():
-				break
+				break Loop2
 			default:
 			}
-
-			if err != nil {
-				log.Errorf("get next pending deal: %s", err)
-				break
-			}
-
 			rl.Exec(func() error {
 				if err := d.executePending(aud); err != nil {
 					// TODO: most probably we want to include logic

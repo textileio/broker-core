@@ -226,6 +226,7 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
+// StorageDealFinalizedDeals reports the result of finalized deals.
 func (s *Service) StorageDealFinalizedDeals(
 	ctx context.Context,
 	r *pb.StorageDealFinalizedDealsRequest) (*pb.StorageDealFinalizedDealsResponse, error) {
@@ -243,7 +244,10 @@ func (s *Service) StorageDealFinalizedDeals(
 			return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
 		}
 		if fd.DealId <= 0 {
-			return nil, status.Errorf(codes.InvalidArgument, "deal id is %d and should be positive", fd.DealId)
+			return nil, status.Errorf(
+				codes.InvalidArgument,
+				"deal id is %d and should be positive",
+				fd.DealId)
 		}
 		fads[i] = broker.FinalizedAuctionDeal{
 			StorageDealID:  broker.StorageDealID(fd.StorageDealId),

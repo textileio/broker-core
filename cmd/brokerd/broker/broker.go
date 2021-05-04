@@ -242,6 +242,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	return nil
 }
 
+// StorageDealFinalizedDeals reports deals that reached final status in the Filecoin network.
 func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
 	// TODO: change StorageDeal status from DealMaking -> Reporting?
 	// TODO: signal some external component (neard?), about this data so it can put things on chain. All

@@ -25,9 +25,9 @@ func SetLogLevels(systems map[string]logging.LogLevel) error {
 	return nil
 }
 
-// MustJsonIndent is an errorless method to json indent structs so they can be printed
+// MustJSONIndent is an errorless method to json indent structs so they can be printed
 // in log.XXXf in a single line.
-func MustJsonIndent(b interface{}) string {
+func MustJSONIndent(b interface{}) string {
 	jsn, _ := json.MarshalIndent(b, "", " ")
 	return string(jsn)
 }

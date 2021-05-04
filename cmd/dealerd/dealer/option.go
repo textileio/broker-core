@@ -11,7 +11,6 @@ type config struct {
 	dealMonitoringFreq    time.Duration
 	dealMonitoringRateLim int
 	dealReportingFreq     time.Duration
-	dealReportingRateLim  int
 }
 
 var defaultConfig = config{
@@ -20,12 +19,12 @@ var defaultConfig = config{
 	dealMonitoringFreq:    time.Second * 10,
 	dealMonitoringRateLim: 20,
 	dealReportingFreq:     time.Second * 10,
-	dealReportingRateLim:  20,
 }
 
 // Option applies a configuration change.
 type Option func(*config) error
 
+// WithDealMakingFreq configures the frequency of deal making polling.
 func WithDealMakingFreq(f time.Duration) Option {
 	return func(c *config) error {
 		if f == 0 {
@@ -36,6 +35,7 @@ func WithDealMakingFreq(f time.Duration) Option {
 	}
 }
 
+// WithDealMonitoringFreq configures the frequency of deal monitoring polling.
 func WithDealMonitoringFreq(f time.Duration) Option {
 	return func(c *config) error {
 		if f == 0 {
@@ -46,6 +46,7 @@ func WithDealMonitoringFreq(f time.Duration) Option {
 	}
 }
 
+// WithDealReportingFreq configures the frequency of deals reporting polling.
 func WithDealReportingFreq(f time.Duration) Option {
 	return func(c *config) error {
 		if f == 0 {
@@ -56,6 +57,7 @@ func WithDealReportingFreq(f time.Duration) Option {
 	}
 }
 
+// WithDealMakingRateLim configures the max number of parallel execution items for deal making.
 func WithDealMakingRateLim(l int) Option {
 	return func(c *config) error {
 		if l == 0 {
@@ -66,22 +68,13 @@ func WithDealMakingRateLim(l int) Option {
 	}
 }
 
+// WithDealMonitoringRateLim configures the max number of parallel execution items for deal monitoring.
 func WithDealMonitoringRateLim(l int) Option {
 	return func(c *config) error {
 		if l == 0 {
 			return fmt.Errorf("rate limit is zero")
 		}
 		c.dealMonitoringRateLim = l
-		return nil
-	}
-}
-
-func WithDealReportingRateLim(l int) Option {
-	return func(c *config) error {
-		if l == 0 {
-			return fmt.Errorf("rate limit is zero")
-		}
-		c.dealReportingRateLim = l
 		return nil
 	}
 }

@@ -32,7 +32,13 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 		return fmt.Errorf("create ratelim: %s", err)
 	}
 
+Loop1:
 	for {
+		select {
+		case <-d.daemonCtx.Done():
+			break Loop1
+		default:
+		}
 		ps, err := d.store.GetAllAuctionDeals(store.WaitingConfirmation)
 		if err != nil {
 			return fmt.Errorf("get waiting-confirmation deals: %s", err)
@@ -46,16 +52,12 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 		if err != nil {
 			return fmt.Errorf("get chain height: %s", err)
 		}
+	Loop2:
 		for _, aud := range ps {
 			select {
 			case <-d.daemonCtx.Done():
-				break
+				break Loop2
 			default:
-			}
-
-			if err != nil {
-				log.Errorf("get next waiting-confirmation deal: %s", err)
-				break
 			}
 
 			rl.Exec(func() error {
@@ -147,7 +149,7 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uin
 	if err != nil {
 		return 0, false, fmt.Errorf("checking deal status with miner: %s", err)
 	}
-	log.Debugf("check-deal-status: %s", logging.MustJsonIndent(pds))
+	log.Debugf("check-deal-status: %s", logging.MustJSONIndent(pds))
 
 	if pds.PublishCid != nil {
 		log.Debugf("miner published the deal in message %s, trying to resolve on-chain...", pds.PublishCid)

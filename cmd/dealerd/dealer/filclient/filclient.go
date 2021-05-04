@@ -82,12 +82,15 @@ func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 	return fc, nil
 }
 
-func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (cid.Cid, error) {
+func (fc *FilClient) ExecuteAuctionDeal(
+	ctx context.Context,
+	ad store.AuctionData,
+	aud store.AuctionDeal) (cid.Cid, error) {
 	p, err := fc.createDealProposal(ctx, ad, aud)
 	if err != nil {
 		return cid.Undef, fmt.Errorf("creating deal proposal: %s", err)
 	}
-	log.Debugf("created proposal: %s", logging.MustJsonIndent(p))
+	log.Debugf("created proposal: %s", logging.MustJSONIndent(p))
 	pr, err := fc.sendProposal(ctx, p)
 	if err != nil {
 		return cid.Undef, fmt.Errorf("sending proposal to miner: %s", err)
@@ -95,9 +98,9 @@ func (fc *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 
 	switch pr.Response.State {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal accepted: %s", logging.MustJsonIndent(p))
+		log.Debugf("proposal accepted: %s", logging.MustJSONIndent(p))
 	default:
-		log.Warnf("proposal failed: %s", logging.MustJsonIndent(p))
+		log.Warnf("proposal failed: %s", logging.MustJSONIndent(p))
 		return cid.Undef,
 			fmt.Errorf("failed proposal (%s): %s",
 				storagemarket.DealStates[pr.Response.State],
@@ -196,7 +199,10 @@ func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (bool, ui
 	return true, uint64(deal.Proposal.EndEpoch), nil
 }
 
-func (fc *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerAddr string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
+func (fc *FilClient) CheckDealStatusWithMiner(
+	ctx context.Context,
+	minerAddr string,
+	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
 	miner, err := address.NewFromString(minerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid miner address %s: %s", minerAddr, err)
@@ -235,7 +241,10 @@ func (fc *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerAddr str
 	return &resp.DealState, nil
 }
 
-func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (*network.Proposal, error) {
+func (fc *FilClient) createDealProposal(
+	ctx context.Context,
+	ad store.AuctionData,
+	aud store.AuctionDeal) (*network.Proposal, error) {
 	collBounds, err := fc.api.StateDealProviderCollateralBounds(
 		ctx,
 		abi.PaddedPieceSize(ad.PieceSize),
@@ -303,7 +312,10 @@ func (fc *FilClient) createDealProposal(ctx context.Context, ad store.AuctionDat
 	}, nil
 }
 
-func (fc *FilClient) streamToMiner(ctx context.Context, maddr address.Address, protocol protocol.ID) (inet.Stream, error) {
+func (fc *FilClient) streamToMiner(
+	ctx context.Context,
+	maddr address.Address,
+	protocol protocol.ID) (inet.Stream, error) {
 	mpid, err := fc.connectToMiner(ctx, maddr)
 	if err != nil {
 		return nil, err
