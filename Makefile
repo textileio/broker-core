@@ -2,6 +2,8 @@ include .bingo/Variables.mk
 
 .DEFAULT_GOAL=build
 
+HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
+
 BIN_BUILD_FLAGS?=CGO_ENABLED=0
 BIN_VERSION?="git"
 GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
@@ -107,3 +109,14 @@ buf-https: $(BUF)
 buf-ssh: $(BUF)
 	$(BUF) check lint
 	# $(BUF) check breaking --against-input "$(SSH_GIT)#branch=main"
+
+define docker_push_daemon_head
+	for daemon in $(1); do \
+		echo docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}/Dockerfile .; \
+		docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}/Dockerfile .; \
+	done
+endef
+
+docker-push-head:
+	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged)
+.PHONY: docker-push-head
