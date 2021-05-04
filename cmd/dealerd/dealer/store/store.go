@@ -21,16 +21,16 @@ import (
 )
 
 var (
+	// ErrNotFound is returned if the item isn't found in the store.
 	ErrNotFound = fmt.Errorf("key isn't found")
 
 	dsPrefixAuctionData = datastore.NewKey("/auction-data")
 	dsPrefixAuctionDeal = datastore.NewKey("/auction-deal")
 
-	FailureUnfulfilledStartEpoch = "the deal won't be active on-chain"
-
 	log = logger.Logger("dealer/store")
 )
 
+// AuctionData contains information of data to be stored in Filecoin.
 type AuctionData struct {
 	ID string
 
@@ -44,15 +44,23 @@ type AuctionData struct {
 	UpdatedAt time.Time
 }
 
+// AuctionDealStatus is the type of action deal status.
 type AuctionDealStatus int
 
 const (
+	// Pending indicates that an auction data is ready for deal making.
 	Pending AuctionDealStatus = iota
+	// WaitingConfirmation indicates that an auction data deal should be monitored until is active on-chain.
 	WaitingConfirmation
+	// Error is a final status that indicates the deal process failed. More details about the error
+	// are found in the ErorCause field.
 	Error
+	// Success is a final status tha indicates the deal process succeeded.
 	Success
 )
 
+// AuctionDeal contains information to make a deal with a particular miner. The data information is stored
+// in the linked AuctionData.
 type AuctionDeal struct {
 	ID string
 
@@ -97,6 +105,7 @@ func New(ds txndswrap.TxnDatastore) (*Store, error) {
 	return s, nil
 }
 
+// Create persist new auction data and a set of related auction deals.
 func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 	if err := validate(ad, ads); err != nil {
 		return fmt.Errorf("invalid auction data: %s", err)
@@ -141,10 +150,8 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 	// Include them in our in-memory cache.
 	s.lock.Lock()
 	s.auctionData[ad.ID] = ad
-	for _, auctionDeal := range ads {
-		s.auctionDeals = append(s.auctionDeals, auctionDeal)
-	}
-	// Re-sorting since the lock wasn't adquired at the start
+	s.auctionDeals = append(s.auctionDeals, ads...)
+	// Re-sorting since the lock wasn't acquired at the start
 	// of the func for performance reasons, so many calls can race
 	// at different times concurrently.
 	sort.Slice(s.auctionDeals, func(i, j int) bool {
@@ -155,6 +162,7 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 	return nil
 }
 
+// SaveAuctionDeal persists a modified auction deal.
 func (s *Store) SaveAuctionDeal(aud AuctionDeal) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -187,6 +195,7 @@ func (s *Store) SaveAuctionDeal(aud AuctionDeal) error {
 	return nil
 }
 
+// GetAllAuctionDeals returns all auction deals with a particular status.
 func (s *Store) GetAllAuctionDeals(status AuctionDealStatus) ([]AuctionDeal, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -201,6 +210,7 @@ func (s *Store) GetAllAuctionDeals(status AuctionDealStatus) ([]AuctionDeal, err
 	return res, nil
 }
 
+// GetAuctionData returns an auction data by id. If not found returns ErrNotFound.
 func (s *Store) GetAuctionData(auctionDataID string) (AuctionData, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -212,6 +222,8 @@ func (s *Store) GetAuctionData(auctionDataID string) (AuctionData, error) {
 	return ad, nil
 }
 
+// RemoveAuctionDeals removes the provided auction deals. If the corresponding auction data isn't linked
+// with any remaining auction deal, then those are also removed.
 func (s *Store) RemoveAuctionDeals(ads []AuctionDeal) error {
 	for _, aud := range ads {
 		if aud.Status != Error && aud.Status != Success {

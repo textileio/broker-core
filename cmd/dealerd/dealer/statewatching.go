@@ -10,6 +10,8 @@ import (
 	"github.com/textileio/broker-core/ratelim"
 )
 
+var failureUnfulfilledStartEpoch = "the deal won't be active on-chain"
+
 func (d *Dealer) daemonDealMonitoring() {
 	defer d.daemonWg.Done()
 
@@ -88,7 +90,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 
 			// The miner lost the race, it's game-over.
 			aud.Status = store.Error
-			aud.ErrorCause = store.FailureUnfulfilledStartEpoch
+			aud.ErrorCause = failureUnfulfilledStartEpoch
 			if err := d.store.SaveAuctionDeal(aud); err != nil {
 				return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
 			}
@@ -121,7 +123,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 
 		// The miner lost the race, it's game-over.
 		aud.Status = store.Error
-		aud.ErrorCause = store.FailureUnfulfilledStartEpoch
+		aud.ErrorCause = failureUnfulfilledStartEpoch
 		if err := d.store.SaveAuctionDeal(aud); err != nil {
 			return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
 		}

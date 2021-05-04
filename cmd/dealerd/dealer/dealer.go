@@ -14,6 +14,7 @@ import (
 
 var log = logger.Logger("dealer")
 
+// Dealer creates, monitors and reports deals in the Filecoin network.
 type Dealer struct {
 	config    config
 	store     *store.Store
@@ -64,6 +65,7 @@ func New(
 	return d, nil
 }
 
+// ReadyToCreateDeals signal the dealer that new deals are ready to be executed.
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals) error {
 	auctionData := store.AuctionData{
 		StorageDealID: ad.StorageDealID,

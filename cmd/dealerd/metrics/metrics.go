@@ -9,11 +9,17 @@ import (
 )
 
 var (
-	AttrOK    = attribute.Key("status").String("ok")
+	// AttrOK is a metric tag to indicate a successful operation.
+	AttrOK = attribute.Key("status").String("ok")
+	// AttrError is a metric tag to indicate a failed operation.
 	AttrError = attribute.Key("status").String("error")
-	Meter     = global.Meter("dealerd")
+	// Meter is the global meter used for metrics.
+	Meter = metric.Must(global.Meter("dealerd"))
 )
 
+// MetricIncrCounter increments the specified Int64Counter by 1. Depending if err
+// is nil or not, it will use AttrOK or AttrError respectively. This method is a helper
+// for deferring in methods.
 func MetricIncrCounter(ctx context.Context, err error, m metric.Int64Counter) {
 	attr := AttrOK
 	if err != nil {

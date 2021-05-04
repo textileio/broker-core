@@ -25,7 +25,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	inet "github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	"github.com/textileio/broker-core/cmd/dealerd/metrics"
@@ -87,10 +87,7 @@ func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 		host:       h,
 		api:        api,
 	}
-
-	if err := fc.initMetrics(); err != nil {
-		return nil, fmt.Errorf("init metrics: %s", err)
-	}
+	fc.initMetrics()
 
 	return fc, nil
 }
@@ -319,7 +316,7 @@ func (fc *FilClient) createDealProposal(
 		StartEpoch: abi.ChainEpoch(aud.StartEpoch),
 		EndEpoch:   abi.ChainEpoch(aud.StartEpoch + ad.Duration),
 
-		StoragePricePerEpoch: abi.TokenAmount(pricePerEpoch),
+		StoragePricePerEpoch: pricePerEpoch,
 		ProviderCollateral:   provCol,
 		ClientCollateral:     big.Zero(),
 	}
@@ -394,15 +391,21 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 	return *minfo.PeerId, nil
 }
 
-func (fc *FilClient) sendProposal(ctx context.Context, netprop *network.Proposal) (res *network.SignedResponse, err error) {
-	s, err := fc.streamToMiner(ctx, netprop.DealProposal.Proposal.Provider, dealProtocol)
+func (fc *FilClient) sendProposal(
+	ctx context.Context,
+	proposal *network.Proposal) (res *network.SignedResponse, err error) {
+	s, err := fc.streamToMiner(ctx, proposal.DealProposal.Proposal.Provider, dealProtocol)
 	if err != nil {
 		return nil, fmt.Errorf("opening stream to miner: %w", err)
 	}
 
-	defer s.Close()
+	defer func() {
+		if err := s.Close(); err != nil {
+			log.Errorf("closing stream: %s", err)
+		}
+	}()
 
-	if err := cborutil.WriteCborRPC(s, netprop); err != nil {
+	if err := cborutil.WriteCborRPC(s, proposal); err != nil {
 		return nil, fmt.Errorf("failed to write proposal to miner: %w", err)
 	}
 

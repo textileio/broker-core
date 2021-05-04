@@ -17,6 +17,7 @@ var defaultConfig = config{}
 // Option applies a configuration change.
 type Option func(*config) error
 
+// WithExportedKey configures the wallet address private key used to make deals.
 func WithExportedKey(exportedHexKey string) Option {
 	return func(c *config) error {
 		if exportedHexKey == "" {
