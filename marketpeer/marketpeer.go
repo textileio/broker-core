@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ps "github.com/libp2p/go-libp2p-pubsub"
+	quic "github.com/libp2p/go-libp2p-quic-transport"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer/mdns"
@@ -94,6 +95,8 @@ func New(conf Config) (*Peer, error) {
 		lstore,
 		libp2p.Peerstore(pstore),
 		libp2p.ConnectionManager(conf.ConnManager),
+		libp2p.DefaultTransports,
+		libp2p.Transport(quic.NewTransport),
 		libp2p.DisableRelay(),
 	)
 	if err != nil {
@@ -112,6 +115,8 @@ func New(conf Config) (*Peer, error) {
 	if err != nil {
 		return nil, fin.Cleanupf("starting libp2p pubsub: %v", err)
 	}
+
+	log.Infof("marketpeer %s is online", lhost.ID())
 
 	return &Peer{
 		host:      lhost,
