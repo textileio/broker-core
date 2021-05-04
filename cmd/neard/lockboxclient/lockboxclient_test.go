@@ -2,6 +2,8 @@ package lockboxclient
 
 import (
 	"context"
+	"encoding/json"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -80,6 +82,28 @@ func TestIt(t *testing.T) {
 // 	require.NoError(t, err)
 // 	require.NotNil(t, res)
 // }
+
+func TestPayloadJSON(t *testing.T) {
+	p := &PayloadInfo{
+		PayloadCid: "payloadCid",
+		PieceCid:   "pieceCid",
+		Deals: []DealInfo{
+			{
+				DealID:     "dealId",
+				MinerID:    "minerId",
+				Expiration: big.NewInt(100),
+			},
+		},
+	}
+	bytes, err := json.MarshalIndent(p, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, bytes)
+
+	var q PayloadInfo
+	err = json.Unmarshal(bytes, &q)
+	require.NoError(t, err)
+	require.Equal(t, *p, q)
+}
 
 func makeClient(t *testing.T) (*Client, func()) {
 	rpcClient, err := rpc.DialContext(ctx, "https://rpc.testnet.near.org")

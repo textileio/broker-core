@@ -309,3 +309,13 @@ func (a *Account) FunctionCall(
 	}
 	return res, nil
 }
+
+// DeployContract deploys contract code to the account.
+func (a *Account) DeployContract(ctx context.Context, code []byte) (*FinalExecutionOutcome, error) {
+	action := transaction.DeployContractAction(code)
+	res, err := a.SignAndSendTransaction(ctx, a.accountID, action)
+	if err != nil {
+		return nil, fmt.Errorf("signing and sending transaction: %v", err)
+	}
+	return res, nil
+}

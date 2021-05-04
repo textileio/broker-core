@@ -14,6 +14,18 @@ message LockInfo {
   DepositInfo deposit = 3;
 }
 
+message DealInfo {
+	string deal_id = 1;
+	string miner_id = 2;
+	string expiration = 3;
+}
+
+message StorageInfo {
+  string cid = 1;
+	string piece_cid = 2;
+	repeated DealInfo deals = 3;
+}
+
 message LockInfoRequest {
   string account_id = 1;
   uint64 block_height = 2;
@@ -32,6 +44,13 @@ message HasFundsResponse {
   bool has_funds = 1;
 }
 
+message ReportStorageInfoRequest {
+  StorageInfo storage_info = 1;
+  repeated string data_cids = 2;
+}
+
+message ReportStorageInfoResponse {}
+
 message StateRequest {
 }
 
@@ -44,5 +63,6 @@ message StateResponse {
 service ChainApiService {
   rpc LockInfo(LockInfoRequest) returns (LockInfoResponse) {};
   rpc HasFunds(HasFundsRequest) returns (HasFundsResponse) {}
+  rpc ReportStorageInfo(ReportStorageInfoRequest) returns (ReportStorageInfoResponse) {};
   rpc State(StateRequest) returns (StateResponse) {};
 }

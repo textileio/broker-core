@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"math/big"
 	"net"
 	"time"
 
@@ -74,6 +75,34 @@ func (s *Service) HasFunds(ctx context.Context, req *chainapi.HasFundsRequest) (
 	return &chainapi.HasFundsResponse{
 		HasFunds: res,
 	}, nil
+}
+
+// ReportStorageInfo reports storage info back to the smart contract.
+func (s *Service) ReportStorageInfo(
+	ctx context.Context,
+	req *chainapi.ReportStorageInfoRequest,
+) (*chainapi.ReportStorageInfoResponse, error) {
+	var dealInfos []lockboxclient.DealInfo
+	for _, info := range req.StorageInfo.Deals {
+		exp, ok := (&big.Int{}).SetString(info.Expiration, 10)
+		if !ok {
+			return nil, status.Errorf(codes.InvalidArgument, "parsing expiration value: %s", info.Expiration)
+		}
+		dealInfos = append(dealInfos, lockboxclient.DealInfo{
+			DealID:     info.DealId,
+			MinerID:    info.MinerId,
+			Expiration: exp,
+		})
+	}
+	payload := lockboxclient.PayloadInfo{
+		PayloadCid: req.StorageInfo.Cid,
+		PieceCid:   req.StorageInfo.PieceCid,
+		Deals:      dealInfos,
+	}
+	if err := s.lc.PushPayload(ctx, payload, req.DataCids); err != nil {
+		return nil, status.Errorf(codes.Internal, "calling push payload: %v", err)
+	}
+	return &chainapi.ReportStorageInfoResponse{}, nil
 }
 
 // State returns the entire Lock Box state.
