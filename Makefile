@@ -121,12 +121,11 @@ buf-ssh: $(BUF)
 
 define docker_push_daemon_head
 	for daemon in $(1); do \
-		echo docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}/Dockerfile .; \
-		docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}/Dockerfile .; \
+		echo docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}d/Dockerfile .; \
+		docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}d/Dockerfile .; \
 	done
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged dealerd)
+	$(call docker_push_daemon_head,auctioneer auth broker dealer miner near packer storage)
 .PHONY: docker-push-head
-
