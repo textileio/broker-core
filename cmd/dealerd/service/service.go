@@ -72,25 +72,24 @@ func New(conf Config) (*Service, error) {
 		return nil, fmt.Errorf("creating broker client: %s", err)
 	}
 
-	lotusAPI, closer, err := filgatewayclient.NewGatewayRPC(
-		context.Background(),
-		conf.LotusGatewayURL,
-		http.Header{})
-	if err != nil {
-		return nil, fmt.Errorf("creating lotus gateway client: %s", err)
-	}
-	fin.Add(&nopCloser{closer})
-
-	filclient, err := filclient.New(lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
-	if err != nil {
-		return nil, fmt.Errorf("creating filecoin client: %s", err)
-	}
-
 	var lib dealeri.Dealer
 	if conf.Mock {
 		log.Warnf("running in mocked mode")
 		lib = dealermock.New(broker)
 	} else {
+		lotusAPI, closer, err := filgatewayclient.NewGatewayRPC(
+			context.Background(),
+			conf.LotusGatewayURL,
+			http.Header{})
+		if err != nil {
+			return nil, fmt.Errorf("creating lotus gateway client: %s", err)
+		}
+		fin.Add(&nopCloser{closer})
+
+		filclient, err := filclient.New(lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
+		if err != nil {
+			return nil, fmt.Errorf("creating filecoin client: %s", err)
+		}
 		libi, err := dealer.New(ds, broker, filclient)
 		if err != nil {
 			return nil, fin.Cleanupf("creating dealer: %v", err)

@@ -73,7 +73,7 @@ define gen_release_files
 endef
 
 up:
-	docker-compose -f docker-compose-dev.yml up --build
+	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
 .PHONY: up
 
 down:
