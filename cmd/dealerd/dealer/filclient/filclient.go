@@ -10,13 +10,11 @@ import (
 	"github.com/filecoin-project/go-address"
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
-	"github.com/filecoin-project/go-fil-markets/storagemarket/impl/clientutils"
 	"github.com/filecoin-project/go-fil-markets/storagemarket/network"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
@@ -27,6 +25,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multibase"
+	"github.com/textileio/broker-core/cmd/dealerd/dealer/sigs/secp"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	"github.com/textileio/broker-core/cmd/dealerd/metrics"
 	"github.com/textileio/broker-core/logging"
@@ -42,10 +42,10 @@ const dealProtocol = "/fil/storage/mk/1.1.0"
 
 // FilClient provides API to interact with the Filecoin network.
 type FilClient struct {
-	walletAddr address.Address
-	wallet     *wallet.LocalWallet
-	api        api.Gateway
-	host       host.Host
+	conf config
+
+	api  api.Gateway
+	host host.Host
 
 	metricExecAuctionDeal          metric.Int64Counter
 	metricGetChainHeight           metric.Int64Counter
@@ -63,17 +63,6 @@ func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 		}
 	}
 
-	memks := wallet.NewMemKeyStore()
-	w, err := wallet.NewWallet(memks)
-	if err != nil {
-		return nil, fmt.Errorf("creating local wallet: %s", err)
-	}
-
-	waddr, err := w.WalletImport(context.Background(), &cfg.keyInfo)
-	if err != nil {
-		return nil, fmt.Errorf("importing wallet addr: %s", err)
-	}
-
 	h, err := libp2p.New(context.Background(),
 		libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
 	)
@@ -82,10 +71,9 @@ func New(api api.Gateway, opts ...Option) (*FilClient, error) {
 	}
 
 	fc := &FilClient{
-		walletAddr: waddr,
-		wallet:     w,
-		host:       h,
-		api:        api,
+		conf: cfg,
+		host: h,
+		api:  api,
 	}
 	fc.initMetrics()
 
@@ -245,7 +233,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 		return nil, err
 	}
 
-	sig, err := fc.wallet.WalletSign(ctx, fc.walletAddr, cidb, api.MsgMeta{Type: api.MTUnknown})
+	sig, err := secp.Sign(fc.conf.privKey, cidb)
 	if err != nil {
 		return nil, fmt.Errorf("signing status request failed: %w", err)
 	}
@@ -269,8 +257,6 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
 
-	// TODO: check the signatures and stuff?
-
 	return &resp.DealState, nil
 }
 
@@ -292,7 +278,7 @@ func (fc *FilClient) createDealProposal(
 		big.NewInt(1<<30),
 	)
 
-	label, err := clientutils.LabelField(ad.PayloadCid)
+	label, err := labelField(ad.PayloadCid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct label field: %w", err)
 	}
@@ -308,7 +294,7 @@ func (fc *FilClient) createDealProposal(
 		PieceCID:     ad.PieceCid,
 		PieceSize:    abi.PaddedPieceSize(ad.PieceSize), // Check padding vs not padding.
 		VerifiedDeal: aud.Verified,
-		Client:       fc.walletAddr,
+		Client:       fc.conf.pubKey,
 		Provider:     miner,
 
 		Label: label,
@@ -325,7 +311,7 @@ func (fc *FilClient) createDealProposal(
 	if err != nil {
 		return nil, err
 	}
-	sig, err := fc.wallet.WalletSign(ctx, fc.walletAddr, raw, api.MsgMeta{Type: api.MTDealProposal})
+	sig, err := secp.Sign(fc.conf.privKey, raw)
 	if err != nil {
 		return nil, err
 	}
@@ -340,6 +326,7 @@ func (fc *FilClient) createDealProposal(
 		Piece: &storagemarket.DataRef{
 			TransferType: storagemarket.TTManual,
 			Root:         ad.PayloadCid,
+			PieceCid:     &ad.PieceCid,
 		},
 		FastRetrieval: aud.FastRetrieval,
 	}, nil
@@ -415,4 +402,11 @@ func (fc *FilClient) sendProposal(
 	}
 
 	return &resp, nil
+}
+
+func labelField(c cid.Cid) (string, error) {
+	if c.Version() == 0 {
+		return c.StringOfBase(multibase.Base58BTC)
+	}
+	return c.StringOfBase(multibase.Base64)
 }

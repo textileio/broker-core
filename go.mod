@@ -9,9 +9,11 @@ require (
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/filecoin-project/go-address v0.0.5
 	github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2
+	github.com/filecoin-project/go-crypto v0.0.0-20191218222705-effae4ea9f03
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
 	github.com/filecoin-project/go-fil-markets v1.2.5
+	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
 	github.com/filecoin-project/go-state-types v0.1.0
 	github.com/filecoin-project/lotus v1.9.0-rc1
 	github.com/filecoin-project/specs-actors v0.9.13
@@ -35,6 +37,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.8.5
 	github.com/libp2p/go-libp2p-peerstore v0.2.6
 	github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210212194758-6c1addf493eb
+	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/multiformats/go-multibase v0.0.3
@@ -62,5 +65,3 @@ require (
 )
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
-
-replace github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi

@@ -7,7 +7,8 @@ import (
 	"net"
 	"net/http"
 
-	filgatewayclient "github.com/filecoin-project/lotus/api/client"
+	"github.com/filecoin-project/go-jsonrpc"
+	"github.com/filecoin-project/lotus/api/apistruct"
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
@@ -77,16 +78,20 @@ func New(conf Config) (*Service, error) {
 		log.Warnf("running in mocked mode")
 		lib = dealermock.New(broker)
 	} else {
-		lotusAPI, closer, err := filgatewayclient.NewGatewayRPC(
-			context.Background(),
-			conf.LotusGatewayURL,
-			http.Header{})
+		var lotusAPI apistruct.GatewayStruct
+		closer, err := jsonrpc.NewMergeClient(context.Background(), conf.LotusGatewayURL, "Filecoin",
+			[]interface{}{
+				&lotusAPI.Internal,
+			},
+			http.Header{},
+		)
 		if err != nil {
 			return nil, fmt.Errorf("creating lotus gateway client: %s", err)
 		}
 		fin.Add(&nopCloser{closer})
 
-		filclient, err := filclient.New(lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
+		//filclient, err := filclient.New(lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
+		filclient, err := filclient.New(nil, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
 		if err != nil {
 			return nil, fmt.Errorf("creating filecoin client: %s", err)
 		}

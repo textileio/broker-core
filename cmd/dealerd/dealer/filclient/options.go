@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/textileio/broker-core/cmd/dealerd/dealer/sigs/secp"
 )
 
 type config struct {
-	keyInfo types.KeyInfo
+	privKey []byte
+	pubKey  address.Address
 }
 
 var defaultConfig = config{}
@@ -27,9 +30,21 @@ func WithExportedKey(exportedHexKey string) Option {
 		if err != nil {
 			return fmt.Errorf("hex decoding: %s", err)
 		}
-		if err := json.Unmarshal(buf, &c.keyInfo); err != nil {
+
+		var keyInfo types.KeyInfo
+		if err := json.Unmarshal(buf, &keyInfo); err != nil {
 			return fmt.Errorf("unmarshaling key info: %s", err)
 		}
+		c.privKey = keyInfo.PrivateKey
+		pubkey, err := secp.ToPublic(c.privKey)
+		if err != nil {
+			return fmt.Errorf("calculating public key: %s", err)
+		}
+		c.pubKey, err = address.NewSecp256k1Address(pubkey)
+		if err != nil {
+			return fmt.Errorf("parsing public key: %s", err)
+		}
+
 		return nil
 	}
 }

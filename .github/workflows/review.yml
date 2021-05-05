@@ -11,10 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install filecoin-ffi deps
-        run: sudo apt-get update && sudo apt-get install -y mesa-opencl-icd ocl-icd-opencl-dev jq make hwloc libhwloc-dev
       - name: Run linter
-        run: make build-ffi && make lint
+        run: make lint
   spell-check:
     name: spell-check
     runs-on: ubuntu-latest

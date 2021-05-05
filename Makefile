@@ -130,31 +130,3 @@ docker-push-head:
 	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged dealerd)
 .PHONY: docker-push-head
 
-################################################################
-# Hairy stuff from filecoin-ffi dep, soon getting rid of  this.
-################################################################
-FFI_PATH:=extern/filecoin-ffi/
-FFI_DEPS:=.install-filcrypto
-FFI_DEPS:=$(addprefix $(FFI_PATH),$(FFI_DEPS))
-
-$(FFI_DEPS): .filecoin-install ;
-
-.filecoin-install: $(FFI_PATH)
-	mkdir -p extern/filecoin-ffi
-	$(MAKE) -C $(FFI_PATH) $(FFI_DEPS:$(FFI_PATH)%=%)
-	@touch $@
-
-MODULES+=$(FFI_PATH)
-BUILD_DEPS+=.filecoin-install
-
-build-ffi: clean-ffi $(BUILD_DEPS)
-.PHONY: build-ffi
-
-clean-ffi:
-	rm -f .filecoin-install
-	rm -f .update-modules
-	rm -f extern/filecoin-ffi/.install-filcrypto
-	git submodule deinit --all -f
-	git submodule update --init --recursive
-.PHONY: clean-ffi
-
