@@ -89,9 +89,6 @@ type AuthClaims struct {
 	jwt.StandardClaims
 }
 
-// Whitelist defines the list of accounts that can use the service.
-var whiteList = map[string]struct{}{"carsonfarmer.testnet": {}}
-
 // ValidateInput sanity checks the raw inputs to the service.
 func ValidateInput(jwtBase64URL string) (*ValidatedInput, error) {
 	parts := strings.Split(jwtBase64URL, ".")
@@ -142,12 +139,6 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		Aud: claims.Audience,
 	}
 	return validatedToken, err
-}
-
-// IsWhitelisted checks if the given iss (issuer) is whitelisted.
-func IsWhitelisted(iss string, whitelist map[string]struct{}) bool {
-	_, prs := whitelist[iss]
-	return prs
 }
 
 // ValidateKeyDID validates the key DID.
@@ -212,16 +203,6 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	token, tokenErr := ValidateToken(validInput.Token)
 	if tokenErr != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", tokenErr)
-	}
-	// Check that the issuer is whitelisted.
-	whitelisted := IsWhitelisted(token.Iss, whiteList)
-	if !whitelisted {
-		return nil, status.Errorf(codes.Unauthenticated, "account not whitelisted: %v", token.Iss)
-	}
-	// Validate the key DID.
-	keyOk, keyErr := ValidateKeyDID(token.Sub, token.X)
-	if !keyOk || keyErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid Key DID: %v", keyErr)
 	}
 	// Check for locked funds
 	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Aud, token.Iss, s.Deps.ChainAPIServiceClient)
