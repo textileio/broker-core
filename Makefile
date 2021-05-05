@@ -155,6 +155,6 @@ clean-ffi:
 	rm -f .update-modules
 	rm -f extern/filecoin-ffi/.install-filcrypto
 	git submodule deinit --all -f
-	#git submodule update --init --recursive
+	git submodule update --init --recursive
 .PHONY: clean-ffi
 
