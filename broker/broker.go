@@ -130,16 +130,40 @@ const (
 	StorageDealSuccess
 )
 
+// String returns a string-encoded status.
+func (sds StorageDealStatus) String() string {
+	switch sds {
+	case StorageDealUnkown:
+		return "unknown"
+	case StorageDealPreparing:
+		return "preparing"
+	case StorageDealAuctioning:
+		return "auctioning"
+	case StorageDealDealMaking:
+		return "deal making"
+	case StorageDealSuccess:
+		return "success"
+	default:
+		return "invalid"
+	}
+}
+
 // StorageDeal is the underlying entity that gets into bidding and
 // store data in the Filecoin network. It groups one or multiple
 // BrokerRequests.
 type StorageDeal struct {
 	ID               StorageDealID
-	PayloadCid       cid.Cid
 	Status           StorageDealStatus
 	BrokerRequestIDs []BrokerRequestID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+
+	// Packerd calculates this field after batching storage requests.
+	PayloadCid cid.Cid
+
+	// Piecerd calculates these fields after preparing the batched DAG.
+	PieceCid  cid.Cid
+	PieceSize uint64
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.
