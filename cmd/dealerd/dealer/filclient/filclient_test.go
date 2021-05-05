@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lotus/api/client"
+	"github.com/filecoin-project/go-jsonrpc"
+	"github.com/filecoin-project/lotus/api/apistruct"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 )
@@ -59,14 +60,20 @@ func TestCheckDealStatusWithMiner(t *testing.T) {
 }
 
 func create(t *testing.T) *FilClient {
-	api, closer, err := client.NewGatewayRPC(context.Background(), "https://api.node.glif.io", http.Header{})
+	var api apistruct.GatewayStruct
+	closer, err := jsonrpc.NewMergeClient(context.Background(), "https://api.node.glif.io", "Filecoin",
+		[]interface{}{
+			&api.Internal,
+		},
+		http.Header{},
+	)
 	require.NoError(t, err)
 	t.Cleanup(closer)
 
 	exportedKey := "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349" +
 		"586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d"
 	require.NoError(t, err)
-	client, err := New(api, WithExportedKey(exportedKey))
+	client, err := New(&api, WithExportedKey(exportedKey))
 	require.NoError(t, err)
 
 	return client

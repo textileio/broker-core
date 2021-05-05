@@ -90,8 +90,7 @@ func New(conf Config) (*Service, error) {
 		}
 		fin.Add(&nopCloser{closer})
 
-		//filclient, err := filclient.New(lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
-		filclient, err := filclient.New(nil, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
+		filclient, err := filclient.New(&lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
 		if err != nil {
 			return nil, fmt.Errorf("creating filecoin client: %s", err)
 		}
