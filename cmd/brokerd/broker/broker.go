@@ -140,11 +140,16 @@ func (b *Broker) CreateStorageDeal(
 	if len(brids) == 0 {
 		return "", ErrEmptyGroup
 	}
+	for i := range brids {
+		if len(brids[i]) == 0 {
+			return "", fmt.Errorf("storage requests id can't be empty")
+		}
+	}
 
 	now := time.Now()
 	sd := broker.StorageDeal{
 		ID:               broker.StorageDealID(uuid.New().String()),
-		Cid:              batchCid,
+		PayloadCid:       batchCid,
 		Status:           broker.StorageDealPreparing,
 		BrokerRequestIDs: brids,
 		CreatedAt:        now,
@@ -162,7 +167,7 @@ func (b *Broker) CreateStorageDeal(
 	log.Debugf("creating storage deal %s created, signaling piecer...", sd.ID)
 	// Signal Piecer that there's work to do. It will eventually call us
 	// through PreparedStorageDeal(...).
-	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.Cid); err != nil {
+	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.PayloadCid); err != nil {
 		// TODO: same possible improvement as described in `ReadyToPack`
 		// applies here.
 		return "", fmt.Errorf("signaling piecer: %s", err)
@@ -176,17 +181,25 @@ func (b *Broker) CreateStorageDeal(
 func (b *Broker) StorageDealPrepared(
 	ctx context.Context,
 	id broker.StorageDealID,
-	po broker.DataPreparationResult,
+	dpr broker.DataPreparationResult,
 ) error {
-	// TODO: include the data preparation result (piece-size and CommP) in StorageDeal data, and do
-	// status changes.
+	if id == "" {
+		return fmt.Errorf("the storage deal id is empty")
+	}
+	if err := dpr.Validate(); err != nil {
+		return fmt.Errorf("the data preparation result is invalid: %s", err)
+	}
 
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
 	// us about who won things.
-	auctionID, err := b.auctioneer.ReadyToAuction(ctx, id, po.PieceSize, b.dealEpochs)
+	auctionID, err := b.auctioneer.ReadyToAuction(ctx, id, dpr.PieceSize, b.dealEpochs)
 	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
+	}
+
+	if err := b.store.StorageDealToAuctioning(ctx, id, dpr.PieceCid, dpr.PieceSize); err != nil {
+		return fmt.Errorf("saving piecer output in storage deal: %s", err)
 	}
 
 	log.Debugf("created auction %s", auctionID)
@@ -196,8 +209,6 @@ func (b *Broker) StorageDealPrepared(
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
 	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.StorageDealID)
-
-	// TODO: do status change from Auctioning -> DealMaking
 
 	if len(auction.WinningBids) == 0 {
 		// TODO: potentially we want to handle this case gracefully.
@@ -214,11 +225,11 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 
 	ads := dealer.AuctionDeals{
 		StorageDealID: sd.ID,
-		//PayloadCid: sd.PayloadCid, // TODO: this attribute doesn't exist yet but will.
-		//PieceCid:   sd.PieceCid,   // TODO: ^
-		//PieceSize:  sd.PieceSize,  // TODO: ^
-		Duration: auction.DealDuration,
-		Targets:  make([]dealer.AuctionDealsTarget, len(auction.WinningBids)),
+		PayloadCid:    sd.PayloadCid,
+		PieceCid:      sd.PieceCid,
+		PieceSize:     sd.PieceSize,
+		Duration:      auction.DealDuration,
+		Targets:       make([]dealer.AuctionDealsTarget, len(auction.WinningBids)),
 	}
 
 	for i, wbid := range auction.WinningBids {
@@ -237,6 +248,10 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 
 	if err := b.dealer.ReadyToCreateDeals(ctx, ads); err != nil {
 		return fmt.Errorf("signaling dealer to execute winning bids: %s", err)
+	}
+
+	if err := b.dealer.StorageDealToDealMaking(ctx, auction.StorageDealID, auction); err != nil {
+		return fmt.Errorf("moving storage deal to deal making: %s", err)
 	}
 
 	return nil

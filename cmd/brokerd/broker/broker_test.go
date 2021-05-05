@@ -92,7 +92,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, sd, sd2.ID)
-	require.True(t, sd2.Cid.Defined())
+	require.True(t, sd2.PayloadCid.Defined())
 	require.Equal(t, broker.StorageDealPreparing, sd2.Status)
 	require.Len(t, sd2.BrokerRequestIDs, 2)
 	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
