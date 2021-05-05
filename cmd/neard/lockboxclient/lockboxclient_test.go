@@ -3,7 +3,6 @@ package lockboxclient
 import (
 	"context"
 	"encoding/json"
-	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/rpc"
