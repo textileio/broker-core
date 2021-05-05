@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -21,6 +22,9 @@ const (
 
 var (
 	log = logging.Logger("lockboxclient")
+
+	// ErrorNotFound is returned when an item isn't found.
+	ErrorNotFound = errors.New("not found")
 )
 
 // BrokerInfo holds information about a broker.
@@ -45,9 +49,9 @@ type LockInfo struct {
 
 // DealInfo desscribes a single storage deal.
 type DealInfo struct {
-	DealID     string   `json:"dealId"`
-	MinerID    string   `json:"minerId"`
-	Expiration *big.Int `json:"expiration"`
+	DealID     string `json:"dealId"`
+	MinerID    string `json:"minerId"`
+	Expiration uint64 `json:"expiration"`
 }
 
 // MarshalJSON implements MarshalJSON.
@@ -57,7 +61,7 @@ func (d *DealInfo) MarshalJSON() ([]byte, error) {
 		Expiration string `json:"expiration"`
 		*Alias
 	}{
-		Expiration: d.Expiration.String(),
+		Expiration: strconv.FormatUint(d.Expiration, 10),
 		Alias:      (*Alias)(d),
 	})
 }
@@ -74,9 +78,9 @@ func (d *DealInfo) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	exp, ok := (&big.Int{}).SetString(aux.Expiration, 10)
-	if !ok {
-		return fmt.Errorf("parsing value: %s to big int", aux.Expiration)
+	exp, err := strconv.ParseUint(aux.Expiration, 10, 64)
+	if err != nil {
+		return fmt.Errorf("parsing expiration: %v", err)
 	}
 	d.Expiration = exp
 	return nil
@@ -252,7 +256,7 @@ func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, e
 		return nil, fmt.Errorf("calling rpc function: %v", err)
 	}
 	if string(res.Result) == nullStringValue {
-		return nil, nil
+		return nil, ErrorNotFound
 	}
 	var brokerInfo BrokerInfo
 	if err := json.Unmarshal(res.Result, &brokerInfo); err != nil {
@@ -313,7 +317,7 @@ func (c *Client) GetByPayload(ctx context.Context, payloadCid string) (*PayloadI
 		return nil, fmt.Errorf("calling rpc function: %v", err)
 	}
 	if string(res.Result) == nullStringValue {
-		return nil, nil
+		return nil, ErrorNotFound
 	}
 	var payloadInfo PayloadInfo
 	if err := json.Unmarshal(res.Result, &payloadInfo); err != nil {
@@ -335,7 +339,7 @@ func (c *Client) GetByCid(ctx context.Context, dataCid string) (*PayloadInfo, er
 		return nil, fmt.Errorf("calling rpc function: %v", err)
 	}
 	if string(res.Result) == nullStringValue {
-		return nil, nil
+		return nil, ErrorNotFound
 	}
 	var payloadInfo PayloadInfo
 	if err := json.Unmarshal(res.Result, &payloadInfo); err != nil {

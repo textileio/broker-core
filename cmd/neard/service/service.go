@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"math/big"
 	"net"
 	"time"
 
@@ -84,14 +83,10 @@ func (s *Service) ReportStorageInfo(
 ) (*chainapi.ReportStorageInfoResponse, error) {
 	var dealInfos []lockboxclient.DealInfo
 	for _, info := range req.StorageInfo.Deals {
-		exp, ok := (&big.Int{}).SetString(info.Expiration, 10)
-		if !ok {
-			return nil, status.Errorf(codes.InvalidArgument, "parsing expiration value: %s", info.Expiration)
-		}
 		dealInfos = append(dealInfos, lockboxclient.DealInfo{
 			DealID:     info.DealId,
 			MinerID:    info.MinerId,
-			Expiration: exp,
+			Expiration: info.Expiration,
 		})
 	}
 	payload := lockboxclient.PayloadInfo{

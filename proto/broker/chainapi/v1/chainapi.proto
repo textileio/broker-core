@@ -17,7 +17,7 @@ message LockInfo {
 message DealInfo {
 	string deal_id = 1;
 	string miner_id = 2;
-	string expiration = 3;
+	uint64 expiration = 3;
 }
 
 message StorageInfo {

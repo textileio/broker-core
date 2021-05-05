@@ -122,7 +122,7 @@ func TestPayloadJSON(t *testing.T) {
 			{
 				DealID:     "dealId",
 				MinerID:    "minerId",
-				Expiration: big.NewInt(100),
+				Expiration: 100,
 			},
 		},
 	}
