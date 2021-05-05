@@ -2,6 +2,7 @@ package lockboxclient
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -81,6 +82,59 @@ func TestIt(t *testing.T) {
 // 	require.NotNil(t, res)
 // }
 
+// func TestPushPayload(t *testing.T) {
+// 	c, cleanup := makeClient(t)
+// 	defer cleanup()
+
+// 	info, err := c.SetBroker(ctx, "asutula.testnet", []string{"addr1"})
+// 	require.NoError(t, err)
+// 	require.NotNil(t, info)
+
+// 	p := PayloadInfo{
+// 		PayloadCid: "payloadCid",
+// 		PieceCid:   "pieceCid",
+// 		Deals: []DealInfo{
+// 			{
+// 				DealID:     "dealId",
+// 				MinerID:    "minerId",
+// 				Expiration: big.NewInt(100),
+// 			},
+// 		},
+// 	}
+// 	err = c.PushPayload(ctx, p, []string{"cid1, cid2, cid3"})
+// 	require.NoError(t, err)
+// }
+
+// func TestGetPayloads(t *testing.T) {
+// 	c, cleanup := makeClient(t)
+// 	defer cleanup()
+// 	res, err := c.ListPayloads(ctx, 0, 100)
+// 	require.NoError(t, err)
+// 	require.NotNil(t, res)
+// }
+
+func TestPayloadJSON(t *testing.T) {
+	p := &PayloadInfo{
+		PayloadCid: "payloadCid",
+		PieceCid:   "pieceCid",
+		Deals: []DealInfo{
+			{
+				DealID:     "dealId",
+				MinerID:    "minerId",
+				Expiration: 100,
+			},
+		},
+	}
+	bytes, err := json.MarshalIndent(p, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, bytes)
+
+	var q PayloadInfo
+	err = json.Unmarshal(bytes, &q)
+	require.NoError(t, err)
+	require.Equal(t, *p, q)
+}
+
 func makeClient(t *testing.T) (*Client, func()) {
 	rpcClient, err := rpc.DialContext(ctx, "https://rpc.testnet.near.org")
 	require.NoError(t, err)
@@ -97,7 +151,7 @@ func makeClient(t *testing.T) (*Client, func()) {
 	}
 	nc, err := nearclient.NewClient(config)
 	require.NoError(t, err)
-	c, err := NewClient(nc, "lock-box.testnet")
+	c, err := NewClient(nc, "asutula.testnet", "asutula.testnet")
 	require.NoError(t, err)
 	return c, func() {
 		rpcClient.Close()

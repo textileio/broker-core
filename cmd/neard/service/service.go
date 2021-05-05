@@ -76,6 +76,30 @@ func (s *Service) HasFunds(ctx context.Context, req *chainapi.HasFundsRequest) (
 	}, nil
 }
 
+// ReportStorageInfo reports storage info back to the smart contract.
+func (s *Service) ReportStorageInfo(
+	ctx context.Context,
+	req *chainapi.ReportStorageInfoRequest,
+) (*chainapi.ReportStorageInfoResponse, error) {
+	var dealInfos []lockboxclient.DealInfo
+	for _, info := range req.StorageInfo.Deals {
+		dealInfos = append(dealInfos, lockboxclient.DealInfo{
+			DealID:     info.DealId,
+			MinerID:    info.MinerId,
+			Expiration: info.Expiration,
+		})
+	}
+	payload := lockboxclient.PayloadInfo{
+		PayloadCid: req.StorageInfo.Cid,
+		PieceCid:   req.StorageInfo.PieceCid,
+		Deals:      dealInfos,
+	}
+	if err := s.lc.PushPayload(ctx, payload, req.DataCids); err != nil {
+		return nil, status.Errorf(codes.Internal, "calling push payload: %v", err)
+	}
+	return &chainapi.ReportStorageInfoResponse{}, nil
+}
+
 // State returns the entire Lock Box state.
 func (s *Service) State(ctx context.Context, req *chainapi.StateRequest) (*chainapi.StateResponse, error) {
 	state := s.sc.GetState()

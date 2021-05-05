@@ -104,6 +104,10 @@ func (a *Account) FindAccessKey(
 	receiverID string,
 	actions []transaction.Action,
 ) (*keys.PublicKey, *AccessKeyView, error) {
+	if a.config.Signer == nil {
+		return nil, nil, fmt.Errorf("no signer configured")
+	}
+
 	// TODO: Find matching access key based on transaction (i.e. receiverId and actions)
 	_ = receiverID
 	_ = actions
@@ -169,6 +173,10 @@ func (a *Account) SignTransaction(
 	receiverID string,
 	actions ...transaction.Action,
 ) ([]byte, *transaction.SignedTransaction, error) {
+	if a.config.Signer == nil {
+		return nil, nil, fmt.Errorf("no signer configured")
+	}
+
 	_, accessKeyView, err := a.FindAccessKey(ctx, receiverID, actions)
 	if err != nil {
 		return nil, nil, fmt.Errorf("finding access key: %v", err)
@@ -304,6 +312,16 @@ func (a *Account) FunctionCall(
 		return nil, fmt.Errorf("creating function call action: %v", err)
 	}
 	res, err := a.SignAndSendTransaction(ctx, contractID, *action)
+	if err != nil {
+		return nil, fmt.Errorf("signing and sending transaction: %v", err)
+	}
+	return res, nil
+}
+
+// DeployContract deploys contract code to the account.
+func (a *Account) DeployContract(ctx context.Context, code []byte) (*FinalExecutionOutcome, error) {
+	action := transaction.DeployContractAction(code)
+	res, err := a.SignAndSendTransaction(ctx, a.accountID, action)
 	if err != nil {
 		return nil, fmt.Errorf("signing and sending transaction: %v", err)
 	}

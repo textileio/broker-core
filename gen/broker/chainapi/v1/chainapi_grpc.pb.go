@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type ChainApiServiceClient interface {
 	LockInfo(ctx context.Context, in *LockInfoRequest, opts ...grpc.CallOption) (*LockInfoResponse, error)
 	HasFunds(ctx context.Context, in *HasFundsRequest, opts ...grpc.CallOption) (*HasFundsResponse, error)
+	ReportStorageInfo(ctx context.Context, in *ReportStorageInfoRequest, opts ...grpc.CallOption) (*ReportStorageInfoResponse, error)
 	State(ctx context.Context, in *StateRequest, opts ...grpc.CallOption) (*StateResponse, error)
 }
 
@@ -49,6 +50,15 @@ func (c *chainApiServiceClient) HasFunds(ctx context.Context, in *HasFundsReques
 	return out, nil
 }
 
+func (c *chainApiServiceClient) ReportStorageInfo(ctx context.Context, in *ReportStorageInfoRequest, opts ...grpc.CallOption) (*ReportStorageInfoResponse, error) {
+	out := new(ReportStorageInfoResponse)
+	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/ReportStorageInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *chainApiServiceClient) State(ctx context.Context, in *StateRequest, opts ...grpc.CallOption) (*StateResponse, error) {
 	out := new(StateResponse)
 	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/State", in, out, opts...)
@@ -64,6 +74,7 @@ func (c *chainApiServiceClient) State(ctx context.Context, in *StateRequest, opt
 type ChainApiServiceServer interface {
 	LockInfo(context.Context, *LockInfoRequest) (*LockInfoResponse, error)
 	HasFunds(context.Context, *HasFundsRequest) (*HasFundsResponse, error)
+	ReportStorageInfo(context.Context, *ReportStorageInfoRequest) (*ReportStorageInfoResponse, error)
 	State(context.Context, *StateRequest) (*StateResponse, error)
 	mustEmbedUnimplementedChainApiServiceServer()
 }
@@ -77,6 +88,9 @@ func (UnimplementedChainApiServiceServer) LockInfo(context.Context, *LockInfoReq
 }
 func (UnimplementedChainApiServiceServer) HasFunds(context.Context, *HasFundsRequest) (*HasFundsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HasFunds not implemented")
+}
+func (UnimplementedChainApiServiceServer) ReportStorageInfo(context.Context, *ReportStorageInfoRequest) (*ReportStorageInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReportStorageInfo not implemented")
 }
 func (UnimplementedChainApiServiceServer) State(context.Context, *StateRequest) (*StateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method State not implemented")
@@ -130,6 +144,24 @@ func _ChainApiService_HasFunds_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChainApiService_ReportStorageInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportStorageInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChainApiServiceServer).ReportStorageInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chainapi.v1.ChainApiService/ReportStorageInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChainApiServiceServer).ReportStorageInfo(ctx, req.(*ReportStorageInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ChainApiService_State_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StateRequest)
 	if err := dec(in); err != nil {
@@ -162,6 +194,10 @@ var ChainApiService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HasFunds",
 			Handler:    _ChainApiService_HasFunds_Handler,
+		},
+		{
+			MethodName: "ReportStorageInfo",
+			Handler:    _ChainApiService_ReportStorageInfo_Handler,
 		},
 		{
 			MethodName: "State",

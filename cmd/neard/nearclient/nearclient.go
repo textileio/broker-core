@@ -21,6 +21,14 @@ type CallFunctionResponse struct {
 	BlockHash   string   `json:"block_hash"`
 }
 
+// ViewCodeResponse holds information about contract code.
+type ViewCodeResponse struct {
+	CodeBase64  string `json:"code_base64"`
+	Hash        string `json:"hash"`
+	BlockHeight int    `json:"block_height"`
+	BlockHash   string `json:"block_hash"`
+}
+
 // Change holds information about a state change of a key-value pair.
 type Change struct {
 	AccountID   string `json:"account_id"`
@@ -200,4 +208,55 @@ func (c *Client) DataChanges(
 		return nil, fmt.Errorf("calling changes rpc: %v", util.MapRPCError(err))
 	}
 	return &res, nil
+}
+
+// ViewCodeOption controls the behavior when calling ViewCode.
+type ViewCodeOption func(*itypes.QueryRequest)
+
+// ViewCodeWithFinality specifies the finality to be used when calling the function.
+func ViewCodeWithFinality(finalaity string) ViewCodeOption {
+	return func(qr *itypes.QueryRequest) {
+		qr.Finality = finalaity
+	}
+}
+
+// ViewCodeWithBlockHeight specifies the block height to call the function for.
+func ViewCodeWithBlockHeight(blockHeight int) ViewCodeOption {
+	return func(qr *itypes.QueryRequest) {
+		qr.BlockID = blockHeight
+	}
+}
+
+// ViewCodeWithBlockHash specifies the block hash to call the function for.
+func ViewCodeWithBlockHash(blockHash string) ViewCodeOption {
+	return func(qr *itypes.QueryRequest) {
+		qr.BlockID = blockHash
+	}
+}
+
+// ViewCode returns the smart contract code for the provided account id.
+func (c *Client) ViewCode(ctx context.Context, accountID string, opts ...ViewCodeOption) (*ViewCodeResponse, error) {
+	req := &itypes.QueryRequest{
+		RequestType: "view_code",
+		AccountID:   accountID,
+		Finality:    "final",
+	}
+	for _, opt := range opts {
+		opt(req)
+	}
+	if req.BlockID == nil && req.Finality == "" {
+		return nil, fmt.Errorf(
+			"you must provide ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
+		)
+	}
+	if req.BlockID != nil && req.Finality != "" {
+		return nil, fmt.Errorf(
+			"you must provide one of ViewAccountWithBlockHeight, ViewAccountWithBlockHash or ViewAccountWithFinality",
+		)
+	}
+	var viewCodeRes ViewCodeResponse
+	if err := c.config.RPCClient.CallContext(ctx, &viewCodeRes, "query", rpc.NewNamedParams(req)); err != nil {
+		return nil, fmt.Errorf("calling query rpc: %v", util.MapRPCError(err))
+	}
+	return &viewCodeRes, nil
 }

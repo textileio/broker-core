@@ -13,6 +13,7 @@ import (
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/service"
 	"github.com/textileio/broker-core/cmd/neard/statecache"
@@ -29,7 +30,9 @@ var flags = []common.Flag{
 	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus endpoint"},
 	{Name: "endpoint-url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
 	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
-	{Name: "account-id", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box smart contract."},
+	{Name: "lockbox-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box contract."},
+	{Name: "client-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the user of this client."},
+	{Name: "client-private-key", DefValue: "", Description: "The NEAR private key string of the client account."},
 	{Name: "update-frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state."},
 	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
 	{Name: "debug", DefValue: false, Description: "Enable debug level logs."},
@@ -58,7 +61,9 @@ var rootCmd = &cobra.Command{
 		metricsAddr := v.GetString("metrics-addr")
 		endpointURL := v.GetString("endpoint-url")
 		endpointTimeout := v.GetDuration("endpoint-timeout")
-		accountID := v.GetString("account-id")
+		lockboxAccountID := v.GetString("lockbox-account")
+		clientAccountID := v.GetString("client-account")
+		clientPrivateKey := v.GetString("client-private-key")
 		// updateFrequency := v.GetDuration("update-frequency")
 		// requestTimeout := v.GetDuration("request-timeout")
 
@@ -72,10 +77,20 @@ var rootCmd = &cobra.Command{
 		rpcClient, err := rpc.DialContext(ctx, endpointURL)
 		common.CheckErr(err)
 
-		nc, err := nearclient.NewClient(&types.Config{RPCClient: rpcClient})
+		var signer keys.KeyPair
+		if clientPrivateKey != "" {
+			var err error
+			signer, err = keys.NewKeyPairFromString(clientPrivateKey)
+			common.CheckErr(err)
+		}
+
+		nc, err := nearclient.NewClient(&types.Config{
+			RPCClient: rpcClient,
+			Signer:    signer,
+		})
 		common.CheckErr(err)
 
-		lc, err := lockboxclient.NewClient(nc, accountID)
+		lc, err := lockboxclient.NewClient(nc, lockboxAccountID, clientAccountID)
 		common.CheckErr(err)
 
 		sc, err := statecache.NewStateCache()

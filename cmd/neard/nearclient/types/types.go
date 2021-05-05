@@ -7,7 +7,6 @@ import (
 
 // Config configures the NEAR client.
 type Config struct {
-	KeyPath   string
 	Signer    keys.KeyPair // TODO: model the Signer to wrap KeyPair.
 	NetworkID string
 	RPCClient *rpc.Client
