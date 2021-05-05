@@ -1,11 +1,14 @@
 package srstore
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
@@ -93,12 +96,8 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) er
 	defer txn.Discard()
 
 	// 3- Persist the StorageDeal.
-	buf, err := json.Marshal(sd)
-	if err != nil {
-		return fmt.Errorf("marshaling storage deal: %s", err)
-	}
-	if err := txn.Put(keyStorageDeal(sd.ID), buf); err != nil {
-		return fmt.Errorf("saving storage deal in datastore: %s", err)
+	if err := saveStorageDeal(txn, sd); err != nil {
+		return fmt.Errorf("saving storage deal: %s", err)
 	}
 
 	for _, br := range brs {
@@ -115,6 +114,60 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) er
 
 	if err := txn.Commit(); err != nil {
 		return fmt.Errorf("committing transaction: %s", err)
+	}
+
+	return nil
+}
+
+func (s *Store) StorageDealToAuctioning(
+	ctx context.Context,
+	id broker.StorageDealID,
+	pieceCid cid.Cid,
+	pieceSize uint64) error {
+	sd, err := s.GetStorageDeal(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get storage deal: %s", err)
+	}
+
+	// Take care of correct state transitions.
+	switch sd.Status {
+	case broker.StorageDealPreparing:
+		// All good here, the status we would expect to transition from.
+
+		// Validate anyway that the fields we expect to populate are free.
+		// Panic mode here.
+
+		if sd.PieceCid.Defined() || sd.PieceSize > 0 {
+			return fmt.Errorf("piece cid and size should be empty: %s %d", sd.PieceCid, sd.PieceSize)
+		}
+
+	case broker.StorageDealAuctioning:
+		// Seems like we're trying to transition to the same status.
+		// Most probably Piecer is doing a retry on notifying us, possibly because it didn't
+		// receive our answer before.
+
+		// Let's check that things are coherent, if not, error.
+		if sd.PieceCid != pieceCid {
+			return fmt.Errorf("the storage deal was re-prepared with a different piece cid", err)
+		}
+		if sd.PieceSize != pieceSize {
+			return fmt.Errorf("teh storage deal was re-prepared with a different piece size", err)
+		}
+
+		// So the Piecer simply notified us with the same data. That should be fine, can be considered
+		// a noop.
+
+		return nil
+	default:
+		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+	}
+
+	// Happy path, just save the data.
+	sd.PieceCid = pieceCid
+	sd.PieceSize = pieceSize
+	sd.UpdatedAt = time.Now()
+	if err := s.saveStorageDeal(s.ds, sd); err != nil {
+		return fmt.Errorf("save storage deal: %s", err)
 	}
 
 	return nil
@@ -151,6 +204,17 @@ func (s *Store) getBrokerRequest(_ context.Context, id broker.BrokerRequestID) (
 	}
 
 	return sr, nil
+}
+
+func (s *Store) saveStorageDeal(w datastore.Write, sd broker.StorageDeal) error {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(sd); err != nil {
+		return fmt.Errorf("encoding gob: %s", err)
+	}
+	if err := w.Put(keyStorageDeal(sd.ID), buf.Bytes()); err != nil {
+		return fmt.Errorf("saving storage deal in datastore: %s", err)
+	}
+	return nil
 }
 
 func keyBrokerRequest(ID broker.BrokerRequestID) datastore.Key {
