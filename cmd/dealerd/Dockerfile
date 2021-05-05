@@ -11,7 +11,7 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
   GOOS=linux make build-dealerd
 
-FROM alpine
+FROM busybox:1-glibc
 
 COPY --from=builder /app/dealerd /app/dealerd
 
