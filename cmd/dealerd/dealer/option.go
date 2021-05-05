@@ -1,7 +1,7 @@
 package dealer
 
 import (
-	"fmt"
+	"errors"
 	"time"
 )
 
@@ -28,7 +28,7 @@ type Option func(*config) error
 func WithDealMakingFreq(f time.Duration) Option {
 	return func(c *config) error {
 		if f == 0 {
-			return fmt.Errorf("frequency is zero")
+			return errors.New("frequency is zero")
 		}
 		c.dealMakingFreq = f
 		return nil
@@ -39,7 +39,7 @@ func WithDealMakingFreq(f time.Duration) Option {
 func WithDealMonitoringFreq(f time.Duration) Option {
 	return func(c *config) error {
 		if f == 0 {
-			return fmt.Errorf("frequency is zero")
+			return errors.New("frequency is zero")
 		}
 		c.dealMonitoringFreq = f
 		return nil
@@ -50,7 +50,7 @@ func WithDealMonitoringFreq(f time.Duration) Option {
 func WithDealReportingFreq(f time.Duration) Option {
 	return func(c *config) error {
 		if f == 0 {
-			return fmt.Errorf("frequency is zero")
+			return errors.New("frequency is zero")
 		}
 		c.dealReportingFreq = f
 		return nil
@@ -61,7 +61,7 @@ func WithDealReportingFreq(f time.Duration) Option {
 func WithDealMakingRateLim(l int) Option {
 	return func(c *config) error {
 		if l == 0 {
-			return fmt.Errorf("rate limit is zero")
+			return errors.New("rate limit is zero")
 		}
 		c.dealMakingRateLim = l
 		return nil
@@ -72,7 +72,7 @@ func WithDealMakingRateLim(l int) Option {
 func WithDealMonitoringRateLim(l int) Option {
 	return func(c *config) error {
 		if l == 0 {
-			return fmt.Errorf("rate limit is zero")
+			return errors.New("rate limit is zero")
 		}
 		c.dealMonitoringRateLim = l
 		return nil

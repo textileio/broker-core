@@ -187,16 +187,16 @@ func (s *Service) Close() error {
 
 func validateConfig(conf Config) error {
 	if conf.BrokerAPIAddr == "" {
-		return fmt.Errorf("broker api addr is empty")
+		return errors.New("broker api addr is empty")
 	}
 	if conf.ListenAddr == "" {
-		return fmt.Errorf("service listen addr is empty")
+		return errors.New("service listen addr is empty")
 	}
 	if conf.MongoDBName == "" {
-		return fmt.Errorf("mongo db name is empty")
+		return errors.New("mongo db name is empty")
 	}
 	if conf.MongoURI == "" {
-		return fmt.Errorf("mongo uri is empty")
+		return errors.New("mongo uri is empty")
 	}
 
 	return nil

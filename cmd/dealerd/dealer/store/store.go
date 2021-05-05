@@ -22,7 +22,7 @@ import (
 
 var (
 	// ErrNotFound is returned if the item isn't found in the store.
-	ErrNotFound = fmt.Errorf("key isn't found")
+	ErrNotFound = errors.New("key isn't found")
 
 	dsPrefixAuctionData = datastore.NewKey("/auction-data")
 	dsPrefixAuctionDeal = datastore.NewKey("/auction-deal")
@@ -366,27 +366,27 @@ func validate(ad AuctionData, ads []AuctionDeal) error {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
 	}
 	if ad.StorageDealID == "" {
-		return fmt.Errorf("storage deal id is empty")
+		return errors.New("storage deal id is empty")
 	}
 	if !ad.PayloadCid.Defined() {
-		return fmt.Errorf("payload cid is undefined")
+		return errors.New("payload cid is undefined")
 	}
 	if !ad.PieceCid.Defined() {
-		return fmt.Errorf("piece cid is undefined")
+		return errors.New("piece cid is undefined")
 	}
 	if ad.PieceSize <= 0 {
-		return fmt.Errorf("piece size is zero")
+		return errors.New("piece size is zero")
 	}
 
 	for _, auctionDeal := range ads {
 		if auctionDeal.Miner == "" {
-			return fmt.Errorf("miner address is empty")
+			return errors.New("miner address is empty")
 		}
 		if auctionDeal.PricePerGiBPerEpoch < 0 {
-			return fmt.Errorf("price-per-gib-per-epoch is negative")
+			return errors.New("price-per-gib-per-epoch is negative")
 		}
 		if auctionDeal.StartEpoch <= 0 {
-			return fmt.Errorf("start-epoch isn't positive")
+			return errors.New("start-epoch isn't positive")
 		}
 	}
 
@@ -400,14 +400,14 @@ func isValidStatusChange(pre AuctionDealStatus, aud AuctionDeal) error {
 			return fmt.Errorf("expecting WaitingConfirmation but found: %s", aud.Status)
 		}
 		if !aud.ProposalCid.Defined() {
-			return fmt.Errorf("proposal cid should be set to transition to WaitingConfirmation")
+			return errors.New("proposal cid should be set to transition to WaitingConfirmation")
 		}
 	case WaitingConfirmation:
 		if aud.Status != Error && aud.Status != Success {
 			return fmt.Errorf("expecting final status but found: %s", aud.Status)
 		}
 		if aud.Status == Error && aud.ErrorCause == "" {
-			return fmt.Errorf("an error status should have an error cause")
+			return errors.New("an error status should have an error cause")
 		}
 		if aud.Status == Success && aud.ErrorCause != "" {
 			return fmt.Errorf("a success status can't have an error cause: %s", aud.ErrorCause)
