@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"path"
 	"time"
 
@@ -134,7 +135,7 @@ const (
 // BrokerRequests.
 type StorageDeal struct {
 	ID               StorageDealID
-	Cid              cid.Cid
+	PayloadCid       cid.Cid
 	Status           StorageDealStatus
 	BrokerRequestIDs []BrokerRequestID
 	CreatedAt        time.Time
@@ -145,6 +146,17 @@ type StorageDeal struct {
 type DataPreparationResult struct {
 	PieceSize uint64
 	PieceCid  cid.Cid
+}
+
+// Validate returns an error if the struct contain invalid fields.
+func (dpr DataPreparationResult) Validate() error {
+	if dpr.PieceSize == 0 {
+		return errors.New("piece size is zero")
+	}
+	if !dpr.PieceCid.Defined() {
+		return errors.New("piece cid is undefined")
+	}
+	return nil
 }
 
 // AuctionTopic is used by brokers to publish and by miners to subscribe to deal auctions.
