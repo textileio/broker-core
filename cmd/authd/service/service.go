@@ -204,6 +204,11 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	if tokenErr != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", tokenErr)
 	}
+	// Validate the key DID.
+	keyOk, keyErr := ValidateKeyDID(token.Sub, token.X)
+	if !keyOk || keyErr != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid Key DID: %v", keyErr)
+	}
 	// Check for locked funds
 	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Aud, token.Iss, s.Deps.ChainAPIServiceClient)
 	if !fundsOk || fundsErr != nil {
