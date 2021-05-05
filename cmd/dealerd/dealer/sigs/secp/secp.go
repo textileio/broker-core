@@ -1,18 +1,17 @@
 package secp
 
 import (
-	"fmt"
-
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-crypto"
 	crypto2 "github.com/filecoin-project/go-state-types/crypto"
 	"github.com/minio/blake2b-simd"
 )
 
+// ToPublic returns the public key associated with the private key.
 func ToPublic(pk []byte) ([]byte, error) {
 	return crypto.PublicKey(pk), nil
 }
 
+// Sign creates a signature for the message.
 func Sign(pk []byte, msg []byte) (*crypto2.Signature, error) {
 	b2sum := blake2b.Sum256(msg)
 	sig, err := crypto.Sign(pk, b2sum[:])
@@ -24,23 +23,4 @@ func Sign(pk []byte, msg []byte) (*crypto2.Signature, error) {
 		Type: crypto2.SigTypeSecp256k1,
 		Data: sig,
 	}, nil
-}
-
-func Verify(sig []byte, a address.Address, msg []byte) error {
-	b2sum := blake2b.Sum256(msg)
-	pubk, err := crypto.EcRecover(b2sum[:], sig)
-	if err != nil {
-		return err
-	}
-
-	maybeaddr, err := address.NewSecp256k1Address(pubk)
-	if err != nil {
-		return err
-	}
-
-	if a != maybeaddr {
-		return fmt.Errorf("signature did not match")
-	}
-
-	return nil
 }
