@@ -286,5 +286,6 @@ type FinalizedAuctionDeal struct {
 	StorageDealID  StorageDealID
 	DealID         int64
 	DealExpiration uint64
+	Miner          string
 	ErrorCause     string
 }

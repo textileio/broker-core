@@ -51,6 +51,7 @@ func (d *Dealer) daemonDealReporterTick() error {
 				ErrorCause:     aud.ErrorCause,
 				DealID:         aud.DealID,
 				DealExpiration: aud.DealExpiration,
+				Miner:          aud.Miner,
 			}
 		}
 

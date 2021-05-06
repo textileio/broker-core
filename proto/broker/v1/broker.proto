@@ -45,7 +45,8 @@ message StorageDealFinalizedDealsRequest {
     string storage_deal_id = 1;
     int64 deal_id = 2;
     uint64 deal_expiration = 3;
-    string error_cause = 4;
+    string miner_id = 4;
+    string error_cause = 5;
   }
 }
 
