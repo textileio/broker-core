@@ -33,7 +33,7 @@ func TestCreateSuccess(t *testing.T) {
 	require.True(t, time.Since(br.UpdatedAt).Seconds() < 5)
 
 	// Check that the packer was notified.
-	require.Len(t, packer.readyToPackCalled, 1)
+	require.Len(t, packer.calledBrokerRequestIDs, 1)
 }
 
 func TestCreateFail(t *testing.T) {
@@ -264,6 +264,72 @@ func TestStorageDealAuctioned(t *testing.T) {
 	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
 }
 
+func TestStorageDealFailedAuction(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	b, packer, _, _, dealerd := createBroker(t)
+
+	// 1- Create two broker requests and a corresponding storage deal, and
+	//    pass through prepared.
+	c := createCidFromString("BrokerRequest1")
+	br1, err := b.Create(ctx, c, broker.Metadata{})
+	require.NoError(t, err)
+	c = createCidFromString("BrokerRequest2")
+	br2, err := b.Create(ctx, c, broker.Metadata{})
+	require.NoError(t, err)
+	brgCid := createCidFromString("StorageDeal")
+	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	require.NoError(t, err)
+	dpr := broker.DataPreparationResult{
+		PieceSize: uint64(123456),
+		PieceCid:  createCidFromString("piececid1"),
+	}
+	err = b.StorageDealPrepared(ctx, sd, dpr)
+	require.NoError(t, err)
+
+	// Empty the call stack of the  mocks, since it has calls from before.
+	dealerd.calledAuctionDeals = dealer.AuctionDeals{}
+	packer.calledBrokerRequestIDs = nil
+
+	// 2- Call StorageDealAuctioned as if the packer did.
+	auction := broker.Auction{
+		ID:            broker.AuctionID("AUCTION1"),
+		StorageDealID: sd,
+		DealSize:      dpr.PieceSize,
+		DealDuration:  broker.MaxDealEpochs,
+		Status:        broker.AuctionStatusError,
+		Error:         "reached max retries",
+	}
+	err = b.StorageDealAuctioned(ctx, auction)
+	require.NoError(t, err)
+
+	// 3- Verify the storage deal moved to the correct status with error cause.
+	sd2, err := b.GetStorageDeal(ctx, sd)
+	require.NoError(t, err)
+	require.Equal(t, broker.StorageDealError, sd2.Status)
+	require.Equal(t, auction.Error, sd2.Error)
+
+	// 4- Verify that Dealer was NOT called
+	require.Equal(t, broker.StorageDealID(""), dealerd.calledAuctionDeals.StorageDealID)
+
+	// 5- Verify that the underlying broker requests were moved
+	//    to Batching again.
+	mbr1, err := b.Get(ctx, br1.ID)
+	require.NoError(t, err)
+	require.Equal(t, broker.RequestBatching, mbr1.Status)
+	mbr2, err := b.Get(ctx, br2.ID)
+	require.NoError(t, err)
+	require.Equal(t, broker.RequestBatching, mbr2.Status)
+
+	// 6- Verify that Packerd was called again with the new liberated broker requests
+	//    that can be batched again.
+	require.Len(t, packer.calledBrokerRequestIDs, 2)
+	require.Equal(t, br1.ID, packer.calledBrokerRequestIDs[0].id)
+	require.Equal(t, br1.DataCid, packer.calledBrokerRequestIDs[0].dataCid)
+	require.Equal(t, br2.ID, packer.calledBrokerRequestIDs[1].id)
+	require.Equal(t, br2.DataCid, packer.calledBrokerRequestIDs[1].dataCid)
+}
+
 func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer, *dumbAuctioneer, *dumbDealer) {
 	ds := tests.NewTxMapDatastore()
 	packer := &dumbPacker{}
@@ -277,7 +343,7 @@ func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer, *dumbAuction
 }
 
 type dumbPacker struct {
-	readyToPackCalled []brc
+	calledBrokerRequestIDs []brc
 }
 
 type brc struct {
@@ -288,7 +354,7 @@ type brc struct {
 var _ packer.Packer = (*dumbPacker)(nil)
 
 func (dp *dumbPacker) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
-	dp.readyToPackCalled = append(dp.readyToPackCalled, brc{id: id, dataCid: dataCid})
+	dp.calledBrokerRequestIDs = append(dp.calledBrokerRequestIDs, brc{id: id, dataCid: dataCid})
 
 	return nil
 }
