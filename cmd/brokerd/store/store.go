@@ -3,13 +3,18 @@ package store
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/gob"
+	"errors"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	logger "github.com/ipfs/go-log/v2"
+	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -30,6 +35,9 @@ var (
 // Store provides a persistent layer for broker requests.
 type Store struct {
 	ds datastore.TxnDatastore
+
+	lock    sync.Mutex
+	entropy *ulid.MonotonicEntropy
 }
 
 // New returns a new Store backed by `ds`.
@@ -50,8 +58,17 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 	return getBrokerRequest(s.ds, id)
 }
 
-// CreateStorageDeal persists a storage deal.
-func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) error {
+// CreateStorageDeal persists a storage deal. It populates the sd.ID field with the corresponding id.
+func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) error {
+	if sd.ID != "" {
+		return fmt.Errorf("storage deal id must be empty")
+	}
+	newID, err := s.newID()
+	if err != nil {
+		return fmt.Errorf("generating id: %s", err)
+	}
+	sd.ID = broker.StorageDealID(newID)
+
 	start := time.Now()
 	defer log.Debugf(
 		"creating storage deal %s with group size %d took %dms",
@@ -85,7 +102,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) er
 	}
 
 	// 3- Persist the StorageDeal.
-	if err := s.saveStorageDeal(txn, sd); err != nil {
+	if err := s.saveStorageDeal(txn, *sd); err != nil {
 		return fmt.Errorf("saving storage deal: %s", err)
 	}
 
@@ -267,4 +284,24 @@ func keyBrokerRequest(ID broker.BrokerRequestID) datastore.Key {
 
 func keyStorageDeal(ID broker.StorageDealID) datastore.Key {
 	return prefixBrokerRequest.ChildString(string(ID))
+}
+
+func (s *Store) newID() (string, error) {
+	s.lock.Lock()
+	// Not deferring unlock since can be recursive.
+
+	if s.entropy == nil {
+		s.entropy = ulid.Monotonic(rand.Reader, 0)
+	}
+	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), s.entropy)
+	if errors.Is(err, ulid.ErrMonotonicOverflow) {
+		s.entropy = nil
+		s.lock.Unlock()
+		return s.newID()
+	} else if err != nil {
+		s.lock.Unlock()
+		return "", fmt.Errorf("generating id: %v", err)
+	}
+	s.lock.Unlock()
+	return strings.ToLower(id.String()), nil
 }

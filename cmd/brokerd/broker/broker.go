@@ -149,7 +149,6 @@ func (b *Broker) CreateStorageDeal(
 
 	now := time.Now()
 	sd := broker.StorageDeal{
-		ID:               broker.StorageDealID(uuid.New().String()),
 		PayloadCid:       batchCid,
 		Status:           broker.StorageDealPreparing,
 		BrokerRequestIDs: brids,
@@ -161,7 +160,7 @@ func (b *Broker) CreateStorageDeal(
 	// - Move involved BrokerRequest statuses to `Preparing`.
 	// - Link each BrokerRequest with the StorageDeal.
 	// - Save the `StorageDeal` in the store.
-	if err := b.store.CreateStorageDeal(ctx, sd); err != nil {
+	if err := b.store.CreateStorageDeal(ctx, &sd); err != nil {
 		return "", fmt.Errorf("creating storage deal: %w", err)
 	}
 
