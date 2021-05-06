@@ -6,6 +6,7 @@ import (
 
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	golog "github.com/ipfs/go-log/v2"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
@@ -25,9 +26,6 @@ func init() {
 	flags := []common.Flag{
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
-		{Name: "repo", DefValue: "${HOME}/.miner", Description: "Repo path"},
-		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
-		{Name: "host-bootstrap-multiaddr", DefValue: "", Description: "Libp2p host bootstrap peer multiaddr"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{
 			Name:        "ask-price",
@@ -55,6 +53,7 @@ func init() {
 			Description: "Maximum deal size to bid on; default is 32GB",
 		},
 	}
+	flags = append(flags, marketpeer.Flags...)
 
 	common.ConfigureCLI(v, "MINER", flags, rootCmd)
 }
@@ -84,8 +83,16 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			RepoPath: v.GetString("repo"),
 			Peer: marketpeer.Config{
-				RepoPath:      v.GetString("repo"),
-				HostMultiaddr: v.GetString("host-multiaddr"),
+				RepoPath:           v.GetString("repo"),
+				ListenMultiaddr:    v.GetString("listen-multiaddr"),
+				AnnounceMultiaddrs: v.GetStringSlice("announce-multiaddr"),
+				ConnManager: connmgr.NewConnManager(
+					v.GetInt("conn-low"),
+					v.GetInt("conn-high"),
+					v.GetDuration("conn-grace"),
+				),
+				EnableQUIC:       v.GetBool("quic"),
+				EnableNATPortMap: v.GetBool("nat"),
 			},
 			BidParams: service.BidParams{
 				AskPrice: v.GetInt64("ask-price"),
@@ -105,12 +112,14 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
-		bootPeers, err := ipfsconfig.ParseBootstrapPeers(v.GetStringSlice("host-bootstrap-multiaddr"))
+		bootPeers, err := ipfsconfig.ParseBootstrapPeers(v.GetStringSlice("bootstrap-multiaddr"))
 		common.CheckErrf("parsing bootstrap peer addrs: %v", err)
 		serv.Bootstrap(bootPeers)
 
-		err = serv.EnableMDNS(1)
-		common.CheckErrf("enabling mdns: %v", err)
+		if v.GetBool("mdns") {
+			err = serv.EnableMDNS(1)
+			common.CheckErrf("enabling mdns: %v", err)
+		}
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

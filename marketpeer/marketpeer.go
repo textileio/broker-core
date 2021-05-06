@@ -31,17 +31,20 @@ var log = golog.Logger("mpeer")
 
 // Config defines params for Peer configuration.
 type Config struct {
-	RepoPath      string
-	HostMultiaddr string
-	ConnManager   cconnmgr.ConnManager
+	RepoPath           string
+	ListenMultiaddr    string
+	AnnounceMultiaddrs []string
+	ConnManager        cconnmgr.ConnManager
+	EnableQUIC         bool
+	EnableNATPortMap   bool
 }
 
 func setDefaults(conf *Config) {
-	if len(conf.HostMultiaddr) == 0 {
-		conf.HostMultiaddr = "/ip4/0.0.0.0/tcp/0"
+	if len(conf.ListenMultiaddr) == 0 {
+		conf.ListenMultiaddr = "/ip4/0.0.0.0/tcp/0"
 	}
 	if conf.ConnManager == nil {
-		conf.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
+		conf.ConnManager = connmgr.NewConnManager(256, 512, time.Second*120)
 	}
 }
 
@@ -57,9 +60,35 @@ type Peer struct {
 func New(conf Config) (*Peer, error) {
 	setDefaults(&conf)
 
-	hostAddr, err := multiaddr.NewMultiaddr(conf.HostMultiaddr)
+	listenAddr, err := multiaddr.NewMultiaddr(conf.ListenMultiaddr)
 	if err != nil {
-		return nil, fmt.Errorf("parsing host multiaddress: %s", err)
+		return nil, fmt.Errorf("parsing listen multiaddress: %v", err)
+	}
+
+	announceAddrs := make([]multiaddr.Multiaddr, len(conf.AnnounceMultiaddrs))
+	for i, a := range conf.AnnounceMultiaddrs {
+		addr, err := multiaddr.NewMultiaddr(a)
+		if err != nil {
+			return nil, fmt.Errorf("parsing announce multiaddress: %v", err)
+		}
+		announceAddrs[i] = addr
+	}
+
+	opts := []libp2p.Option{
+		libp2p.ConnectionManager(conf.ConnManager),
+		libp2p.DefaultTransports,
+		libp2p.DisableRelay(),
+	}
+	if len(announceAddrs) != 0 {
+		opts = append(opts, libp2p.AddrsFactory(func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
+			return announceAddrs
+		}))
+	}
+	if conf.EnableNATPortMap {
+		opts = append(opts, libp2p.NATPortMap())
+	}
+	if conf.EnableQUIC {
+		opts = append(opts, libp2p.Transport(quic.NewTransport))
 	}
 
 	fin := finalizer.NewFinalizer()
@@ -81,23 +110,21 @@ func New(conf Config) (*Peer, error) {
 		return nil, fin.Cleanupf("creating peerstore: %v", err)
 	}
 	fin.Add(pstore)
+	opts = append(opts, libp2p.Peerstore(pstore))
 
-	// Setup libp2p
 	hostKey, err := getHostKey(conf.RepoPath)
 	if err != nil {
 		return nil, fin.Cleanupf("getting host key: %v", err)
 	}
+
+	// Setup libp2p
 	lhost, dht, err := ipfslite.SetupLibp2p(
 		ctx,
 		hostKey,
 		nil,
-		[]multiaddr.Multiaddr{hostAddr},
+		[]multiaddr.Multiaddr{listenAddr},
 		lstore,
-		libp2p.Peerstore(pstore),
-		libp2p.ConnectionManager(conf.ConnManager),
-		libp2p.DefaultTransports,
-		libp2p.Transport(quic.NewTransport),
-		libp2p.DisableRelay(),
+		opts...,
 	)
 	if err != nil {
 		return nil, fin.Cleanupf("setting up libp2p", err)
@@ -117,6 +144,7 @@ func New(conf Config) (*Peer, error) {
 	}
 
 	log.Infof("marketpeer %s is online", lhost.ID())
+	log.Debugf("marketpeer addresses: %v", lhost.Addrs())
 
 	return &Peer{
 		host:      lhost,
