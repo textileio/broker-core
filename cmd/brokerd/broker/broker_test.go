@@ -14,13 +14,14 @@ import (
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
+	"github.com/textileio/broker-core/reporter"
 	"github.com/textileio/broker-core/tests"
 )
 
 func TestCreateSuccess(t *testing.T) {
 	t.Parallel()
 
-	b, packer, _, _, _ := createBroker(t)
+	b, packer, _, _, _, _ := createBroker(t)
 	c := createCidFromString("BrokerRequest1")
 
 	meta := broker.Metadata{Region: "Region1"}
@@ -41,7 +42,7 @@ func TestCreateFail(t *testing.T) {
 
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
-		b, _, _, _, _ := createBroker(t)
+		b, _, _, _, _, _ := createBroker(t)
 		_, err := b.Create(context.Background(), cid.Undef, broker.Metadata{})
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -53,7 +54,7 @@ func TestCreateFail(t *testing.T) {
 func TestCreateStorageDeal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, piecer, _, _ := createBroker(t)
+	b, _, piecer, _, _, _ := createBroker(t)
 
 	// 1- Create two broker requests.
 	c := createCidFromString("BrokerRequest1")
@@ -105,7 +106,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _, _ := createBroker(t)
+		b, _, _, _, _, _ := createBroker(t)
 		_, err := b.CreateStorageDeal(ctx, cid.Undef, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -113,7 +114,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("empty group", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _, _ := createBroker(t)
+		b, _, _, _, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
 		_, err := b.CreateStorageDeal(ctx, brgCid, nil)
 		require.Equal(t, ErrEmptyGroup, err)
@@ -122,7 +123,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("group contains unknown broker request id", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _, _ := createBroker(t)
+		b, _, _, _, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
 		_, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
@@ -133,7 +134,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 func TestStorageDealPrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, auctioneer, _ := createBroker(t)
+	b, _, _, auctioneer, _, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal.
 	c := createCidFromString("BrokerRequest1")
@@ -179,7 +180,7 @@ func TestStorageDealPrepared(t *testing.T) {
 func TestStorageDealAuctioned(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, _, dealer := createBroker(t)
+	b, _, _, _, dealer, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -267,7 +268,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 func TestStorageDealFailedAuction(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, packer, _, _, dealerd := createBroker(t)
+	b, packer, _, _, dealerd, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -330,16 +331,135 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.Equal(t, br2.DataCid, packer.calledBrokerRequestIDs[1].dataCid)
 }
 
-func createBroker(t *testing.T) (*Broker, *dumbPacker, *dumbPiecer, *dumbAuctioneer, *dumbDealer) {
+func TestStorageDealFinalizedDeals(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	b, _, _, _, _, reporter := createBroker(t)
+
+	// 1- Create two broker requests and a corresponding storage deal, and
+	//    pass through prepared, auctioned, and deal making.
+	c1 := createCidFromString("BrokerRequest1")
+	br1, err := b.Create(ctx, c1, broker.Metadata{})
+	require.NoError(t, err)
+	c2 := createCidFromString("BrokerRequest2")
+	br2, err := b.Create(ctx, c2, broker.Metadata{})
+	require.NoError(t, err)
+	brgCid := createCidFromString("StorageDeal")
+	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	require.NoError(t, err)
+	dpr := broker.DataPreparationResult{
+		PieceSize: uint64(123456),
+		PieceCid:  createCidFromString("piececid1"),
+	}
+	err = b.StorageDealPrepared(ctx, sd, dpr)
+	require.NoError(t, err)
+
+	bids := map[broker.BidID]broker.Bid{
+		broker.BidID("Bid1"): {
+			MinerID:          "miner1",
+			AskPrice:         100,
+			VerifiedAskPrice: 200,
+			StartEpoch:       300,
+			FastRetrieval:    true,
+		},
+		broker.BidID("Bid2"): {
+			MinerID:          "miner2",
+			AskPrice:         1100,
+			VerifiedAskPrice: 1200,
+			StartEpoch:       1300,
+			FastRetrieval:    false,
+		},
+	}
+	auction := broker.Auction{
+		ID:            broker.AuctionID("AUCTION1"),
+		StorageDealID: sd,
+		DealSize:      dpr.PieceSize,
+		DealDuration:  broker.MaxDealEpochs,
+		Status:        broker.AuctionStatusEnded,
+		Bids:          bids,
+		WinningBids:   []broker.BidID{broker.BidID("Bid1"), broker.BidID("Bid2")},
+	}
+	err = b.StorageDealAuctioned(ctx, auction)
+	require.NoError(t, err)
+
+	// 2- Call StorageDealFinalizedDeals with the first deal having
+	//    success. We'll make a further call to the second one.
+	fads := []broker.FinalizedAuctionDeal{{
+		StorageDealID:  auction.StorageDealID,
+		DealID:         100,
+		DealExpiration: 200,
+		Miner:          "f0011",
+	}}
+	err = b.StorageDealFinalizedDeals(ctx, fads)
+	require.NoError(t, err)
+
+	// 3- Verify the storage deal and underlying broker request are still in deal making,
+	//    since there's another pending deal to be reported.
+	sd2, err := b.GetStorageDeal(ctx, sd)
+	require.NoError(t, err)
+	require.Equal(t, broker.StorageDealDealMaking, sd2.Status)
+	mbr1, err := b.Get(ctx, br1.ID)
+	require.NoError(t, err)
+	require.Equal(t, broker.RequestDealMaking, mbr1.Status)
+	mbr2, err := b.Get(ctx, br2.ID)
+	require.NoError(t, err)
+	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
+
+	// 4- Verify that the reporter was called to report results on-chain.
+	require.Equal(t, brgCid, reporter.callPayloadCid)
+	require.Equal(t, dpr.PieceCid, reporter.callPieceCid)
+	require.Len(t, reporter.callDeals, 1)
+	require.Equal(t, fads[0].DealID, reporter.callDeals[0].DealID)
+	require.Equal(t, fads[0].Miner, reporter.callDeals[0].MinerID)
+	require.Equal(t, fads[0].DealExpiration, reporter.callDeals[0].Expiration)
+	require.Len(t, reporter.callDataCids, 2)
+	require.Equal(t, c1, reporter.callDataCids[0])
+	require.Equal(t, c2, reporter.callDataCids[1])
+
+	reporter.clean() // clean the previous call stack
+	// 5- Let's finalize the other one but with error. This results in a storage deal
+	//    that had two winning bids, one of them succeeded and othe other failed deal making.
+	fads = []broker.FinalizedAuctionDeal{{
+		StorageDealID: auction.StorageDealID,
+		Miner:         "f0012",
+		ErrorCause:    "the miner rejected our proposal",
+	}}
+	err = b.StorageDealFinalizedDeals(ctx, fads)
+	require.NoError(t, err)
+
+	// 6- Verify that the storage deal switched to Success, since at least one of the winning bids
+	//    succeeded.
+	sd2, err = b.GetStorageDeal(ctx, sd)
+	require.NoError(t, err)
+	require.Equal(t, broker.StorageDealSuccess, sd2.Status)
+	mbr1, err = b.Get(ctx, br1.ID)
+	require.NoError(t, err)
+	require.Equal(t, broker.RequestSuccess, mbr1.Status)
+	mbr2, err = b.Get(ctx, br2.ID)
+	require.NoError(t, err)
+	require.Equal(t, broker.RequestSuccess, mbr2.Status)
+
+	// 4- Verify that the reporter was NOT called to report results on-chain.
+	require.Equal(t, cid.Undef, reporter.callPayloadCid)
+}
+
+func createBroker(t *testing.T) (
+	*Broker,
+	*dumbPacker,
+	*dumbPiecer,
+	*dumbAuctioneer,
+	*dumbDealer,
+	*dumbReporter) {
 	ds := tests.NewTxMapDatastore()
 	packer := &dumbPacker{}
 	piecer := &dumbPiecer{}
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
-	b, err := New(ds, packer, piecer, auctioneer, dealer, broker.MaxDealEpochs)
+	reporter := &dumbReporter{}
+	b, err := New(ds, packer, piecer, auctioneer, dealer, reporter, broker.MaxDealEpochs)
 	require.NoError(t, err)
 
-	return b, packer, piecer, auctioneer, dealer
+	return b, packer, piecer, auctioneer, dealer, reporter
 }
 
 type dumbPacker struct {
@@ -408,4 +528,35 @@ func (dd *dumbDealer) ReadyToCreateDeals(ctx context.Context, ads dealer.Auction
 func createCidFromString(s string) cid.Cid {
 	mh, _ := multihash.Encode([]byte(s), multihash.SHA2_256)
 	return cid.NewCidV1(cid.Raw, multihash.Multihash(mh))
+}
+
+type dumbReporter struct {
+	callPayloadCid cid.Cid
+	callPieceCid   cid.Cid
+	callDeals      []reporter.DealInfo
+	callDataCids   []cid.Cid
+}
+
+var _ reporter.Reporter = (*dumbReporter)(nil)
+
+func (dr *dumbReporter) ReportStorageInfo(
+	ctx context.Context,
+	payloadCid cid.Cid,
+	pieceCid cid.Cid,
+	deals []reporter.DealInfo,
+	dataCids []cid.Cid,
+) error {
+	dr.callPayloadCid = payloadCid
+	dr.callPieceCid = pieceCid
+	dr.callDeals = deals
+	dr.callDataCids = dataCids
+	return nil
+}
+
+func (dr *dumbReporter) clean() {
+	dr.callPayloadCid = cid.Undef
+	dr.callPieceCid = cid.Undef
+	dr.callDeals = nil
+	dr.callDataCids = nil
+
 }
