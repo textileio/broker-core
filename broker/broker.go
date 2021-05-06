@@ -138,6 +138,8 @@ const (
 	StorageDealDealMaking
 	// StorageDealSuccess indicates that the storage deal was successfully stored in Filecoin.
 	StorageDealSuccess
+	// StorageDealError indicates that the storage deal has errored.
+	StorageDealError
 )
 
 // String returns a string-encoded status.
@@ -167,6 +169,7 @@ type StorageDeal struct {
 	BrokerRequestIDs []BrokerRequestID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	Error            string
 
 	// Packer calculates this field after batching storage requests.
 	PayloadCid cid.Cid

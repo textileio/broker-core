@@ -133,31 +133,16 @@ func (s *Store) StorageDealToAuctioning(
 	// Take care of correct state transitions.
 	switch sd.Status {
 	case broker.StorageDealPreparing:
-		// All good here, the status we would expect to transition from.
-
-		// Validate anyway that the fields we expect to populate are free.
-		// Panic mode here.
 		if sd.PieceCid.Defined() || sd.PieceSize > 0 {
 			return fmt.Errorf("piece cid and size should be empty: %s %d", sd.PieceCid, sd.PieceSize)
 		}
-
-		// Continue with happy path.
 	case broker.StorageDealAuctioning:
-		// Seems like we're trying to transition to the same status.
-		// Most probably Piecer is doing a retry on notifying us, possibly because it didn't
-		// receive our answer before.
-
-		// Let's check that things are coherent, if not, error.
 		if sd.PieceCid != pieceCid {
 			return fmt.Errorf("piececid different from registered: %s %s", sd.PieceCid, pieceCid)
 		}
 		if sd.PieceSize != pieceSize {
 			return fmt.Errorf("piece size different from registered: %d %d", sd.PieceSize, pieceSize)
 		}
-
-		// So the Piecer simply notified us with the same data. That should be fine, can be considered
-		// a noop.
-
 		return nil
 	default:
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
@@ -199,6 +184,61 @@ func (s *Store) StorageDealToAuctioning(
 	return nil
 }
 
+func (s *Store) StorageDealError(ctx context.Context, id broker.StorageDealID, errorCause string) ([]broker.BrokerRequestID, error) {
+	sd, err := s.GetStorageDeal(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get storage deal: %s", err)
+	}
+
+	// Take care of correct state transitions.
+	switch sd.Status {
+	case broker.StorageDealAuctioning:
+		if sd.Error != "" {
+			return nil, fmt.Errorf("error cause should be empty: %s", sd.Error)
+		}
+	case broker.StorageDealError:
+		if sd.Error != errorCause {
+			return nil, fmt.Errorf("the error cause is different from the registeredon : %s %s", sd.Error, errorCause)
+		}
+		return sd.BrokerRequestIDs, nil
+	default:
+		return nil, fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+	}
+
+	now := time.Now()
+	sd.Status = broker.StorageDealError
+	sd.Error = errorCause
+	sd.UpdatedAt = now
+
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return nil, fmt.Errorf("creating transaction: %s", err)
+	}
+	defer txn.Discard()
+
+	if err := s.saveStorageDeal(txn, sd); err != nil {
+		return nil, fmt.Errorf("save storage deal: %s", err)
+	}
+
+	for _, brID := range sd.BrokerRequestIDs {
+		br, err := getBrokerRequest(txn, brID)
+		if err != nil {
+			return nil, fmt.Errorf("getting broker request: %s", err)
+		}
+		br.Status = broker.RequestBatching
+		br.UpdatedAt = now
+		if err := saveBrokerRequest(txn, br); err != nil {
+			return nil, fmt.Errorf("saving broker request: %s", err)
+		}
+	}
+
+	if err := txn.Commit(); err != nil {
+		return nil, fmt.Errorf("commiting transaction: %s", err)
+	}
+
+	return sd.BrokerRequestIDs, nil
+}
+
 func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auction) error {
 	sd, err := s.GetStorageDeal(ctx, auction.StorageDealID)
 	if err != nil {
@@ -211,21 +251,10 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 		if len(sd.Auction.WinningBids) != 0 {
 			return fmt.Errorf("there are already winning bids: %s", sd.Auction.ID)
 		}
-
-		// Continue with happy path.
 	case broker.StorageDealDealMaking:
-		// Seems like we're trying to transition to the same status.
-		// Most probably Piecer is doing a retry on notifying us, possibly because it didn't
-		// receive our answer before.
-
-		// Let's check that things are coherent, if not, error.
 		if sd.Auction.ID != auction.ID {
 			return fmt.Errorf("signaled of another winning auction: %s %s", auction.ID, sd.Auction.ID)
 		}
-
-		// So the Piecer simply notified us with the same data. That should be fine, can be considered
-		// a noop.
-
 		return nil
 	default:
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)

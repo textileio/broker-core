@@ -218,18 +218,20 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	// and also signal the store to liberate the underlying broker requests to Pending.
 	// This way they can be signaled to be re-batched.
 	if auction.Status == broker.AuctionStatusError {
-		/*
-			brs, err := b.store.StorageDealError(ctx, auction.StorageDealID, auction.Error, true)
-			if err != nil {
-				return fmt.Errorf("moving storage deal to error status: %s", err)
-			}
+		brs, err := b.store.StorageDealError(ctx, auction.StorageDealID, auction.Error)
+		if err != nil {
+			return fmt.Errorf("moving storage deal to error status: %s", err)
+		}
 
-			for i := range brs {
-				if err := b.packer.ReadyToPack(ctx, brs[i].ID, brs[i].DataCid); err != nil {
-					return fmt.Errorf("notifying packer of ready broker request: %s", err)
-				}
+		for i := range brs {
+			br, err := b.store.GetBrokerRequest(ctx, brs[i])
+			if err != nil {
+				return fmt.Errorf("get broker request: %s", err)
 			}
-		*/
+			if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
+				return fmt.Errorf("notifying packer of ready broker request: %s", err)
+			}
+		}
 
 		return nil
 	}
