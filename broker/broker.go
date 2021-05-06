@@ -158,12 +158,15 @@ type StorageDeal struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 
-	// Packerd calculates this field after batching storage requests.
+	// Packer calculates this field after batching storage requests.
 	PayloadCid cid.Cid
 
-	// Piecerd calculates these fields after preparing the batched DAG.
+	// Piecer calculates these fields after preparing the batched DAG.
 	PieceCid  cid.Cid
 	PieceSize uint64
+
+	// Auctioner populates this field with the winning auction.
+	Auction Auction
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.
