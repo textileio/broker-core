@@ -127,6 +127,8 @@ func newClient(t *testing.T) *client.Client {
 	s, err := service.New(config, broker)
 	require.NoError(t, err)
 	fin.Add(s)
+	err = s.Start(false)
+	require.NoError(t, err)
 	err = s.EnableMDNS(1)
 	require.NoError(t, err)
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
@@ -32,17 +33,19 @@ var log = golog.Logger("mpeer")
 // Config defines params for Peer configuration.
 type Config struct {
 	RepoPath           string
-	ListenMultiaddr    string
+	ListenMultiaddrs   []string
 	AnnounceMultiaddrs []string
+	BootstrapAddrs     []string
 	ConnManager        cconnmgr.ConnManager
 	EnableQUIC         bool
 	EnableNATPortMap   bool
 }
 
 func setDefaults(conf *Config) {
-	if len(conf.ListenMultiaddr) == 0 {
-		conf.ListenMultiaddr = "/ip4/0.0.0.0/tcp/0"
+	if len(conf.ListenMultiaddrs) == 0 {
+		conf.ListenMultiaddrs = []string{"/ip4/0.0.0.0/tcp/0"}
 	}
+	conf.BootstrapAddrs = append(conf.BootstrapAddrs, ipfsconfig.DefaultBootstrapAddresses...)
 	if conf.ConnManager == nil {
 		conf.ConnManager = connmgr.NewConnManager(256, 512, time.Second*120)
 	}
@@ -53,6 +56,7 @@ type Peer struct {
 	host      host.Host
 	peer      *ipfslite.Peer
 	ps        *ps.PubSub
+	bootstrap []peer.AddrInfo
 	finalizer *finalizer.Finalizer
 }
 
@@ -60,18 +64,17 @@ type Peer struct {
 func New(conf Config) (*Peer, error) {
 	setDefaults(&conf)
 
-	listenAddr, err := multiaddr.NewMultiaddr(conf.ListenMultiaddr)
+	listenAddr, err := parseMultiaddrs(conf.ListenMultiaddrs)
 	if err != nil {
-		return nil, fmt.Errorf("parsing listen multiaddress: %v", err)
+		return nil, fmt.Errorf("parsing listen addresses: %v", err)
 	}
-
-	announceAddrs := make([]multiaddr.Multiaddr, len(conf.AnnounceMultiaddrs))
-	for i, a := range conf.AnnounceMultiaddrs {
-		addr, err := multiaddr.NewMultiaddr(a)
-		if err != nil {
-			return nil, fmt.Errorf("parsing announce multiaddress: %v", err)
-		}
-		announceAddrs[i] = addr
+	announceAddrs, err := parseMultiaddrs(conf.AnnounceMultiaddrs)
+	if err != nil {
+		return nil, fmt.Errorf("parsing announce addresses: %v", err)
+	}
+	bootstrap, err := ipfsconfig.ParseBootstrapPeers(conf.BootstrapAddrs)
+	if err != nil {
+		return nil, fmt.Errorf("parsing bootstrap addresses: %v", err)
 	}
 
 	opts := []libp2p.Option{
@@ -118,14 +121,7 @@ func New(conf Config) (*Peer, error) {
 	}
 
 	// Setup libp2p
-	lhost, dht, err := ipfslite.SetupLibp2p(
-		ctx,
-		hostKey,
-		nil,
-		[]multiaddr.Multiaddr{listenAddr},
-		lstore,
-		opts...,
-	)
+	lhost, dht, err := ipfslite.SetupLibp2p(ctx, hostKey, nil, listenAddr, lstore, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("setting up libp2p", err)
 	}
@@ -150,6 +146,7 @@ func New(conf Config) (*Peer, error) {
 		host:      lhost,
 		peer:      lpeer,
 		ps:        gps,
+		bootstrap: bootstrap,
 		finalizer: fin,
 	}, nil
 }
@@ -164,10 +161,16 @@ func (p *Peer) Self() peer.ID {
 	return p.host.ID()
 }
 
-// Bootstrap the market peer against network peers.
-// Some well-known network peers are included as well.
-func (p *Peer) Bootstrap(peers []peer.AddrInfo) {
-	p.peer.Bootstrap(append(peers, ipfslite.DefaultBootstrapPeers()...))
+// Connect to another peer.
+func (p *Peer) Connect(ctx context.Context, addr peer.AddrInfo) error {
+	// Self returns the peer's id.
+	return p.host.Connect(ctx, addr)
+}
+
+// Bootstrap the market peer against Config.Bootstrap network peers.
+// Some well-known network peers are included by default.
+func (p *Peer) Bootstrap() {
+	p.peer.Bootstrap(p.bootstrap)
 	log.Info("peer was bootstapped")
 }
 
@@ -227,4 +230,16 @@ func getHostKey(repoPath string) (crypto.PrivKey, error) {
 		}
 		return crypto.UnmarshalPrivateKey(bytes)
 	}
+}
+
+func parseMultiaddrs(strs []string) ([]multiaddr.Multiaddr, error) {
+	addrs := make([]multiaddr.Multiaddr, len(strs))
+	for i, a := range strs {
+		addr, err := multiaddr.NewMultiaddr(a)
+		if err != nil {
+			return nil, fmt.Errorf("parsing multiaddress: %v", err)
+		}
+		addrs[i] = addr
+	}
+	return addrs, nil
 }

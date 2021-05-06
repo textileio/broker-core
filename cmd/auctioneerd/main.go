@@ -8,9 +8,7 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	golog "github.com/ipfs/go-log/v2"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -76,18 +74,7 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			RepoPath: v.GetString("repo"),
 			Listener: listener,
-			Peer: marketpeer.Config{
-				RepoPath:           v.GetString("repo"),
-				ListenMultiaddr:    v.GetString("listen-multiaddr"),
-				AnnounceMultiaddrs: v.GetStringSlice("announce-multiaddr"),
-				ConnManager: connmgr.NewConnManager(
-					v.GetInt("conn-low"),
-					v.GetInt("conn-high"),
-					v.GetDuration("conn-grace"),
-				),
-				EnableQUIC:       v.GetBool("quic"),
-				EnableNATPortMap: v.GetBool("nat"),
-			},
+			Peer:     marketpeer.ConfigFromFlags(v),
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},
@@ -96,14 +83,13 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
-		bootPeers, err := ipfsconfig.ParseBootstrapPeers(v.GetStringSlice("bootstrap-multiaddr"))
-		common.CheckErrf("parsing bootstrap peer addrs: %v", err)
-		serv.Bootstrap(bootPeers)
-
 		if v.GetBool("mdns") {
 			err = serv.EnableMDNS(1)
 			common.CheckErrf("enabling mdns: %v", err)
 		}
+
+		err = serv.Start(true)
+		common.CheckErrf("creating deal auction feed: %v", err)
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

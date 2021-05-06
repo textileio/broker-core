@@ -47,6 +47,7 @@ type AuctionConfig struct {
 // Auctioneer handles deal auctions for a broker.
 type Auctioneer struct {
 	queue       *q.Queue
+	started     bool
 	auctionConf AuctionConfig
 
 	peer     *marketpeer.Peer
@@ -70,34 +71,21 @@ func New(
 		return nil, fmt.Errorf("checking config: %v", err)
 	}
 
-	fin := finalizer.NewFinalizer()
-	ctx, cancel := context.WithCancel(context.Background())
-	fin.Add(finalizer.NewContextCloser(cancel))
-
 	a := &Auctioneer{
 		peer:        peer,
 		bids:        make(map[core.AuctionID]chan core.Bid),
 		broker:      broker,
 		auctionConf: auctionConf,
+		finalizer:   finalizer.NewFinalizer(),
 	}
-
-	// Create the global auctions topic
-	auctions, err := peer.NewTopic(ctx, core.AuctionTopic, false)
-	if err != nil {
-		return nil, fin.Cleanupf("creating auctions topic: %v", err)
-	}
-	fin.Add(auctions)
-	auctions.SetEventHandler(a.eventHandler)
-	a.auctions = auctions
 
 	queue, err := q.NewQueue(store, a.runAuction)
 	if err != nil {
-		return nil, fin.Cleanupf("creating queue: %v", err)
+		return nil, a.finalizer.Cleanupf("creating queue: %v", err)
 	}
-	fin.Add(queue)
+	a.finalizer.Add(queue)
 	a.queue = queue
 
-	a.finalizer = fin
 	return a, nil
 }
 
@@ -115,10 +103,37 @@ func (a *Auctioneer) Close() error {
 	return a.finalizer.Cleanup(nil)
 }
 
-// Bootstrap the market peer against network peers.
-// Some well-known network peers are included as well.
-func (a *Auctioneer) Bootstrap(peers []peer.AddrInfo) {
-	a.peer.Bootstrap(peers)
+// Start the deal auction feed.
+// If bootstrap is true, the peer will dial the configured bootstrap addresses
+// before creating the deal auction feed.
+func (a *Auctioneer) Start(bootstrap bool) error {
+	a.lk.Lock()
+	defer a.lk.Unlock()
+	if a.started {
+		return nil
+	}
+
+	// Bootstrap against configured addresses.
+	if bootstrap {
+		a.peer.Bootstrap()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	a.finalizer.Add(finalizer.NewContextCloser(cancel))
+
+	// Create the global auctions topic
+	auctions, err := a.peer.NewTopic(ctx, core.AuctionTopic, false)
+	if err != nil {
+		return fmt.Errorf("creating auctions topic: %v", err)
+	}
+	auctions.SetEventHandler(a.eventHandler)
+	a.auctions = auctions
+	a.finalizer.Add(auctions)
+
+	log.Info("created the deal auction feed")
+
+	a.started = true
+	return nil
 }
 
 // EnableMDNS enables an MDNS discovery service.
