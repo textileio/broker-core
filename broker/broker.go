@@ -60,6 +60,16 @@ type BrokerRequest struct {
 	UpdatedAt     time.Time           `json:"updated_at"`
 }
 
+func (br BrokerRequest) Validate() error {
+	if br.ID == "" {
+		return errors.New("id is empty")
+	}
+	if !br.DataCid.Defined() {
+		return errors.New("datacid is undefined")
+	}
+	return nil
+}
+
 // Metadata provides storage and bidding configuration.
 type Metadata struct {
 	Region string `json:"region"`

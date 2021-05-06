@@ -1,10 +1,9 @@
-package srstore
+package store
 
 import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -42,23 +41,13 @@ func New(ds datastore.TxnDatastore) (*Store, error) {
 }
 
 // SaveBrokerRequest saves the provided BrokerRequest.
-func (s *Store) SaveBrokerRequest(ctx context.Context, br broker.BrokerRequest) error {
-	buf, err := json.Marshal(br)
-	if err != nil {
-		return fmt.Errorf("marshaling broker request: %s", err)
-	}
-
-	srKey := keyBrokerRequest(br.ID)
-	if err := s.ds.Put(srKey, buf); err != nil {
-		return fmt.Errorf("put in datastore: %s", err)
-	}
-
-	return nil
+func (s *Store) SaveBrokerRequest(_ context.Context, br broker.BrokerRequest) error {
+	return saveBrokerRequest(s.ds, br)
 }
 
 // GetBrokerRequest gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
 func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	return s.getBrokerRequest(ctx, id)
+	return getBrokerRequest(s.ds, id)
 }
 
 // CreateStorageDeal persists a storage deal.
@@ -71,11 +60,17 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) er
 	)
 	now := time.Now()
 
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating datastore transaction: %s", err)
+	}
+	defer txn.Discard()
+
 	// 1- Get all involved BrokerRequests and validate that their in the correct
 	// statuses, and nothing unexpected/invalid is going on.
 	brs := make([]broker.BrokerRequest, len(sd.BrokerRequestIDs))
 	for i, brID := range sd.BrokerRequestIDs {
-		br, err := s.getBrokerRequest(ctx, brID)
+		br, err := getBrokerRequest(txn, brID)
 		if err == ErrNotFound {
 			return fmt.Errorf("unknown broker request id %s: %w", brID, ErrStorageDealContainsUnknownBrokerRequest)
 		}
@@ -89,26 +84,14 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd broker.StorageDeal) er
 		brs[i] = br
 	}
 
-	txn, err := s.ds.NewTransaction(false)
-	if err != nil {
-		return fmt.Errorf("creating datastore transaction: %s", err)
-	}
-	defer txn.Discard()
-
 	// 3- Persist the StorageDeal.
-	if err := saveStorageDeal(txn, sd); err != nil {
+	if err := s.saveStorageDeal(txn, sd); err != nil {
 		return fmt.Errorf("saving storage deal: %s", err)
 	}
 
 	for _, br := range brs {
-		buf, err := json.Marshal(br)
-		if err != nil {
-			return fmt.Errorf("marshaling broker request: %s", err)
-		}
-
-		srKey := keyBrokerRequest(br.ID)
-		if err := txn.Put(srKey, buf); err != nil {
-			return fmt.Errorf("put in datastore: %s", err)
+		if err := saveBrokerRequest(txn, br); err != nil {
+			return fmt.Errorf("saving broker request: %s", err)
 		}
 	}
 
@@ -148,10 +131,10 @@ func (s *Store) StorageDealToAuctioning(
 
 		// Let's check that things are coherent, if not, error.
 		if sd.PieceCid != pieceCid {
-			return fmt.Errorf("piececid different from registered: %s %s", sd.pieceCid, pieceCid)
+			return fmt.Errorf("piececid different from registered: %s %s", sd.PieceCid, pieceCid)
 		}
 		if sd.PieceSize != pieceSize {
-			return fmt.Errorf("piece size different from registered: %s %s", sd.PieceSize, pieceSize)
+			return fmt.Errorf("piece size different from registered: %d %d", sd.PieceSize, pieceSize)
 		}
 
 		// So the Piecer simply notified us with the same data. That should be fine, can be considered
@@ -222,16 +205,17 @@ func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (br
 	if err == datastore.ErrNotFound {
 		return broker.StorageDeal{}, ErrNotFound
 	}
-	if err := json.Unmarshal(buf, &sd); err != nil {
+	dec := gob.NewDecoder(bytes.NewReader(buf))
+	if err := dec.Decode(&sd); err != nil {
 		return broker.StorageDeal{}, fmt.Errorf("unmarshaling storage deal: %s", err)
 	}
 
 	return sd, nil
 }
 
-func (s *Store) getBrokerRequest(_ context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
+func getBrokerRequest(r datastore.Read, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	key := keyBrokerRequest(id)
-	buf, err := s.ds.Get(key)
+	buf, err := r.Get(key)
 	if err == datastore.ErrNotFound {
 		return broker.BrokerRequest{}, ErrNotFound
 	}
@@ -240,11 +224,29 @@ func (s *Store) getBrokerRequest(_ context.Context, id broker.BrokerRequestID) (
 	}
 
 	var sr broker.BrokerRequest
-	if err := json.Unmarshal(buf, &sr); err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("unmarshaling broker request: %s", err)
+	dec := gob.NewDecoder(bytes.NewReader(buf))
+	if err := dec.Decode(&sr); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("gob decoding: %s", err)
 	}
 
 	return sr, nil
+}
+
+func saveBrokerRequest(w datastore.Write, br broker.BrokerRequest) error {
+	if err := br.Validate(); err != nil {
+		return fmt.Errorf("broker request is invalid: %s", err)
+	}
+
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(br); err != nil {
+		return fmt.Errorf("encoding gob: %s", err)
+	}
+	srKey := keyBrokerRequest(br.ID)
+	if err := w.Put(srKey, buf.Bytes()); err != nil {
+		return fmt.Errorf("put in datastore: %s", err)
+	}
+
+	return nil
 }
 
 func (s *Store) saveStorageDeal(w datastore.Write, sd broker.StorageDeal) error {
@@ -255,6 +257,7 @@ func (s *Store) saveStorageDeal(w datastore.Write, sd broker.StorageDeal) error 
 	if err := w.Put(keyStorageDeal(sd.ID), buf.Bytes()); err != nil {
 		return fmt.Errorf("saving storage deal in datastore: %s", err)
 	}
+
 	return nil
 }
 
