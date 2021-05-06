@@ -208,8 +208,8 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 	// Take care of correct state transitions.
 	switch sd.Status {
 	case broker.StorageDealAuctioning:
-		if sd.Auction.ID != "" {
-			return fmt.Errorf("storage deal auction data isn't empty: %s", sd.Auction.ID)
+		if len(sd.Auction.WinningBids) != 0 {
+			return fmt.Errorf("there are already winning bids: %s", sd.Auction.ID)
 		}
 
 		// Continue with happy path.
@@ -231,11 +231,35 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
 
+	now := time.Now()
 	sd.Status = broker.StorageDealDealMaking
 	sd.Auction = auction
-	sd.UpdatedAt = time.Now()
-	if err := s.saveStorageDeal(s.ds, sd); err != nil {
+	sd.UpdatedAt = now
+
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating transaction: %s", err)
+	}
+	defer txn.Discard()
+
+	if err := s.saveStorageDeal(txn, sd); err != nil {
 		return fmt.Errorf("save storage deal: %s", err)
+	}
+
+	for _, brID := range sd.BrokerRequestIDs {
+		br, err := getBrokerRequest(txn, brID)
+		if err != nil {
+			return fmt.Errorf("getting broker request: %s", err)
+		}
+		br.Status = broker.RequestDealMaking
+		br.UpdatedAt = now
+		if err := saveBrokerRequest(txn, br); err != nil {
+			return fmt.Errorf("saving broker request: %s", err)
+		}
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("commiting transaction: %s", err)
 	}
 
 	return nil
