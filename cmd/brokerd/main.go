@@ -21,6 +21,10 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
+		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer address"},
+		{Name: "dealer-addr", DefValue: "", Description: "Dealer address"},
+		{Name: "reporter-addr", DefValue: "", Description: "Reporter address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
@@ -60,6 +64,7 @@ var rootCmd = &cobra.Command{
 			PackerAddr:     v.GetString("packer-addr"),
 			AuctioneerAddr: v.GetString("auctioneer-addr"),
 			DealerAddr:     v.GetString("dealer-addr"),
+			ReporterAddr:   v.GetString("reporter-addr"),
 
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),

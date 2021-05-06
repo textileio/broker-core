@@ -16,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
+	"github.com/textileio/broker-core/reporter"
 )
 
 var (
@@ -48,6 +49,7 @@ func New(
 	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,
 	dealer dealer.Dealer,
+	reporter reporter.Reporter,
 	dealEpochs uint64,
 ) (*Broker, error) {
 	if dealEpochs < broker.MinDealEpochs {

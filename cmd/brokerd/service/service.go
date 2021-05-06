@@ -15,9 +15,11 @@ import (
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
+	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
+
 	"github.com/textileio/broker-core/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/grpc"
@@ -36,6 +38,7 @@ type Config struct {
 	PackerAddr     string
 	AuctioneerAddr string
 	DealerAddr     string
+	ReporterAddr   string
 
 	MongoDBName string
 	MongoURI    string
@@ -90,7 +93,12 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating dealer implementation: %s", err)
 	}
 
-	broker, err := brokeri.New(ds, packer, piecer, auctioneer, dealer, config.DealEpochs)
+	reporter, err := chainapii.New(config.ReporterAddr)
+	if err != nil {
+		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
+	}
+
+	broker, err := brokeri.New(ds, packer, piecer, auctioneer, dealer, reporter, config.DealEpochs)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
@@ -253,6 +261,7 @@ func (s *Service) StorageDealFinalizedDeals(
 			StorageDealID:  broker.StorageDealID(fd.StorageDealId),
 			DealID:         fd.DealId,
 			DealExpiration: fd.DealExpiration,
+			Miner:          fd.MinerId,
 			ErrorCause:     fd.ErrorCause,
 		}
 	}
