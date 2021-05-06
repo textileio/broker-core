@@ -136,11 +136,11 @@ func (s *Store) StorageDealToAuctioning(
 
 		// Validate anyway that the fields we expect to populate are free.
 		// Panic mode here.
-
 		if sd.PieceCid.Defined() || sd.PieceSize > 0 {
 			return fmt.Errorf("piece cid and size should be empty: %s %d", sd.PieceCid, sd.PieceSize)
 		}
 
+		// Continue with happy path.
 	case broker.StorageDealAuctioning:
 		// Seems like we're trying to transition to the same status.
 		// Most probably Piecer is doing a retry on notifying us, possibly because it didn't
@@ -148,10 +148,10 @@ func (s *Store) StorageDealToAuctioning(
 
 		// Let's check that things are coherent, if not, error.
 		if sd.PieceCid != pieceCid {
-			return fmt.Errorf("the storage deal was re-prepared with a different piece cid", err)
+			return fmt.Errorf("piececid different from registered: %s %s", sd.pieceCid, pieceCid)
 		}
 		if sd.PieceSize != pieceSize {
-			return fmt.Errorf("teh storage deal was re-prepared with a different piece size", err)
+			return fmt.Errorf("piece size different from registered: %s %s", sd.PieceSize, pieceSize)
 		}
 
 		// So the Piecer simply notified us with the same data. That should be fine, can be considered
@@ -162,7 +162,6 @@ func (s *Store) StorageDealToAuctioning(
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
 
-	// Happy path, just save the data.
 	sd.PieceCid = pieceCid
 	sd.PieceSize = pieceSize
 	sd.UpdatedAt = time.Now()
@@ -171,6 +170,48 @@ func (s *Store) StorageDealToAuctioning(
 	}
 
 	return nil
+}
+
+func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auction) error {
+	sd, err := s.GetStorageDeal(ctx, auction.StorageDealID)
+	if err != nil {
+		return fmt.Errorf("get storage deal: %s", err)
+	}
+
+	// Take care of correct state transitions.
+	switch sd.Status {
+	case broker.StorageDealAuctioning:
+		if sd.Auction.ID != "" {
+			return fmt.Errorf("storage deal auction data isn't empty: %s", sd.Auction.ID)
+		}
+
+		// Continue with happy path.
+	case broker.StorageDealDealMaking:
+		// Seems like we're trying to transition to the same status.
+		// Most probably Piecer is doing a retry on notifying us, possibly because it didn't
+		// receive our answer before.
+
+		// Let's check that things are coherent, if not, error.
+		if sd.Auction.ID != auction.ID {
+			return fmt.Errorf("signaled of another winning auction: %s %s", auction.ID, sd.Auction.ID)
+		}
+
+		// So the Piecer simply notified us with the same data. That should be fine, can be considered
+		// a noop.
+
+		return nil
+	default:
+		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+	}
+
+	sd.Auction = auction
+	sd.UpdatedAt = time.Now()
+	if err := s.saveStorageDeal(s.ds, sd); err != nil {
+		return fmt.Errorf("save storage deal: %s", err)
+	}
+
+	return nil
+
 }
 
 // GetStorageDeal gets an existing storage deal by id. If the storage deal doesn't exists, it returns
