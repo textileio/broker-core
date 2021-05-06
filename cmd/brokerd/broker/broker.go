@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/brokerd/srstore"
+	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/packer"
@@ -32,7 +33,7 @@ var (
 // Broker creates and tracks request to store Cids in
 // the Filecoin network.
 type Broker struct {
-	store      *srstore.Store
+	store      *store.Store
 	packer     packer.Packer
 	piecer     piecer.Piecer
 	auctioneer auctioneer.Auctioneer
@@ -56,7 +57,7 @@ func New(
 		return nil, fmt.Errorf("deal epochs is greater than maximum allowed: %d", broker.MaxDealEpochs)
 	}
 
-	store, err := srstore.New(txndswrap.Wrap(ds, "/broker-store"))
+	store, err := store.New(txndswrap.Wrap(ds, "/broker-store"))
 	if err != nil {
 		return nil, fmt.Errorf("initializing broker request store: %s", err)
 	}
@@ -116,7 +117,7 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 // Get gets a BrokerRequest by id. If doesn't exist, it returns ErrNotFound.
 func (b *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	br, err := b.store.GetBrokerRequest(ctx, ID)
-	if err == srstore.ErrNotFound {
+	if err == store.ErrNotFound {
 		return broker.BrokerRequest{}, ErrNotFound
 	}
 	if err != nil {
@@ -210,10 +211,29 @@ func (b *Broker) StorageDealPrepared(
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
 	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.StorageDealID)
 
+	if auction.Status != broker.AuctionStatusEnded && auction.Status != broker.AuctionStatusError {
+		return errors.New("auction status should be final")
+	}
+
+	// If the auction returned status is error, we switch the storage deal to error status,
+	// and also signal the store to liberate the underlying broker requests to Pending.
+	// This way they can be signaled to be re-batched.
+	if auction.Status == broker.AuctionStatusError {
+		brs, err := b.store.StorageDealError(ctx, auction.StorageDealID, auction.Error, true)
+		if err != nil {
+			return fmt.Errorf("moving storage deal to error status: %s", err)
+		}
+
+		for i := range brs {
+			if err := b.packer.ReadyToPack(ctx, brs[i].ID, brs[i].DataCid); err != nil {
+				return fmt.Errorf("notifying packer of ready broker request: %s", err)
+			}
+		}
+
+		return nil
+	}
+
 	if len(auction.WinningBids) == 0 {
-		// TODO: potentially we want to handle this case gracefully.
-		// e.g: the auctioneer would keep creating new Auctions, but after some point
-		// give up and tell the broker.
 		return fmt.Errorf("winning bids list is empty")
 	}
 
@@ -221,7 +241,6 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	if err != nil {
 		return fmt.Errorf("storage deal not found: %s", err)
 	}
-	_ = sd
 
 	ads := dealer.AuctionDeals{
 		StorageDealID: sd.ID,
@@ -250,7 +269,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 		return fmt.Errorf("signaling dealer to execute winning bids: %s", err)
 	}
 
-	if err := b.dealer.StorageDealToDealMaking(ctx, auction.StorageDealID, auction); err != nil {
+	if err := b.store.StorageDealToDealMaking(ctx, auction); err != nil {
 		return fmt.Errorf("moving storage deal to deal making: %s", err)
 	}
 
