@@ -43,6 +43,7 @@ var rootCmd = &cobra.Command{
 	Short: "dealerd executes deals for winning bids",
 	Long:  "dealerd executes deals for winning bids",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

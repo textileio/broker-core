@@ -45,7 +45,9 @@ var rootCmd = &cobra.Command{
 	Short: "auctioneerd handles deal auctions for the Broker",
 	Long:  "auctioneerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
+			"auctioneerd",
 			"auctioneer",
 			"auctioneer/queue",
 			"auctioneer/service",

@@ -41,6 +41,7 @@ var rootCmd = &cobra.Command{
 	Short: "brokerd is a Broker to store data in Filecoin",
 	Long:  `brokerd is a Broker to store data in Filecoin`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

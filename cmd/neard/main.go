@@ -48,6 +48,7 @@ var rootCmd = &cobra.Command{
 	Short: "neard is provides an api to the near blockchain",
 	Long:  `neard is provides an api to the near blockchain`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

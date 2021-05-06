@@ -68,7 +68,6 @@ var rootCmd = &cobra.Command{
 			"mpeer",
 		})
 		common.CheckErrf("setting log levels: %v", err)
-
 	},
 	Run: func(c *cobra.Command, args []string) {
 		fin := finalizer.NewFinalizer()

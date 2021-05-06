@@ -36,6 +36,7 @@ var rootCmd = &cobra.Command{
 	Short: "storaged provides a synchronous data uploader endpoint to store data in a Broker",
 	Long:  `storaged provides a synchronous data uploader endpoint to store data in a Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

@@ -39,6 +39,7 @@ var rootCmd = &cobra.Command{
 	Short: "packerd handles deal auctions for the Broker",
 	Long:  "packerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

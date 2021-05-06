@@ -69,9 +69,9 @@ var Flags = []common.Flag{
 func ConfigFromFlags(v *viper.Viper) Config {
 	return Config{
 		RepoPath:           v.GetString("repo"),
-		ListenMultiaddrs:   common.ParseStringSlice(v, "listen-multiaddr"),
-		AnnounceMultiaddrs: common.ParseStringSlice(v, "announce-multiaddr"),
-		BootstrapAddrs:     common.ParseStringSlice(v, "bootstrap-multiaddr"),
+		ListenMultiaddrs:   v.GetStringSlice("listen-multiaddr"),
+		AnnounceMultiaddrs: v.GetStringSlice("announce-multiaddr"),
+		BootstrapAddrs:     v.GetStringSlice("bootstrap-multiaddr"),
 		ConnManager: connmgr.NewConnManager(
 			v.GetInt("conn-low"),
 			v.GetInt("conn-high"),
