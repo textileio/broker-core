@@ -180,6 +180,9 @@ type StorageDeal struct {
 
 	// Auctioner populates this field with the winning auction.
 	Auction Auction
+
+	// Dealer populates this field
+	Deals []FinalizedAuctionDeal
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.

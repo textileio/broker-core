@@ -102,7 +102,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 	}
 
 	// 3- Persist the StorageDeal.
-	if err := s.saveStorageDeal(txn, *sd); err != nil {
+	if err := saveStorageDeal(txn, *sd); err != nil {
 		return fmt.Errorf("saving storage deal: %s", err)
 	}
 
@@ -161,7 +161,7 @@ func (s *Store) StorageDealToAuctioning(
 	}
 	defer txn.Discard()
 
-	if err := s.saveStorageDeal(txn, sd); err != nil {
+	if err := saveStorageDeal(txn, sd); err != nil {
 		return fmt.Errorf("save storage deal: %s", err)
 	}
 
@@ -178,7 +178,7 @@ func (s *Store) StorageDealToAuctioning(
 	}
 
 	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("commiting transaction: %s", err)
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return nil
@@ -192,7 +192,7 @@ func (s *Store) StorageDealError(ctx context.Context, id broker.StorageDealID, e
 
 	// Take care of correct state transitions.
 	switch sd.Status {
-	case broker.StorageDealAuctioning:
+	case broker.StorageDealAuctioning, broker.StorageDealDealMaking:
 		if sd.Error != "" {
 			return nil, fmt.Errorf("error cause should be empty: %s", sd.Error)
 		}
@@ -216,7 +216,7 @@ func (s *Store) StorageDealError(ctx context.Context, id broker.StorageDealID, e
 	}
 	defer txn.Discard()
 
-	if err := s.saveStorageDeal(txn, sd); err != nil {
+	if err := saveStorageDeal(txn, sd); err != nil {
 		return nil, fmt.Errorf("save storage deal: %s", err)
 	}
 
@@ -237,6 +237,57 @@ func (s *Store) StorageDealError(ctx context.Context, id broker.StorageDealID, e
 	}
 
 	return sd.BrokerRequestIDs, nil
+}
+
+func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID) error {
+	sd, err := s.GetStorageDeal(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get storage deal: %s", err)
+	}
+
+	// Take care of correct state transitions.
+	switch sd.Status {
+	case broker.StorageDealDealMaking:
+		if sd.Error != "" {
+			return fmt.Errorf("error cause should be empty: %s", sd.Error)
+		}
+	case broker.StorageDealSuccess:
+		return nil
+	default:
+		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+	}
+
+	now := time.Now()
+	sd.Status = broker.StorageDealSuccess
+	sd.UpdatedAt = now
+
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating transaction: %s", err)
+	}
+	defer txn.Discard()
+
+	if err := saveStorageDeal(txn, sd); err != nil {
+		return fmt.Errorf("save storage deal: %s", err)
+	}
+
+	for _, brID := range sd.BrokerRequestIDs {
+		br, err := getBrokerRequest(txn, brID)
+		if err != nil {
+			return fmt.Errorf("getting broker request: %s", err)
+		}
+		br.Status = broker.RequestSuccess
+		br.UpdatedAt = now
+		if err := saveBrokerRequest(txn, br); err != nil {
+			return fmt.Errorf("saving broker request: %s", err)
+		}
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("commiting transaction: %s", err)
+	}
+
+	return nil
 }
 
 func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auction) error {
@@ -271,7 +322,7 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 	}
 	defer txn.Discard()
 
-	if err := s.saveStorageDeal(txn, sd); err != nil {
+	if err := saveStorageDeal(txn, sd); err != nil {
 		return fmt.Errorf("save storage deal: %s", err)
 	}
 
@@ -297,17 +348,39 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 // GetStorageDeal gets an existing storage deal by id. If the storage deal doesn't exists, it returns
 // ErrNotFound.
 func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (broker.StorageDeal, error) {
-	var sd broker.StorageDeal
-	buf, err := s.ds.Get(keyStorageDeal(id))
-	if err == datastore.ErrNotFound {
-		return broker.StorageDeal{}, ErrNotFound
+	return getStorageDeal(s.ds, id)
+}
+
+func (s *Store) StorageDealFinalizedDeal(fad broker.FinalizedAuctionDeal) error {
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating transaction: %s", err)
 	}
-	dec := gob.NewDecoder(bytes.NewReader(buf))
-	if err := dec.Decode(&sd); err != nil {
-		return broker.StorageDeal{}, fmt.Errorf("unmarshaling storage deal: %s", err)
+	defer txn.Discard()
+
+	sd, err := getStorageDeal(txn, fad.StorageDealID)
+	if err != nil {
+		return fmt.Errorf("get storage deal: %s", err)
 	}
 
-	return sd, nil
+	for i := range sd.Deals {
+		if sd.Deals[i].DealID == fad.DealID {
+			// Shouldn't happen in general conditions besides being re-reported.
+			// In that case, nothing to do.
+			return nil
+		}
+	}
+	sd.Deals = append(sd.Deals, fad)
+
+	if err := saveStorageDeal(txn, sd); err != nil {
+		return fmt.Errorf("saving storage deal in datastore: %s", err)
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %s", err)
+	}
+
+	return nil
 }
 
 func getBrokerRequest(r datastore.Read, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
@@ -346,7 +419,7 @@ func saveBrokerRequest(w datastore.Write, br broker.BrokerRequest) error {
 	return nil
 }
 
-func (s *Store) saveStorageDeal(w datastore.Write, sd broker.StorageDeal) error {
+func saveStorageDeal(w datastore.Write, sd broker.StorageDeal) error {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(sd); err != nil {
 		return fmt.Errorf("encoding gob: %s", err)
@@ -356,6 +429,20 @@ func (s *Store) saveStorageDeal(w datastore.Write, sd broker.StorageDeal) error 
 	}
 
 	return nil
+}
+
+func getStorageDeal(r datastore.Read, id broker.StorageDealID) (broker.StorageDeal, error) {
+	var sd broker.StorageDeal
+	buf, err := r.Get(keyStorageDeal(id))
+	if err == datastore.ErrNotFound {
+		return broker.StorageDeal{}, ErrNotFound
+	}
+	dec := gob.NewDecoder(bytes.NewReader(buf))
+	if err := dec.Decode(&sd); err != nil {
+		return broker.StorageDeal{}, fmt.Errorf("unmarshaling storage deal: %s", err)
+	}
+
+	return sd, nil
 }
 
 func keyBrokerRequest(ID broker.BrokerRequestID) datastore.Key {

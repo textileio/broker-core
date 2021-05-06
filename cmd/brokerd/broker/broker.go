@@ -28,6 +28,8 @@ var (
 	// is received.
 	ErrEmptyGroup = fmt.Errorf("the storage deal group is empty")
 
+	errAllDealsFailed = "all winning bids deals failed"
+
 	log = logger.Logger("broker")
 )
 
@@ -39,6 +41,7 @@ type Broker struct {
 	piecer       piecer.Piecer
 	auctioneer   auctioneer.Auctioneer
 	dealer       dealer.Dealer
+	reporter     reporter.Reporter
 	dealDuration uint64
 }
 
@@ -70,6 +73,7 @@ func New(
 		piecer:       piecer,
 		dealer:       dealer,
 		auctioneer:   auctioneer,
+		reporter:     reporter,
 		dealDuration: dealEpochs,
 	}
 	return b, nil
@@ -220,21 +224,9 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	// and also signal the store to liberate the underlying broker requests to Pending.
 	// This way they can be signaled to be re-batched.
 	if auction.Status == broker.AuctionStatusError {
-		brs, err := b.store.StorageDealError(ctx, auction.StorageDealID, auction.Error)
-		if err != nil {
-			return fmt.Errorf("moving storage deal to error status: %s", err)
+		if err := b.errorStorageDealAndRebatch(ctx, auction.StorageDealID, auction.Error); err != nil {
+			return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 		}
-
-		for i := range brs {
-			br, err := b.store.GetBrokerRequest(ctx, brs[i])
-			if err != nil {
-				return fmt.Errorf("get broker request: %s", err)
-			}
-			if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
-				return fmt.Errorf("notifying packer of ready broker request: %s", err)
-			}
-		}
-
 		return nil
 	}
 
@@ -283,10 +275,47 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 
 // StorageDealFinalizedDeals reports deals that reached final status in the Filecoin network.
 func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
-	// TODO: change StorageDeal status from DealMaking -> Reporting?
-	// TODO: signal some external component (neard?), about this data so it can put things on chain. All
-	//       needed data from our notion doc about on-chain reporting should be available now.
+	for i := range fads {
+		if err := b.store.StorageDealFinalizedDeal(fads[i]); err != nil {
+			return fmt.Errorf("adding finalized info to the store: %s", err)
+		}
 
+		sd, err := b.store.GetStorageDeal(ctx, fads[i].StorageDealID)
+		if err != nil {
+			return fmt.Errorf("get storage deal: %s", err)
+		}
+
+		// Only report the deal to the chain if it was successful.
+		if fads[i].ErrorCause == "" {
+			if err := b.reportFinalizedAuctionDeal(ctx, sd, fads[i]); err != nil {
+				return fmt.Errorf("reporting finalized auction deal to the chain: %s", err)
+			}
+		}
+
+		// Do we got the last finalized transaction?
+		if len(sd.Deals) == len(sd.Auction.WinningBids) {
+			// If we have at least one successful deal, then we succeed.
+			finalStatus := broker.StorageDealError
+			for i := range sd.Deals {
+				if sd.Deals[i].ErrorCause == "" {
+					finalStatus = broker.StorageDealSuccess
+				}
+			}
+			sd.Status = finalStatus
+
+			switch finalStatus {
+			case broker.StorageDealSuccess:
+				if err := b.store.StorageDealSuccess(ctx, sd.ID); err != nil {
+					return fmt.Errorf("moving to storage deal success: %s", err)
+				}
+			case broker.StorageDealError:
+				if err := b.errorStorageDealAndRebatch(ctx, sd.ID, errAllDealsFailed); err != nil {
+					return fmt.Errorf("erroring storage deal and rebatching storage requests: %s", err)
+				}
+			}
+		}
+
+	}
 	return nil
 }
 
@@ -302,4 +331,47 @@ func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (b
 	}
 
 	return sd, nil
+}
+
+func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.StorageDeal, fad broker.FinalizedAuctionDeal) error {
+	deals := make([]reporter.DealInfo, len(sd.Deals))
+	for i := range sd.Deals {
+		d := reporter.DealInfo{
+			DealID:     sd.Deals[i].DealID,
+			MinerID:    sd.Deals[i].Miner,
+			Expiration: sd.Deals[i].DealExpiration,
+		}
+		deals[i] = d
+	}
+	dataCids := make([]cid.Cid, len(sd.BrokerRequestIDs))
+	for i := range sd.BrokerRequestIDs {
+		br, err := b.store.GetBrokerRequest(ctx, sd.BrokerRequestIDs[i])
+		if err != nil {
+			return fmt.Errorf("get broker request: %s", err)
+		}
+		dataCids[i] = br.DataCid
+	}
+	if err := b.reporter.ReportStorageInfo(ctx, sd.PayloadCid, sd.PieceCid, deals, dataCids); err != nil {
+		return fmt.Errorf("reporting storage info: %s", err)
+	}
+	return nil
+}
+
+func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.StorageDealID, errCause string) error {
+	brs, err := b.store.StorageDealError(ctx, id, errCause)
+	if err != nil {
+		return fmt.Errorf("moving storage deal to error status: %s", err)
+	}
+
+	for i := range brs {
+		br, err := b.store.GetBrokerRequest(ctx, brs[i])
+		if err != nil {
+			return fmt.Errorf("get broker request: %s", err)
+		}
+		if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
+			return fmt.Errorf("notifying packer of ready broker request: %s", err)
+		}
+	}
+
+	return nil
 }
