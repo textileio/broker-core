@@ -122,6 +122,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 func (s *Store) StorageDealToAuctioning(
 	ctx context.Context,
 	id broker.StorageDealID,
+	auctionID broker.AuctionID,
 	pieceCid cid.Cid,
 	pieceSize uint64) error {
 	sd, err := s.GetStorageDeal(ctx, id)
@@ -162,11 +163,37 @@ func (s *Store) StorageDealToAuctioning(
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
 
+	now := time.Now()
+	sd.Status = broker.StorageDealAuctioning
+	sd.Auction.ID = auctionID
 	sd.PieceCid = pieceCid
 	sd.PieceSize = pieceSize
-	sd.UpdatedAt = time.Now()
-	if err := s.saveStorageDeal(s.ds, sd); err != nil {
+	sd.UpdatedAt = now
+
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating transaction: %s", err)
+	}
+	defer txn.Discard()
+
+	if err := s.saveStorageDeal(txn, sd); err != nil {
 		return fmt.Errorf("save storage deal: %s", err)
+	}
+
+	for _, brID := range sd.BrokerRequestIDs {
+		br, err := getBrokerRequest(txn, brID)
+		if err != nil {
+			return fmt.Errorf("getting broker request: %s", err)
+		}
+		br.Status = broker.RequestAuctioning
+		br.UpdatedAt = now
+		if err := saveBrokerRequest(txn, br); err != nil {
+			return fmt.Errorf("saving broker request: %s", err)
+		}
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("commiting transaction: %s", err)
 	}
 
 	return nil
@@ -204,6 +231,7 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
 
+	sd.Status = broker.StorageDealDealMaking
 	sd.Auction = auction
 	sd.UpdatedAt = time.Now()
 	if err := s.saveStorageDeal(s.ds, sd); err != nil {
@@ -211,7 +239,6 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 	}
 
 	return nil
-
 }
 
 // GetStorageDeal gets an existing storage deal by id. If the storage deal doesn't exists, it returns
