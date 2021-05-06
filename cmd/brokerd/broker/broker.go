@@ -33,12 +33,12 @@ var (
 // Broker creates and tracks request to store Cids in
 // the Filecoin network.
 type Broker struct {
-	store      *store.Store
-	packer     packer.Packer
-	piecer     piecer.Piecer
-	auctioneer auctioneer.Auctioneer
-	dealer     dealer.Dealer
-	dealEpochs uint64
+	store        *store.Store
+	packer       packer.Packer
+	piecer       piecer.Piecer
+	auctioneer   auctioneer.Auctioneer
+	dealer       dealer.Dealer
+	dealDuration uint64
 }
 
 // New creates a Broker backed by the provided `ds`.
@@ -63,12 +63,12 @@ func New(
 	}
 
 	b := &Broker{
-		store:      store,
-		packer:     packer,
-		piecer:     piecer,
-		dealer:     dealer,
-		auctioneer: auctioneer,
-		dealEpochs: dealEpochs,
+		store:        store,
+		packer:       packer,
+		piecer:       piecer,
+		dealer:       dealer,
+		auctioneer:   auctioneer,
+		dealDuration: dealEpochs,
 	}
 	return b, nil
 }
@@ -193,12 +193,12 @@ func (b *Broker) StorageDealPrepared(
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
 	// us about who won things.
-	auctionID, err := b.auctioneer.ReadyToAuction(ctx, id, dpr.PieceSize, b.dealEpochs)
+	auctionID, err := b.auctioneer.ReadyToAuction(ctx, id, dpr.PieceSize, b.dealDuration)
 	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
 
-	if err := b.store.StorageDealToAuctioning(ctx, id, dpr.PieceCid, dpr.PieceSize); err != nil {
+	if err := b.store.StorageDealToAuctioning(ctx, id, auctionID, dpr.PieceCid, dpr.PieceSize); err != nil {
 		return fmt.Errorf("saving piecer output in storage deal: %s", err)
 	}
 
@@ -218,16 +218,18 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	// and also signal the store to liberate the underlying broker requests to Pending.
 	// This way they can be signaled to be re-batched.
 	if auction.Status == broker.AuctionStatusError {
-		brs, err := b.store.StorageDealError(ctx, auction.StorageDealID, auction.Error, true)
-		if err != nil {
-			return fmt.Errorf("moving storage deal to error status: %s", err)
-		}
-
-		for i := range brs {
-			if err := b.packer.ReadyToPack(ctx, brs[i].ID, brs[i].DataCid); err != nil {
-				return fmt.Errorf("notifying packer of ready broker request: %s", err)
+		/*
+			brs, err := b.store.StorageDealError(ctx, auction.StorageDealID, auction.Error, true)
+			if err != nil {
+				return fmt.Errorf("moving storage deal to error status: %s", err)
 			}
-		}
+
+			for i := range brs {
+				if err := b.packer.ReadyToPack(ctx, brs[i].ID, brs[i].DataCid); err != nil {
+					return fmt.Errorf("notifying packer of ready broker request: %s", err)
+				}
+			}
+		*/
 
 		return nil
 	}
