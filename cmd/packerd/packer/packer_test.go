@@ -206,22 +206,23 @@ func (bm *brokerMock) CreateStorageDeal(
 	return broker.StorageDealID("DUKE"), nil
 }
 
-func (bm *brokerMock) StorageDealPrepared(
-	ctx context.Context,
-	id broker.StorageDealID,
-	pr broker.DataPreparationResult) error {
+func (bm *brokerMock) StorageDealPrepared(context.Context, broker.StorageDealID, broker.DataPreparationResult) error {
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
+func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.Auction) error {
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (bm *brokerMock) Create(context.Context, cid.Cid, broker.Metadata) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
+func (bm *brokerMock) StorageDealFinalizedDeals(context.Context, []broker.FinalizedAuctionDeal) error {
+	panic("shouldn't be called")
+}
+
+func (bm *brokerMock) Get(context.Context, broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }
 

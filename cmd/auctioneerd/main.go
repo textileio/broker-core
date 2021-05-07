@@ -16,7 +16,6 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/finalizer"
-	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 	"google.golang.org/grpc"
 )
@@ -30,6 +29,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 		{Name: "repo", DefValue: "${HOME}/.auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
@@ -46,15 +46,11 @@ var rootCmd = &cobra.Command{
 	Short: "auctioneerd handles deal auctions for the Broker",
 	Long:  "auctioneerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		ll := golog.LevelInfo
-		if v.GetBool("debug") {
-			ll = golog.LevelDebug
-		}
-		err := logging.SetLogLevels(map[string]golog.LogLevel{
-			"auctioneer":         ll,
-			"auctioneer/queue":   ll,
-			"auctioneer/service": ll,
-			"mpeer":              ll,
+		err := common.ConfigureLogging(v, []string{
+			"auctioneer",
+			"auctioneer/queue",
+			"auctioneer/service",
+			"mpeer",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},

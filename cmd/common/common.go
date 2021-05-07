@@ -9,8 +9,10 @@ import (
 	"strings"
 	"time"
 
+	logger "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/logging"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 )
@@ -58,6 +60,40 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 			v.Set(flag.Name, os.ExpandEnv(str))
 		}
 	}
+}
+
+// ConfigureLogging configures the default logger with the right setup depending flag/envs.
+// If logLevels is not nil, only logLevels values will be configured to Info/Debug depending
+// on viper flags. if logLevels is nil, all sub-logs will be configured.
+func ConfigureLogging(v *viper.Viper, logLevels []string) error {
+	logJSON := v.GetBool("log-json")
+	if logJSON {
+		logger.SetupLogging(logger.Config{
+			Format: logger.JSONOutput,
+			Stderr: false,
+			Stdout: true,
+		})
+	}
+
+	logLevel := logger.LevelInfo
+	if v.GetBool("log-debug") {
+		logLevel = logger.LevelDebug
+	}
+
+	if len(logLevels) == 0 {
+		logger.SetAllLoggers(logLevel)
+		return nil
+	}
+
+	mapLevel := make(map[string]logger.LogLevel, len(logLevels))
+	for i := range logLevels {
+		mapLevel[logLevels[i]] = logLevel
+	}
+
+	if err := logging.SetLogLevels(mapLevel); err != nil {
+		return fmt.Errorf("set log levels: %s", err)
+	}
+	return nil
 }
 
 // SetupInstrumentation starts a metrics endpoint.

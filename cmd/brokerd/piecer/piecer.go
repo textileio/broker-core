@@ -10,10 +10,10 @@ import (
 	"github.com/dustin/go-humanize"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	commP "github.com/filecoin-project/go-fil-commp-hashhash"
-	"github.com/ipfs/go-car"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	logger "github.com/ipfs/go-log/v2"
+	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 )

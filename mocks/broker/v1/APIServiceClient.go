@@ -136,3 +136,33 @@ func (_m *APIServiceClient) StorageDealAuctioned(ctx context.Context, in *broker
 
 	return r0, r1
 }
+
+// StorageDealFinalizedDeals provides a mock function with given fields: ctx, in, opts
+func (_m *APIServiceClient) StorageDealFinalizedDeals(ctx context.Context, in *broker.StorageDealFinalizedDealsRequest, opts ...grpc.CallOption) (*broker.StorageDealFinalizedDealsResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *broker.StorageDealFinalizedDealsResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *broker.StorageDealFinalizedDealsRequest, ...grpc.CallOption) *broker.StorageDealFinalizedDealsResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*broker.StorageDealFinalizedDealsResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *broker.StorageDealFinalizedDealsRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

@@ -122,6 +122,17 @@ func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	return nil
 }
 
+// StorageDealFinalizedDeals reports finalized winning bids deals to the broker.
+func (c *Client) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
+	req := &pb.StorageDealFinalizedDealsRequest{
+		FinalizedDeals: cast.FinalizedDealsToPb(fads),
+	}
+	if _, err := c.c.StorageDealFinalizedDeals(ctx, req); err != nil {
+		return fmt.Errorf("calling storage finalized deals api: %s", err)
+	}
+	return nil
+}
+
 // Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {

@@ -44,6 +44,11 @@ build-packerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/packerd
 .PHONY: build-packerd
 
+build-dealerd: $(GOVVV)
+	go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
+.PHONY: build-dealerd
+
+
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
@@ -68,7 +73,7 @@ define gen_release_files
 endef
 
 up:
-	docker-compose -f docker-compose-dev.yml up --build
+	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
 .PHONY: up
 
 down:
@@ -122,5 +127,6 @@ define docker_push_daemon_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged)
+	$(call docker_push_daemon_head,auctioneerd authd brokerd minerd neard packerd storaged dealerd)
 .PHONY: docker-push-head
+

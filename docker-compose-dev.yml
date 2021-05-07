@@ -124,6 +124,25 @@ services:
     depends_on:
       - mongo
       - ipfs
+  dealerd:
+    build:
+      context: .
+      dockerfile: ./cmd/dealerd/Dockerfile
+    platform: linux/amd64
+    environment:
+      - DEALER_DEBUG=true
+      - DEALER_RPC_ADDR=:5000
+      - DEALER_MONGO_URI=mongodb://mongo:27017
+      - DEALER_MONGO_DBNAME=dealerd
+      - DEALER_BROKER_ADDR=brokerd:5000
+      - DEALER_MOCK=true
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE
+    depends_on:
+      - brokerd
+
   mongo:
     image: mongo:latest
     platform: linux/amd64

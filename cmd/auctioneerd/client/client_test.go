@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
@@ -189,6 +190,10 @@ func (bm *brokerMock) CreateStorageDeal(
 }
 
 func (bm *brokerMock) StorageDealPrepared(context.Context, core.StorageDealID, core.DataPreparationResult) error {
+	panic("shouldn't be called")
+}
+
+func (bm *brokerMock) StorageDealFinalizedDeals(context.Context, []broker.FinalizedAuctionDeal) error {
 	panic("shouldn't be called")
 }
 

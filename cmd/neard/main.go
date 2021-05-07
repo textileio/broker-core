@@ -36,6 +36,7 @@ var flags = []common.Flag{
 	{Name: "update-frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state."},
 	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
 	{Name: "debug", DefValue: false, Description: "Enable debug level logs."},
+	{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 }
 
 func init() {
@@ -47,10 +48,8 @@ var rootCmd = &cobra.Command{
 	Short: "neard is provides an api to the near blockchain",
 	Long:  `neard is provides an api to the near blockchain`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		logging.SetAllLoggers(logging.LevelInfo)
-		if v.GetBool("debug") {
-			logging.SetAllLoggers(logging.LevelDebug)
-		}
+		err := common.ConfigureLogging(v, nil)
+		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")

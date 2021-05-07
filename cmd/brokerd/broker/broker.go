@@ -11,6 +11,7 @@ import (
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/srstore"
+	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
@@ -35,6 +36,7 @@ type Broker struct {
 	packer     packer.Packer
 	piecer     piecer.Piecer
 	auctioneer auctioneer.Auctioneer
+	dealer     dealer.Dealer
 	dealEpochs uint64
 }
 
@@ -44,6 +46,7 @@ func New(
 	packer packer.Packer,
 	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,
+	dealer dealer.Dealer,
 	dealEpochs uint64,
 ) (*Broker, error) {
 	if dealEpochs < broker.MinDealEpochs {
@@ -62,6 +65,7 @@ func New(
 		store:      store,
 		packer:     packer,
 		piecer:     piecer,
+		dealer:     dealer,
 		auctioneer: auctioneer,
 		dealEpochs: dealEpochs,
 	}
@@ -174,9 +178,8 @@ func (b *Broker) StorageDealPrepared(
 	id broker.StorageDealID,
 	po broker.DataPreparationResult,
 ) error {
-	// TODO: include the data preparation result (piece-size and CommP) in StorageDeal data.
-	// @jsign: I'll do this tomorrow.
-	// var sd broker.StorageDeal // assume this variable will exist...
+	// TODO: include the data preparation result (piece-size and CommP) in StorageDeal data, and do
+	// status changes.
 
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
@@ -194,7 +197,57 @@ func (b *Broker) StorageDealPrepared(
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
 	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.StorageDealID)
 
-	// TODO: Signal dealer to start the deal.
+	// TODO: do status change from Auctioning -> DealMaking
+
+	if len(auction.WinningBids) == 0 {
+		// TODO: potentially we want to handle this case gracefully.
+		// e.g: the auctioneer would keep creating new Auctions, but after some point
+		// give up and tell the broker.
+		return fmt.Errorf("winning bids list is empty")
+	}
+
+	sd, err := b.store.GetStorageDeal(ctx, auction.StorageDealID)
+	if err != nil {
+		return fmt.Errorf("storage deal not found: %s", err)
+	}
+	_ = sd
+
+	ads := dealer.AuctionDeals{
+		StorageDealID: sd.ID,
+		//PayloadCid: sd.PayloadCid, // TODO: this attribute doesn't exist yet but will.
+		//PieceCid:   sd.PieceCid,   // TODO: ^
+		//PieceSize:  sd.PieceSize,  // TODO: ^
+		Duration: auction.DealDuration,
+		Targets:  make([]dealer.AuctionDealsTarget, len(auction.WinningBids)),
+	}
+
+	for i, wbid := range auction.WinningBids {
+		bid, ok := auction.Bids[wbid]
+		if !ok {
+			return fmt.Errorf("winning bid %s wasn't found in bid map", wbid)
+		}
+		ads.Targets[i] = dealer.AuctionDealsTarget{
+			Miner:               bid.MinerID,
+			PricePerGiBPerEpoch: bid.AskPrice,
+			StartEpoch:          bid.StartEpoch,
+			Verified:            true, // Hardcoded for now.
+			FastRetrieval:       bid.FastRetrieval,
+		}
+	}
+
+	if err := b.dealer.ReadyToCreateDeals(ctx, ads); err != nil {
+		return fmt.Errorf("signaling dealer to execute winning bids: %s", err)
+	}
+
+	return nil
+}
+
+// StorageDealFinalizedDeals reports deals that reached final status in the Filecoin network.
+func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
+	// TODO: change StorageDeal status from DealMaking -> Reporting?
+	// TODO: signal some external component (neard?), about this data so it can put things on chain. All
+	//       needed data from our notion doc about on-chain reporting should be available now.
+
 	return nil
 }
 
