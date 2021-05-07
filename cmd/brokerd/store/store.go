@@ -28,8 +28,11 @@ var (
 	// Namespace "/broker-request/{id}" contains
 	// the current `BrokerRequest` data for an `id`.
 	prefixBrokerRequest = datastore.NewKey("broker-request")
+	// Namespace "/storage-deal/{id}" contains
+	// the current `BrokerRequest` data for an `id`.
+	prefixStorageDeal = datastore.NewKey("storage-deal")
 
-	log = logger.Logger("srstore")
+	log = logger.Logger("store")
 )
 
 // Store provides a persistent layer for broker requests.
@@ -464,7 +467,7 @@ func keyBrokerRequest(ID broker.BrokerRequestID) datastore.Key {
 }
 
 func keyStorageDeal(ID broker.StorageDealID) datastore.Key {
-	return prefixBrokerRequest.ChildString(string(ID))
+	return prefixStorageDeal.ChildString(string(ID))
 }
 
 func (s *Store) newID() (string, error) {
