@@ -11,11 +11,6 @@ import (
 // Flags defines daemon flags for a marketpeer.
 var Flags = []common.Flag{
 	{
-		Name:        "repo",
-		DefValue:    "${HOME}/.miner",
-		Description: "Repo path",
-	},
-	{
 		Name:        "listen-multiaddr",
 		DefValue:    "/ip4/0.0.0.0/tcp/4001",
 		Description: "Libp2p listen multiaddr; repeatable",

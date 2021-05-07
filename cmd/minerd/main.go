@@ -24,6 +24,7 @@ func init() {
 	flags := []common.Flag{
 		{Name: "debug", DefValue: false, Description: "Enable debug level log"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
+		{Name: "repo", DefValue: "${HOME}/.miner", Description: "Repo path"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{
 			Name:        "ask-price",
