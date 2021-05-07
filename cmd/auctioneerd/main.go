@@ -77,7 +77,7 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			RepoPath: v.GetString("repo"),
 			Listener: listener,
-			Peer:     marketpeer.ConfigFromFlags(v),
+			Peer:     marketpeer.ConfigFromFlags(v, true),
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},

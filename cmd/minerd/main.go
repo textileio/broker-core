@@ -82,7 +82,7 @@ var rootCmd = &cobra.Command{
 
 		config := service.Config{
 			RepoPath: v.GetString("repo"),
-			Peer:     marketpeer.ConfigFromFlags(v),
+			Peer:     marketpeer.ConfigFromFlags(v, false),
 			BidParams: service.BidParams{
 				AskPrice: v.GetInt64("ask-price"),
 			},

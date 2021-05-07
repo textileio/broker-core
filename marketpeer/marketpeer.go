@@ -32,22 +32,24 @@ var log = golog.Logger("mpeer")
 
 // Config defines params for Peer configuration.
 type Config struct {
-	RepoPath            string
-	ListenMultiaddrs    []string
-	AnnounceMultiaddrs  []string
-	BootstrapAddrs      []string
-	ConnManager         cconnmgr.ConnManager
-	EnableQUIC          bool
-	EnableNATPortMap    bool
-	EnableMDNS          bool
-	MDNSIntervalSeconds int
+	RepoPath                 string
+	ListenMultiaddrs         []string
+	AnnounceMultiaddrs       []string
+	BootstrapAddrs           []string
+	ConnManager              cconnmgr.ConnManager
+	EnableQUIC               bool
+	EnableNATPortMap         bool
+	EnableMDNS               bool
+	MDNSIntervalSeconds      int
+	EnablePubSubPeerExchange bool
+	EnablePubSubFloodPublish bool
 }
 
 func setDefaults(conf *Config) {
 	if len(conf.ListenMultiaddrs) == 0 {
 		conf.ListenMultiaddrs = []string{"/ip4/0.0.0.0/tcp/0"}
 	}
-	conf.BootstrapAddrs = append(conf.BootstrapAddrs, ipfsconfig.DefaultBootstrapAddresses...)
+	// conf.BootstrapAddrs = append(conf.BootstrapAddrs, ipfsconfig.DefaultBootstrapAddresses...)
 	if conf.ConnManager == nil {
 		conf.ConnManager = connmgr.NewConnManager(256, 512, time.Second*120)
 	}
@@ -108,12 +110,12 @@ func New(conf Config) (*Peer, error) {
 	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
 		return nil, fmt.Errorf("making dir: %v", err)
 	}
-	lstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
+	dstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
 	if err != nil {
 		return nil, fin.Cleanupf("creating repo: %v", err)
 	}
-	fin.Add(lstore)
-	pstore, err := pstoreds.NewPeerstore(ctx, lstore, pstoreds.DefaultOpts())
+	fin.Add(dstore)
+	pstore, err := pstoreds.NewPeerstore(ctx, dstore, pstoreds.DefaultOpts())
 	if err != nil {
 		return nil, fin.Cleanupf("creating peerstore: %v", err)
 	}
@@ -126,20 +128,25 @@ func New(conf Config) (*Peer, error) {
 	}
 
 	// Setup libp2p
-	lhost, dht, err := ipfslite.SetupLibp2p(ctx, hostKey, nil, listenAddr, lstore, opts...)
+	lhost, dht, err := ipfslite.SetupLibp2p(ctx, hostKey, nil, listenAddr, dstore, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("setting up libp2p", err)
 	}
 	fin.Add(lhost, dht)
 
 	// Create ipfslite peer
-	lpeer, err := ipfslite.New(ctx, lstore, lhost, dht, nil)
+	lpeer, err := ipfslite.New(ctx, dstore, lhost, dht, nil)
 	if err != nil {
 		return nil, fin.Cleanupf("creating ipfslite peer", err)
 	}
 
 	// Setup pubsub
-	gps, err := ps.NewGossipSub(ctx, lhost)
+	gps, err := ps.NewGossipSub(
+		ctx,
+		lhost,
+		ps.WithPeerExchange(conf.EnablePubSubPeerExchange),
+		ps.WithFloodPublish(conf.EnablePubSubFloodPublish),
+	)
 	if err != nil {
 		return nil, fin.Cleanupf("starting libp2p pubsub: %v", err)
 	}

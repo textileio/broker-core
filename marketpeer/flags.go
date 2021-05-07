@@ -66,7 +66,7 @@ var Flags = []common.Flag{
 }
 
 // ConfigFromFlags returns a Config from a *viper.Viper instance.
-func ConfigFromFlags(v *viper.Viper) Config {
+func ConfigFromFlags(v *viper.Viper, isAuctioneer bool) Config {
 	return Config{
 		RepoPath:           v.GetString("repo"),
 		ListenMultiaddrs:   common.ParseStringSlice(v, "listen-multiaddr"),
@@ -77,9 +77,11 @@ func ConfigFromFlags(v *viper.Viper) Config {
 			v.GetInt("conn-high"),
 			v.GetDuration("conn-grace"),
 		),
-		EnableQUIC:          v.GetBool("quic"),
-		EnableNATPortMap:    v.GetBool("nat"),
-		EnableMDNS:          v.GetBool("mdns"),
-		MDNSIntervalSeconds: v.GetInt("mdns-interval"),
+		EnableQUIC:               v.GetBool("quic"),
+		EnableNATPortMap:         v.GetBool("nat"),
+		EnableMDNS:               v.GetBool("mdns"),
+		MDNSIntervalSeconds:      v.GetInt("mdns-interval"),
+		EnablePubSubPeerExchange: isAuctioneer,
+		EnablePubSubFloodPublish: true,
 	}
 }
