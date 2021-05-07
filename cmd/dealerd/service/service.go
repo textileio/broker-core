@@ -70,7 +70,7 @@ func New(conf Config) (*Service, error) {
 
 	broker, err := client.New(conf.BrokerAPIAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating broker client: %s", err)
+		return nil, fin.Cleanupf("creating broker client: %s", err)
 	}
 
 	var lib dealeri.Dealer
@@ -86,13 +86,13 @@ func New(conf Config) (*Service, error) {
 			http.Header{},
 		)
 		if err != nil {
-			return nil, fmt.Errorf("creating lotus gateway client: %s", err)
+			return nil, fin.Cleanupf("creating lotus gateway client: %s", err)
 		}
 		fin.Add(&nopCloser{closer})
 
 		filclient, err := filclient.New(&lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
 		if err != nil {
-			return nil, fmt.Errorf("creating filecoin client: %s", err)
+			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}
 		libi, err := dealer.New(ds, broker, filclient)
 		if err != nil {
@@ -110,7 +110,7 @@ func New(conf Config) (*Service, error) {
 
 	listener, err := net.Listen("tcp", conf.ListenAddr)
 	if err != nil {
-		return nil, fmt.Errorf("getting net listener: %v", err)
+		return nil, fin.Cleanupf("getting net listener: %v", err)
 	}
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
