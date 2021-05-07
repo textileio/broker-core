@@ -6,6 +6,7 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
+// Reporter allows to publish updated deal information on-chain.
 type Reporter interface {
 	ReportStorageInfo(
 		ctx context.Context,
@@ -16,6 +17,7 @@ type Reporter interface {
 	) error
 }
 
+// DealInfo contains information from an active deal.
 type DealInfo struct {
 	DealID     int64
 	MinerID    string

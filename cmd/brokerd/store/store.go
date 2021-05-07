@@ -119,6 +119,8 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 	return nil
 }
 
+// StorageDealToAuctioning moves a storage deal and the underlying broker requests
+// to Auctioning status.
 func (s *Store) StorageDealToAuctioning(
 	ctx context.Context,
 	id broker.StorageDealID,
@@ -184,7 +186,13 @@ func (s *Store) StorageDealToAuctioning(
 	return nil
 }
 
-func (s *Store) StorageDealError(ctx context.Context, id broker.StorageDealID, errorCause string) ([]broker.BrokerRequestID, error) {
+// StorageDealError moves a storage deal to an error status with a specified error cause.
+// The underlying broker requests are moved to Batching status. The caller is responsible to
+// schedule again this broker requests to Packer.
+func (s *Store) StorageDealError(
+	ctx context.Context,
+	id broker.StorageDealID,
+	errorCause string) ([]broker.BrokerRequestID, error) {
 	sd, err := s.GetStorageDeal(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get storage deal: %s", err)
@@ -239,6 +247,8 @@ func (s *Store) StorageDealError(ctx context.Context, id broker.StorageDealID, e
 	return sd.BrokerRequestIDs, nil
 }
 
+// StorageDealSuccess moves a storage deal and the underlying broker requests to
+// Success status.
 func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID) error {
 	sd, err := s.GetStorageDeal(ctx, id)
 	if err != nil {
@@ -290,6 +300,8 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 	return nil
 }
 
+// StorageDealToDealMaking moves a storage deal and the underlying broker requests to
+// DealMaking status.
 func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auction) error {
 	sd, err := s.GetStorageDeal(ctx, auction.StorageDealID)
 	if err != nil {
@@ -351,6 +363,8 @@ func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (br
 	return getStorageDeal(s.ds, id)
 }
 
+// StorageDealFinalizedDeal saves a new finalized (succeeded or errored) auction deal
+// into the storage deal.
 func (s *Store) StorageDealFinalizedDeal(fad broker.FinalizedAuctionDeal) error {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {

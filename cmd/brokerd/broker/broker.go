@@ -287,7 +287,7 @@ func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.Fi
 
 		// Only report the deal to the chain if it was successful.
 		if fads[i].ErrorCause == "" {
-			if err := b.reportFinalizedAuctionDeal(ctx, sd, fads[i]); err != nil {
+			if err := b.reportFinalizedAuctionDeal(ctx, sd); err != nil {
 				return fmt.Errorf("reporting finalized auction deal to the chain: %s", err)
 			}
 		}
@@ -314,7 +314,6 @@ func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.Fi
 				}
 			}
 		}
-
 	}
 	return nil
 }
@@ -333,15 +332,19 @@ func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (b
 	return sd, nil
 }
 
-func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.StorageDeal, fad broker.FinalizedAuctionDeal) error {
-	deals := make([]reporter.DealInfo, len(sd.Deals))
+func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.StorageDeal) error {
+	deals := make([]reporter.DealInfo, 0, len(sd.Deals))
 	for i := range sd.Deals {
+		if sd.Deals[i].ErrorCause != "" {
+			// Skip errored deals.
+			continue
+		}
 		d := reporter.DealInfo{
 			DealID:     sd.Deals[i].DealID,
 			MinerID:    sd.Deals[i].Miner,
 			Expiration: sd.Deals[i].DealExpiration,
 		}
-		deals[i] = d
+		deals = append(deals, d)
 	}
 	dataCids := make([]cid.Cid, len(sd.BrokerRequestIDs))
 	for i := range sd.BrokerRequestIDs {

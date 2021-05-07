@@ -23,7 +23,7 @@ func New(cc *grpc.ClientConn) *Client {
 	}
 }
 
-// ReadyToAuction creates an auction.
+// ReportStorageInfo reports deal information on-chain.
 func (c *Client) ReportStorageInfo(
 	ctx context.Context,
 	payloadCid cid.Cid,

@@ -558,5 +558,4 @@ func (dr *dumbReporter) clean() {
 	dr.callPieceCid = cid.Undef
 	dr.callDeals = nil
 	dr.callDataCids = nil
-
 }

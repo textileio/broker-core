@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	epochsPerDay uint64 = 60 * 24 * 2 // 1 epoch = ~30s
+	invalidStatus        = "invalid"
+	epochsPerDay  uint64 = 60 * 24 * 2 // 1 epoch = ~30s
 
 	// MinDealEpochs is the minimum allowed deal duration requested of miners.
 	MinDealEpochs = epochsPerDay * 365 / 2 // ~6 months
@@ -60,6 +61,7 @@ type BrokerRequest struct {
 	UpdatedAt     time.Time           `json:"updated_at"`
 }
 
+// Validate returns an error if the fields are invalid.
 func (br BrokerRequest) Validate() error {
 	if br.ID == "" {
 		return errors.New("id is empty")
@@ -117,7 +119,7 @@ func (brs BrokerRequestStatus) String() string {
 	case RequestSuccess:
 		return "success"
 	default:
-		return "invalid"
+		return invalidStatus
 	}
 }
 
@@ -156,7 +158,7 @@ func (sds StorageDealStatus) String() string {
 	case StorageDealSuccess:
 		return "success"
 	default:
-		return "invalid"
+		return invalidStatus
 	}
 }
 
@@ -264,7 +266,7 @@ func (as AuctionStatus) String() string {
 	case AuctionStatusError:
 		return "error"
 	default:
-		return "invalid"
+		return invalidStatus
 	}
 }
 
