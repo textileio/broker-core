@@ -51,6 +51,9 @@ func setDefaults(conf *Config) {
 	if conf.ConnManager == nil {
 		conf.ConnManager = connmgr.NewConnManager(256, 512, time.Second*120)
 	}
+	if conf.MDNSIntervalSeconds <= 0 {
+		conf.MDNSIntervalSeconds = 1
+	}
 }
 
 // Peer wraps libp2p peer components needed to partake in the broker market.

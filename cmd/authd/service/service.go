@@ -17,6 +17,8 @@ import (
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	"github.com/textileio/broker-core/rpc"
+
+	// This import runs the init, which registers the algo with jwt-go.
 	_ "github.com/textileio/jwt-go-eddsa"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

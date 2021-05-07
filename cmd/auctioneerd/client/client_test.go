@@ -166,6 +166,8 @@ func addMiners(t *testing.T, n int) {
 		}
 		s, err := minersrv.New(config)
 		require.NoError(t, err)
+		err = s.Subscribe(false)
+		require.NoError(t, err)
 
 		t.Cleanup(func() {
 			require.NoError(t, s.Close())

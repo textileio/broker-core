@@ -108,7 +108,7 @@ func ConfigureLogging(v *viper.Viper, logLevels []string) error {
 }
 
 // ParseStringSlice returns a single slice of values that may have been set by either repeating
-// a flag or using comma seperation in a single flag.
+// a flag or using comma separation in a single flag.
 // This is used to enable repeated flags as well as env vars that can't be repeated.
 // In either case, Viper understands how to write the config entry as a list.
 func ParseStringSlice(v *viper.Viper, key string) []string {
