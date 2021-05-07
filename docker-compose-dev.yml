@@ -108,6 +108,7 @@ services:
       - BROKER_PACKER_ADDR=packerd:5000
       - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
       - BROKER_DEALER_ADDR=dealerd:5000
+      - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_EPOCHS=1051200
     security_opt:
       - "seccomp:unconfined"
