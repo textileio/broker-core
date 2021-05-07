@@ -147,7 +147,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
-	// 2- Call StorageDealPrepared as if the packer did.
+	// 2- Call StorageDealPrepared as if the piecer did.
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
@@ -200,7 +200,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 	err = b.StorageDealPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
-	// 2- Call StorageDealAuctioned as if the packer did.
+	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
 			MinerID:          "miner1",
@@ -292,7 +292,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	dealerd.calledAuctionDeals = dealer.AuctionDeals{}
 	packer.calledBrokerRequestIDs = nil
 
-	// 2- Call StorageDealAuctioned as if the packer did.
+	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	auction := broker.Auction{
 		ID:            broker.AuctionID("AUCTION1"),
 		StorageDealID: sd,
