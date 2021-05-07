@@ -136,12 +136,6 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 	return nil
 }
 
-// EnableMDNS enables an MDNS discovery service.
-// This is useful on a local network (testing).
-func (a *Auctioneer) EnableMDNS(intervalSecs int) error {
-	return a.peer.EnableMDNS(intervalSecs)
-}
-
 // CreateAuction creates a new auction.
 // New auctions are queud if the auctioneer is busy.
 func (a *Auctioneer) CreateAuction(

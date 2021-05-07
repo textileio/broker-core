@@ -32,13 +32,15 @@ var log = golog.Logger("mpeer")
 
 // Config defines params for Peer configuration.
 type Config struct {
-	RepoPath           string
-	ListenMultiaddrs   []string
-	AnnounceMultiaddrs []string
-	BootstrapAddrs     []string
-	ConnManager        cconnmgr.ConnManager
-	EnableQUIC         bool
-	EnableNATPortMap   bool
+	RepoPath            string
+	ListenMultiaddrs    []string
+	AnnounceMultiaddrs  []string
+	BootstrapAddrs      []string
+	ConnManager         cconnmgr.ConnManager
+	EnableQUIC          bool
+	EnableNATPortMap    bool
+	EnableMDNS          bool
+	MDNSIntervalSeconds int
 }
 
 func setDefaults(conf *Config) {
@@ -142,13 +144,23 @@ func New(conf Config) (*Peer, error) {
 	log.Infof("marketpeer %s is online", lhost.ID())
 	log.Debugf("marketpeer addresses: %v", lhost.Addrs())
 
-	return &Peer{
+	p := &Peer{
 		host:      lhost,
 		peer:      lpeer,
 		ps:        gps,
 		bootstrap: bootstrap,
 		finalizer: fin,
-	}, nil
+	}
+
+	if conf.EnableMDNS {
+		if err := mdns.Start(ctx, p.host, conf.MDNSIntervalSeconds); err != nil {
+			return nil, fin.Cleanupf("enabling mdns: %v", err)
+		}
+
+		log.Infof("mdns was enabled (interval=%ds)", conf.MDNSIntervalSeconds)
+	}
+
+	return p, nil
 }
 
 // Close the peer.
@@ -172,20 +184,6 @@ func (p *Peer) Connect(ctx context.Context, addr peer.AddrInfo) error {
 func (p *Peer) Bootstrap() {
 	p.peer.Bootstrap(p.bootstrap)
 	log.Info("peer was bootstapped")
-}
-
-// EnableMDNS enables an MDNS discovery service.
-// This is useful on a local network (testing).
-func (p *Peer) EnableMDNS(internalSecs int) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.finalizer.Add(finalizer.NewContextCloser(cancel))
-
-	if err := mdns.Start(ctx, p.host, internalSecs); err != nil {
-		return err
-	}
-
-	log.Infof("mdns was enabled (interval=%ds)", internalSecs)
-	return nil
 }
 
 // NewTopic returns a new pubsub.Topic using the peer's host.

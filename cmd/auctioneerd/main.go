@@ -85,11 +85,6 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
-		if v.GetBool("mdns") {
-			err = serv.EnableMDNS(1)
-			common.CheckErrf("enabling mdns: %v", err)
-		}
-
 		err = serv.Start(true)
 		common.CheckErrf("creating deal auction feed: %v", err)
 

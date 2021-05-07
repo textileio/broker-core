@@ -54,14 +54,19 @@ var Flags = []common.Flag{
 		Description: "Enable the QUIC transport",
 	},
 	{
+		Name:        "nat",
+		DefValue:    false,
+		Description: "Enable NAT port mapping",
+	},
+	{
 		Name:        "mdns",
 		DefValue:    false,
 		Description: "Enable MDNS peer discovery",
 	},
 	{
-		Name:        "nat",
-		DefValue:    false,
-		Description: "Enable NAT port mapping",
+		Name:        "mdns-interval",
+		DefValue:    1,
+		Description: "MDNS peer discovery interval in seconds",
 	},
 }
 
@@ -69,15 +74,17 @@ var Flags = []common.Flag{
 func ConfigFromFlags(v *viper.Viper) Config {
 	return Config{
 		RepoPath:           v.GetString("repo"),
-		ListenMultiaddrs:   v.GetStringSlice("listen-multiaddr"),
-		AnnounceMultiaddrs: v.GetStringSlice("announce-multiaddr"),
-		BootstrapAddrs:     v.GetStringSlice("bootstrap-multiaddr"),
+		ListenMultiaddrs:   common.ParseStringSlice(v, "listen-multiaddr"),
+		AnnounceMultiaddrs: common.ParseStringSlice(v, "announce-multiaddr"),
+		BootstrapAddrs:     common.ParseStringSlice(v, "bootstrap-multiaddr"),
 		ConnManager: connmgr.NewConnManager(
 			v.GetInt("conn-low"),
 			v.GetInt("conn-high"),
 			v.GetDuration("conn-grace"),
 		),
-		EnableQUIC:       v.GetBool("quic"),
-		EnableNATPortMap: v.GetBool("nat"),
+		EnableQUIC:          v.GetBool("quic"),
+		EnableNATPortMap:    v.GetBool("nat"),
+		EnableMDNS:          v.GetBool("mdns"),
+		MDNSIntervalSeconds: v.GetInt("mdns-interval"),
 	}
 }

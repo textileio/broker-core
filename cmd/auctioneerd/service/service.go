@@ -98,12 +98,6 @@ func (s *Service) Start(bootstrap bool) error {
 	return s.lib.Start(bootstrap)
 }
 
-// EnableMDNS enables an MDNS discovery service.
-// This is useful on a local network (testing).
-func (s *Service) EnableMDNS(intervalSecs int) error {
-	return s.lib.EnableMDNS(intervalSecs)
-}
-
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	id, err := s.lib.CreateAuction(broker.StorageDealID(req.StorageDealId), req.DealSize, req.DealDuration)

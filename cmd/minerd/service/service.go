@@ -134,12 +134,6 @@ func (s *Service) Subscribe(bootstrap bool) error {
 	return nil
 }
 
-// EnableMDNS enables an MDNS discovery service.
-// This is useful on a local network (testing).
-func (s *Service) EnableMDNS(intervalSecs int) error {
-	return s.peer.EnableMDNS(intervalSecs)
-}
-
 // GetSigningMessage returns a message to be signed by a miner address.
 func (s *Service) GetSigningMessage() string {
 	return hex.EncodeToString([]byte(s.peer.Self()))
