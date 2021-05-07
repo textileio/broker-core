@@ -87,7 +87,7 @@ func New(config Config) (*Service, error) {
 
 	dealer, err := dealeri.New(config.DealerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
+		return nil, fmt.Errorf("creating dealer implementation: %s", err)
 	}
 
 	broker, err := brokeri.New(ds, packer, piecer, auctioneer, dealer, config.DealEpochs)
