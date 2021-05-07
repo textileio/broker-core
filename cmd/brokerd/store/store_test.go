@@ -67,7 +67,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	ctx := context.Background()
 	s := newStore(t)
 
-	// 0- Test retrieving a non-existant storage deal
+	// 0- Test retrieving a non-existent storage deal
 	_, err := s.GetStorageDeal(ctx, broker.StorageDealID("fake"))
 	require.Error(t, ErrNotFound, err)
 

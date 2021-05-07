@@ -233,7 +233,7 @@ func (s *Store) StorageDealError(ctx context.Context, id broker.StorageDealID, e
 	}
 
 	if err := txn.Commit(); err != nil {
-		return nil, fmt.Errorf("commiting transaction: %s", err)
+		return nil, fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return sd.BrokerRequestIDs, nil
@@ -284,7 +284,7 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 	}
 
 	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("commiting transaction: %s", err)
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return nil
@@ -339,7 +339,7 @@ func (s *Store) StorageDealToDealMaking(ctx context.Context, auction broker.Auct
 	}
 
 	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("commiting transaction: %s", err)
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return nil
