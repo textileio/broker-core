@@ -49,7 +49,6 @@ func setDefaults(conf *Config) {
 	if len(conf.ListenMultiaddrs) == 0 {
 		conf.ListenMultiaddrs = []string{"/ip4/0.0.0.0/tcp/0"}
 	}
-	// conf.BootstrapAddrs = append(conf.BootstrapAddrs, ipfsconfig.DefaultBootstrapAddresses...)
 	if conf.ConnManager == nil {
 		conf.ConnManager = connmgr.NewConnManager(256, 512, time.Second*120)
 	}
@@ -179,15 +178,9 @@ func (p *Peer) Close() error {
 	return p.finalizer.Cleanup(nil)
 }
 
-// Self returns the peer's id.
-func (p *Peer) Self() peer.ID {
-	return p.host.ID()
-}
-
-// Connect to another peer.
-func (p *Peer) Connect(ctx context.Context, addr peer.AddrInfo) error {
-	// Self returns the peer's id.
-	return p.host.Connect(ctx, addr)
+// Host returns the peer host.
+func (p *Peer) Host() host.Host {
+	return p.host
 }
 
 // Bootstrap the market peer against Config.Bootstrap network peers.

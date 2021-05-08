@@ -115,7 +115,7 @@ func (s *Service) Subscribe(bootstrap bool) error {
 	auctions.SetMessageHandler(s.auctionsHandler)
 
 	// Subscribe to our own wins topic
-	wins, err := s.peer.NewTopic(s.ctx, broker.WinsTopic(s.peer.Self()), true)
+	wins, err := s.peer.NewTopic(s.ctx, broker.WinsTopic(s.peer.Host().ID()), true)
 	if err != nil {
 		if err := auctions.Close(); err != nil {
 			log.Errorf("closing auctions feed: %v", err)
@@ -136,7 +136,7 @@ func (s *Service) Subscribe(bootstrap bool) error {
 
 // GetSigningMessage returns a message to be signed by a miner address.
 func (s *Service) GetSigningMessage() string {
-	return hex.EncodeToString([]byte(s.peer.Self()))
+	return hex.EncodeToString([]byte(s.peer.Host().ID()))
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
