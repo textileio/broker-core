@@ -27,7 +27,7 @@ func init() {
 		{Name: "batch-frequency", DefValue: "20s", Description: "Frequency in which a new batch gets created"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
@@ -39,6 +39,7 @@ var rootCmd = &cobra.Command{
 	Short: "packerd handles deal auctions for the Broker",
 	Long:  "packerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

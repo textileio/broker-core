@@ -110,7 +110,8 @@ func newClient(t *testing.T) *client.Client {
 		RepoPath: dir,
 		Listener: listener,
 		Peer: marketpeer.Config{
-			RepoPath: dir,
+			RepoPath:   dir,
+			EnableMDNS: true,
 		},
 		Auction: auctioneer.AuctionConfig{
 			Duration: time.Second * 10,
@@ -127,7 +128,7 @@ func newClient(t *testing.T) *client.Client {
 	s, err := service.New(config, broker)
 	require.NoError(t, err)
 	fin.Add(s)
-	err = s.EnableMDNS(1)
+	err = s.Start(false)
 	require.NoError(t, err)
 
 	dialer := func(context.Context, string) (net.Conn, error) {
@@ -146,7 +147,8 @@ func addMiners(t *testing.T, n int) {
 		config := minersrv.Config{
 			RepoPath: dir,
 			Peer: marketpeer.Config{
-				RepoPath: dir,
+				RepoPath:   dir,
+				EnableMDNS: true,
 			},
 			BidParams: minersrv.BidParams{
 				AskPrice: 100000000000,
@@ -164,7 +166,7 @@ func addMiners(t *testing.T, n int) {
 		}
 		s, err := minersrv.New(config)
 		require.NoError(t, err)
-		err = s.EnableMDNS(1)
+		err = s.Subscribe(false)
 		require.NoError(t, err)
 
 		t.Cleanup(func() {

@@ -22,11 +22,7 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
-		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 		{Name: "repo", DefValue: "${HOME}/.miner", Description: "Repo path"},
-		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
-		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{
 			Name:        "ask-price",
 			DefValue:    100000000000,
@@ -52,7 +48,11 @@ func init() {
 			DefValue:    32 * 1000 * 1000 * 1000,
 			Description: "Maximum deal size to bid on; default is 32GB",
 		},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level log"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
+	flags = append(flags, marketpeer.Flags...)
 
 	common.ConfigureCLI(v, "MINER", flags, rootCmd)
 }
@@ -62,12 +62,14 @@ var rootCmd = &cobra.Command{
 	Short: "minerd is used by a miner to listen for deals from the Broker",
 	Long:  "minerd is used by a miner to listen for deals from the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
+			"minerd",
 			"miner/service",
 			"mpeer",
+			"pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
-
 	},
 	Run: func(c *cobra.Command, args []string) {
 		fin := finalizer.NewFinalizer()
@@ -81,10 +83,7 @@ var rootCmd = &cobra.Command{
 
 		config := service.Config{
 			RepoPath: v.GetString("repo"),
-			Peer: marketpeer.Config{
-				RepoPath:      v.GetString("repo"),
-				HostMultiaddr: v.GetString("host-multiaddr"),
-			},
+			Peer:     marketpeer.ConfigFromFlags(v, false),
 			BidParams: service.BidParams{
 				AskPrice: v.GetInt64("ask-price"),
 			},
@@ -103,9 +102,8 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
-		serv.Bootstrap()
-		err = serv.EnableMDNS(1)
-		common.CheckErrf("enabling mdns: %v", err)
+		err = serv.Subscribe(true)
+		common.CheckErrf("subscribing to deal auction feed: %v", err)
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

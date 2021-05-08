@@ -40,7 +40,7 @@ func TestSuccess(t *testing.T) {
 
 	// Call Get(..)
 	req = httptest.NewRequest("GET", "/storagerequest/"+responseSR.ID, nil)
-	req.Header.Add("Authorization", "foo")
+	req.Header.Add("Authorization", "Bearer foo")
 	res = httptest.NewRecorder()
 	mux.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
@@ -63,7 +63,7 @@ func TestFail(t *testing.T) {
 		{
 			name:               "wrong method",
 			method:             "GET",
-			authHeader:         []string{"valid-auth"},
+			authHeader:         []string{"Bearer valid-auth"},
 			expectedStatusCode: http.StatusBadRequest,
 		},
 		{
@@ -81,7 +81,7 @@ func TestFail(t *testing.T) {
 		{
 			name:               "wrong auth",
 			method:             "POST",
-			authHeader:         []string{"invalid-auth"},
+			authHeader:         []string{"Bearer invalid-auth"},
 			expectedStatusCode: http.StatusUnauthorized,
 		},
 	}
@@ -145,7 +145,7 @@ func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 
 	req := httptest.NewRequest("POST", "/upload", pr)
 	req.Header.Add("Content-Type", writer.FormDataContentType())
-	req.Header.Add("Authorization", "foo")
+	req.Header.Add("Authorization", "Bearer foo")
 	res := httptest.NewRecorder()
 
 	return req, res

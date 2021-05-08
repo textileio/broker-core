@@ -28,15 +28,15 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
-		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 		{Name: "repo", DefValue: "${HOME}/.auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "host-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "Libp2p host listen multiaddr"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
+	flags = append(flags, marketpeer.Flags...)
 
 	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd)
 }
@@ -46,11 +46,14 @@ var rootCmd = &cobra.Command{
 	Short: "auctioneerd handles deal auctions for the Broker",
 	Long:  "auctioneerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
+			"auctioneerd",
 			"auctioneer",
 			"auctioneer/queue",
 			"auctioneer/service",
 			"mpeer",
+			"pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},
@@ -75,10 +78,7 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			RepoPath: v.GetString("repo"),
 			Listener: listener,
-			Peer: marketpeer.Config{
-				RepoPath:      v.GetString("repo"),
-				HostMultiaddr: v.GetString("host-multiaddr"),
-			},
+			Peer:     marketpeer.ConfigFromFlags(v, true),
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},
@@ -87,9 +87,8 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
-		serv.Bootstrap()
-		err = serv.EnableMDNS(1)
-		common.CheckErrf("enabling mdns: %v", err)
+		err = serv.Start(true)
+		common.CheckErrf("creating deal auction feed: %v", err)
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

@@ -23,9 +23,9 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "near-addr", DefValue: "", Description: "neard service api address"},
+		{Name: "near-addr", DefValue: "", Description: "NEAR chain API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
@@ -37,9 +37,9 @@ var rootCmd = &cobra.Command{
 	Short: "authd provides authentication services for the Broker",
 	Long:  `authd provides authentication services for the Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
-
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")

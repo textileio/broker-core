@@ -22,6 +22,7 @@ type Flag struct {
 	Name        string
 	DefValue    interface{}
 	Description string
+	Repeatable  bool
 }
 
 // ConfigureCLI configures a Viper environment with flags and envs.
@@ -33,7 +34,11 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 	for _, flag := range flags {
 		switch defval := flag.DefValue.(type) {
 		case string:
-			rootCmd.Flags().String(flag.Name, defval, flag.Description)
+			if flag.Repeatable {
+				rootCmd.Flags().StringSlice(flag.Name, []string{defval}, flag.Description)
+			} else {
+				rootCmd.Flags().String(flag.Name, defval, flag.Description)
+			}
 			v.SetDefault(flag.Name, defval)
 		case bool:
 			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
@@ -56,8 +61,14 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 		if err := v.BindPFlag(flag.Name, rootCmd.Flags().Lookup(flag.Name)); err != nil {
 			log.Fatalf("binding flag %s: %s", flag.Name, err)
 		}
-		if str, ok := v.Get(flag.Name).(string); ok {
-			v.Set(flag.Name, os.ExpandEnv(str))
+	}
+}
+
+// ExpandEnvVars expands env vars present in the config.
+func ExpandEnvVars(v *viper.Viper, settings map[string]interface{}) {
+	for name, val := range settings {
+		if str, ok := val.(string); ok {
+			v.Set(name, os.ExpandEnv(str))
 		}
 	}
 }
@@ -94,6 +105,19 @@ func ConfigureLogging(v *viper.Viper, logLevels []string) error {
 		return fmt.Errorf("set log levels: %s", err)
 	}
 	return nil
+}
+
+// ParseStringSlice returns a single slice of values that may have been set by either repeating
+// a flag or using comma separation in a single flag.
+// This is used to enable repeated flags as well as env vars that can't be repeated.
+// In either case, Viper understands how to write the config entry as a list.
+func ParseStringSlice(v *viper.Viper, key string) []string {
+	var vals []string
+	for _, val := range v.GetStringSlice(key) {
+		parts := strings.Split(val, ",")
+		vals = append(vals, parts...)
+	}
+	return vals
 }
 
 // SetupInstrumentation starts a metrics endpoint.

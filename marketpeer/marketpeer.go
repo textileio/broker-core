@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
@@ -19,6 +20,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ps "github.com/libp2p/go-libp2p-pubsub"
+	quic "github.com/libp2p/go-libp2p-quic-transport"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer/mdns"
@@ -30,17 +32,29 @@ var log = golog.Logger("mpeer")
 
 // Config defines params for Peer configuration.
 type Config struct {
-	RepoPath      string
-	HostMultiaddr string
-	ConnManager   cconnmgr.ConnManager
+	RepoPath                 string
+	ListenMultiaddrs         []string
+	AnnounceMultiaddrs       []string
+	BootstrapAddrs           []string
+	ConnManager              cconnmgr.ConnManager
+	EnableQUIC               bool
+	EnableNATPortMap         bool
+	EnableMDNS               bool
+	MDNSIntervalSeconds      int
+	EnablePubSubPeerExchange bool
+	EnablePubSubFloodPublish bool
 }
 
 func setDefaults(conf *Config) {
-	if len(conf.HostMultiaddr) == 0 {
-		conf.HostMultiaddr = "/ip4/0.0.0.0/tcp/0"
+	if len(conf.ListenMultiaddrs) == 0 {
+		conf.ListenMultiaddrs = []string{"/ip4/0.0.0.0/tcp/0"}
 	}
+	// conf.BootstrapAddrs = append(conf.BootstrapAddrs, ipfsconfig.DefaultBootstrapAddresses...)
 	if conf.ConnManager == nil {
-		conf.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
+		conf.ConnManager = connmgr.NewConnManager(256, 512, time.Second*120)
+	}
+	if conf.MDNSIntervalSeconds <= 0 {
+		conf.MDNSIntervalSeconds = 1
 	}
 }
 
@@ -49,6 +63,7 @@ type Peer struct {
 	host      host.Host
 	peer      *ipfslite.Peer
 	ps        *ps.PubSub
+	bootstrap []peer.AddrInfo
 	finalizer *finalizer.Finalizer
 }
 
@@ -56,9 +71,34 @@ type Peer struct {
 func New(conf Config) (*Peer, error) {
 	setDefaults(&conf)
 
-	hostAddr, err := multiaddr.NewMultiaddr(conf.HostMultiaddr)
+	listenAddr, err := parseMultiaddrs(conf.ListenMultiaddrs)
 	if err != nil {
-		return nil, fmt.Errorf("parsing host multiaddress: %s", err)
+		return nil, fmt.Errorf("parsing listen addresses: %v", err)
+	}
+	announceAddrs, err := parseMultiaddrs(conf.AnnounceMultiaddrs)
+	if err != nil {
+		return nil, fmt.Errorf("parsing announce addresses: %v", err)
+	}
+	bootstrap, err := ipfsconfig.ParseBootstrapPeers(conf.BootstrapAddrs)
+	if err != nil {
+		return nil, fmt.Errorf("parsing bootstrap addresses: %v", err)
+	}
+
+	opts := []libp2p.Option{
+		libp2p.ConnectionManager(conf.ConnManager),
+		libp2p.DefaultTransports,
+		libp2p.DisableRelay(),
+	}
+	if len(announceAddrs) != 0 {
+		opts = append(opts, libp2p.AddrsFactory(func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
+			return announceAddrs
+		}))
+	}
+	if conf.EnableNATPortMap {
+		opts = append(opts, libp2p.NATPortMap())
+	}
+	if conf.EnableQUIC {
+		opts = append(opts, libp2p.Transport(quic.NewTransport))
 	}
 
 	fin := finalizer.NewFinalizer()
@@ -70,55 +110,68 @@ func New(conf Config) (*Peer, error) {
 	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
 		return nil, fmt.Errorf("making dir: %v", err)
 	}
-	lstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
+	dstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
 	if err != nil {
 		return nil, fin.Cleanupf("creating repo: %v", err)
 	}
-	fin.Add(lstore)
-	pstore, err := pstoreds.NewPeerstore(ctx, lstore, pstoreds.DefaultOpts())
+	fin.Add(dstore)
+	pstore, err := pstoreds.NewPeerstore(ctx, dstore, pstoreds.DefaultOpts())
 	if err != nil {
 		return nil, fin.Cleanupf("creating peerstore: %v", err)
 	}
 	fin.Add(pstore)
+	opts = append(opts, libp2p.Peerstore(pstore))
 
-	// Setup libp2p
 	hostKey, err := getHostKey(conf.RepoPath)
 	if err != nil {
 		return nil, fin.Cleanupf("getting host key: %v", err)
 	}
-	lhost, dht, err := ipfslite.SetupLibp2p(
-		ctx,
-		hostKey,
-		nil,
-		[]multiaddr.Multiaddr{hostAddr},
-		lstore,
-		libp2p.Peerstore(pstore),
-		libp2p.ConnectionManager(conf.ConnManager),
-		libp2p.DisableRelay(),
-	)
+
+	// Setup libp2p
+	lhost, dht, err := ipfslite.SetupLibp2p(ctx, hostKey, nil, listenAddr, dstore, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("setting up libp2p", err)
 	}
 	fin.Add(lhost, dht)
 
 	// Create ipfslite peer
-	lpeer, err := ipfslite.New(ctx, lstore, lhost, dht, nil)
+	lpeer, err := ipfslite.New(ctx, dstore, lhost, dht, nil)
 	if err != nil {
 		return nil, fin.Cleanupf("creating ipfslite peer", err)
 	}
 
 	// Setup pubsub
-	gps, err := ps.NewGossipSub(ctx, lhost)
+	gps, err := ps.NewGossipSub(
+		ctx,
+		lhost,
+		ps.WithPeerExchange(conf.EnablePubSubPeerExchange),
+		ps.WithFloodPublish(conf.EnablePubSubFloodPublish),
+		ps.WithDirectPeers(bootstrap),
+	)
 	if err != nil {
 		return nil, fin.Cleanupf("starting libp2p pubsub: %v", err)
 	}
 
-	return &Peer{
+	log.Infof("marketpeer %s is online", lhost.ID())
+	log.Debugf("marketpeer addresses: %v", lhost.Addrs())
+
+	p := &Peer{
 		host:      lhost,
 		peer:      lpeer,
 		ps:        gps,
+		bootstrap: bootstrap,
 		finalizer: fin,
-	}, nil
+	}
+
+	if conf.EnableMDNS {
+		if err := mdns.Start(ctx, p.host, conf.MDNSIntervalSeconds); err != nil {
+			return nil, fin.Cleanupf("enabling mdns: %v", err)
+		}
+
+		log.Infof("mdns was enabled (interval=%ds)", conf.MDNSIntervalSeconds)
+	}
+
+	return p, nil
 }
 
 // Close the peer.
@@ -131,24 +184,17 @@ func (p *Peer) Self() peer.ID {
 	return p.host.ID()
 }
 
-// Bootstrap the market peer against well-known network peers.
-func (p *Peer) Bootstrap() {
-	p.peer.Bootstrap(ipfslite.DefaultBootstrapPeers())
-	log.Info("peer was bootstapped")
+// Connect to another peer.
+func (p *Peer) Connect(ctx context.Context, addr peer.AddrInfo) error {
+	// Self returns the peer's id.
+	return p.host.Connect(ctx, addr)
 }
 
-// EnableMDNS enables an MDNS discovery service.
-// This is useful on a local network (testing).
-func (p *Peer) EnableMDNS(internalSecs int) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.finalizer.Add(finalizer.NewContextCloser(cancel))
-
-	if err := mdns.Start(ctx, p.host, internalSecs); err != nil {
-		return err
-	}
-
-	log.Infof("mdns was enabled (interval=%ds)", internalSecs)
-	return nil
+// Bootstrap the market peer against Config.Bootstrap network peers.
+// Some well-known network peers are included by default.
+func (p *Peer) Bootstrap() {
+	p.peer.Bootstrap(p.bootstrap)
+	log.Info("peer was bootstapped")
 }
 
 // NewTopic returns a new pubsub.Topic using the peer's host.
@@ -193,4 +239,16 @@ func getHostKey(repoPath string) (crypto.PrivKey, error) {
 		}
 		return crypto.UnmarshalPrivateKey(bytes)
 	}
+}
+
+func parseMultiaddrs(strs []string) ([]multiaddr.Multiaddr, error) {
+	addrs := make([]multiaddr.Multiaddr, len(strs))
+	for i, a := range strs {
+		addr, err := multiaddr.NewMultiaddr(a)
+		if err != nil {
+			return nil, fmt.Errorf("parsing multiaddress: %v", err)
+		}
+		addrs[i] = addr
+	}
+	return addrs, nil
 }

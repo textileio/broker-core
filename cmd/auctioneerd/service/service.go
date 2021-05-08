@@ -91,15 +91,11 @@ func (s *Service) Close() error {
 	return s.finalizer.Cleanup(nil)
 }
 
-// Bootstrap the market peer against well-known network peers.
-func (s *Service) Bootstrap() {
-	s.lib.Bootstrap()
-}
-
-// EnableMDNS enables an MDNS discovery service.
-// This is useful on a local network (testing).
-func (s *Service) EnableMDNS(intervalSecs int) error {
-	return s.lib.EnableMDNS(intervalSecs)
+// Start the deal auction feed.
+// If bootstrap is true, the peer will dial the configured bootstrap addresses
+// before creating the deal auction feed.
+func (s *Service) Start(bootstrap bool) error {
+	return s.lib.Start(bootstrap)
 }
 
 // ReadyToAuction creates a new auction.

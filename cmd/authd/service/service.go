@@ -10,11 +10,10 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	golog "github.com/ipfs/go-log/v2"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
 	varint "github.com/multiformats/go-varint"
 	"github.com/ockam-network/did"
-
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	"github.com/textileio/broker-core/rpc"

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	golog "github.com/ipfs/go-log/v2"
@@ -47,13 +48,15 @@ type MinMaxFilter struct {
 
 // Service is a miner service that subscribes to brokered deals.
 type Service struct {
-	peer *marketpeer.Peer
+	peer       *marketpeer.Peer
+	subscribed bool
 
 	bidParams      BidParams
 	auctionFilters AuctionFilters
 
 	ctx       context.Context
 	finalizer *finalizer.Finalizer
+	lk        sync.Mutex
 }
 
 // New returns a new Service.
@@ -74,29 +77,11 @@ func New(conf Config) (*Service, error) {
 		bidParams:      conf.BidParams,
 		auctionFilters: conf.AuctionFilters,
 		ctx:            ctx,
+		finalizer:      fin,
 	}
-
-	// Subscribe to the global auctions topic
-	auctions, err := p.NewTopic(ctx, broker.AuctionTopic, true)
-	if err != nil {
-		return nil, fin.Cleanupf("creating auctions topic: %v", err)
-	}
-	fin.Add(auctions)
-	auctions.SetEventHandler(s.eventHandler)
-	auctions.SetMessageHandler(s.auctionsHandler)
-
-	// Subscribe to our own wins topic
-	wins, err := p.NewTopic(ctx, broker.WinsTopic(p.Self()), true)
-	if err != nil {
-		return nil, fin.Cleanupf("creating wins topic: %v", err)
-	}
-	fin.Add(wins)
-	wins.SetEventHandler(s.eventHandler)
-	wins.SetMessageHandler(s.winsHandler)
 
 	log.Info("service started")
 
-	s.finalizer = fin
 	return s, nil
 }
 
@@ -106,15 +91,47 @@ func (s *Service) Close() error {
 	return s.finalizer.Cleanup(nil)
 }
 
-// Bootstrap the market peer against well-known network peers.
-func (s *Service) Bootstrap() {
-	s.peer.Bootstrap()
-}
+// Subscribe to the deal auction feed.
+// If bootstrap is true, the peer will dial the configured bootstrap addresses
+// before joining the deal auction feed.
+func (s *Service) Subscribe(bootstrap bool) error {
+	s.lk.Lock()
+	defer s.lk.Unlock()
+	if s.subscribed {
+		return nil
+	}
 
-// EnableMDNS enables an MDNS discovery service.
-// This is useful on a local network (testing).
-func (s *Service) EnableMDNS(intervalSecs int) error {
-	return s.peer.EnableMDNS(intervalSecs)
+	// Bootstrap against configured addresses.
+	if bootstrap {
+		s.peer.Bootstrap()
+	}
+
+	// Subscribe to the global auctions topic
+	auctions, err := s.peer.NewTopic(s.ctx, broker.AuctionTopic, true)
+	if err != nil {
+		return fmt.Errorf("creating auctions topic: %v", err)
+	}
+	auctions.SetEventHandler(s.eventHandler)
+	auctions.SetMessageHandler(s.auctionsHandler)
+
+	// Subscribe to our own wins topic
+	wins, err := s.peer.NewTopic(s.ctx, broker.WinsTopic(s.peer.Self()), true)
+	if err != nil {
+		if err := auctions.Close(); err != nil {
+			log.Errorf("closing auctions feed: %v", err)
+		}
+		return fmt.Errorf("creating wins topic: %v", err)
+	}
+	wins.SetEventHandler(s.eventHandler)
+	wins.SetMessageHandler(s.winsHandler)
+
+	s.finalizer.Add(auctions)
+	s.finalizer.Add(wins)
+
+	log.Info("subscribed to the deal auction feed")
+
+	s.subscribed = true
+	return nil
 }
 
 // GetSigningMessage returns a message to be signed by a miner address.

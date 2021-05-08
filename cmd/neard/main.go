@@ -26,16 +26,16 @@ var (
 )
 
 var flags = []common.Flag{
-	{Name: "rpc-addr", DefValue: "", Description: "The host and port the gRPC service should listen on."},
-	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus endpoint"},
-	{Name: "endpoint-url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use."},
-	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url."},
-	{Name: "lockbox-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box contract."},
-	{Name: "client-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the user of this client."},
-	{Name: "client-private-key", DefValue: "", Description: "The NEAR private key string of the client account."},
-	{Name: "update-frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state."},
-	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls."},
-	{Name: "debug", DefValue: false, Description: "Enable debug level logs."},
+	{Name: "rpc-addr", DefValue: "", Description: "gRPC listen address"},
+	{Name: "endpoint-url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use"},
+	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url"},
+	{Name: "lockbox-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box contract"},
+	{Name: "client-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the user of this client"},
+	{Name: "client-private-key", DefValue: "", Description: "The NEAR private key string of the client account"},
+	{Name: "update-frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state"},
+	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls"},
+	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+	{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 	{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 }
 
@@ -48,6 +48,7 @@ var rootCmd = &cobra.Command{
 	Short: "neard is provides an api to the near blockchain",
 	Long:  `neard is provides an api to the near blockchain`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

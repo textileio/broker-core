@@ -22,9 +22,9 @@ func init() {
 		{Name: "http-addr", DefValue: ":8888", Description: "HTTP API listen address"},
 		{Name: "uploader-ipfs-multiaddr", DefValue: "/ip4/127.0.0.1/tcp/5001", Description: "Uploader IPFS API pool"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
+		{Name: "auth-addr", DefValue: "", Description: "Authorizer API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "auth-addr", DefValue: "", Description: "The authd address"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
@@ -36,6 +36,7 @@ var rootCmd = &cobra.Command{
 	Short: "storaged provides a synchronous data uploader endpoint to store data in a Broker",
 	Long:  `storaged provides a synchronous data uploader endpoint to store data in a Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},

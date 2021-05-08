@@ -22,14 +22,14 @@ func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
-		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer address"},
-		{Name: "dealer-addr", DefValue: "", Description: "Dealer address"},
+		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
+		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
+		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
-		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
-		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "deal-epochs", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
@@ -41,6 +41,7 @@ var rootCmd = &cobra.Command{
 	Short: "brokerd is a Broker to store data in Filecoin",
 	Long:  `brokerd is a Broker to store data in Filecoin`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
+		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
 		common.CheckErrf("setting log levels: %v", err)
 	},
