@@ -21,12 +21,12 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
+		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "deal-epochs", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},

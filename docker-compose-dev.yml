@@ -6,9 +6,10 @@ services:
       dockerfile: ./cmd/authd/Dockerfile
     platform: linux/amd64
     environment:
+      - AUTH_LOG_DEBUG=true
+      - AUTH_LOG_JSON=true
       - AUTH_RPC_ADDR=:5000
       - AUTH_NEAR_ADDR=neard:5000
-      - AUTH_DEBUG=true
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -21,8 +22,9 @@ services:
       dockerfile: ./cmd/neard/Dockerfile
     platform: linux/amd64
     environment:
+      - NEAR_LOG_DEBUG=true
+      - NEAR_LOG_JSON=true
       - NEAR_RPC_ADDR=:5000
-      - NEAR_DEBUG=true
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -33,7 +35,8 @@ services:
       dockerfile: ./cmd/storaged/Dockerfile
     platform: linux/amd64
     environment:
-      - STORAGE_DEBUG=true
+      - STORAGE_LOG_DEBUG=true
+      - STORAGE_LOG_JSON=true
       - STORAGE_HTTP_ADDR=:8888
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - STORAGE_BROKER_ADDR=brokerd:5000
@@ -55,7 +58,8 @@ services:
     volumes:
       - "${REPO_PATH}/auctioneerd:/data/auctioneerd"
     environment:
-      - AUCTIONEER_DEBUG=true
+      - AUCTIONEER_LOG_DEBUG=true
+      - AUCTIONEER_LOG_JSON=true
       - AUCTIONEER_RPC_ADDR=:5000
       - AUCTIONEER_BROKER_ADDR=brokerd:5000
       - AUCTIONEER_AUCTION_DURATION=10000000000
@@ -73,7 +77,8 @@ services:
     volumes:
       - "${REPO_PATH}/minerd:/data/minerd"
     environment:
-      - MINER_DEBUG=true
+      - MINER_LOG_DEBUG=true
+      - MINER_LOG_JSON=true
       - MINER_ASK_PRICE=100000000000
       - MINER_DEAL_DURATION_MIN=525600
       - MINER_DEAL_DURATION_MAX=1051200
@@ -89,7 +94,8 @@ services:
       dockerfile: ./cmd/brokerd/Dockerfile
     platform: linux/amd64
     environment:
-      - BROKER_DEBUG=true
+      - BROKER_LOG_DEBUG=true
+      - BROKER_LOG_JSON=true
       - BROKER_RPC_ADDR=:5000
       - BROKER_MONGO_URI=mongodb://mongo:27017
       - BROKER_MONGO_DBNAME=brokerd
@@ -112,7 +118,8 @@ services:
       dockerfile: ./cmd/packerd/Dockerfile
     platform: linux/amd64
     environment:
-      - PACKER_DEBUG=true
+      - PACKER_LOG_DEBUG=true
+      - PACKER_LOG_JSON=true
       - PACKER_RPC_ADDR=:5000
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
@@ -131,7 +138,8 @@ services:
       dockerfile: ./cmd/dealerd/Dockerfile
     platform: linux/amd64
     environment:
-      - DEALER_DEBUG=true
+      - DEALER_LOG_DEBUG=true
+      - DEALER_LOG_JSON=true
       - DEALER_RPC_ADDR=:5000
       - DEALER_MONGO_URI=mongodb://mongo:27017
       - DEALER_MONGO_DBNAME=dealerd
@@ -143,7 +151,6 @@ services:
       - SYS_PTRACE
     depends_on:
       - brokerd
-
   mongo:
     image: mongo:latest
     platform: linux/amd64

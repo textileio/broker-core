@@ -26,27 +26,27 @@ func init() {
 		{
 			Name:        "ask-price",
 			DefValue:    100000000000,
-			Description: "Bid ask price in attoFIL per GiB per epoch; default is 100000000000 or 100 nanoFIL",
+			Description: "Bid ask price in attoFIL per GiB per epoch; default is 100 nanoFIL",
 		},
 		{
 			Name:        "deal-duration-min",
 			DefValue:    broker.MinDealEpochs,
-			Description: "Minimum deal duration to bid on; default is 525600 or ~6 months",
+			Description: "Minimum deal duration to bid on in epochs; default is ~6 months",
 		},
 		{
 			Name:        "deal-duration-max",
 			DefValue:    broker.MaxDealEpochs,
-			Description: "Maximum deal duration to bid on; default is 1051200 or ~1 year",
+			Description: "Maximum deal duration to bid on in epochs; default is ~1 year",
 		},
 		{
 			Name:        "deal-size-min",
 			DefValue:    56 * 1024,
-			Description: "Minimum deal size to bid on; default is 56KiB",
+			Description: "Minimum deal size to bid on in bytes",
 		},
 		{
 			Name:        "deal-size-max",
 			DefValue:    32 * 1000 * 1000 * 1000,
-			Description: "Maximum deal size to bid on; default is 32GB",
+			Description: "Maximum deal size to bid on in bytes",
 		},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level log"},

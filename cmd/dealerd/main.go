@@ -20,6 +20,8 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
+		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{
@@ -27,8 +29,6 @@ func init() {
 			DefValue:    "",
 			Description: "Exported wallet address for deal making",
 		},
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},

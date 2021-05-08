@@ -11,22 +11,25 @@ import (
 // Flags defines daemon flags for a marketpeer.
 var Flags = []common.Flag{
 	{
-		Name:        "listen-multiaddr",
-		DefValue:    "/ip4/0.0.0.0/tcp/4001",
-		Description: "Libp2p listen multiaddr; repeatable",
-		Repeatable:  true,
+		Name: "listen-multiaddr",
+		DefValue: []string{
+			"/ip4/0.0.0.0/tcp/4001",
+			"/ip4/0.0.0.0/udp/4001/quic",
+		},
+		Description: "Libp2p listen multiaddr",
 	},
 	{
-		Name:        "bootstrap-multiaddr",
-		DefValue:    "",
-		Description: "Libp2p bootstrap peer multiaddr; repeatable",
-		Repeatable:  true,
+		Name: "bootstrap-multiaddr",
+		DefValue: []string{
+			"/ip4/34.83.24.156/tcp/4001/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ",
+			"/ip4/34.83.24.156/udp/4001/quic/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ",
+		},
+		Description: "Libp2p bootstrap peer multiaddr",
 	},
 	{
 		Name:        "announce-multiaddr",
-		DefValue:    "",
-		Description: "Libp2p annouce multiaddr; repeatable",
-		Repeatable:  true,
+		DefValue:    []string{},
+		Description: "Libp2p annouce multiaddr",
 	},
 	{
 		Name:        "conn-low",

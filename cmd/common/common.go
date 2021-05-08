@@ -22,7 +22,6 @@ type Flag struct {
 	Name        string
 	DefValue    interface{}
 	Description string
-	Repeatable  bool
 }
 
 // ConfigureCLI configures a Viper environment with flags and envs.
@@ -34,11 +33,10 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 	for _, flag := range flags {
 		switch defval := flag.DefValue.(type) {
 		case string:
-			if flag.Repeatable {
-				rootCmd.Flags().StringSlice(flag.Name, []string{defval}, flag.Description)
-			} else {
-				rootCmd.Flags().String(flag.Name, defval, flag.Description)
-			}
+			rootCmd.Flags().String(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
+		case []string:
+			rootCmd.Flags().StringSlice(flag.Name, defval, flag.Description+"; repeatable")
 			v.SetDefault(flag.Name, defval)
 		case bool:
 			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
@@ -77,14 +75,19 @@ func ExpandEnvVars(v *viper.Viper, settings map[string]interface{}) {
 // If logLevels is not nil, only logLevels values will be configured to Info/Debug depending
 // on viper flags. if logLevels is nil, all sub-logs will be configured.
 func ConfigureLogging(v *viper.Viper, logLevels []string) error {
+	var format logger.LogFormat
 	logJSON := v.GetBool("log-json")
 	if logJSON {
-		logger.SetupLogging(logger.Config{
-			Format: logger.JSONOutput,
-			Stderr: false,
-			Stdout: true,
-		})
+		format = logger.JSONOutput
+	} else {
+		format = logger.ColorizedOutput
 	}
+	logger.SetupLogging(logger.Config{
+		Format: format,
+		Level:  logger.LevelError,
+		Stderr: false,
+		Stdout: true,
+	})
 
 	logLevel := logger.LevelInfo
 	if v.GetBool("log-debug") {
