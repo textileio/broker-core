@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = golog.Logger("miner/service")
+var log = golog.Logger("bidbot/service")
 
 // Config defines params for Service configuration.
 type Config struct {

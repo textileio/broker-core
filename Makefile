@@ -36,9 +36,9 @@ build-auctioneerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
 .PHONY: build-auctioneerd
 
-build-minerd: $(GOVVV)
-	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
-.PHONY: build-minerd
+build-bidbot: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/bidbot
+.PHONY: build-bidbot
 
 build-packerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/packerd
@@ -53,9 +53,9 @@ install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
 
-install-minerd: $(GOVVV)
-	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/minerd
-.PHONY: install-minerd
+install-bidbot: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./cmd/bidbot
+.PHONY: install-bidbot
 
 define gen_release_files
 	$(GOX) -osarch=$(3) -output="build/$(2)/$(2)_${BIN_VERSION}_{{.OS}}-{{.Arch}}/$(2)" -ldflags="${GOVVV_FLAGS}" $(1)
@@ -126,6 +126,12 @@ define docker_push_daemon_head
 	done
 endef
 
+define docker_push_bidbot_head
+	echo docker buildx build --platform linux/amd64 --push -t textile/bidbot:sha-$(HEAD_SHORT) -f cmd/bidbot/Dockerfile .;
+	docker buildx build --platform linux/amd64 --push -t textile/bidbot:sha-$(HEAD_SHORT) -f cmd/bidbot/Dockerfile .;
+endef
+
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneer auth broker dealer miner near packer storage)
+	$(call docker_push_daemon_head,auctioneer auth broker dealer near packer storage);
+	$(call docker_push_bidbot_head);
 .PHONY: docker-push-head

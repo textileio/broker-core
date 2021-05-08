@@ -8,21 +8,21 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/common"
-	"github.com/textileio/broker-core/cmd/minerd/service"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer"
 )
 
 var (
-	daemonName = "minerd"
+	daemonName = "bidbot"
 	log        = golog.Logger(daemonName)
 	v          = viper.New()
 )
 
 func init() {
 	flags := []common.Flag{
-		{Name: "repo", DefValue: "${HOME}/.miner", Description: "Repo path"},
+		{Name: "repo", DefValue: "${HOME}/.bidbot", Description: "Repo path"},
 		{
 			Name:        "ask-price",
 			DefValue:    100000000000,
@@ -54,18 +54,18 @@ func init() {
 	}
 	flags = append(flags, marketpeer.Flags...)
 
-	common.ConfigureCLI(v, "MINER", flags, rootCmd)
+	common.ConfigureCLI(v, "BIDBOT", flags, rootCmd)
 }
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "minerd is used by a miner to listen for deals from the Broker",
-	Long:  "minerd is used by a miner to listen for deals from the Broker",
+	Short: "bidbot is used by a miner to listen for deals from the Broker",
+	Long:  "bidbot is used by a miner to listen for deals from the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
-			"minerd",
-			"miner/service",
+			"bidbot",
+			"bidbot/service",
 			"mpeer",
 			"pubsub",
 		})

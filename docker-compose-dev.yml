@@ -69,21 +69,21 @@ services:
       - SYS_PTRACE
     depends_on:
       - brokerd
-  minerd:
+  bidbot:
     build:
       context: .
-      dockerfile: ./cmd/minerd/Dockerfile
+      dockerfile: ./cmd/bidbot/Dockerfile
     platform: linux/amd64
     volumes:
-      - "${REPO_PATH}/minerd:/data/minerd"
+      - "${REPO_PATH}/bidbot:/data/bidbot"
     environment:
-      - MINER_LOG_DEBUG=true
-      - MINER_LOG_JSON=true
-      - MINER_ASK_PRICE=100000000000
-      - MINER_DEAL_DURATION_MIN=525600
-      - MINER_DEAL_DURATION_MAX=1051200
-      - MINER_DEAL_SIZE_MIN=57344
-      - MINER_DEAL_SIZE_MAX=32000000000
+      - BIDBOT_LOG_DEBUG=true
+      - BIDBOT_LOG_JSON=true
+      - BIDBOT_ASK_PRICE=100000000000
+      - BIDBOT_DEAL_DURATION_MIN=525600
+      - BIDBOT_DEAL_DURATION_MAX=1051200
+      - BIDBOT_DEAL_SIZE_MIN=57344
+      - BIDBOT_DEAL_SIZE_MAX=32000000000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
