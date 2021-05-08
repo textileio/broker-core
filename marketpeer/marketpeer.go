@@ -146,6 +146,7 @@ func New(conf Config) (*Peer, error) {
 		lhost,
 		ps.WithPeerExchange(conf.EnablePubSubPeerExchange),
 		ps.WithFloodPublish(conf.EnablePubSubFloodPublish),
+		ps.WithDirectPeers(bootstrap),
 	)
 	if err != nil {
 		return nil, fin.Cleanupf("starting libp2p pubsub: %v", err)

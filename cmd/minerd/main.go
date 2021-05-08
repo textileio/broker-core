@@ -67,6 +67,7 @@ var rootCmd = &cobra.Command{
 			"minerd",
 			"miner/service",
 			"mpeer",
+			"pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},

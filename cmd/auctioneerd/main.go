@@ -53,6 +53,7 @@ var rootCmd = &cobra.Command{
 			"auctioneer/queue",
 			"auctioneer/service",
 			"mpeer",
+			"pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},
