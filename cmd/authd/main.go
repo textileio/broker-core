@@ -23,9 +23,9 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "near-addr", DefValue: "", Description: "neard service api address"},
+		{Name: "near-addr", DefValue: "", Description: "NEAR chain API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 

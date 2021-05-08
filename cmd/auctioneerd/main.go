@@ -28,13 +28,13 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "debug", DefValue: false, Description: "Enable debug level logs"},
-		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 		{Name: "repo", DefValue: "${HOME}/.auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
+		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 	flags = append(flags, marketpeer.Flags...)
 
