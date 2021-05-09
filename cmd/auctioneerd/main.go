@@ -3,7 +3,6 @@ package main
 // TODO: Use mongo for auction persistence.
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	_ "net/http/pprof"
@@ -24,9 +23,10 @@ import (
 )
 
 var (
-	daemonName = "auctioneerd"
-	log        = golog.Logger(daemonName)
-	v          = viper.New()
+	daemonName        = "auctioneerd"
+	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+daemonName)
+	log               = golog.Logger(daemonName)
+	v                 = viper.New()
 )
 
 func init() {
@@ -44,7 +44,7 @@ func init() {
 		v.SetConfigType("json")
 		v.SetConfigName("config")
 		v.AddConfigPath(os.Getenv("AUCTIONEER_PATH"))
-		v.AddConfigPath(filepath.Join(os.Getenv("HOME"), daemonName))
+		v.AddConfigPath(defaultConfigPath)
 		_ = v.ReadInConfig()
 	})
 
@@ -68,14 +68,14 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(c *cobra.Command, args []string) {
 		if v.ConfigFileUsed() == "" {
-			path, err := marketpeer.WriteConfig(v, "AUCTIONEER_PATH", daemonName)
+			path, err := marketpeer.WriteConfig(v, "AUCTIONEER_PATH", defaultConfigPath)
 			common.CheckErrf("writing config: %v", err)
 			fmt.Printf("Initialized configuration file: %s\n", path)
 		}
 
 		fin := finalizer.NewFinalizer()
 
-		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
+		settings, err := marketpeer.MarshalConfig(v)
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -87,7 +87,6 @@ var rootCmd = &cobra.Command{
 
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
 		common.CheckErrf("creating listener: %v", err)
-		fin.Add(listener)
 
 		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
 		common.CheckErrf("dialing broker: %v", err)

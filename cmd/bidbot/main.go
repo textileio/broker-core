@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	_ "net/http/pprof"
 	"os"
@@ -18,9 +17,10 @@ import (
 )
 
 var (
-	cliName = "bidbot"
-	log     = golog.Logger(cliName)
-	v       = viper.New()
+	cliName           = "bidbot"
+	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+cliName)
+	log               = golog.Logger(cliName)
+	v                 = viper.New()
 )
 
 func init() {
@@ -62,7 +62,7 @@ func init() {
 		v.SetConfigType("json")
 		v.SetConfigName("config")
 		v.AddConfigPath(os.Getenv("BIDBOT_PATH"))
-		v.AddConfigPath(filepath.Join(os.Getenv("HOME"), cliName))
+		v.AddConfigPath(defaultConfigPath)
 		_ = v.ReadInConfig()
 	})
 
@@ -93,8 +93,13 @@ environment variable:
     export BIDBOT_PATH=/path/to/bidbotrepo
 `,
 	Run: func(c *cobra.Command, args []string) {
-		path, err := marketpeer.WriteConfig(v, "BIDBOT_PATH", cliName)
+		path, err := marketpeer.WriteConfig(v, "BIDBOT_PATH", defaultConfigPath)
 		common.CheckErrf("writing config: %v", err)
+
+		settings, err := marketpeer.MarshalConfig(v)
+		common.CheckErrf("marshaling config: %v", err)
+		fmt.Println(string(settings))
+
 		fmt.Printf("Initialized configuration file: %s\n", path)
 	},
 }
@@ -121,7 +126,7 @@ var daemonCmd = &cobra.Command{
 
 		fin := finalizer.NewFinalizer()
 
-		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
+		settings, err := marketpeer.MarshalConfig(v)
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 

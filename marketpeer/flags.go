@@ -2,6 +2,7 @@ package marketpeer
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -109,12 +110,12 @@ func GetConfig(v *viper.Viper, isAuctioneer bool) (Config, error) {
 	}, nil
 }
 
-// WriteConfig writes a Config to a viper.Viper config file.
-// The file is written to pathEnv if set, otherwise to a folder in the user's HOME directory.
-func WriteConfig(v *viper.Viper, pathEnv, homeFolder string) (string, error) {
+// WriteConfig writes a *viper.Viper config to file.
+// The file is written to a path in pathEnv env var if set, otherwise to defaultPath.
+func WriteConfig(v *viper.Viper, pathEnv, defaultPath string) (string, error) {
 	path := os.Getenv(pathEnv)
 	if path == "" {
-		path = filepath.Join(os.Getenv("HOME"), "."+homeFolder)
+		path = defaultPath
 	}
 	cf := filepath.Join(path, "config")
 	if err := os.MkdirAll(filepath.Dir(cf), os.ModePerm); err != nil {
@@ -145,5 +146,14 @@ func WriteConfig(v *viper.Viper, pathEnv, homeFolder string) (string, error) {
 	if err := v.WriteConfigAs(cf); err != nil {
 		return "", fmt.Errorf("error writing config: %v", err)
 	}
+	v.SetConfigFile(cf)
+	_ = v.ReadInConfig()
 	return cf, nil
+}
+
+// MarshalConfig marshals a *viper.Viper config to JSON.
+func MarshalConfig(v *viper.Viper) ([]byte, error) {
+	all := v.AllSettings()
+	all["private-key"] = "***"
+	return json.MarshalIndent(all, "", "  ")
 }
