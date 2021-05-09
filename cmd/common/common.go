@@ -10,7 +10,7 @@ import (
 	"time"
 
 	logger "github.com/ipfs/go-log/v2"
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/logging"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
@@ -25,7 +25,7 @@ type Flag struct {
 }
 
 // ConfigureCLI configures a Viper environment with flags and envs.
-func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra.Command) {
+func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, flagSet *pflag.FlagSet) {
 	v.SetEnvPrefix(envPrefix)
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
@@ -33,30 +33,30 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 	for _, flag := range flags {
 		switch defval := flag.DefValue.(type) {
 		case string:
-			rootCmd.Flags().String(flag.Name, defval, flag.Description)
+			flagSet.String(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case []string:
-			rootCmd.Flags().StringSlice(flag.Name, defval, flag.Description+"; repeatable")
+			flagSet.StringSlice(flag.Name, defval, flag.Description+"; repeatable")
 			v.SetDefault(flag.Name, defval)
 		case bool:
-			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
+			flagSet.Bool(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case int:
-			rootCmd.Flags().Int(flag.Name, defval, flag.Description)
+			flagSet.Int(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case int64:
-			rootCmd.Flags().Int64(flag.Name, defval, flag.Description)
+			flagSet.Int64(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case uint64:
-			rootCmd.Flags().Uint64(flag.Name, defval, flag.Description)
+			flagSet.Uint64(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case time.Duration:
-			rootCmd.Flags().Duration(flag.Name, defval, flag.Description)
+			flagSet.Duration(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		default:
 			log.Fatalf("unknown flag type: %T", flag)
 		}
-		if err := v.BindPFlag(flag.Name, rootCmd.Flags().Lookup(flag.Name)); err != nil {
+		if err := v.BindPFlag(flag.Name, flagSet.Lookup(flag.Name)); err != nil {
 			log.Fatalf("binding flag %s: %s", flag.Name, err)
 		}
 	}

@@ -2,9 +2,7 @@ package marketpeer
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -33,6 +31,7 @@ var log = golog.Logger("mpeer")
 // Config defines params for Peer configuration.
 type Config struct {
 	RepoPath                 string
+	PrivKey                  crypto.PrivKey
 	ListenMultiaddrs         []string
 	AnnounceMultiaddrs       []string
 	BootstrapAddrs           []string
@@ -121,13 +120,8 @@ func New(conf Config) (*Peer, error) {
 	fin.Add(pstore)
 	opts = append(opts, libp2p.Peerstore(pstore))
 
-	hostKey, err := getHostKey(conf.RepoPath)
-	if err != nil {
-		return nil, fin.Cleanupf("getting host key: %v", err)
-	}
-
 	// Setup libp2p
-	lhost, dht, err := ipfslite.SetupLibp2p(ctx, hostKey, nil, listenAddr, dstore, opts...)
+	lhost, dht, err := ipfslite.SetupLibp2p(ctx, conf.PrivKey, nil, listenAddr, dstore, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("setting up libp2p", err)
 	}
@@ -193,45 +187,6 @@ func (p *Peer) Bootstrap() {
 // NewTopic returns a new pubsub.Topic using the peer's host.
 func (p *Peer) NewTopic(ctx context.Context, topic string, subscribe bool) (*pubsub.Topic, error) {
 	return pubsub.NewTopic(ctx, p.ps, p.host.ID(), topic, subscribe)
-}
-
-func newHostKey() (crypto.PrivKey, []byte, error) {
-	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	key, err := crypto.MarshalPrivateKey(priv)
-	if err != nil {
-		return nil, nil, err
-	}
-	return priv, key, nil
-}
-
-func getHostKey(repoPath string) (crypto.PrivKey, error) {
-	dir := filepath.Join(repoPath, "ipfslite")
-	pth := filepath.Join(dir, "key")
-	_, err := os.Stat(pth)
-	if os.IsNotExist(err) {
-		key, bytes, err := newHostKey()
-		if err != nil {
-			return nil, err
-		}
-		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			return nil, err
-		}
-		if err = ioutil.WriteFile(pth, bytes, 0400); err != nil {
-			return nil, err
-		}
-		return key, nil
-	} else if err != nil {
-		return nil, err
-	} else {
-		bytes, err := ioutil.ReadFile(pth)
-		if err != nil {
-			return nil, err
-		}
-		return crypto.UnmarshalPrivateKey(bytes)
-	}
 }
 
 func parseMultiaddrs(strs []string) ([]multiaddr.Multiaddr, error) {

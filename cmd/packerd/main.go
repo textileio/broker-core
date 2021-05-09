@@ -31,7 +31,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, "packer", flags, rootCmd)
+	common.ConfigureCLI(v, "PACKER", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{

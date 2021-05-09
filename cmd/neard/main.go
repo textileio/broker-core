@@ -40,7 +40,7 @@ var flags = []common.Flag{
 }
 
 func init() {
-	common.ConfigureCLI(v, "NEAR", flags, rootCmd)
+	common.ConfigureCLI(v, "NEAR", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{

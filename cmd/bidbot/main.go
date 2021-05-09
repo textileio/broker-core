@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	_ "net/http/pprof"
+	"os"
+	"path/filepath"
 
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
@@ -15,14 +18,15 @@ import (
 )
 
 var (
-	daemonName = "bidbot"
-	log        = golog.Logger(daemonName)
-	v          = viper.New()
+	cliName = "bidbot"
+	log     = golog.Logger(cliName)
+	v       = viper.New()
 )
 
 func init() {
+	rootCmd.AddCommand(initCmd, daemonCmd)
+
 	flags := []common.Flag{
-		{Name: "repo", DefValue: "${HOME}/.bidbot", Description: "Repo path"},
 		{
 			Name:        "ask-price",
 			DefValue:    100000000000,
@@ -54,13 +58,51 @@ func init() {
 	}
 	flags = append(flags, marketpeer.Flags...)
 
-	common.ConfigureCLI(v, "BIDBOT", flags, rootCmd)
+	cobra.OnInitialize(func() {
+		v.SetConfigType("json")
+		v.SetConfigName("config")
+		v.AddConfigPath(os.Getenv("BIDBOT_PATH"))
+		v.AddConfigPath(filepath.Join(os.Getenv("HOME"), cliName))
+		_ = v.ReadInConfig()
+	})
+
+	common.ConfigureCLI(v, "BIDBOT", flags, rootCmd.PersistentFlags())
 }
 
 var rootCmd = &cobra.Command{
-	Use:   daemonName,
-	Short: "bidbot is used by a miner to listen for deals from the Broker",
-	Long:  "bidbot is used by a miner to listen for deals from the Broker",
+	Use:   cliName,
+	Short: "bidbot listens for Filecoin storage deal auctions from deal brokers",
+	Long: `bidbot listens for Filecoin storage deal auctions from deal brokers.
+
+bidbot will automatically bid on storage deals that pass configured filters at
+the configured prices.
+
+To get started, run 'bidbot init' followed by 'bidbot daemon'. 
+`,
+}
+
+var initCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initializes bidbot configuration file",
+	Long: `Initializes bidbot configuration file and generates a new keypair.
+
+bidbot uses a repository in the local file system. By default, the repo is
+located at ~/.bidbot. To change the repo location, set the $BIDBOT_PATH
+environment variable:
+
+    export BIDBOT_PATH=/path/to/bidbotrepo
+`,
+	Run: func(c *cobra.Command, args []string) {
+		path, err := marketpeer.WriteConfig(v, "BIDBOT_PATH", cliName)
+		common.CheckErrf("writing config: %v", err)
+		fmt.Printf("Initialized configuration file: %s\n", path)
+	},
+}
+
+var daemonCmd = &cobra.Command{
+	Use:   "daemon",
+	Short: "Run a network-connected bidding bot",
+	Long:  "Run a network-connected bidding bot that listens for and bids on storage deal auctions.",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
@@ -72,6 +114,11 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
+		if v.ConfigFileUsed() == "" {
+			fmt.Printf("Configuration file not found. Run '%s init'.", cliName)
+			return
+		}
+
 		fin := finalizer.NewFinalizer()
 
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
@@ -81,9 +128,12 @@ var rootCmd = &cobra.Command{
 		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
+		pconfig, err := marketpeer.GetConfig(v, false)
+		common.CheckErrf("getting peer config: %v", err)
+
 		config := service.Config{
-			RepoPath: v.GetString("repo"),
-			Peer:     marketpeer.ConfigFromFlags(v, false),
+			RepoPath: pconfig.RepoPath,
+			Peer:     pconfig,
 			BidParams: service.BidParams{
 				AskPrice: v.GetInt64("ask-price"),
 			},

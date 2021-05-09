@@ -1,15 +1,26 @@
 package marketpeer
 
 import (
+	"crypto/rand"
+	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	mbase "github.com/multiformats/go-multibase"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/common"
 )
 
 // Flags defines daemon flags for a marketpeer.
 var Flags = []common.Flag{
+	{
+		Name:        "private-key",
+		DefValue:    "",
+		Description: "Libp2p private key",
+	},
 	{
 		Name: "listen-multiaddr",
 		DefValue: []string{
@@ -68,10 +79,19 @@ var Flags = []common.Flag{
 	},
 }
 
-// ConfigFromFlags returns a Config from a *viper.Viper instance.
-func ConfigFromFlags(v *viper.Viper, isAuctioneer bool) Config {
+// GetConfig returns a Config from a *viper.Viper instance.
+func GetConfig(v *viper.Viper, isAuctioneer bool) (Config, error) {
+	_, key, err := mbase.Decode(v.GetString("private-key"))
+	if err != nil {
+		return Config{}, fmt.Errorf("decoding private key: %v", err)
+	}
+	priv, err := crypto.UnmarshalPrivateKey(key)
+	if err != nil {
+		return Config{}, fmt.Errorf("unmarshaling private key: %v", err)
+	}
 	return Config{
-		RepoPath:           v.GetString("repo"),
+		RepoPath:           filepath.Dir(v.ConfigFileUsed()),
+		PrivKey:            priv,
 		ListenMultiaddrs:   common.ParseStringSlice(v, "listen-multiaddr"),
 		AnnounceMultiaddrs: common.ParseStringSlice(v, "announce-multiaddr"),
 		BootstrapAddrs:     common.ParseStringSlice(v, "bootstrap-multiaddr"),
@@ -86,5 +106,44 @@ func ConfigFromFlags(v *viper.Viper, isAuctioneer bool) Config {
 		MDNSIntervalSeconds:      v.GetInt("mdns-interval"),
 		EnablePubSubPeerExchange: isAuctioneer,
 		EnablePubSubFloodPublish: true,
+	}, nil
+}
+
+// WriteConfig writes a Config to a viper.Viper config file.
+// The file is written to pathEnv if set, otherwise to a folder in the user's HOME directory.
+func WriteConfig(v *viper.Viper, pathEnv, homeFolder string) (string, error) {
+	path := os.Getenv(pathEnv)
+	if path == "" {
+		path = filepath.Join(os.Getenv("HOME"), "."+homeFolder)
 	}
+	cf := filepath.Join(path, "config")
+	if err := os.MkdirAll(filepath.Dir(cf), os.ModePerm); err != nil {
+		return "", fmt.Errorf("making config directory: %v", err)
+	}
+
+	// Bail if config already exists
+	if _, err := os.Stat(cf); err == nil {
+		return "", fmt.Errorf("%s already exists", cf)
+	}
+
+	if v.GetString("private-key") == "" {
+		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		if err != nil {
+			return "", fmt.Errorf("generating private key: %v", err)
+		}
+		key, err := crypto.MarshalPrivateKey(priv)
+		if err != nil {
+			return "", fmt.Errorf("marshaling private key: %v", err)
+		}
+		keystr, err := mbase.Encode(mbase.Base64, key)
+		if err != nil {
+			return "", fmt.Errorf("encoding private key: %v", err)
+		}
+		v.Set("private-key", keystr)
+	}
+
+	if err := v.WriteConfigAs(cf); err != nil {
+		return "", fmt.Errorf("error writing config: %v", err)
+	}
+	return cf, nil
 }
