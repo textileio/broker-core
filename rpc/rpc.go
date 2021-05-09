@@ -30,13 +30,8 @@ type Credentials struct {
 }
 
 // GetRequestMetadata gets the current request metadata.
-func (c Credentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
-	md := map[string]string{}
-	// // token, ok := TokenFromContext(ctx)
-	// if ok {
-	// 	md["authorization"] = "bearer " + string(token)
-	// }
-	return md, nil
+func (c Credentials) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+	return nil, nil
 }
 
 // RequireTransportSecurity indicates whether the credentials requires

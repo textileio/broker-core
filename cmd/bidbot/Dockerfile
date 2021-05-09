@@ -9,18 +9,18 @@ COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
-  BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-minerd
+  BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-bidbot
 
 FROM alpine
-COPY --from=builder /app/minerd /app/minerd
+COPY --from=builder /app/bidbot /app/bidbot
 WORKDIR /app
 
-ENV REPO_PATH /data/minerd
+ENV REPO_PATH /data/bidbot
 RUN mkdir -p $REPO_PATH \
-  && adduser -D -h $REPO_PATH -u 1000 -G users minerd \
-  && chown minerd:users $REPO_PATH
-USER minerd
+  && adduser -D -h $REPO_PATH -u 1000 -G users bidbot \
+  && chown bidbot:users $REPO_PATH
+USER bidbot
 VOLUME $REPO_PATH
 
-ENTRYPOINT ["./minerd"]
-CMD ["--repo=/data/minerd"]
+ENTRYPOINT ["./bidbot"]
+CMD ["--repo=/data/bidbot"]

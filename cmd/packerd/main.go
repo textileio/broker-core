@@ -19,11 +19,11 @@ var (
 
 func init() {
 	flags := []common.Flag{
+		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
+		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "batch-frequency", DefValue: "20s", Description: "Frequency in which a new batch gets created"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -31,7 +31,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, "packer", flags, rootCmd)
+	common.ConfigureCLI(v, "PACKER", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{

@@ -19,7 +19,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
-	minersrv "github.com/textileio/broker-core/cmd/minerd/service"
+	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/finalizer"
 	brokerpb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/logging"
@@ -41,7 +41,7 @@ func init() {
 		"auctioneer":         golog.LevelDebug,
 		"auctioneer/queue":   golog.LevelDebug,
 		"auctioneer/service": golog.LevelDebug,
-		"miner/service":      golog.LevelDebug,
+		"bidbot/service":     golog.LevelDebug,
 		"mpeer":              golog.LevelDebug,
 	}); err != nil {
 		panic(err)
@@ -118,14 +118,14 @@ func newClient(t *testing.T) *client.Client {
 		},
 	}
 
-	broker := &brokerMock{client: &mocks.APIServiceClient{}}
-	broker.client.On(
+	bm := &brokerMock{client: &mocks.APIServiceClient{}}
+	bm.client.On(
 		"StorageDealAuctioned",
 		mock.Anything,
 		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
 	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
 
-	s, err := service.New(config, broker)
+	s, err := service.New(config, bm)
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.Start(false)
@@ -144,27 +144,27 @@ func addMiners(t *testing.T, n int) {
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
-		config := minersrv.Config{
+		config := bidbotsrv.Config{
 			RepoPath: dir,
 			Peer: marketpeer.Config{
 				RepoPath:   dir,
 				EnableMDNS: true,
 			},
-			BidParams: minersrv.BidParams{
+			BidParams: bidbotsrv.BidParams{
 				AskPrice: 100000000000,
 			},
-			AuctionFilters: minersrv.AuctionFilters{
-				DealDuration: minersrv.MinMaxFilter{
+			AuctionFilters: bidbotsrv.AuctionFilters{
+				DealDuration: bidbotsrv.MinMaxFilter{
 					Min: core.MinDealEpochs,
 					Max: core.MaxDealEpochs,
 				},
-				DealSize: minersrv.MinMaxFilter{
+				DealSize: bidbotsrv.MinMaxFilter{
 					Min: 56 * 1024,
 					Max: 32 * 1000 * 1000 * 1000,
 				},
 			},
 		}
-		s, err := minersrv.New(config)
+		s, err := bidbotsrv.New(config)
 		require.NoError(t, err)
 		err = s.Subscribe(false)
 		require.NoError(t, err)

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	logger "github.com/ipfs/go-log/v2"
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/logging"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
@@ -22,11 +22,10 @@ type Flag struct {
 	Name        string
 	DefValue    interface{}
 	Description string
-	Repeatable  bool
 }
 
 // ConfigureCLI configures a Viper environment with flags and envs.
-func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra.Command) {
+func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, flagSet *pflag.FlagSet) {
 	v.SetEnvPrefix(envPrefix)
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
@@ -34,31 +33,30 @@ func ConfigureCLI(v *viper.Viper, envPrefix string, flags []Flag, rootCmd *cobra
 	for _, flag := range flags {
 		switch defval := flag.DefValue.(type) {
 		case string:
-			if flag.Repeatable {
-				rootCmd.Flags().StringSlice(flag.Name, []string{defval}, flag.Description)
-			} else {
-				rootCmd.Flags().String(flag.Name, defval, flag.Description)
-			}
+			flagSet.String(flag.Name, defval, flag.Description)
+			v.SetDefault(flag.Name, defval)
+		case []string:
+			flagSet.StringSlice(flag.Name, defval, flag.Description+"; repeatable")
 			v.SetDefault(flag.Name, defval)
 		case bool:
-			rootCmd.Flags().Bool(flag.Name, defval, flag.Description)
+			flagSet.Bool(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case int:
-			rootCmd.Flags().Int(flag.Name, defval, flag.Description)
+			flagSet.Int(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case int64:
-			rootCmd.Flags().Int64(flag.Name, defval, flag.Description)
+			flagSet.Int64(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case uint64:
-			rootCmd.Flags().Uint64(flag.Name, defval, flag.Description)
+			flagSet.Uint64(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		case time.Duration:
-			rootCmd.Flags().Duration(flag.Name, defval, flag.Description)
+			flagSet.Duration(flag.Name, defval, flag.Description)
 			v.SetDefault(flag.Name, defval)
 		default:
 			log.Fatalf("unknown flag type: %T", flag)
 		}
-		if err := v.BindPFlag(flag.Name, rootCmd.Flags().Lookup(flag.Name)); err != nil {
+		if err := v.BindPFlag(flag.Name, flagSet.Lookup(flag.Name)); err != nil {
 			log.Fatalf("binding flag %s: %s", flag.Name, err)
 		}
 	}
@@ -77,14 +75,19 @@ func ExpandEnvVars(v *viper.Viper, settings map[string]interface{}) {
 // If logLevels is not nil, only logLevels values will be configured to Info/Debug depending
 // on viper flags. if logLevels is nil, all sub-logs will be configured.
 func ConfigureLogging(v *viper.Viper, logLevels []string) error {
+	var format logger.LogFormat
 	logJSON := v.GetBool("log-json")
 	if logJSON {
-		logger.SetupLogging(logger.Config{
-			Format: logger.JSONOutput,
-			Stderr: false,
-			Stdout: true,
-		})
+		format = logger.JSONOutput
+	} else {
+		format = logger.ColorizedOutput
 	}
+	logger.SetupLogging(logger.Config{
+		Format: format,
+		Level:  logger.LevelError,
+		Stderr: false,
+		Stdout: true,
+	})
 
 	logLevel := logger.LevelInfo
 	if v.GetBool("log-debug") {

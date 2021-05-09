@@ -1,9 +1,16 @@
 package marketpeer
 
 import (
+	"crypto/rand"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	mbase "github.com/multiformats/go-multibase"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/common"
 )
@@ -11,22 +18,30 @@ import (
 // Flags defines daemon flags for a marketpeer.
 var Flags = []common.Flag{
 	{
-		Name:        "listen-multiaddr",
-		DefValue:    "/ip4/0.0.0.0/tcp/4001",
-		Description: "Libp2p listen multiaddr; repeatable",
-		Repeatable:  true,
+		Name:        "private-key",
+		DefValue:    "",
+		Description: "Libp2p private key",
 	},
 	{
-		Name:        "bootstrap-multiaddr",
-		DefValue:    "",
-		Description: "Libp2p bootstrap peer multiaddr; repeatable",
-		Repeatable:  true,
+		Name: "listen-multiaddr",
+		DefValue: []string{
+			"/ip4/0.0.0.0/tcp/4001",
+			"/ip4/0.0.0.0/udp/4001/quic",
+		},
+		Description: "Libp2p listen multiaddr",
+	},
+	{
+		Name: "bootstrap-multiaddr",
+		DefValue: []string{
+			"/ip4/34.83.24.156/tcp/4001/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ",
+			"/ip4/34.83.24.156/udp/4001/quic/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ",
+		},
+		Description: "Libp2p bootstrap peer multiaddr",
 	},
 	{
 		Name:        "announce-multiaddr",
-		DefValue:    "",
-		Description: "Libp2p annouce multiaddr; repeatable",
-		Repeatable:  true,
+		DefValue:    []string{},
+		Description: "Libp2p annouce multiaddr",
 	},
 	{
 		Name:        "conn-low",
@@ -65,10 +80,19 @@ var Flags = []common.Flag{
 	},
 }
 
-// ConfigFromFlags returns a Config from a *viper.Viper instance.
-func ConfigFromFlags(v *viper.Viper, isAuctioneer bool) Config {
+// GetConfig returns a Config from a *viper.Viper instance.
+func GetConfig(v *viper.Viper, isAuctioneer bool) (Config, error) {
+	_, key, err := mbase.Decode(v.GetString("private-key"))
+	if err != nil {
+		return Config{}, fmt.Errorf("decoding private key: %v", err)
+	}
+	priv, err := crypto.UnmarshalPrivateKey(key)
+	if err != nil {
+		return Config{}, fmt.Errorf("unmarshaling private key: %v", err)
+	}
 	return Config{
-		RepoPath:           v.GetString("repo"),
+		RepoPath:           filepath.Dir(v.ConfigFileUsed()),
+		PrivKey:            priv,
 		ListenMultiaddrs:   common.ParseStringSlice(v, "listen-multiaddr"),
 		AnnounceMultiaddrs: common.ParseStringSlice(v, "announce-multiaddr"),
 		BootstrapAddrs:     common.ParseStringSlice(v, "bootstrap-multiaddr"),
@@ -83,5 +107,53 @@ func ConfigFromFlags(v *viper.Viper, isAuctioneer bool) Config {
 		MDNSIntervalSeconds:      v.GetInt("mdns-interval"),
 		EnablePubSubPeerExchange: isAuctioneer,
 		EnablePubSubFloodPublish: true,
+	}, nil
+}
+
+// WriteConfig writes a *viper.Viper config to file.
+// The file is written to a path in pathEnv env var if set, otherwise to defaultPath.
+func WriteConfig(v *viper.Viper, pathEnv, defaultPath string) (string, error) {
+	path := os.Getenv(pathEnv)
+	if path == "" {
+		path = defaultPath
 	}
+	cf := filepath.Join(path, "config")
+	if err := os.MkdirAll(filepath.Dir(cf), os.ModePerm); err != nil {
+		return "", fmt.Errorf("making config directory: %v", err)
+	}
+
+	// Bail if config already exists
+	if _, err := os.Stat(cf); err == nil {
+		return "", fmt.Errorf("%s already exists", cf)
+	}
+
+	if v.GetString("private-key") == "" {
+		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		if err != nil {
+			return "", fmt.Errorf("generating private key: %v", err)
+		}
+		key, err := crypto.MarshalPrivateKey(priv)
+		if err != nil {
+			return "", fmt.Errorf("marshaling private key: %v", err)
+		}
+		keystr, err := mbase.Encode(mbase.Base64, key)
+		if err != nil {
+			return "", fmt.Errorf("encoding private key: %v", err)
+		}
+		v.Set("private-key", keystr)
+	}
+
+	if err := v.WriteConfigAs(cf); err != nil {
+		return "", fmt.Errorf("error writing config: %v", err)
+	}
+	v.SetConfigFile(cf)
+	_ = v.ReadInConfig()
+	return cf, nil
+}
+
+// MarshalConfig marshals a *viper.Viper config to JSON.
+func MarshalConfig(v *viper.Viper) ([]byte, error) {
+	all := v.AllSettings()
+	all["private-key"] = "***"
+	return json.MarshalIndent(all, "", "  ")
 }

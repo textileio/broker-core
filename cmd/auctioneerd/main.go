@@ -3,9 +3,11 @@ package main
 // TODO: Use mongo for auction persistence.
 
 import (
-	"encoding/json"
+	"fmt"
 	"net"
 	_ "net/http/pprof"
+	"os"
+	"path/filepath"
 	"time"
 
 	golog "github.com/ipfs/go-log/v2"
@@ -21,24 +23,32 @@ import (
 )
 
 var (
-	daemonName = "auctioneerd"
-	log        = golog.Logger(daemonName)
-	v          = viper.New()
+	daemonName        = "auctioneerd"
+	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+daemonName)
+	log               = golog.Logger(daemonName)
+	v                 = viper.New()
 )
 
 func init() {
 	flags := []common.Flag{
-		{Name: "repo", DefValue: "${HOME}/.auctioneer", Description: "Repo path"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration; default is 10s"},
+		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 	flags = append(flags, marketpeer.Flags...)
 
-	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd)
+	cobra.OnInitialize(func() {
+		v.SetConfigType("json")
+		v.SetConfigName("config")
+		v.AddConfigPath(os.Getenv("AUCTIONEER_PATH"))
+		v.AddConfigPath(defaultConfigPath)
+		_ = v.ReadInConfig()
+	})
+
+	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
@@ -53,32 +63,39 @@ var rootCmd = &cobra.Command{
 			"auctioneer/queue",
 			"auctioneer/service",
 			"mpeer",
-			"pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
+		if v.ConfigFileUsed() == "" {
+			path, err := marketpeer.WriteConfig(v, "AUCTIONEER_PATH", defaultConfigPath)
+			common.CheckErrf("writing config: %v", err)
+			fmt.Printf("Initialized configuration file: %s\n", path)
+		}
+
 		fin := finalizer.NewFinalizer()
 
-		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
+		settings, err := marketpeer.MarshalConfig(v)
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
 		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
+		pconfig, err := marketpeer.GetConfig(v, true)
+		common.CheckErrf("getting peer config: %v", err)
+
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
 		common.CheckErrf("creating listener: %v", err)
-		fin.Add(listener)
 
 		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
 		common.CheckErrf("dialing broker: %v", err)
 		fin.Add(broker)
 
 		config := service.Config{
-			RepoPath: v.GetString("repo"),
+			RepoPath: pconfig.RepoPath, // TODO: Remove in favor of mongo
 			Listener: listener,
-			Peer:     marketpeer.ConfigFromFlags(v, true),
+			Peer:     pconfig,
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},

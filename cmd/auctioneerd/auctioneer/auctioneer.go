@@ -238,6 +238,9 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 
 func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
+	if topic == core.AuctionTopic && string(msg) == "JOINED" {
+		a.peer.Host().ConnManager().Protect(from, "auctioneer:<bidder>")
+	}
 }
 
 func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
