@@ -45,7 +45,9 @@ func init() {
 		v.SetConfigName("config")
 		v.AddConfigPath(os.Getenv("AUCTIONEER_PATH"))
 		v.AddConfigPath(defaultConfigPath)
-		_ = v.ReadInConfig()
+		if err := v.ReadInConfig(); err != nil {
+			common.CheckErrf("reading configuration: %s", err)
+		}
 	})
 
 	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd.Flags())

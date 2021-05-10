@@ -63,7 +63,9 @@ func init() {
 		v.SetConfigName("config")
 		v.AddConfigPath(os.Getenv("BIDBOT_PATH"))
 		v.AddConfigPath(defaultConfigPath)
-		_ = v.ReadInConfig()
+		if err := v.ReadInConfig(); err != nil {
+			common.CheckErrf("reading configuration: %s", err)
+		}
 	})
 
 	common.ConfigureCLI(v, "BIDBOT", flags, rootCmd.PersistentFlags())

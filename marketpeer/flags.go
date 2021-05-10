@@ -147,7 +147,9 @@ func WriteConfig(v *viper.Viper, pathEnv, defaultPath string) (string, error) {
 		return "", fmt.Errorf("error writing config: %v", err)
 	}
 	v.SetConfigFile(cf)
-	_ = v.ReadInConfig()
+	if err := v.ReadInConfig(); err != nil {
+		common.CheckErrf("reading configuration: %s", err)
+	}
 	return cf, nil
 }
 
