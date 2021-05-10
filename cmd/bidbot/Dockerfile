@@ -23,4 +23,4 @@ USER bidbot
 VOLUME $REPO_PATH
 
 ENTRYPOINT ["./bidbot"]
-CMD ["--repo=/data/bidbot"]
+CMD ["daemon"]

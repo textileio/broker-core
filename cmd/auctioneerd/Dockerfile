@@ -23,4 +23,3 @@ USER auctioneerd
 VOLUME $REPO_PATH
 
 ENTRYPOINT ["./auctioneerd"]
-CMD ["--repo=/data/auctioneerd"]
