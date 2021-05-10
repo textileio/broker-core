@@ -28,7 +28,7 @@ func TestSuccess(t *testing.T) {
 	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
 	usm.On("Get", mock.Anything, mock.Anything).Return(expectedSR, nil)
 
-	mux := createMux(usm)
+	mux := createMux(usm, false)
 	mux.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
 
@@ -105,7 +105,7 @@ func TestFail(t *testing.T) {
 				call.Return(false, "sorry, you're unauthorized", nil)
 			})
 
-			mux := createMux(usm)
+			mux := createMux(usm, false)
 			mux.ServeHTTP(res, req)
 
 			require.Equal(t, tc.expectedStatusCode, res.Code)
@@ -122,7 +122,7 @@ func TestFail(t *testing.T) {
 			Return(storage.Request{}, fmt.Errorf("oops"))
 		usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
 
-		mux := createMux(usm)
+		mux := createMux(usm, false)
 		mux.ServeHTTP(res, req)
 		require.Equal(t, http.StatusInternalServerError, res.Code)
 		usm.AssertExpectations(t)
