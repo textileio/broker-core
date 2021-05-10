@@ -39,6 +39,7 @@ func (d *Dealer) reportToBroker(sdb dealeri.AuctionDeals) {
 			StorageDealID:  sdb.StorageDealID,
 			DealID:         rand.Int63(),
 			DealExpiration: uint64(rand.Int63()),
+			Miner:          "f0001",
 		},
 	}
 	if err := d.broker.StorageDealFinalizedDeals(context.Background(), res); err != nil {

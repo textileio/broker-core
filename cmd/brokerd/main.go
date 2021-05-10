@@ -26,6 +26,7 @@ func init() {
 		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
+		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "deal-epochs", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -60,6 +61,7 @@ var rootCmd = &cobra.Command{
 			PackerAddr:     v.GetString("packer-addr"),
 			AuctioneerAddr: v.GetString("auctioneer-addr"),
 			DealerAddr:     v.GetString("dealer-addr"),
+			ReporterAddr:   v.GetString("reporter-addr"),
 
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),

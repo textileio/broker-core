@@ -16,6 +16,7 @@ services:
       - SYS_PTRACE
     depends_on:
       - neard
+    restart: unless-stopped
   neard:
     build:
       context: .
@@ -29,6 +30,7 @@ services:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
+    restart: unless-stopped
   storaged:
     build:
       context: .
@@ -50,6 +52,7 @@ services:
     depends_on:
       - brokerd
       - authd
+    restart: unless-stopped
   auctioneerd:
     build:
       context: .
@@ -70,6 +73,7 @@ services:
     depends_on:
       - brokerd
   bidbot:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: ./cmd/bidbot/Dockerfile
@@ -88,6 +92,7 @@ services:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
+    restart: unless-stopped
   brokerd:
     build:
       context: .
@@ -103,6 +108,7 @@ services:
       - BROKER_PACKER_ADDR=packerd:5000
       - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
       - BROKER_DEALER_ADDR=dealerd:5000
+      - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_EPOCHS=1051200
     security_opt:
       - "seccomp:unconfined"
@@ -112,6 +118,7 @@ services:
       - packerd
       - mongo
       - ipfs
+    restart: unless-stopped
   packerd:
     build:
       context: .
@@ -132,6 +139,7 @@ services:
     depends_on:
       - mongo
       - ipfs
+    restart: unless-stopped
   dealerd:
     build:
       context: .
@@ -151,6 +159,7 @@ services:
       - SYS_PTRACE
     depends_on:
       - brokerd
+    restart: unless-stopped
   mongo:
     image: mongo:latest
     platform: linux/amd64

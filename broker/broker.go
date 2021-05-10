@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"path"
 	"time"
 
@@ -10,7 +11,8 @@ import (
 )
 
 const (
-	epochsPerDay uint64 = 60 * 24 * 2 // 1 epoch = ~30s
+	invalidStatus        = "invalid"
+	epochsPerDay  uint64 = 60 * 24 * 2 // 1 epoch = ~30s
 
 	// MinDealEpochs is the minimum allowed deal duration requested of miners.
 	MinDealEpochs = epochsPerDay * 365 / 2 // ~6 months
@@ -57,6 +59,17 @@ type BrokerRequest struct {
 	StorageDealID StorageDealID       `json:"storage_deal_id,omitempty"`
 	CreatedAt     time.Time           `json:"created_at"`
 	UpdatedAt     time.Time           `json:"updated_at"`
+}
+
+// Validate returns an error if the fields are invalid.
+func (br BrokerRequest) Validate() error {
+	if br.ID == "" {
+		return errors.New("id is empty")
+	}
+	if !br.DataCid.Defined() {
+		return errors.New("datacid is undefined")
+	}
+	return nil
 }
 
 // Metadata provides storage and bidding configuration.
@@ -106,7 +119,7 @@ func (brs BrokerRequestStatus) String() string {
 	case RequestSuccess:
 		return "success"
 	default:
-		return "invalid"
+		return invalidStatus
 	}
 }
 
@@ -127,24 +140,68 @@ const (
 	StorageDealDealMaking
 	// StorageDealSuccess indicates that the storage deal was successfully stored in Filecoin.
 	StorageDealSuccess
+	// StorageDealError indicates that the storage deal has errored.
+	StorageDealError
 )
+
+// String returns a string-encoded status.
+func (sds StorageDealStatus) String() string {
+	switch sds {
+	case StorageDealUnkown:
+		return "unknown"
+	case StorageDealPreparing:
+		return "preparing"
+	case StorageDealAuctioning:
+		return "auctioning"
+	case StorageDealDealMaking:
+		return "deal making"
+	case StorageDealSuccess:
+		return "success"
+	default:
+		return invalidStatus
+	}
+}
 
 // StorageDeal is the underlying entity that gets into bidding and
 // store data in the Filecoin network. It groups one or multiple
 // BrokerRequests.
 type StorageDeal struct {
 	ID               StorageDealID
-	Cid              cid.Cid
 	Status           StorageDealStatus
 	BrokerRequestIDs []BrokerRequestID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	Error            string
+
+	// Packer calculates this field after batching storage requests.
+	PayloadCid cid.Cid
+
+	// Piecer calculates these fields after preparing the batched DAG.
+	PieceCid  cid.Cid
+	PieceSize uint64
+
+	// Auctioner populates this field with the winning auction.
+	Auction Auction
+
+	// Dealer populates this field
+	Deals []FinalizedAuctionDeal
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.
 type DataPreparationResult struct {
 	PieceSize uint64
 	PieceCid  cid.Cid
+}
+
+// Validate returns an error if the struct contain invalid fields.
+func (dpr DataPreparationResult) Validate() error {
+	if dpr.PieceSize == 0 {
+		return errors.New("piece size is zero")
+	}
+	if !dpr.PieceCid.Defined() {
+		return errors.New("piece cid is undefined")
+	}
+	return nil
 }
 
 // AuctionTopic is used by brokers to publish and by miners to subscribe to deal auctions.
@@ -209,7 +266,7 @@ func (as AuctionStatus) String() string {
 	case AuctionStatusError:
 		return "error"
 	default:
-		return "invalid"
+		return invalidStatus
 	}
 }
 
@@ -234,5 +291,6 @@ type FinalizedAuctionDeal struct {
 	StorageDealID  StorageDealID
 	DealID         int64
 	DealExpiration uint64
+	Miner          string
 	ErrorCause     string
 }
