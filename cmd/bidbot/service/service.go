@@ -4,7 +4,6 @@ package service
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/chain"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
@@ -31,7 +31,13 @@ type Config struct {
 
 // BidParams defines how bids are made.
 type BidParams struct {
-	AskPrice int64 // attoFIL per GiB per epoch
+	WalletAddr    string
+	WalletAddrSig []byte
+
+	AskPrice         int64 // attoFIL per GiB per epoch
+	VerifiedAskPrice int64 // attoFIL per GiB per epoch
+	FastRetrieval    bool
+	DealStartWindow  uint64 // number of epochs after which won deals must start be on-chain
 }
 
 // AuctionFilters specifies filters used when selecting auctions to bid on.
@@ -49,6 +55,7 @@ type MinMaxFilter struct {
 // Service is a miner service that subscribes to brokered deals.
 type Service struct {
 	peer       *marketpeer.Peer
+	chain      chain.Chain
 	subscribed bool
 
 	bidParams      BidParams
@@ -60,7 +67,7 @@ type Service struct {
 }
 
 // New returns a new Service.
-func New(conf Config) (*Service, error) {
+func New(conf Config, chain chain.Chain) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
@@ -72,8 +79,18 @@ func New(conf Config) (*Service, error) {
 	}
 	fin.Add(p)
 
+	// Verify miner address
+	ok, err := chain.VerifyBidder(conf.BidParams.WalletAddr, conf.BidParams.WalletAddrSig, p.Host().ID())
+	if err != nil {
+		return nil, fin.Cleanupf("verifying miner address: %v", err)
+	}
+	if !ok {
+		return nil, fin.Cleanup(fmt.Errorf("invalid miner address or signature"))
+	}
+
 	s := &Service{
 		peer:           p,
+		chain:          chain,
 		bidParams:      conf.BidParams,
 		auctionFilters: conf.AuctionFilters,
 		ctx:            ctx,
@@ -101,7 +118,7 @@ func (s *Service) Subscribe(bootstrap bool) error {
 		return nil
 	}
 
-	// Bootstrap against configured addresses.
+	// Bootstrap against configured addresses
 	if bootstrap {
 		s.peer.Bootstrap()
 	}
@@ -132,11 +149,6 @@ func (s *Service) Subscribe(bootstrap bool) error {
 
 	s.subscribed = true
 	return nil
-}
-
-// GetSigningMessage returns a message to be signed by a miner address.
-func (s *Service) GetSigningMessage() string {
-	return hex.EncodeToString([]byte(s.peer.Host().ID()))
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
@@ -183,7 +195,13 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return nil
 	}
 
-	// Create bids topic.
+	// Get current chain height
+	currentEpoch, err := s.chain.GetChainHeight()
+	if err != nil {
+		return fmt.Errorf("getting chain height: %v", err)
+	}
+
+	// Create bids topic
 	bids, err := s.peer.NewTopic(s.ctx, broker.BidsTopic(broker.AuctionID(auction.Id)), false)
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
@@ -191,14 +209,15 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	defer func() { _ = bids.Close() }()
 	bids.SetEventHandler(s.eventHandler)
 
-	// Submit bid to auctioneer.
+	// Submit bid to auctioneer
 	bid := &pb.Bid{
 		AuctionId:        auction.Id,
-		MinerId:          "f01123", // TODO
+		WalletAddr:       s.bidParams.WalletAddr,
+		WalletAddrSig:    s.bidParams.WalletAddrSig,
 		AskPrice:         s.bidParams.AskPrice,
-		VerifiedAskPrice: s.bidParams.AskPrice, // TODO
-		StartEpoch:       1234567890,           // TODO
-		FastRetrieval:    false,                // TODO
+		VerifiedAskPrice: s.bidParams.AskPrice,
+		StartEpoch:       s.bidParams.DealStartWindow + currentEpoch,
+		FastRetrieval:    s.bidParams.FastRetrieval,
 	}
 	bidj, err := json.MarshalIndent(bid, "", "  ")
 	if err != nil {
@@ -218,18 +237,18 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 
 // TODO: Add defaults.
 func (s *Service) filterAuction(auction *pb.Auction) bool {
-	// Check if auction is still in progress.
+	// Check if auction is still in progress
 	if !auction.EndsAt.IsValid() || auction.EndsAt.AsTime().Before(time.Now()) {
 		return false
 	}
 
-	// Check if deal size is within configured bounds.
+	// Check if deal size is within configured bounds
 	if auction.DealSize < s.auctionFilters.DealSize.Min ||
 		auction.DealSize > s.auctionFilters.DealSize.Max {
 		return false
 	}
 
-	// Check if deal duration is within configured bounds.
+	// Check if deal duration is within configured bounds
 	if auction.DealDuration < s.auctionFilters.DealDuration.Min ||
 		auction.DealDuration > s.auctionFilters.DealDuration.Max {
 		return false

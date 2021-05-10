@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -33,7 +34,8 @@ const (
 	bufConnSize = 1024 * 1024
 
 	oneGiB    = 1024 * 1024 * 1024
-	sixMonths = 60 * 24 * 2 * 365 / 2
+	oneDay    = 60 * 24 * 2
+	sixMonths = oneDay * 365 / 2
 )
 
 func init() {
@@ -125,7 +127,7 @@ func newClient(t *testing.T) *client.Client {
 		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
 	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
 
-	s, err := service.New(config, bm)
+	s, err := service.New(config, bm, &chainMock{})
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.Start(false)
@@ -151,7 +153,8 @@ func addMiners(t *testing.T, n int) {
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				AskPrice: 100000000000,
+				AskPrice:        100000000000,
+				DealStartWindow: oneDay,
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{
@@ -164,7 +167,7 @@ func addMiners(t *testing.T, n int) {
 				},
 			},
 		}
-		s, err := bidbotsrv.New(config)
+		s, err := bidbotsrv.New(config, &chainMock{})
 		require.NoError(t, err)
 		err = s.Subscribe(false)
 		require.NoError(t, err)
@@ -212,4 +215,19 @@ func (bm *brokerMock) Create(context.Context, cid.Cid, core.Metadata) (core.Brok
 
 func (bm *brokerMock) Get(context.Context, core.BrokerRequestID) (core.BrokerRequest, error) {
 	panic("shouldn't be called")
+}
+
+// TODO: Mock me
+type chainMock struct{}
+
+func (cm *chainMock) Close() error {
+	return nil
+}
+
+func (cm *chainMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
+	return true, nil
+}
+
+func (cm *chainMock) GetChainHeight() (uint64, error) {
+	return 0, nil
 }

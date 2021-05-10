@@ -9,6 +9,7 @@ import (
 	"github.com/gogo/status"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/chain"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/dshelper"
@@ -43,7 +44,7 @@ type Service struct {
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config, broker broker.Broker) (*Service, error) {
+func New(conf Config, broker broker.Broker, chain chain.Chain) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer
@@ -59,7 +60,7 @@ func New(conf Config, broker broker.Broker) (*Service, error) {
 		return nil, fin.Cleanupf("creating repo: %v", err)
 	}
 	fin.Add(store)
-	lib, err := auctioneer.New(p, store, broker, auctioneer.AuctionConfig{
+	lib, err := auctioneer.New(p, store, broker, chain, auctioneer.AuctionConfig{
 		Duration: conf.Auction.Duration,
 	})
 	if err != nil {

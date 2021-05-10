@@ -15,11 +15,11 @@ FROM alpine
 COPY --from=builder /app/auctioneerd /app/auctioneerd
 WORKDIR /app
 
-ENV REPO_PATH /data/auctioneerd
-RUN mkdir -p $REPO_PATH \
-  && adduser -D -h $REPO_PATH -u 1000 -G users auctioneerd \
-  && chown auctioneerd:users $REPO_PATH
+ENV AUCTIONEER_PATH /data/auctioneerd
+RUN mkdir -p $AUCTIONEER_PATH \
+  && adduser -D -h $AUCTIONEER_PATH -u 1000 -G users auctioneerd \
+  && chown auctioneerd:users $AUCTIONEER_PATH
 USER auctioneerd
-VOLUME $REPO_PATH
+VOLUME $AUCTIONEER_PATH
 
 ENTRYPOINT ["./auctioneerd"]

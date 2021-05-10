@@ -13,11 +13,12 @@ message Auction {
 
 message Bid {
     string auction_id = 1;
-    string miner_id = 2;
-    int64 ask_price = 3;
-    int64 verified_ask_price = 4;
-    uint64 start_epoch = 5;
-    bool fast_retrieval = 6;
+    string wallet_addr = 2;
+    bytes wallet_addr_sig = 3;
+    int64 ask_price = 4;
+    int64 verified_ask_price = 5;
+    uint64 start_epoch = 6;
+    bool fast_retrieval = 7;
 }
 
 message Win {

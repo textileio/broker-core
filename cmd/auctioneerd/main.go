@@ -13,6 +13,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/chain"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
@@ -94,6 +95,10 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("dialing broker: %v", err)
 		fin.Add(broker)
 
+		ch, err := chain.New()
+		common.CheckErrf("creating chain client: %v", err)
+		fin.Add(ch)
+
 		config := service.Config{
 			RepoPath: pconfig.RepoPath, // TODO: Remove in favor of mongo
 			Listener: listener,
@@ -102,7 +107,7 @@ var rootCmd = &cobra.Command{
 				Duration: v.GetDuration("auction-duration"),
 			},
 		}
-		serv, err := service.New(config, broker)
+		serv, err := service.New(config, broker, ch)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 

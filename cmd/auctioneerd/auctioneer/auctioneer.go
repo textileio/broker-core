@@ -2,7 +2,6 @@ package auctioneer
 
 // TODO: Add ACK response to incoming bids.
 // TODO: Allow for multiple winners.
-// TODO: Handle verified ask price.
 
 import (
 	"context"
@@ -15,6 +14,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/chain"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
@@ -51,6 +51,7 @@ type Auctioneer struct {
 	auctionConf AuctionConfig
 
 	peer     *marketpeer.Peer
+	chain    chain.Chain
 	auctions *pubsub.Topic
 	bids     map[core.AuctionID]chan core.Bid
 
@@ -65,6 +66,7 @@ func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
 	broker core.Broker,
+	chain chain.Chain,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
 	if err := checkConfig(auctionConf); err != nil {
@@ -73,6 +75,7 @@ func New(
 
 	a := &Auctioneer{
 		peer:        peer,
+		chain:       chain,
 		bids:        make(map[core.AuctionID]chan core.Bid),
 		broker:      broker,
 		auctionConf: auctionConf,
@@ -224,7 +227,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 			return nil
 		case bid, ok := <-resCh:
 			if ok {
-				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.MinerPeerID, bid.AskPrice)
+				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, bid.AskPrice)
 
 				id, err := a.queue.NewID(bid.ReceivedAt)
 				if err != nil {
@@ -250,13 +253,24 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 		return
 	}
 
+	ok, err := a.chain.VerifyBidder(bid.WalletAddr, bid.WalletAddrSig, from)
+	if err != nil {
+		log.Errorf("verifying miner address: %v", err)
+		return
+	}
+	if !ok {
+		log.Warn("invalid miner address or signature")
+		return
+	}
+
 	a.lk.Lock()
 	defer a.lk.Unlock()
 	ch, ok := a.bids[core.AuctionID(bid.AuctionId)]
 	if ok {
 		ch <- core.Bid{
-			MinerID:          bid.MinerId,
-			MinerPeerID:      from,
+			WalletAddr:       bid.WalletAddr,
+			WalletAddrSig:    bid.WalletAddrSig,
+			BidderID:         from,
 			AskPrice:         bid.AskPrice,
 			VerifiedAskPrice: bid.VerifiedAskPrice,
 			StartEpoch:       bid.StartEpoch,
@@ -272,7 +286,7 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 	for k, v := range auction.Bids {
 		if int(v.AskPrice) < topBid {
 			topBid = int(v.AskPrice)
-			winner = v.MinerPeerID
+			winner = v.BidderID
 			auction.WinningBids = append(auction.WinningBids, k)
 		}
 	}

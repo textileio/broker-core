@@ -72,8 +72,8 @@ services:
       - SYS_PTRACE
     depends_on:
       - brokerd
-  bidbot:
     restart: unless-stopped
+  bidbot:
     build:
       context: .
       dockerfile: ./cmd/bidbot/Dockerfile
