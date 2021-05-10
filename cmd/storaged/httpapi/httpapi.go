@@ -24,12 +24,12 @@ var (
 )
 
 // NewServer returns a new http server exposing the storage API.
-func NewServer(listenAddr string, s storage.Requester) (*http.Server, error) {
+func NewServer(listenAddr string, skipAuth bool, s storage.Requester) (*http.Server, error) {
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
 		WriteTimeout:      time.Second * 10,
-		Handler:           createMux(s),
+		Handler:           createMux(s, skipAuth),
 	}
 
 	log.Infof("running HTTP API...")
@@ -42,15 +42,15 @@ func NewServer(listenAddr string, s storage.Requester) (*http.Server, error) {
 	return httpServer, nil
 }
 
-func createMux(s storage.Requester) *http.ServeMux {
+func createMux(s storage.Requester, skipAuth bool) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 
-	uploadHandler := wrapMiddlewares(s, uploadHandler(s), "upload")
+	uploadHandler := wrapMiddlewares(s, skipAuth, uploadHandler(s), "upload")
 	mux.Handle("/upload", uploadHandler)
 
-	storageRequest := wrapMiddlewares(s, storageRequestHandler(s), "storagerequest")
+	storageRequest := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
 	mux.Handle("/storagerequest/", storageRequest)
 
 	return mux
@@ -64,14 +64,16 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func wrapMiddlewares(s storage.Requester, h http.HandlerFunc, name string) http.Handler {
+func wrapMiddlewares(s storage.Requester, skipAuth bool, h http.HandlerFunc, name string) http.Handler {
 	handler := instrumentHandler(h, name)
-	handler = authenticateHandler(handler, s)
+	if !skipAuth {
+		handler = authenticateHandler(handler, s)
+	}
 
 	return handler
 }
 
-func instrumentHandler(h http.HandlerFunc, name string) http.Handler {
+func instrumentHandler(h http.Handler, name string) http.Handler {
 	return otelhttp.NewHandler(h, name)
 }
 
