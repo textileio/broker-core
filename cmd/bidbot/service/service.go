@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -40,16 +41,43 @@ type BidParams struct {
 	DealStartWindow  uint64 // number of epochs after which won deals must start be on-chain
 }
 
+// Validate ensures BidParams are valid.
+func (p *BidParams) Validate() error {
+	if p.DealStartWindow == 0 {
+		return fmt.Errorf("invalid deal start window; must be greater than zero")
+	}
+	return nil
+}
+
 // AuctionFilters specifies filters used when selecting auctions to bid on.
 type AuctionFilters struct {
 	DealDuration MinMaxFilter
 	DealSize     MinMaxFilter
 }
 
+// Validate ensures AuctionFilters are valid.
+func (f *AuctionFilters) Validate() error {
+	if err := f.DealDuration.Validate(); err != nil {
+		return fmt.Errorf("invalid deal duration filter: %v", err)
+	}
+	if err := f.DealDuration.Validate(); err != nil {
+		return fmt.Errorf("invalid deal size filter: %v", err)
+	}
+	return nil
+}
+
 // MinMaxFilter is used to specify a range for an auction filter.
 type MinMaxFilter struct {
 	Min uint64
 	Max uint64
+}
+
+// Validate ensures the filter is a valid min max window.
+func (f *MinMaxFilter) Validate() error {
+	if f.Min > f.Max {
+		return errors.New("min must be less than or equal to max")
+	}
+	return nil
 }
 
 // Service is a miner service that subscribes to brokered deals.
@@ -68,6 +96,13 @@ type Service struct {
 
 // New returns a new Service.
 func New(conf Config, chain chain.Chain) (*Service, error) {
+	if err := conf.BidParams.Validate(); err != nil {
+		return nil, fmt.Errorf("validating bid parameters: %v", err)
+	}
+	if err := conf.AuctionFilters.Validate(); err != nil {
+		return nil, fmt.Errorf("validating auction filters: %v", err)
+	}
+
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
@@ -235,7 +270,6 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	return nil
 }
 
-// TODO: Add defaults.
 func (s *Service) filterAuction(auction *pb.Auction) bool {
 	// Check if auction is still in progress
 	if !auction.EndsAt.IsValid() || auction.EndsAt.AsTime().Before(time.Now()) {

@@ -2,6 +2,7 @@ package client_test
 
 import (
 	"context"
+	"crypto/rand"
 	"io/ioutil"
 	"net"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -127,7 +129,7 @@ func newClient(t *testing.T) *client.Client {
 		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
 	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
 
-	s, err := service.New(config, bm, &chainMock{})
+	s, err := service.New(config, bm, newChainMock())
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.Start(false)
@@ -146,15 +148,23 @@ func addMiners(t *testing.T, n int) {
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
+		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		require.NoError(t, err)
+
 		config := bidbotsrv.Config{
 			RepoPath: dir,
 			Peer: marketpeer.Config{
+				PrivKey:    priv,
 				RepoPath:   dir,
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				AskPrice:        100000000000,
-				DealStartWindow: oneDay,
+				WalletAddr:       "foo",
+				WalletAddrSig:    []byte("bar"),
+				AskPrice:         100000000000,
+				VerifiedAskPrice: 100000000000,
+				FastRetrieval:    true,
+				DealStartWindow:  oneDay,
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{
@@ -167,7 +177,8 @@ func addMiners(t *testing.T, n int) {
 				},
 			},
 		}
-		s, err := bidbotsrv.New(config, &chainMock{})
+
+		s, err := bidbotsrv.New(config, newChainMock())
 		require.NoError(t, err)
 		err = s.Subscribe(false)
 		require.NoError(t, err)
@@ -186,11 +197,7 @@ type brokerMock struct {
 	client *mocks.APIServiceClient
 }
 
-func (bm *brokerMock) CreateStorageDeal(
-	context.Context,
-	cid.Cid,
-	[]core.BrokerRequestID,
-) (core.StorageDealID, error) {
+func (bm *brokerMock) CreateStorageDeal(context.Context, cid.Cid, []core.BrokerRequestID) (core.StorageDealID, error) {
 	panic("shouldn't be called")
 }
 
@@ -217,17 +224,34 @@ func (bm *brokerMock) Get(context.Context, core.BrokerRequestID) (core.BrokerReq
 	panic("shouldn't be called")
 }
 
-// TODO: Mock me
-type chainMock struct{}
+func newChainMock() *chainMock {
+	cm := &chainMock{}
+	cm.On(
+		"VerifyBidder",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	).Return(true, nil)
+	cm.On("GetChainHeight").Return(uint64(0), nil)
+	cm.On("Close").Return(nil)
+	return cm
+}
+
+type chainMock struct {
+	mock.Mock
+}
 
 func (cm *chainMock) Close() error {
-	return nil
+	args := cm.Called()
+	return args.Error(0)
 }
 
 func (cm *chainMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	return true, nil
+	args := cm.Called(walletAddr, bidderSig, bidderID)
+	return args.Bool(0), args.Error(1)
 }
 
 func (cm *chainMock) GetChainHeight() (uint64, error) {
-	return 0, nil
+	args := cm.Called()
+	return args.Get(0).(uint64), args.Error(1)
 }

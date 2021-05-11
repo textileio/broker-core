@@ -64,8 +64,8 @@ func init() {
 		},
 		{
 			Name:        "deal-start-window",
-			DefValue:    false,
-			Description: "Number of epochs after which won deals must start on-chain",
+			DefValue:    60 * 24 * 2,
+			Description: "Number of epochs after which won deals must start on-chain; default is ~one day",
 		},
 		{
 			Name:        "fast-retrieval",
