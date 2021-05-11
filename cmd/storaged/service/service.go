@@ -25,6 +25,8 @@ type Config struct {
 	BrokerAPIAddr string
 	// AuthAddr is the address of authd.
 	AuthAddr string
+	// SkipAuth disables authorizations checks.
+	SkipAuth bool
 }
 
 // Service provides an implementation of the Storage API.
@@ -42,7 +44,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	// Bootstrap HTTP API server.
-	httpAPIServer, err := httpapi.NewServer(config.HTTPListenAddr, storage)
+	httpAPIServer, err := httpapi.NewServer(config.HTTPListenAddr, config.SkipAuth, storage)
 	if err != nil {
 		return nil, fmt.Errorf("creating http server: %s", err)
 	}

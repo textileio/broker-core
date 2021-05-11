@@ -24,6 +24,7 @@ func init() {
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "auth-addr", DefValue: "", Description: "Authorizer API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "skip-auth", DefValue: false, Description: "Disabled authorization check"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -54,6 +55,7 @@ var rootCmd = &cobra.Command{
 			UploaderIPFSMultiaddr: v.GetString("uploader-ipfs-multiaddr"),
 			BrokerAPIAddr:         v.GetString("broker-addr"),
 			AuthAddr:              v.GetString("auth-addr"),
+			SkipAuth:              v.GetBool("skip-auth"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
