@@ -1,7 +1,5 @@
 package main
 
-// TODO: Use mongo for auction persistence.
-
 import (
 	"fmt"
 	"net"
@@ -18,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer"
 	"google.golang.org/grpc"
@@ -33,6 +32,8 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
+		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -91,6 +92,9 @@ var rootCmd = &cobra.Command{
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
 		common.CheckErrf("creating listener: %v", err)
 
+		store, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
+		common.CheckErrf("creating datastore: %v", err)
+
 		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
 		common.CheckErrf("dialing broker: %v", err)
 		fin.Add(broker)
@@ -100,14 +104,13 @@ var rootCmd = &cobra.Command{
 		fin.Add(ch)
 
 		config := service.Config{
-			RepoPath: pconfig.RepoPath, // TODO: Remove in favor of mongo
 			Listener: listener,
 			Peer:     pconfig,
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},
 		}
-		serv, err := service.New(config, broker, ch)
+		serv, err := service.New(config, store, broker, ch)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 

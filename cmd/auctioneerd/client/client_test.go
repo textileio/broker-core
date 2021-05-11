@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"io/ioutil"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	brokerpb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/logging"
@@ -111,7 +113,6 @@ func newClient(t *testing.T) *client.Client {
 	listener := bufconn.Listen(bufConnSize)
 	fin.Add(listener)
 	config := service.Config{
-		RepoPath: dir,
 		Listener: listener,
 		Peer: marketpeer.Config{
 			RepoPath:   dir,
@@ -122,6 +123,10 @@ func newClient(t *testing.T) *client.Client {
 		},
 	}
 
+	store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "auctionq"))
+	require.NoError(t, err)
+	fin.Add(store)
+
 	bm := &brokerMock{client: &mocks.APIServiceClient{}}
 	bm.client.On(
 		"StorageDealAuctioned",
@@ -129,7 +134,7 @@ func newClient(t *testing.T) *client.Client {
 		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
 	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
 
-	s, err := service.New(config, bm, newChainMock())
+	s, err := service.New(config, store, bm, newChainMock())
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.Start(false)
