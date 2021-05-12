@@ -23,3 +23,4 @@ USER auctioneerd
 VOLUME $AUCTIONEER_PATH
 
 ENTRYPOINT ["./auctioneerd"]
+CMD ["daemon"]

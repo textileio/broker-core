@@ -116,8 +116,8 @@ To get started, run 'bidbot init' and follow the instructions.
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initializes bidbot configuration file",
-	Long: `Initializes bidbot configuration file and generates a new keypair.
+	Short: "Initializes bidbot configuration files",
+	Long: `Initializes bidbot configuration files and generates a new keypair.
 
 bidbot uses a repository in the local file system. By default, the repo is
 located at ~/.bidbot. To change the repo location, set the $BIDBOT_PATH
@@ -158,7 +158,7 @@ Good luck!
 }
 
 var daemonCmd = &cobra.Command{
-	Use:   "daemon [address] [signature]",
+	Use:   "daemon",
 	Short: "Run a network-connected bidding bot",
 	Long:  "Run a network-connected bidding bot that listens for and bids on storage deal auctions.",
 	Args:  cobra.ExactArgs(0),

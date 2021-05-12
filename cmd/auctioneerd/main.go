@@ -23,13 +23,15 @@ import (
 )
 
 var (
-	daemonName        = "auctioneerd"
-	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+daemonName)
-	log               = golog.Logger(daemonName)
+	cliName           = "auctioneer"
+	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+cliName)
+	log               = golog.Logger(cliName)
 	v                 = viper.New()
 )
 
 func init() {
+	rootCmd.AddCommand(initCmd, daemonCmd)
+
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
@@ -51,18 +53,47 @@ func init() {
 		_ = v.ReadInConfig()
 	})
 
-	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd.Flags())
+	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd.PersistentFlags())
 }
 
 var rootCmd = &cobra.Command{
-	Use:   daemonName,
-	Short: "auctioneerd handles deal auctions for the Broker",
-	Long:  "auctioneerd handles deal auctions for the Broker",
+	Use:   cliName,
+	Short: "Auctioneer runs Filecoin storage deal auctions for a deal broker",
+	Long: `Auctioneer runs Filecoin storage deal auctions for a deal broker.
+
+To get started, run 'auctioneer init'. 
+`,
+	Args: cobra.ExactArgs(0),
+}
+
+var initCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initializes auctioneer configuration files",
+	Long: `Initializes auctioneer configuration files and generates a new keypair.
+
+auctioneer uses a repository in the local file system. By default, the repo is
+located at ~/.auctioneer. To change the repo location, set the $AUCTIONEER_PATH
+environment variable:
+
+    export AUCTIONEER_PATH=/path/to/auctioneerrepo
+`,
+	Args: cobra.ExactArgs(0),
+	Run: func(c *cobra.Command, args []string) {
+		path, err := marketpeer.WriteConfig(v, "AUCTIONEER_PATH", defaultConfigPath)
+		common.CheckErrf("writing config: %v", err)
+		fmt.Printf("Initialized configuration file: %s\n", path)
+	},
+}
+
+var daemonCmd = &cobra.Command{
+	Use:   "daemon",
+	Short: "Run a network-connected storage deal auctioneer for a broker",
+	Long:  "Run a network-connected storage deal auctioneer for a broker.",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
-			"auctioneerd",
 			"auctioneer",
+			"auctioneer/lib",
 			"auctioneer/queue",
 			"auctioneer/service",
 			"mpeer",
@@ -70,12 +101,6 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		if v.ConfigFileUsed() == "" {
-			path, err := marketpeer.WriteConfig(v, "AUCTIONEER_PATH", defaultConfigPath)
-			common.CheckErrf("writing config: %v", err)
-			fmt.Printf("Initialized configuration file: %s\n", path)
-		}
-
 		pconfig, err := marketpeer.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
 		common.CheckErrf("getting peer config: %v", err)
 

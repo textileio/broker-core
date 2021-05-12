@@ -63,6 +63,7 @@ services:
     environment:
       - AUCTIONEER_LOG_DEBUG=true
       - AUCTIONEER_LOG_JSON=true
+      - AUCTIONEER_PRIVATE_KEY=mCAESQIBDTKg1bP0wk8H59cK+TgnN9ZzncDw3XWZFbWciALxrUOpAO/2xCE7cCgXzQLB7tncMoWbBW3UytRkDEWg0bYw
       - AUCTIONEER_RPC_ADDR=:5000
       - AUCTIONEER_MONGO_URI=mongodb://mongo:27017
       - AUCTIONEER_MONGO_DBNAME=brokerd

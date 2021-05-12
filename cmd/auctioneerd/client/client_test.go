@@ -44,7 +44,7 @@ const (
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		"auctioneer":         golog.LevelDebug,
+		"auctioneer/lib":     golog.LevelDebug,
 		"auctioneer/queue":   golog.LevelDebug,
 		"auctioneer/service": golog.LevelDebug,
 		"bidbot/service":     golog.LevelDebug,

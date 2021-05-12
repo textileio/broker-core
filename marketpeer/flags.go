@@ -83,7 +83,7 @@ var Flags = []common.Flag{
 // GetConfig returns a Config from a *viper.Viper instance.
 func GetConfig(v *viper.Viper, repoPathEnv, defaultRepoPath string, isAuctioneer bool) (Config, error) {
 	if v.GetString("private-key") == "" {
-		return Config{}, fmt.Errorf("--private-key is required. Run 'bidbot init' to generate a new keypair")
+		return Config{}, fmt.Errorf("--private-key is required. Run 'init' to generate a new keypair")
 	}
 
 	_, key, err := mbase.Decode(v.GetString("private-key"))

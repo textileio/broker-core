@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	log = golog.Logger("auctioneer")
+	log = golog.Logger("auctioneer/lib")
 
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
