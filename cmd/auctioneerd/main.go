@@ -76,7 +76,7 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("Initialized configuration file: %s\n", path)
 		}
 
-		pconfig, err := marketpeer.GetConfig(v, true)
+		pconfig, err := marketpeer.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
 		common.CheckErrf("getting peer config: %v", err)
 
 		settings, err := marketpeer.MarshalConfig(v)

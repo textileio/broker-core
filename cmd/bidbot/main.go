@@ -180,7 +180,7 @@ var daemonCmd = &cobra.Command{
 			common.CheckErr(errors.New("--wallet-addr-sig is required. See 'bidbot help init' for instructions"))
 		}
 
-		pconfig, err := marketpeer.GetConfig(v, false)
+		pconfig, err := marketpeer.GetConfig(v, "BIDBOT_PATH", defaultConfigPath, false)
 		common.CheckErrf("getting peer config: %v", err)
 
 		settings, err := marketpeer.MarshalConfig(v)
