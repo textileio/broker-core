@@ -183,9 +183,9 @@ var daemonCmd = &cobra.Command{
 		walletAddrSig, err := hex.DecodeString(args[1])
 		common.CheckErrf("decoding wallet address signature: %v", err)
 
-		ch, err := filclient.New(v.GetString("lotus-gateway-url"))
+		fc, err := filclient.New(v.GetString("lotus-gateway-url"))
 		common.CheckErrf("creating chain client: %v", err)
-		fin.Add(ch)
+		fin.Add(fc)
 
 		config := service.Config{
 			RepoPath: pconfig.RepoPath,
@@ -209,7 +209,7 @@ var daemonCmd = &cobra.Command{
 				},
 			},
 		}
-		serv, err := service.New(config, ch)
+		serv, err := service.New(config, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 

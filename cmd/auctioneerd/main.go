@@ -100,9 +100,9 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("dialing broker: %v", err)
 		fin.Add(broker)
 
-		ch, err := filclient.New(v.GetString("lotus-gateway-url"))
+		fc, err := filclient.New(v.GetString("lotus-gateway-url"))
 		common.CheckErrf("creating chain client: %v", err)
-		fin.Add(ch)
+		fin.Add(fc)
 
 		config := service.Config{
 			Listener: listener,
@@ -111,7 +111,7 @@ var rootCmd = &cobra.Command{
 				Duration: v.GetDuration("auction-duration"),
 			},
 		}
-		serv, err := service.New(config, store, broker, ch)
+		serv, err := service.New(config, store, broker, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 
