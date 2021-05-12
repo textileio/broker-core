@@ -14,8 +14,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/chain"
-	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
+	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
@@ -51,7 +50,7 @@ type Auctioneer struct {
 	auctionConf AuctionConfig
 
 	peer     *marketpeer.Peer
-	chain    chain.Chain
+	fc       FilClient
 	auctions *pubsub.Topic
 	bids     map[core.AuctionID]chan core.Bid
 
@@ -66,7 +65,7 @@ func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
 	broker core.Broker,
-	chain chain.Chain,
+	fc FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
 	if err := checkConfig(auctionConf); err != nil {
@@ -75,7 +74,7 @@ func New(
 
 	a := &Auctioneer{
 		peer:        peer,
-		chain:       chain,
+		fc:          fc,
 		bids:        make(map[core.AuctionID]chan core.Bid),
 		broker:      broker,
 		auctionConf: auctionConf,
@@ -253,7 +252,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 		return
 	}
 
-	ok, err := a.chain.VerifyBidder(bid.WalletAddr, bid.WalletAddrSig, from)
+	ok, err := a.fc.VerifyBidder(bid.WalletAddr, bid.WalletAddrSig, from)
 	if err != nil {
 		log.Errorf("verifying miner address: %v", err)
 		return

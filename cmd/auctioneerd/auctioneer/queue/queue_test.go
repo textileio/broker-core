@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
-	. "github.com/textileio/broker-core/cmd/auctioneerd/queue"
+	. "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/logging"
 	badger "github.com/textileio/go-ds-badger3"
 )

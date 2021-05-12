@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/chain"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/finalizer"
@@ -72,6 +72,7 @@ func init() {
 			DefValue:    false,
 			Description: "Offer deals with fast retrieval",
 		},
+		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level log"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -182,7 +183,7 @@ var daemonCmd = &cobra.Command{
 		walletAddrSig, err := hex.DecodeString(args[1])
 		common.CheckErrf("decoding wallet address signature: %v", err)
 
-		ch, err := chain.New()
+		ch, err := filclient.New(v.GetString("lotus-gateway-url"))
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(ch)
 

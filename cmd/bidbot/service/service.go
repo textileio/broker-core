@@ -13,7 +13,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/chain"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
@@ -83,7 +83,7 @@ func (f *MinMaxFilter) Validate() error {
 // Service is a miner service that subscribes to brokered deals.
 type Service struct {
 	peer       *marketpeer.Peer
-	chain      chain.Chain
+	fc         auctioneer.FilClient
 	subscribed bool
 
 	bidParams      BidParams
@@ -95,7 +95,7 @@ type Service struct {
 }
 
 // New returns a new Service.
-func New(conf Config, chain chain.Chain) (*Service, error) {
+func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
 	if err := conf.BidParams.Validate(); err != nil {
 		return nil, fmt.Errorf("validating bid parameters: %v", err)
 	}
@@ -115,7 +115,7 @@ func New(conf Config, chain chain.Chain) (*Service, error) {
 	fin.Add(p)
 
 	// Verify miner address
-	ok, err := chain.VerifyBidder(conf.BidParams.WalletAddr, conf.BidParams.WalletAddrSig, p.Host().ID())
+	ok, err := fc.VerifyBidder(conf.BidParams.WalletAddr, conf.BidParams.WalletAddrSig, p.Host().ID())
 	if err != nil {
 		return nil, fin.Cleanupf("verifying miner address: %v", err)
 	}
@@ -125,7 +125,7 @@ func New(conf Config, chain chain.Chain) (*Service, error) {
 
 	s := &Service{
 		peer:           p,
-		chain:          chain,
+		fc:             fc,
 		bidParams:      conf.BidParams,
 		auctionFilters: conf.AuctionFilters,
 		ctx:            ctx,
@@ -231,7 +231,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	}
 
 	// Get current chain height
-	currentEpoch, err := s.chain.GetChainHeight()
+	currentEpoch, err := s.fc.GetChainHeight()
 	if err != nil {
 		return fmt.Errorf("getting chain height: %v", err)
 	}

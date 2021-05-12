@@ -62,14 +62,14 @@ func TestNew(t *testing.T) {
 		},
 	}
 
-	cm := newHappyChainMock()
+	fc := newFilClientMock()
 
 	// Bad bid params
 	config.BidParams = service.BidParams{
 		DealStartWindow: 0,
 	}
 	config.AuctionFilters = auctionFilters
-	_, err = service.New(config, cm)
+	_, err = service.New(config, fc)
 	require.Error(t, err)
 
 	config.BidParams = bidParams
@@ -85,34 +85,32 @@ func TestNew(t *testing.T) {
 			Max: 20,
 		},
 	}
-	_, err = service.New(config, cm)
+	_, err = service.New(config, fc)
 	require.Error(t, err)
 
 	config.AuctionFilters = auctionFilters
 
 	// Good config
-	s, err := service.New(config, cm)
+	s, err := service.New(config, fc)
 	require.NoError(t, err)
 	err = s.Subscribe(false)
 	require.NoError(t, err)
 	require.NoError(t, s.Close())
 
 	// Ensure verify bidder can lead to error
-	// This is a bit silly but there's no good way to test the signature
-	// flow w/o creating a real wallet address.
-	cm2 := &chainMock{}
-	cm2.On(
+	fc2 := &fcMock{}
+	fc2.On(
 		"VerifyBidder",
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 	).Return(false, nil)
-	_, err = service.New(config, cm2)
+	_, err = service.New(config, fc2)
 	require.Error(t, err)
 }
 
-func newHappyChainMock() *chainMock {
-	cm := &chainMock{}
+func newFilClientMock() *fcMock {
+	cm := &fcMock{}
 	cm.On(
 		"VerifyBidder",
 		mock.Anything,
@@ -123,21 +121,21 @@ func newHappyChainMock() *chainMock {
 	return cm
 }
 
-type chainMock struct {
+type fcMock struct {
 	mock.Mock
 }
 
-func (cm *chainMock) Close() error {
-	args := cm.Called()
+func (fc *fcMock) Close() error {
+	args := fc.Called()
 	return args.Error(0)
 }
 
-func (cm *chainMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	args := cm.Called(walletAddr, bidderSig, bidderID)
+func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
+	args := fc.Called(walletAddr, bidderSig, bidderID)
 	return args.Bool(0), args.Error(1)
 }
 
-func (cm *chainMock) GetChainHeight() (uint64, error) {
-	args := cm.Called()
+func (fc *fcMock) GetChainHeight() (uint64, error) {
+	args := fc.Called()
 	return args.Get(0).(uint64), args.Error(1)
 }

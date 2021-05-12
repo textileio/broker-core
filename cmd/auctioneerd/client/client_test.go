@@ -134,7 +134,7 @@ func newClient(t *testing.T) *client.Client {
 		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
 	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
 
-	s, err := service.New(config, store, bm, newChainMock())
+	s, err := service.New(config, store, bm, newFilClientMock())
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.Start(false)
@@ -183,7 +183,7 @@ func addMiners(t *testing.T, n int) {
 			},
 		}
 
-		s, err := bidbotsrv.New(config, newChainMock())
+		s, err := bidbotsrv.New(config, newFilClientMock())
 		require.NoError(t, err)
 		err = s.Subscribe(false)
 		require.NoError(t, err)
@@ -229,34 +229,34 @@ func (bm *brokerMock) Get(context.Context, core.BrokerRequestID) (core.BrokerReq
 	panic("shouldn't be called")
 }
 
-func newChainMock() *chainMock {
-	cm := &chainMock{}
-	cm.On(
+func newFilClientMock() *fcMock {
+	m := &fcMock{}
+	m.On(
 		"VerifyBidder",
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 	).Return(true, nil)
-	cm.On("GetChainHeight").Return(uint64(0), nil)
-	cm.On("Close").Return(nil)
-	return cm
+	m.On("GetChainHeight").Return(uint64(0), nil)
+	m.On("Close").Return(nil)
+	return m
 }
 
-type chainMock struct {
+type fcMock struct {
 	mock.Mock
 }
 
-func (cm *chainMock) Close() error {
-	args := cm.Called()
+func (fc *fcMock) Close() error {
+	args := fc.Called()
 	return args.Error(0)
 }
 
-func (cm *chainMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	args := cm.Called(walletAddr, bidderSig, bidderID)
+func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
+	args := fc.Called(walletAddr, bidderSig, bidderID)
 	return args.Bool(0), args.Error(1)
 }
 
-func (cm *chainMock) GetChainHeight() (uint64, error) {
-	args := cm.Called()
+func (fc *fcMock) GetChainHeight() (uint64, error) {
+	args := fc.Called()
 	return args.Get(0).(uint64), args.Error(1)
 }
