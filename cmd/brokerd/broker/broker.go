@@ -101,6 +101,8 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+
+	log.Debugf("saving broker request in store")
 	if err := b.store.SaveBrokerRequest(ctx, br); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
 	}
@@ -108,6 +110,7 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	// We notify the Packer that this BrokerRequest is ready to be considered.
 	// We'll receive a call to `(*Broker).CreateStorageDeal(...)` which will contain
 	// this BrokerRequest, and continue with the bidding process..
+	log.Debugf("signaling packer")
 	if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
 		// TODO: there's room for improvement here. We can mark this broker-request
 		// to be retried in signaling the packer, to avoid be orphaned.

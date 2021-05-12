@@ -128,6 +128,7 @@ func New(config Config) (*Service, error) {
 func (s *Service) CreateBrokerRequest(
 	ctx context.Context,
 	r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
+	log.Debugf("received broker request")
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}

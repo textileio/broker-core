@@ -6,19 +6,19 @@ import (
 )
 
 type config struct {
-	dealMakingFreq        time.Duration
-	dealMakingRateLim     int
-	dealMonitoringFreq    time.Duration
-	dealMonitoringRateLim int
-	dealReportingFreq     time.Duration
+	dealMakingFreq      time.Duration
+	dealMakingRateLim   int
+	dealWatchingFreq    time.Duration
+	dealWatchingRateLim int
+	dealReportingFreq   time.Duration
 }
 
 var defaultConfig = config{
-	dealMakingFreq:        time.Second * 10,
-	dealMakingRateLim:     20,
-	dealMonitoringFreq:    time.Second * 10,
-	dealMonitoringRateLim: 20,
-	dealReportingFreq:     time.Second * 10,
+	dealMakingFreq:      time.Second * 10,
+	dealMakingRateLim:   20,
+	dealWatchingFreq:    time.Second * 20,
+	dealWatchingRateLim: 20,
+	dealReportingFreq:   time.Second * 10,
 }
 
 // Option applies a configuration change.
@@ -41,7 +41,7 @@ func WithDealMonitoringFreq(f time.Duration) Option {
 		if f == 0 {
 			return errors.New("frequency is zero")
 		}
-		c.dealMonitoringFreq = f
+		c.dealWatchingFreq = f
 		return nil
 	}
 }
@@ -74,7 +74,7 @@ func WithDealMonitoringRateLim(l int) Option {
 		if l == 0 {
 			return errors.New("rate limit is zero")
 		}
-		c.dealMonitoringRateLim = l
+		c.dealWatchingRateLim = l
 		return nil
 	}
 }
