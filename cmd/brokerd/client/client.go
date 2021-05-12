@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
-	auctioneercast "github.com/textileio/broker-core/cmd/auctioneer/cast"
+	auctioneercast "github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"

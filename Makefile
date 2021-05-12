@@ -32,9 +32,9 @@ build-neard: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/neard
 .PHONY: build-neard
 
-build-auctioneer: $(GOVVV)
-	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneer
-.PHONY: build-auctioneer
+build-auctioneerd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
+.PHONY: build-auctioneerd
 
 build-bidbot: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/bidbot
@@ -134,6 +134,6 @@ define docker_push_bot_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auth broker dealer near packer storage);
-	$(call docker_push_bot_head,auctioneer bidbot);
+	$(call docker_push_daemon_head,auctioneer auth broker dealer near packer storage);
+	$(call docker_push_bot_head,bidbot);
 .PHONY: docker-push-head

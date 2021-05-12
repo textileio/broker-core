@@ -19,10 +19,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneer/cast"
-	"github.com/textileio/broker-core/cmd/auctioneer/client"
-	"github.com/textileio/broker-core/cmd/auctioneer/lib"
-	"github.com/textileio/broker-core/cmd/auctioneer/service"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
+	"github.com/textileio/broker-core/cmd/auctioneerd/client"
+	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -44,7 +44,7 @@ const (
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		"auctioneer/lib":     golog.LevelDebug,
+		"auctioneer":         golog.LevelDebug,
 		"auctioneer/queue":   golog.LevelDebug,
 		"auctioneer/service": golog.LevelDebug,
 		"bidbot/service":     golog.LevelDebug,
@@ -118,7 +118,7 @@ func newClient(t *testing.T) *client.Client {
 			RepoPath:   dir,
 			EnableMDNS: true,
 		},
-		Auction: lib.AuctionConfig{
+		Auction: auctioneer.AuctionConfig{
 			Duration: time.Second * 10,
 		},
 	}

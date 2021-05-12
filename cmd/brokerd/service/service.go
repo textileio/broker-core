@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
-	auctioneercast "github.com/textileio/broker-core/cmd/auctioneer/cast"
+	auctioneercast "github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"

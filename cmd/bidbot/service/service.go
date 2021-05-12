@@ -13,7 +13,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneer/lib"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
@@ -83,7 +83,7 @@ func (f *MinMaxFilter) Validate() error {
 // Service is a miner service that subscribes to brokered deals.
 type Service struct {
 	peer       *marketpeer.Peer
-	fc         lib.FilClient
+	fc         auctioneer.FilClient
 	subscribed bool
 
 	bidParams      BidParams
@@ -95,7 +95,7 @@ type Service struct {
 }
 
 // New returns a new Service.
-func New(conf Config, fc lib.FilClient) (*Service, error) {
+func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
 	if err := conf.BidParams.Validate(); err != nil {
 		return nil, fmt.Errorf("validating bid parameters: %v", err)
 	}
