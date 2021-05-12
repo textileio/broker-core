@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	_ "net/http/pprof"
 	"os"
@@ -33,6 +34,16 @@ func init() {
 
 	flags := []common.Flag{
 		{
+			Name:        "wallet-addr",
+			DefValue:    "",
+			Description: "Miner wallet address; required",
+		},
+		{
+			Name:        "wallet-addr-sig",
+			DefValue:    "",
+			Description: "Miner wallet address signature; required; see 'bidbot help init' for instructions",
+		},
+		{
 			Name:        "ask-price",
 			DefValue:    100000000000,
 			Description: "Bid ask price for deals in attoFIL per GiB per epoch; default is 100 nanoFIL",
@@ -41,6 +52,16 @@ func init() {
 			Name:        "verified-ask-price",
 			DefValue:    100000000000,
 			Description: "Bid ask price for verified deals in attoFIL per GiB per epoch; default is 100 nanoFIL",
+		},
+		{
+			Name:        "fast-retrieval",
+			DefValue:    false,
+			Description: "Offer deals with fast retrieval",
+		},
+		{
+			Name:        "deal-start-window",
+			DefValue:    60 * 24 * 2,
+			Description: "Number of epochs after which won deals must start on-chain; default is ~one day",
 		},
 		{
 			Name:        "deal-duration-min",
@@ -62,16 +83,6 @@ func init() {
 			DefValue:    32 * 1000 * 1000 * 1000,
 			Description: "Maximum deal size to bid on in bytes",
 		},
-		{
-			Name:        "deal-start-window",
-			DefValue:    60 * 24 * 2,
-			Description: "Number of epochs after which won deals must start on-chain; default is ~one day",
-		},
-		{
-			Name:        "fast-retrieval",
-			DefValue:    false,
-			Description: "Offer deals with fast retrieval",
-		},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level log"},
@@ -84,9 +95,7 @@ func init() {
 		v.SetConfigName("config")
 		v.AddConfigPath(os.Getenv("BIDBOT_PATH"))
 		v.AddConfigPath(defaultConfigPath)
-		if err := v.ReadInConfig(); err != nil {
-			common.CheckErrf("reading configuration: %s", err)
-		}
+		_ = v.ReadInConfig()
 	})
 
 	common.ConfigureCLI(v, "BIDBOT", flags, rootCmd.PersistentFlags())
@@ -102,6 +111,7 @@ the configured prices.
 
 To get started, run 'bidbot init' and follow the instructions. 
 `,
+	Args: cobra.ExactArgs(0),
 }
 
 var initCmd = &cobra.Command{
@@ -115,6 +125,7 @@ environment variable:
 
     export BIDBOT_PATH=/path/to/bidbotrepo
 `,
+	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		path, err := marketpeer.WriteConfig(v, "BIDBOT_PATH", defaultConfigPath)
 		common.CheckErrf("writing config: %v", err)
@@ -137,7 +148,7 @@ environment variable:
 
 2. Start listening for deal auctions using the wallet address and signature from step 1:
 
-    bidbot daemon [address] [signature]
+    bidbot daemon --wallet-addr [address] --wallet-addr-sig [signature]
 
 Note: In the event you win an auction, you must use this wallet address to make the deal(s).
 
@@ -150,7 +161,7 @@ var daemonCmd = &cobra.Command{
 	Use:   "daemon [address] [signature]",
 	Short: "Run a network-connected bidding bot",
 	Long:  "Run a network-connected bidding bot that listens for and bids on storage deal auctions.",
-	Args:  cobra.ExactArgs(2),
+	Args:  cobra.ExactArgs(0),
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
@@ -162,12 +173,15 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		if v.ConfigFileUsed() == "" {
-			fmt.Printf("Configuration file not found. Run '%s init'.", cliName)
-			return
+		if v.GetString("wallet-addr") == "" {
+			common.CheckErr(errors.New("--wallet-addr is required. See 'bidbot help init' for instructions"))
+		}
+		if v.GetString("wallet-addr-sig") == "" {
+			common.CheckErr(errors.New("--wallet-addr-sig is required. See 'bidbot help init' for instructions"))
 		}
 
-		fin := finalizer.NewFinalizer()
+		pconfig, err := marketpeer.GetConfig(v, false)
+		common.CheckErrf("getting peer config: %v", err)
 
 		settings, err := marketpeer.MarshalConfig(v)
 		common.CheckErrf("marshaling config: %v", err)
@@ -176,13 +190,10 @@ var daemonCmd = &cobra.Command{
 		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
-		pconfig, err := marketpeer.GetConfig(v, false)
-		common.CheckErrf("getting peer config: %v", err)
-
-		walletAddr := args[0]
-		walletAddrSig, err := hex.DecodeString(args[1])
+		walletAddrSig, err := hex.DecodeString(v.GetString("wallet-addr-sig"))
 		common.CheckErrf("decoding wallet address signature: %v", err)
 
+		fin := finalizer.NewFinalizer()
 		fc, err := filclient.New(v.GetString("lotus-gateway-url"))
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
@@ -191,7 +202,7 @@ var daemonCmd = &cobra.Command{
 			RepoPath: pconfig.RepoPath,
 			Peer:     pconfig,
 			BidParams: service.BidParams{
-				WalletAddr:       walletAddr,
+				WalletAddr:       v.GetString("wallet-addr"),
 				WalletAddrSig:    walletAddrSig,
 				AskPrice:         v.GetInt64("ask-price"),
 				VerifiedAskPrice: v.GetInt64("verified-ask-price"),

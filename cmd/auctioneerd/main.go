@@ -48,9 +48,7 @@ func init() {
 		v.SetConfigName("config")
 		v.AddConfigPath(os.Getenv("AUCTIONEER_PATH"))
 		v.AddConfigPath(defaultConfigPath)
-		if err := v.ReadInConfig(); err != nil {
-			common.CheckErrf("reading configuration: %s", err)
-		}
+		_ = v.ReadInConfig()
 	})
 
 	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd.Flags())
@@ -78,7 +76,8 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("Initialized configuration file: %s\n", path)
 		}
 
-		fin := finalizer.NewFinalizer()
+		pconfig, err := marketpeer.GetConfig(v, true)
+		common.CheckErrf("getting peer config: %v", err)
 
 		settings, err := marketpeer.MarshalConfig(v)
 		common.CheckErrf("marshaling config: %v", err)
@@ -87,15 +86,13 @@ var rootCmd = &cobra.Command{
 		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
-		pconfig, err := marketpeer.GetConfig(v, true)
-		common.CheckErrf("getting peer config: %v", err)
-
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
 		common.CheckErrf("creating listener: %v", err)
 
 		store, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
 		common.CheckErrf("creating datastore: %v", err)
 
+		fin := finalizer.NewFinalizer()
 		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
 		common.CheckErrf("dialing broker: %v", err)
 		fin.Add(broker)

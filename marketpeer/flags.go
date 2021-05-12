@@ -20,7 +20,7 @@ var Flags = []common.Flag{
 	{
 		Name:        "private-key",
 		DefValue:    "",
-		Description: "Libp2p private key",
+		Description: "Libp2p private key; required",
 	},
 	{
 		Name: "listen-multiaddr",
@@ -82,6 +82,10 @@ var Flags = []common.Flag{
 
 // GetConfig returns a Config from a *viper.Viper instance.
 func GetConfig(v *viper.Viper, isAuctioneer bool) (Config, error) {
+	if v.GetString("private-key") == "" {
+		return Config{}, fmt.Errorf("--private-key is required. Run 'bidbot init' to generate a new keypair")
+	}
+
 	_, key, err := mbase.Decode(v.GetString("private-key"))
 	if err != nil {
 		return Config{}, fmt.Errorf("decoding private key: %v", err)
