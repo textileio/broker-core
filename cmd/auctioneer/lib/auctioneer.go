@@ -1,4 +1,4 @@
-package auctioneer
+package lib
 
 // TODO: Add ACK response to incoming bids.
 // TODO: Allow for multiple winners.
@@ -14,7 +14,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/broker"
-	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
+	q "github.com/textileio/broker-core/cmd/auctioneer/lib/queue"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"

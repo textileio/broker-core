@@ -5,7 +5,7 @@ import (
 
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
+	"github.com/textileio/broker-core/cmd/auctioneer/cast"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"google.golang.org/grpc"
 )

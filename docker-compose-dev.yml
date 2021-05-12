@@ -53,13 +53,13 @@ services:
       - brokerd
       - authd
     restart: unless-stopped
-  auctioneerd:
+  auctioneer:
     build:
       context: .
-      dockerfile: ./cmd/auctioneerd/Dockerfile
+      dockerfile: ./cmd/auctioneer/Dockerfile
     platform: linux/amd64
     volumes:
-      - "${REPO_PATH}/auctioneerd:/data/auctioneerd"
+      - "${REPO_PATH}/auctioneer:/data/auctioneer"
     environment:
       - AUCTIONEER_LOG_DEBUG=true
       - AUCTIONEER_LOG_JSON=true
@@ -115,7 +115,7 @@ services:
       - BROKER_MONGO_DBNAME=brokerd
       - BROKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - BROKER_PACKER_ADDR=packerd:5000
-      - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
+      - BROKER_AUCTIONEER_ADDR=auctioneer:5000
       - BROKER_DEALER_ADDR=dealerd:5000
       - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_EPOCHS=1051200

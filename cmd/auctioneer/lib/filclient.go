@@ -1,4 +1,4 @@
-package auctioneer
+package lib
 
 import (
 	"io"

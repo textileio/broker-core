@@ -32,9 +32,9 @@ build-neard: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/neard
 .PHONY: build-neard
 
-build-auctioneerd: $(GOVVV)
-	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
-.PHONY: build-auctioneerd
+build-auctioneer: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneer
+.PHONY: build-auctioneer
 
 build-bidbot: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/bidbot
@@ -126,12 +126,14 @@ define docker_push_daemon_head
 	done
 endef
 
-define docker_push_bidbot_head
-	echo docker buildx build --platform linux/amd64 --push -t textile/bidbot:sha-$(HEAD_SHORT) -f cmd/bidbot/Dockerfile .;
-	docker buildx build --platform linux/amd64 --push -t textile/bidbot:sha-$(HEAD_SHORT) -f cmd/bidbot/Dockerfile .;
+define docker_push_bot_head
+	for bot in $(1); do \
+    	echo docker buildx build --platform linux/amd64 --push -t textile/$${bot}:sha-$(HEAD_SHORT) -f cmd/$${bot}/Dockerfile .; \
+    	docker buildx build --platform linux/amd64 --push -t textile/$${bot}:sha-$(HEAD_SHORT) -f cmd/$${bot}/Dockerfile .; \
+    done
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneer auth broker dealer near packer storage);
-	$(call docker_push_bidbot_head);
+	$(call docker_push_daemon_head,auth broker dealer near packer storage);
+	$(call docker_push_bot_head,auctioneer bidbot);
 .PHONY: docker-push-head

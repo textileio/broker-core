@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
+	"github.com/textileio/broker-core/cmd/auctioneer/lib/filclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/finalizer"

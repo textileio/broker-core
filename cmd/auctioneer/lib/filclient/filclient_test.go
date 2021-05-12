@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	. "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
+	. "github.com/textileio/broker-core/cmd/auctioneer/lib/filclient"
 )
 
 const (

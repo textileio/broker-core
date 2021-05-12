@@ -19,10 +19,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	"github.com/textileio/broker-core/cmd/auctioneerd/client"
-	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/cmd/auctioneer/cast"
+	"github.com/textileio/broker-core/cmd/auctioneer/client"
+	"github.com/textileio/broker-core/cmd/auctioneer/lib"
+	"github.com/textileio/broker-core/cmd/auctioneer/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -37,9 +37,9 @@ import (
 const (
 	bufConnSize = 1024 * 1024
 
-	oneGiB    = 1024 * 1024 * 1024
-	oneDay    = 60 * 24 * 2
-	sixMonths = oneDay * 365 / 2
+	oneGiB          = 1024 * 1024 * 1024
+	oneDayEpochs    = 60 * 24 * 2
+	sixMonthsEpochs = oneDayEpochs * 365 / 2
 )
 
 func init() {
@@ -57,7 +57,7 @@ func init() {
 func TestClient_ReadyToAuction(t *testing.T) {
 	c := newClient(t)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
@@ -65,7 +65,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 func TestClient_GetAuction(t *testing.T) {
 	c := newClient(t)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -86,7 +86,7 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -118,7 +118,7 @@ func newClient(t *testing.T) *client.Client {
 			RepoPath:   dir,
 			EnableMDNS: true,
 		},
-		Auction: auctioneer.AuctionConfig{
+		Auction: lib.AuctionConfig{
 			Duration: time.Second * 10,
 		},
 	}
@@ -169,7 +169,7 @@ func addMiners(t *testing.T, n int) {
 				AskPrice:         100000000000,
 				VerifiedAskPrice: 100000000000,
 				FastRetrieval:    true,
-				DealStartWindow:  oneDay,
+				DealStartWindow:  oneDayEpochs,
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{

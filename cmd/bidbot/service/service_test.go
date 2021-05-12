@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	oneDay = 60 * 24 * 2
+	oneDayEpochs = 60 * 24 * 2
 )
 
 func init() {
@@ -40,7 +40,7 @@ func TestNew(t *testing.T) {
 		AskPrice:         100000000000,
 		VerifiedAskPrice: 100000000000,
 		FastRetrieval:    true,
-		DealStartWindow:  oneDay,
+		DealStartWindow:  oneDayEpochs,
 	}
 	auctionFilters := service.AuctionFilters{
 		DealDuration: service.MinMaxFilter{

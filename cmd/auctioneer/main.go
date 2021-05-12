@@ -11,9 +11,9 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
-	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/cmd/auctioneer/lib"
+	"github.com/textileio/broker-core/cmd/auctioneer/lib/filclient"
+	"github.com/textileio/broker-core/cmd/auctioneer/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/dshelper"
@@ -129,7 +129,7 @@ var daemonCmd = &cobra.Command{
 		config := service.Config{
 			Listener: listener,
 			Peer:     pconfig,
-			Auction: auctioneer.AuctionConfig{
+			Auction: lib.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},
 		}
