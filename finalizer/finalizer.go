@@ -23,6 +23,22 @@ func (r *Finalizer) Add(cs ...io.Closer) {
 	r.resources = append(r.resources, cs...)
 }
 
+type noopCloser struct {
+	f func()
+}
+
+func (np *noopCloser) Close() error {
+	np.f()
+	return nil
+}
+
+// AddFn one or more func() to the finalizer.
+func (r *Finalizer) AddFn(fs ...func()) {
+	for _, f := range fs {
+		r.resources = append(r.resources, &noopCloser{f: f})
+	}
+}
+
 // Cleanup closes all io.Closer and cancels all contexts with err.
 func (r *Finalizer) Cleanup(err error) error {
 	var errs []error

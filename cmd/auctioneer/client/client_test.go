@@ -2,24 +2,29 @@ package client_test
 
 import (
 	"context"
+	"crypto/rand"
 	"io/ioutil"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	"github.com/textileio/broker-core/cmd/auctioneerd/client"
-	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/cmd/auctioneer/cast"
+	"github.com/textileio/broker-core/cmd/auctioneer/client"
+	"github.com/textileio/broker-core/cmd/auctioneer/lib"
+	"github.com/textileio/broker-core/cmd/auctioneer/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	brokerpb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/logging"
@@ -32,13 +37,14 @@ import (
 const (
 	bufConnSize = 1024 * 1024
 
-	oneGiB    = 1024 * 1024 * 1024
-	sixMonths = 60 * 24 * 2 * 365 / 2
+	oneGiB          = 1024 * 1024 * 1024
+	oneDayEpochs    = 60 * 24 * 2
+	sixMonthsEpochs = oneDayEpochs * 365 / 2
 )
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		"auctioneer":         golog.LevelDebug,
+		"auctioneer/lib":     golog.LevelDebug,
 		"auctioneer/queue":   golog.LevelDebug,
 		"auctioneer/service": golog.LevelDebug,
 		"bidbot/service":     golog.LevelDebug,
@@ -51,7 +57,7 @@ func init() {
 func TestClient_ReadyToAuction(t *testing.T) {
 	c := newClient(t)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
@@ -59,7 +65,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 func TestClient_GetAuction(t *testing.T) {
 	c := newClient(t)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -80,7 +86,7 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonths)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -107,16 +113,19 @@ func newClient(t *testing.T) *client.Client {
 	listener := bufconn.Listen(bufConnSize)
 	fin.Add(listener)
 	config := service.Config{
-		RepoPath: dir,
 		Listener: listener,
 		Peer: marketpeer.Config{
 			RepoPath:   dir,
 			EnableMDNS: true,
 		},
-		Auction: auctioneer.AuctionConfig{
+		Auction: lib.AuctionConfig{
 			Duration: time.Second * 10,
 		},
 	}
+
+	store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "auctionq"))
+	require.NoError(t, err)
+	fin.Add(store)
 
 	bm := &brokerMock{client: &mocks.APIServiceClient{}}
 	bm.client.On(
@@ -125,7 +134,7 @@ func newClient(t *testing.T) *client.Client {
 		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
 	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
 
-	s, err := service.New(config, bm)
+	s, err := service.New(config, store, bm, newFilClientMock())
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.Start(false)
@@ -144,14 +153,23 @@ func addMiners(t *testing.T, n int) {
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
+		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		require.NoError(t, err)
+
 		config := bidbotsrv.Config{
 			RepoPath: dir,
 			Peer: marketpeer.Config{
+				PrivKey:    priv,
 				RepoPath:   dir,
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				AskPrice: 100000000000,
+				WalletAddr:       "foo",
+				WalletAddrSig:    []byte("bar"),
+				AskPrice:         100000000000,
+				VerifiedAskPrice: 100000000000,
+				FastRetrieval:    true,
+				DealStartWindow:  oneDayEpochs,
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{
@@ -164,7 +182,8 @@ func addMiners(t *testing.T, n int) {
 				},
 			},
 		}
-		s, err := bidbotsrv.New(config)
+
+		s, err := bidbotsrv.New(config, newFilClientMock())
 		require.NoError(t, err)
 		err = s.Subscribe(false)
 		require.NoError(t, err)
@@ -183,11 +202,7 @@ type brokerMock struct {
 	client *mocks.APIServiceClient
 }
 
-func (bm *brokerMock) CreateStorageDeal(
-	context.Context,
-	cid.Cid,
-	[]core.BrokerRequestID,
-) (core.StorageDealID, error) {
+func (bm *brokerMock) CreateStorageDeal(context.Context, cid.Cid, []core.BrokerRequestID) (core.StorageDealID, error) {
 	panic("shouldn't be called")
 }
 
@@ -212,4 +227,36 @@ func (bm *brokerMock) Create(context.Context, cid.Cid, core.Metadata) (core.Brok
 
 func (bm *brokerMock) Get(context.Context, core.BrokerRequestID) (core.BrokerRequest, error) {
 	panic("shouldn't be called")
+}
+
+func newFilClientMock() *fcMock {
+	m := &fcMock{}
+	m.On(
+		"VerifyBidder",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	).Return(true, nil)
+	m.On("GetChainHeight").Return(uint64(0), nil)
+	m.On("Close").Return(nil)
+	return m
+}
+
+type fcMock struct {
+	mock.Mock
+}
+
+func (fc *fcMock) Close() error {
+	args := fc.Called()
+	return args.Error(0)
+}
+
+func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
+	args := fc.Called(walletAddr, bidderSig, bidderID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (fc *fcMock) GetChainHeight() (uint64, error) {
+	args := fc.Called()
+	return args.Get(0).(uint64), args.Error(1)
 }

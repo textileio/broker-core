@@ -2,4 +2,4 @@ package metrics
 
 import "go.opentelemetry.io/otel/metric/global"
 
-var _ = global.Meter("auctioneerd")
+var _ = global.Meter("auctioneer")

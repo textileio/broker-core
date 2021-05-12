@@ -15,12 +15,12 @@ FROM alpine
 COPY --from=builder /app/bidbot /app/bidbot
 WORKDIR /app
 
-ENV REPO_PATH /data/bidbot
-RUN mkdir -p $REPO_PATH \
-  && adduser -D -h $REPO_PATH -u 1000 -G users bidbot \
-  && chown bidbot:users $REPO_PATH
+ENV BIDBOT_PATH /data/bidbot
+RUN mkdir -p $BIDBOT_PATH \
+  && adduser -D -h $BIDBOT_PATH -u 1000 -G users bidbot \
+  && chown bidbot:users $BIDBOT_PATH
 USER bidbot
-VOLUME $REPO_PATH
+VOLUME $BIDBOT_PATH
 
 ENTRYPOINT ["./bidbot"]
 CMD ["daemon"]

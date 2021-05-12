@@ -275,9 +275,10 @@ type BidID string
 
 // Bid defines the core bid model.
 type Bid struct {
-	MinerID          string
-	MinerPeerID      peer.ID
-	BrokerPeerID     peer.ID
+	WalletAddr       string
+	WalletAddrSig    []byte
+	BidderID         peer.ID
+	BrokerID         peer.ID
 	AskPrice         int64 // attoFIL per GiB per epoch
 	VerifiedAskPrice int64 // attoFIL per GiB per epoch
 	StartEpoch       uint64

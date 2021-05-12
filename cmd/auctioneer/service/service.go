@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"net"
-	"path/filepath"
 
 	"github.com/gogo/status"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	"github.com/textileio/broker-core/dshelper"
+	"github.com/textileio/broker-core/cmd/auctioneer/cast"
+	"github.com/textileio/broker-core/cmd/auctioneer/lib"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"github.com/textileio/broker-core/marketpeer"
@@ -24,10 +23,9 @@ var log = golog.Logger("auctioneer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	RepoPath string
 	Listener net.Listener
 	Peer     marketpeer.Config
-	Auction  auctioneer.AuctionConfig
+	Auction  lib.AuctionConfig
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
@@ -35,7 +33,7 @@ type Service struct {
 	pb.UnimplementedAPIServiceServer
 
 	server *grpc.Server
-	lib    *auctioneer.Auctioneer
+	lib    *lib.Auctioneer
 
 	finalizer *finalizer.Finalizer
 }
@@ -43,7 +41,7 @@ type Service struct {
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config, broker broker.Broker) (*Service, error) {
+func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc lib.FilClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer
@@ -54,12 +52,7 @@ func New(conf Config, broker broker.Broker) (*Service, error) {
 	fin.Add(p)
 
 	// Create auctioneer
-	store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(conf.RepoPath, "auctionq"))
-	if err != nil {
-		return nil, fin.Cleanupf("creating repo: %v", err)
-	}
-	fin.Add(store)
-	lib, err := auctioneer.New(p, store, broker, auctioneer.AuctionConfig{
+	lib, err := lib.New(p, store, broker, fc, lib.AuctionConfig{
 		Duration: conf.Auction.Duration,
 	})
 	if err != nil {

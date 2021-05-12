@@ -1,8 +1,7 @@
-package auctioneer
+package lib
 
 // TODO: Add ACK response to incoming bids.
 // TODO: Allow for multiple winners.
-// TODO: Handle verified ask price.
 
 import (
 	"context"
@@ -15,7 +14,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/broker-core/broker"
-	q "github.com/textileio/broker-core/cmd/auctioneerd/queue"
+	q "github.com/textileio/broker-core/cmd/auctioneer/lib/queue"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
@@ -26,7 +25,7 @@ import (
 )
 
 var (
-	log = golog.Logger("auctioneer")
+	log = golog.Logger("auctioneer/lib")
 
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
@@ -51,6 +50,7 @@ type Auctioneer struct {
 	auctionConf AuctionConfig
 
 	peer     *marketpeer.Peer
+	fc       FilClient
 	auctions *pubsub.Topic
 	bids     map[core.AuctionID]chan core.Bid
 
@@ -65,6 +65,7 @@ func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
 	broker core.Broker,
+	fc FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
 	if err := checkConfig(auctionConf); err != nil {
@@ -73,6 +74,7 @@ func New(
 
 	a := &Auctioneer{
 		peer:        peer,
+		fc:          fc,
 		bids:        make(map[core.AuctionID]chan core.Bid),
 		broker:      broker,
 		auctionConf: auctionConf,
@@ -224,7 +226,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 			return nil
 		case bid, ok := <-resCh:
 			if ok {
-				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.MinerPeerID, bid.AskPrice)
+				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, bid.AskPrice)
 
 				id, err := a.queue.NewID(bid.ReceivedAt)
 				if err != nil {
@@ -250,13 +252,24 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 		return
 	}
 
+	ok, err := a.fc.VerifyBidder(bid.WalletAddr, bid.WalletAddrSig, from)
+	if err != nil {
+		log.Errorf("verifying miner address: %v", err)
+		return
+	}
+	if !ok {
+		log.Warn("invalid miner address or signature")
+		return
+	}
+
 	a.lk.Lock()
 	defer a.lk.Unlock()
 	ch, ok := a.bids[core.AuctionID(bid.AuctionId)]
 	if ok {
 		ch <- core.Bid{
-			MinerID:          bid.MinerId,
-			MinerPeerID:      from,
+			WalletAddr:       bid.WalletAddr,
+			WalletAddrSig:    bid.WalletAddrSig,
+			BidderID:         from,
 			AskPrice:         bid.AskPrice,
 			VerifiedAskPrice: bid.VerifiedAskPrice,
 			StartEpoch:       bid.StartEpoch,
@@ -272,7 +285,7 @@ func (a *Auctioneer) selectWinner(ctx context.Context, auction *core.Auction) er
 	for k, v := range auction.Bids {
 		if int(v.AskPrice) < topBid {
 			topBid = int(v.AskPrice)
-			winner = v.MinerPeerID
+			winner = v.BidderID
 			auction.WinningBids = append(auction.WinningBids, k)
 		}
 	}

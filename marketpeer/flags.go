@@ -20,7 +20,7 @@ var Flags = []common.Flag{
 	{
 		Name:        "private-key",
 		DefValue:    "",
-		Description: "Libp2p private key",
+		Description: "Libp2p private key; required",
 	},
 	{
 		Name: "listen-multiaddr",
@@ -81,7 +81,11 @@ var Flags = []common.Flag{
 }
 
 // GetConfig returns a Config from a *viper.Viper instance.
-func GetConfig(v *viper.Viper, isAuctioneer bool) (Config, error) {
+func GetConfig(v *viper.Viper, repoPathEnv, defaultRepoPath string, isAuctioneer bool) (Config, error) {
+	if v.GetString("private-key") == "" {
+		return Config{}, fmt.Errorf("--private-key is required. Run 'init' to generate a new keypair")
+	}
+
 	_, key, err := mbase.Decode(v.GetString("private-key"))
 	if err != nil {
 		return Config{}, fmt.Errorf("decoding private key: %v", err)
@@ -90,8 +94,13 @@ func GetConfig(v *viper.Viper, isAuctioneer bool) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("unmarshaling private key: %v", err)
 	}
+
+	repoPath := os.Getenv(repoPathEnv)
+	if repoPath == "" {
+		repoPath = defaultRepoPath
+	}
 	return Config{
-		RepoPath:           filepath.Dir(v.ConfigFileUsed()),
+		RepoPath:           repoPath,
 		PrivKey:            priv,
 		ListenMultiaddrs:   common.ParseStringSlice(v, "listen-multiaddr"),
 		AnnounceMultiaddrs: common.ParseStringSlice(v, "announce-multiaddr"),
@@ -112,12 +121,12 @@ func GetConfig(v *viper.Viper, isAuctioneer bool) (Config, error) {
 
 // WriteConfig writes a *viper.Viper config to file.
 // The file is written to a path in pathEnv env var if set, otherwise to defaultPath.
-func WriteConfig(v *viper.Viper, pathEnv, defaultPath string) (string, error) {
-	path := os.Getenv(pathEnv)
-	if path == "" {
-		path = defaultPath
+func WriteConfig(v *viper.Viper, repoPathEnv, defaultRepoPath string) (string, error) {
+	repoPath := os.Getenv(repoPathEnv)
+	if repoPath == "" {
+		repoPath = defaultRepoPath
 	}
-	cf := filepath.Join(path, "config")
+	cf := filepath.Join(repoPath, "config")
 	if err := os.MkdirAll(filepath.Dir(cf), os.ModePerm); err != nil {
 		return "", fmt.Errorf("making config directory: %v", err)
 	}
