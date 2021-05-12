@@ -9,6 +9,14 @@ checkEnv() {
 }
 checkEnv SEED_PHRASE
 
+lockFunds() {
+  echo "Locking funds on NEAR..."
+  near call lock-box.testnet lockFunds '{ "brokerId": "lock-box.testnet", "accountId": "lock-box.testnet" }' \
+  --account-id "lock-box.testnet" \
+  --amount 1 \
+  --seedPhrase "$SEED_PHRASE"
+}
+
 if [ "$#" -le 1 ]; then
 	echo "use $0 <target-url> <min-size> <max-size:opt> <count:opt> <sleep:opt>"
 	exit -1
@@ -23,11 +31,7 @@ SLEEP=${5:-0}
 
 echo "Hitting $TARGET with sizes [$MIN_SIZE, $MAX_SIZE] for $COUNT times..."
 
-echo "Locking funds on NEAR..."
-near call lock-box.testnet lockFunds '{ "brokerId": "lock-box.testnet", "accountId": "lock-box.testnet" }' \
---account-id "lock-box.testnet" \
---amount 1 \
---seedPhrase "$SEED_PHRASE"
+lockFunds
 
 i=1
 while ((i<=$COUNT)); do
@@ -36,7 +40,10 @@ while ((i<=$COUNT)); do
   head -c ${SIZE} < /dev/urandom > $TMPFILE
 
   echo "Uploading file of size $SIZE..."
-  curl -H "Authorization: $TOKEN" -F "region=europe" -F "file=@$TMPFILE" $TARGET
+  OUT=$(curl -H "Authorization: $TOKEN" -F "region=europe" -F "file=@$TMPFILE" $TARGET 2>/dev/null)
+  if [[ $OUT == *"account doesn't have locked funds"* ]]; then
+	  lockFunds
+  fi
 
   rm $TMPFILE
   let i++
