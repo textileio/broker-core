@@ -1,10 +1,8 @@
 # broker-core
 
-[![Made by Textile](https://img.shields.io/badge/made%20by-Textile-informational.svg?style=popout-square)](https://textile.io)
-[![Chat on Slack](https://img.shields.io/badge/slack-slack.textile.io-informational.svg?style=popout-square)](https://slack.textile.io)
-[![GitHub license](https://img.shields.io/github/license/textileio/broker-core.svg?style=popout-square)](./LICENSE)
-[![GitHub action](https://github.com/textileio/broker-core/workflows/Test/badge.svg?style=popout-square)](https://github.com/textileio/broker-core/actions)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=popout-square)](https://github.com/RichardLitt/standard-readme)
+[![Made by Textile](https://img.shields.io/badge/made%20by-Textile-informational.svg)](https://textile.io)
+[![Chat on Slack](https://img.shields.io/badge/slack-slack.textile.io-informational.svg)](https://slack.textile.io)
+[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg)](https://github.com/RichardLitt/standard-readme)
 
 > Broker for the Filecoin network
 
@@ -15,6 +13,9 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 - [Background](#background)
 - [Install](#install)
 - [Getting Started](#getting-started)
+  - [Miners: Run a `bidbot`](#miners-run-a-bidbot)
+  - [Running locally with some test data](#running-locally-with-some-test-data)
+  - [Step to deploy a daemon](#steps-to-deploy-a-daemon)
 - [Contributing](#contributing)
 - [Changelog](#changelog)
 - [License](#license)
@@ -30,6 +31,20 @@ go get github.com/textileio/broker-core
 ```
 
 ## Getting Started
+
+### Miners: Run a `bidbot`
+
+Miners on the Filecoin Network can bid in storage deal auctions.
+
+1. [Install Go 1.16.X](https://golang.org/doc/install).
+2. `git clone https://github.com/textileio/broker-core.git`
+3. `cd broker-core`
+4. `make install-bidbot`
+5. `bidbot init`
+6. The output from step 5 will ask you to sign a token with an address from your Lotus wallet.
+7. Configure your _ask price_, other bid settings, and auction filters. See `bidbot help daemon` for details. You can edit the configuration file generated in step 5 or use the equivalent flag for any given option.
+8. Use the signature you generated in step 6 to start the daemon: `bidbot daemon --wallet-addr [address] --wallet-addr-sig [signature]`
+9. Good luck! Your `bidbot` will automatically bid in open deal auctions. If it wins an auction, the broker will automatically start making a deal with the Lotus wallet address used in step 6.   
 
 ### Running locally with some test data
 
