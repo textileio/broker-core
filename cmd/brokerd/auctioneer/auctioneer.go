@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/textileio/broker-core/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneer/client"
+	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"google.golang.org/grpc"
 )
 

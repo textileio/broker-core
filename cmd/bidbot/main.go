@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneer/lib/filclient"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/finalizer"
@@ -165,10 +165,9 @@ var daemonCmd = &cobra.Command{
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
-			"bidbot",
+			cliName,
 			"bidbot/service",
 			"mpeer",
-			"pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},

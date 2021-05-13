@@ -11,9 +11,9 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/auctioneer/lib"
-	"github.com/textileio/broker-core/cmd/auctioneer/lib/filclient"
-	"github.com/textileio/broker-core/cmd/auctioneer/service"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
+	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/dshelper"
@@ -23,9 +23,9 @@ import (
 )
 
 var (
-	cliName           = "auctioneer"
-	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+cliName)
-	log               = golog.Logger(cliName)
+	daemonName        = "auctioneerd"
+	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+daemonName)
+	log               = golog.Logger(daemonName)
 	v                 = viper.New()
 )
 
@@ -57,11 +57,11 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   cliName,
+	Use:   daemonName,
 	Short: "Auctioneer runs Filecoin storage deal auctions for a deal broker",
 	Long: `Auctioneer runs Filecoin storage deal auctions for a deal broker.
 
-To get started, run 'auctioneer init'. 
+To get started, run 'auctioneerd init'. 
 `,
 	Args: cobra.ExactArgs(0),
 }
@@ -72,10 +72,10 @@ var initCmd = &cobra.Command{
 	Long: `Initializes auctioneer configuration files and generates a new keypair.
 
 auctioneer uses a repository in the local file system. By default, the repo is
-located at ~/.auctioneer. To change the repo location, set the $AUCTIONEER_PATH
+located at ~/.auctioneerd. To change the repo location, set the $AUCTIONEER_PATH
 environment variable:
 
-    export AUCTIONEER_PATH=/path/to/auctioneerrepo
+    export AUCTIONEER_PATH=/path/to/auctioneerdrepo
 `,
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
@@ -92,8 +92,8 @@ var daemonCmd = &cobra.Command{
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, []string{
+			daemonName,
 			"auctioneer",
-			"auctioneer/lib",
 			"auctioneer/queue",
 			"auctioneer/service",
 			"mpeer",
@@ -129,7 +129,7 @@ var daemonCmd = &cobra.Command{
 		config := service.Config{
 			Listener: listener,
 			Peer:     pconfig,
-			Auction: lib.AuctionConfig{
+			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},
 		}
