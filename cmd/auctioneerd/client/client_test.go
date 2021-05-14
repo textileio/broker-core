@@ -10,26 +10,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
-	brokerpb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
-	mocks "github.com/textileio/broker-core/mocks/broker/v1"
+	brokermocks "github.com/textileio/broker-core/mocks/broker"
+	auctioneermocks "github.com/textileio/broker-core/mocks/cmd/auctioneerd/auctioneer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -127,12 +123,12 @@ func newClient(t *testing.T) *client.Client {
 	require.NoError(t, err)
 	fin.Add(store)
 
-	bm := &brokerMock{client: &mocks.APIServiceClient{}}
-	bm.client.On(
+	bm := &brokermocks.Broker{}
+	bm.On(
 		"StorageDealAuctioned",
 		mock.Anything,
-		mock.AnythingOfType("*broker.StorageDealAuctionedRequest"),
-	).Return(&brokerpb.StorageDealAuctionedResponse{}, nil)
+		mock.AnythingOfType("broker.Auction"),
+	).Return(nil)
 
 	s, err := service.New(config, store, bm, newFilClientMock())
 	require.NoError(t, err)
@@ -198,65 +194,15 @@ func newDealID() core.StorageDealID {
 	return core.StorageDealID(uuid.New().String())
 }
 
-type brokerMock struct {
-	client *mocks.APIServiceClient
-}
-
-func (bm *brokerMock) CreateStorageDeal(context.Context, cid.Cid, []core.BrokerRequestID) (core.StorageDealID, error) {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealPrepared(context.Context, core.StorageDealID, core.DataPreparationResult) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealFinalizedDeals(context.Context, []broker.FinalizedAuctionDeal) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealAuctioned(ctx context.Context, auction core.Auction) error {
-	_, err := bm.client.StorageDealAuctioned(ctx, &brokerpb.StorageDealAuctionedRequest{
-		Auction: cast.AuctionToPb(auction),
-	})
-	return err
-}
-
-func (bm *brokerMock) Create(context.Context, cid.Cid, core.Metadata) (core.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) Get(context.Context, core.BrokerRequestID) (core.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func newFilClientMock() *fcMock {
-	m := &fcMock{}
-	m.On(
+func newFilClientMock() *auctioneermocks.FilClient {
+	fc := &auctioneermocks.FilClient{}
+	fc.On(
 		"VerifyBidder",
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 	).Return(true, nil)
-	m.On("GetChainHeight").Return(uint64(0), nil)
-	m.On("Close").Return(nil)
-	return m
-}
-
-type fcMock struct {
-	mock.Mock
-}
-
-func (fc *fcMock) Close() error {
-	args := fc.Called()
-	return args.Error(0)
-}
-
-func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	args := fc.Called(walletAddr, bidderSig, bidderID)
-	return args.Bool(0), args.Error(1)
-}
-
-func (fc *fcMock) GetChainHeight() (uint64, error) {
-	args := fc.Called()
-	return args.Get(0).(uint64), args.Error(1)
+	fc.On("GetChainHeight").Return(uint64(0), nil)
+	fc.On("Close").Return(nil)
+	return fc
 }

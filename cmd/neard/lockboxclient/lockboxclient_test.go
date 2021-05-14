@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 )
 
@@ -19,99 +20,99 @@ func TestIt(t *testing.T) {
 	require.NotNil(t, c)
 }
 
-// func TestSetBroker(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.SetBroker(ctx, "aaronbroker", []string{"address1"})
-// 	require.NoError(t, err)
-// 	require.NotNil(t, res)
-// }
+func TestSetBroker(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.SetBroker(ctx, "aaronbroker", []string{"address1"})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
 
-// func TestDeleteBroker(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	err := c.DeleteBroker(ctx, "aaronbroker")
-// 	require.NoError(t, err)
-// }
+func TestDeleteBroker(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	err := c.DeleteBroker(ctx, "aaronbroker")
+	require.NoError(t, err)
+}
 
-// func TestGetBroker(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.GetBroker(ctx, "aaronbroker")
-// 	require.NoError(t, err)
-// 	require.NotNil(t, res)
-// }
+func TestGetBroker(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.GetBroker(ctx, "aaronbroker")
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
 
-// func TestListBrokers(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.ListBrokers(ctx)
-// 	require.NoError(t, err)
-// 	require.NotNil(t, res)
-// }
+func TestListBrokers(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.ListBrokers(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, res)
+}
 
-// func TestLockFunds(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.LockFunds(ctx, "aaronbroker")
-// 	require.NoError(t, err)
-// 	require.NotNil(t, res)
-// }
+func TestAddDeposit(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.AddDeposit(ctx, "aaronbroker")
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
 
-// func TestHasLocked(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.HasLocked(ctx, "aaronbroker", "lock-box.testnet")
-// 	require.NoError(t, err)
-// 	require.True(t, res)
-// }
+func TestHasDeposit(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.HasDeposit(ctx, "aaronbroker", "asutula.testnet")
+	require.NoError(t, err)
+	require.True(t, res)
+}
 
-// func TestGetAccount(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.GetAccount(ctx)
-// 	require.NoError(t, err)
-// 	require.NotNil(t, res)
-// }
+func TestGetAccount(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.GetAccount(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
 
-// func TestGetState(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.GetState(ctx)
-// 	require.NoError(t, err)
-// 	require.NotNil(t, res)
-// }
+func TestGetState(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.GetState(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
 
-// func TestPushPayload(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
+func TestUpdatePayload(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
 
-// 	info, err := c.SetBroker(ctx, "asutula.testnet", []string{"addr1"})
-// 	require.NoError(t, err)
-// 	require.NotNil(t, info)
+	info, err := c.SetBroker(ctx, "asutula.testnet", []string{"addr1"})
+	require.NoError(t, err)
+	require.NotNil(t, info)
 
-// 	p := PayloadInfo{
-// 		PayloadCid: "payloadCid",
-// 		PieceCid:   "pieceCid",
-// 		Deals: []DealInfo{
-// 			{
-// 				DealID:     "dealId",
-// 				MinerID:    "minerId",
-// 				Expiration: big.NewInt(100),
-// 			},
-// 		},
-// 	}
-// 	err = c.PushPayload(ctx, p, []string{"cid1, cid2, cid3"})
-// 	require.NoError(t, err)
-// }
+	opts := PayloadOptions{
+		PieceCid: "pieceCid2",
+		Deals: []DealInfo{
+			{
+				DealID:     "dealId",
+				MinerID:    "minerId",
+				Expiration: 100,
+			},
+		},
+		DataCids: []string{"cid1, cid2, cid3, cid4"},
+	}
+	err = c.UpdatePayload(ctx, "payloadCid", opts)
+	require.NoError(t, err)
+}
 
-// func TestGetPayloads(t *testing.T) {
-// 	c, cleanup := makeClient(t)
-// 	defer cleanup()
-// 	res, err := c.ListPayloads(ctx, 0, 100)
-// 	require.NoError(t, err)
-// 	require.NotNil(t, res)
-// }
+func TestListPayloads(t *testing.T) {
+	c, cleanup := makeClient(t)
+	defer cleanup()
+	res, err := c.ListPayloads(ctx, 0, 100)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
 
 func TestPayloadJSON(t *testing.T) {
 	p := &PayloadInfo{
@@ -139,15 +140,15 @@ func makeClient(t *testing.T) (*Client, func()) {
 	rpcClient, err := rpc.DialContext(ctx, "https://rpc.testnet.near.org")
 	require.NoError(t, err)
 
-	// keys, err := keys.NewKeyPairFromString(
-	// 	"ed25519:xxxx",
-	// )
-	// require.NoError(t, err)
+	keys, err := keys.NewKeyPairFromString(
+		"ed25519:3HqBDYkCdqhz7ZrHHg91X3VoXDm1ggU7Bkom17T9x98ANNrtuaPmeTMJKfnfEthfBrke7ZgDgpMxdHxgGLk6tsSz",
+	)
+	require.NoError(t, err)
 
 	config := &types.Config{
 		RPCClient: rpcClient,
 		NetworkID: "testnet",
-		// Signer:    keys,
+		Signer:    keys,
 	}
 	nc, err := nearclient.NewClient(config)
 	require.NoError(t, err)

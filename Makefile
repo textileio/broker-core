@@ -81,7 +81,7 @@ down:
 .PHONY: down
 
 mocks: $(MOCKERY) clean-mocks
-	$(MOCKERY) --all --dir gen --keeptree
+	$(MOCKERY) --all --keeptree
 .PHONY: mocks
 
 clean-mocks:

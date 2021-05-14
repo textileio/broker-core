@@ -5,7 +5,8 @@ import (
 	"time"
 )
 
-type config struct {
+// Config is the config.
+type Config struct {
 	dealMakingFreq      time.Duration
 	dealMakingRateLim   int
 	dealWatchingFreq    time.Duration
@@ -13,7 +14,7 @@ type config struct {
 	dealReportingFreq   time.Duration
 }
 
-var defaultConfig = config{
+var defaultConfig = Config{
 	dealMakingFreq:      time.Second * 10,
 	dealMakingRateLim:   20,
 	dealWatchingFreq:    time.Second * 20,
@@ -22,11 +23,11 @@ var defaultConfig = config{
 }
 
 // Option applies a configuration change.
-type Option func(*config) error
+type Option func(*Config) error
 
 // WithDealMakingFreq configures the frequency of deal making polling.
 func WithDealMakingFreq(f time.Duration) Option {
-	return func(c *config) error {
+	return func(c *Config) error {
 		if f == 0 {
 			return errors.New("frequency is zero")
 		}
@@ -37,7 +38,7 @@ func WithDealMakingFreq(f time.Duration) Option {
 
 // WithDealMonitoringFreq configures the frequency of deal monitoring polling.
 func WithDealMonitoringFreq(f time.Duration) Option {
-	return func(c *config) error {
+	return func(c *Config) error {
 		if f == 0 {
 			return errors.New("frequency is zero")
 		}
@@ -48,7 +49,7 @@ func WithDealMonitoringFreq(f time.Duration) Option {
 
 // WithDealReportingFreq configures the frequency of deals reporting polling.
 func WithDealReportingFreq(f time.Duration) Option {
-	return func(c *config) error {
+	return func(c *Config) error {
 		if f == 0 {
 			return errors.New("frequency is zero")
 		}
@@ -59,7 +60,7 @@ func WithDealReportingFreq(f time.Duration) Option {
 
 // WithDealMakingRateLim configures the max number of parallel execution items for deal making.
 func WithDealMakingRateLim(l int) Option {
-	return func(c *config) error {
+	return func(c *Config) error {
 		if l == 0 {
 			return errors.New("rate limit is zero")
 		}
@@ -70,7 +71,7 @@ func WithDealMakingRateLim(l int) Option {
 
 // WithDealMonitoringRateLim configures the max number of parallel execution items for deal monitoring.
 func WithDealMonitoringRateLim(l int) Option {
-	return func(c *config) error {
+	return func(c *Config) error {
 		if l == 0 {
 			return errors.New("rate limit is zero")
 		}

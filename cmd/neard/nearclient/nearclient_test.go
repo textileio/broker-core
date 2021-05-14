@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 
 	"testing"
@@ -32,15 +33,15 @@ func TestDeployContract(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bytes)
 
-	// outcome, err := c.Account("asutula.testnet").DeployContract(ctx, bytes)
-	// require.NoError(t, err)
-	// require.NotNil(t, outcome)
+	outcome, err := c.Account("asutula.testnet").DeployContract(ctx, bytes)
+	require.NoError(t, err)
+	require.NotNil(t, outcome)
 
-	// res2, err := c.ViewCode(ctx, "asutula.testnet")
-	// require.NoError(t, err)
-	// require.NotNil(t, res)
+	res2, err := c.ViewCode(ctx, "asutula.testnet")
+	require.NoError(t, err)
+	require.NotNil(t, res)
 
-	// require.Equal(t, res.Hash, res2.Hash)
+	require.Equal(t, res.Hash, res2.Hash)
 }
 
 func TestDataChanges(t *testing.T) {
@@ -55,14 +56,14 @@ func makeClient(t *testing.T) (*Client, func()) {
 	rpcClient, err := rpc.DialContext(ctx, "https://rpc.testnet.near.org")
 	require.NoError(t, err)
 
-	// keys, err := keys.NewKeyPairFromString(
-	// 	"ed25519:xxxxx",
-	// )
-	// require.NoError(t, err)
+	keys, err := keys.NewKeyPairFromString(
+		"ed25519:3HqBDYkCdqhz7ZrHHg91X3VoXDm1ggU7Bkom17T9x98ANNrtuaPmeTMJKfnfEthfBrke7ZgDgpMxdHxgGLk6tsSz",
+	)
+	require.NoError(t, err)
 
 	config := &types.Config{
 		RPCClient: rpcClient,
-		// Signer:    keys,
+		Signer:    keys,
 		NetworkID: "testnet",
 	}
 	c, err := NewClient(config)

@@ -67,7 +67,7 @@ func (s *Service) UpdatePayload(
 	var dealInfos []lockboxclient.DealInfo
 	for _, info := range req.Options.Deals {
 		dealInfos = append(dealInfos, lockboxclient.DealInfo{
-			DealID:     info.DealId,
+			// DealID:     info.DealId,
 			MinerID:    info.MinerId,
 			Expiration: info.Expiration,
 		})
