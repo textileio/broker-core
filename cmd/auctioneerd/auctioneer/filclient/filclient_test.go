@@ -28,6 +28,8 @@ func TestFilClient_GetChainHeight(t *testing.T) {
 	assert.Greater(t, height, uint64(0))
 }
 
+// This test is somewhat unneeded now, leaving it for the record.
+// Running in fake-mode isn't basically doing anything.
 func TestFilClient_VerifyBidder(t *testing.T) {
 	t.Parallel()
 	client, err := New(lotusGatewayURL, true)
@@ -40,7 +42,7 @@ func TestFilClient_VerifyBidder(t *testing.T) {
 	pid, err := peer.IDFromBytes(pidBytes)
 	require.NoError(t, err)
 
-	ok, err := client.VerifyBidder(walletAddr, sigBytes, pid, "fakeModeON")
+	ok, err := client.VerifyBidder(sigBytes, pid, "fakeModeON")
 	require.NoError(t, err)
 	assert.True(t, ok)
 }

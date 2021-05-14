@@ -10,6 +10,6 @@ import (
 type FilClient interface {
 	io.Closer
 
-	VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error)
+	VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error)
 	GetChainHeight() (uint64, error)
 }

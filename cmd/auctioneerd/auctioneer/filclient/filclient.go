@@ -56,46 +56,36 @@ func (fc *FilClient) Close() error {
 // VerifyBidder ensures that the wallet address authorized the use of bidder peer.ID to make bids.
 // Miner's authorize a bidding peer.ID by signing it with a wallet address private key.
 func (fc *FilClient) VerifyBidder(
-	walletAddr string,
 	bidderSig []byte,
 	bidderID peer.ID,
 	minerAddrStr string) (bool, error) {
-	pubkey, err := address.NewFromString(walletAddr)
-	if err != nil {
-		return false, fmt.Errorf("parsing wallet address: %v", err)
+	if fc.fakeMode {
+		return true, nil
 	}
-
 	var sig crypto.Signature
-	err = sig.UnmarshalBinary(bidderSig)
+	err := sig.UnmarshalBinary(bidderSig)
 	if err != nil {
 		return false, fmt.Errorf("unmarshaling signature: %v", err)
 	}
 
-	if !fc.fakeMode {
-		minerAddr, err := address.NewFromString(minerAddrStr)
-		if err != nil {
-			return false, fmt.Errorf("parsing miner address: %s", err)
-		}
-		ctx, cancel := context.WithTimeout(fc.ctx, requestTimeout)
-		defer cancel()
-		mi, err := fc.api.StateMinerInfo(ctx, minerAddr, types.EmptyTSK)
-		if err != nil {
-			return false, fmt.Errorf("getting on-chain miner info: %s", err)
-		}
-		ownerWalletAddr, err := fc.api.StateAccountKey(ctx, mi.Owner, types.EmptyTSK)
-		if err != nil {
-			return false, fmt.Errorf("get owner walleta ddr: %s", err)
-		}
-
-		if ownerWalletAddr.String() != walletAddr {
-			return false,
-				fmt.Errorf("the owner wallet addr %s doesn't match with the provided addr %s", ownerWalletAddr, walletAddr)
-		}
+	minerAddr, err := address.NewFromString(minerAddrStr)
+	if err != nil {
+		return false, fmt.Errorf("parsing miner address: %s", err)
 	}
-
 	ctx, cancel := context.WithTimeout(fc.ctx, requestTimeout)
 	defer cancel()
-	ok, err := fc.api.WalletVerify(ctx, pubkey, []byte(bidderID), &sig)
+	mi, err := fc.api.StateMinerInfo(ctx, minerAddr, types.EmptyTSK)
+	if err != nil {
+		return false, fmt.Errorf("getting on-chain miner info: %s", err)
+	}
+	ownerWalletAddr, err := fc.api.StateAccountKey(ctx, mi.Owner, types.EmptyTSK)
+	if err != nil {
+		return false, fmt.Errorf("get owner walleta ddr: %s", err)
+	}
+
+	ctx, cancel = context.WithTimeout(fc.ctx, requestTimeout)
+	defer cancel()
+	ok, err := fc.api.WalletVerify(ctx, ownerWalletAddr, []byte(bidderID), &sig)
 	if err != nil {
 		return false, fmt.Errorf("verifying signature: %v", err)
 	}

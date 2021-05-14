@@ -252,7 +252,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 		return
 	}
 
-	ok, err := a.fc.VerifyBidder(bid.WalletAddr, bid.WalletAddrSig, from, bid.MinerAddr)
+	ok, err := a.fc.VerifyBidder(bid.WalletAddrSig, from, bid.MinerAddr)
 	if err != nil {
 		log.Errorf("verifying miner address: %v", err)
 		return
@@ -268,7 +268,6 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	if ok {
 		ch <- core.Bid{
 			MinerAddr:        bid.MinerAddr,
-			WalletAddr:       bid.WalletAddr,
 			WalletAddrSig:    bid.WalletAddrSig,
 			BidderID:         from,
 			AskPrice:         bid.AskPrice,
