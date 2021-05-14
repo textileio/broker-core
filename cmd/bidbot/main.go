@@ -198,7 +198,7 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("decoding wallet address signature: %v", err)
 
 		fin := finalizer.NewFinalizer()
-		fc, err := filclient.New(v.GetString("lotus-gateway-url"))
+		fc, err := filclient.New(v.GetString("lotus-gateway-url"), v.GetBool("fake-mode"))
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
 

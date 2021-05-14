@@ -20,14 +20,15 @@ var requestTimeout = time.Second * 10
 
 // FilClient provides functionalities to verify bidders.
 type FilClient struct {
-	api api.FullNode
+	api      api.FullNode
+	fakeMode bool
 
 	ctx       context.Context
 	finalizer *finalizer.Finalizer
 }
 
 // New returns a new FilClient.
-func New(lotusGatewayURL string) (*FilClient, error) {
+func New(lotusGatewayURL string, fakeMode bool) (*FilClient, error) {
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
@@ -41,6 +42,7 @@ func New(lotusGatewayURL string) (*FilClient, error) {
 
 	return &FilClient{
 		api:       &fn,
+		fakeMode:  fakeMode,
 		ctx:       ctx,
 		finalizer: fin,
 	}, nil
@@ -69,27 +71,29 @@ func (fc *FilClient) VerifyBidder(
 		return false, fmt.Errorf("unmarshaling signature: %v", err)
 	}
 
-	minerAddr, err := address.NewFromString(minerAddrStr)
-	if err != nil {
-		return false, fmt.Errorf("parsing miner address: %s", err)
+	if !fc.fakeMode {
+		minerAddr, err := address.NewFromString(minerAddrStr)
+		if err != nil {
+			return false, fmt.Errorf("parsing miner address: %s", err)
+		}
+		ctx, cancel := context.WithTimeout(fc.ctx, requestTimeout)
+		defer cancel()
+		mi, err := fc.api.StateMinerInfo(ctx, minerAddr, types.EmptyTSK)
+		if err != nil {
+			return false, fmt.Errorf("getting on-chain miner info: %s", err)
+		}
+		ownerWalletAddr, err := fc.api.StateAccountKey(ctx, mi.Owner, types.EmptyTSK)
+		if err != nil {
+			return false, fmt.Errorf("get owner walleta ddr: %s", err)
+		}
+
+		if ownerWalletAddr.String() != walletAddr {
+			return false,
+				fmt.Errorf("the owner wallet addr %s doesn't match with the provided addr %s", ownerWalletAddr, walletAddr)
+		}
 	}
+
 	ctx, cancel := context.WithTimeout(fc.ctx, requestTimeout)
-	defer cancel()
-	mi, err := fc.api.StateMinerInfo(ctx, minerAddr, types.EmptyTSK)
-	if err != nil {
-		return false, fmt.Errorf("getting on-chain miner info: %s", err)
-	}
-	ownerWalletAddr, err := fc.api.StateAccountKey(ctx, mi.Owner, types.EmptyTSK)
-	if err != nil {
-		return false, fmt.Errorf("get owner walleta ddr: %s", err)
-	}
-
-	if ownerWalletAddr.String() != walletAddr {
-		return false,
-			fmt.Errorf("the owner wallet addr %s doesn't match with the provided addr %s", ownerWalletAddr, walletAddr)
-	}
-
-	ctx, cancel = context.WithTimeout(fc.ctx, requestTimeout)
 	defer cancel()
 	ok, err := fc.api.WalletVerify(ctx, pubkey, []byte(bidderID), &sig)
 	if err != nil {

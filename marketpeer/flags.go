@@ -18,6 +18,11 @@ import (
 // Flags defines daemon flags for a marketpeer.
 var Flags = []common.Flag{
 	{
+		Name:        "fake-mode",
+		DefValue:    false,
+		Description: "Avoid onwner wallet-address verification",
+	},
+	{
 		Name:        "private-key",
 		DefValue:    "",
 		Description: "Libp2p private key; required",
