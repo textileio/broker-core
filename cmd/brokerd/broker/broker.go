@@ -257,7 +257,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 			return fmt.Errorf("winning bid %s wasn't found in bid map", wbid)
 		}
 		ads.Targets[i] = dealer.AuctionDealsTarget{
-			Miner:               bid.WalletAddr,
+			Miner:               bid.MinerAddr,
 			PricePerGiBPerEpoch: bid.AskPrice,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            true, // Hardcoded for now.

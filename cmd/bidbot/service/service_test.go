@@ -104,6 +104,7 @@ func TestNew(t *testing.T) {
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
+		mock.Anything,
 	).Return(false, nil)
 	_, err = service.New(config, fc2)
 	require.Error(t, err)
@@ -113,6 +114,7 @@ func newFilClientMock() *fcMock {
 	cm := &fcMock{}
 	cm.On(
 		"VerifyBidder",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
@@ -130,8 +132,8 @@ func (fc *fcMock) Close() error {
 	return args.Error(0)
 }
 
-func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	args := fc.Called(walletAddr, bidderSig, bidderID)
+func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error) {
+	args := fc.Called(walletAddr, bidderSig, bidderID, minerAddr)
 	return args.Bool(0), args.Error(1)
 }
 

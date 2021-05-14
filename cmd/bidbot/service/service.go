@@ -32,6 +32,7 @@ type Config struct {
 
 // BidParams defines how bids are made.
 type BidParams struct {
+	MinerAddr     string
 	WalletAddr    string
 	WalletAddrSig []byte
 
@@ -115,7 +116,7 @@ func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
 	fin.Add(p)
 
 	// Verify miner address
-	ok, err := fc.VerifyBidder(conf.BidParams.WalletAddr, conf.BidParams.WalletAddrSig, p.Host().ID())
+	ok, err := fc.VerifyBidder(conf.BidParams.WalletAddr, conf.BidParams.WalletAddrSig, p.Host().ID(), conf.BidParams.MinerAddr)
 	if err != nil {
 		return nil, fin.Cleanupf("verifying miner address: %v", err)
 	}
@@ -247,6 +248,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	// Submit bid to auctioneer
 	bid := &pb.Bid{
 		AuctionId:        auction.Id,
+		MinerAddr:        s.bidParams.MinerAddr,
 		WalletAddr:       s.bidParams.WalletAddr,
 		WalletAddrSig:    s.bidParams.WalletAddrSig,
 		AskPrice:         s.bidParams.AskPrice,

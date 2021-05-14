@@ -25,14 +25,15 @@ message Auction {
     }
 
     message Bid {
-        string wallet_addr = 1;
-        bytes wallet_addr_sig = 2;
-        string bidder_id = 3;
-        int64 ask_price = 4;
-        int64 verified_ask_price = 5;
-        uint64 start_epoch = 6;
-        bool fast_retrieval = 7;
-        google.protobuf.Timestamp received_at = 8;
+	string miner_addr = 1;
+        string wallet_addr = 2;
+        bytes wallet_addr_sig = 3;
+        string bidder_id = 4;
+        int64 ask_price = 5;
+        int64 verified_ask_price = 6;
+        uint64 start_epoch = 7;
+        bool fast_retrieval = 8;
+        google.protobuf.Timestamp received_at = 9;
     }
 }
 

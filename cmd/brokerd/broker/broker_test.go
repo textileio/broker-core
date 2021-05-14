@@ -203,6 +203,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
+			MinerAddr:        "f01111",
 			WalletAddr:       "miner1",
 			AskPrice:         100,
 			VerifiedAskPrice: 200,
@@ -210,6 +211,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 			FastRetrieval:    true,
 		},
 		broker.BidID("Bid2"): {
+			MinerAddr:        "f02222",
 			WalletAddr:       "miner2",
 			AskPrice:         1100,
 			VerifiedAskPrice: 1200,
@@ -243,13 +245,13 @@ func TestStorageDealAuctioned(t *testing.T) {
 	require.Equal(t, broker.MaxDealEpochs, calledADS.Duration)
 	require.Len(t, calledADS.Targets, 2)
 
-	require.Equal(t, bids[broker.BidID("Bid1")].WalletAddr, calledADS.Targets[0].Miner)
+	require.Equal(t, bids[broker.BidID("Bid1")].MinerAddr, calledADS.Targets[0].Miner)
 	require.Equal(t, bids[broker.BidID("Bid1")].AskPrice, calledADS.Targets[0].PricePerGiBPerEpoch)
 	require.Equal(t, bids[broker.BidID("Bid1")].StartEpoch, calledADS.Targets[0].StartEpoch)
 	require.True(t, calledADS.Targets[0].Verified)
 	require.Equal(t, bids[broker.BidID("Bid1")].FastRetrieval, calledADS.Targets[0].FastRetrieval)
 
-	require.Equal(t, bids[broker.BidID("Bid2")].WalletAddr, calledADS.Targets[1].Miner)
+	require.Equal(t, bids[broker.BidID("Bid2")].MinerAddr, calledADS.Targets[1].Miner)
 	require.Equal(t, bids[broker.BidID("Bid2")].AskPrice, calledADS.Targets[1].PricePerGiBPerEpoch)
 	require.Equal(t, bids[broker.BidID("Bid2")].StartEpoch, calledADS.Targets[1].StartEpoch)
 	require.True(t, calledADS.Targets[1].Verified)
@@ -356,6 +358,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
+			MinerAddr:        "f1",
 			WalletAddr:       "miner1",
 			AskPrice:         100,
 			VerifiedAskPrice: 200,
@@ -363,6 +366,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 			FastRetrieval:    true,
 		},
 		broker.BidID("Bid2"): {
+			MinerAddr:        "f2",
 			WalletAddr:       "miner2",
 			AskPrice:         1100,
 			VerifiedAskPrice: 1200,

@@ -236,6 +236,7 @@ func newFilClientMock() *fcMock {
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
+		mock.Anything,
 	).Return(true, nil)
 	m.On("GetChainHeight").Return(uint64(0), nil)
 	m.On("Close").Return(nil)
@@ -251,8 +252,8 @@ func (fc *fcMock) Close() error {
 	return args.Error(0)
 }
 
-func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	args := fc.Called(walletAddr, bidderSig, bidderID)
+func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error) {
+	args := fc.Called(walletAddr, bidderSig, bidderID, minerAddr)
 	return args.Bool(0), args.Error(1)
 }
 

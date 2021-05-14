@@ -1,10 +1,8 @@
 package filclient_test
 
 import (
-	"encoding/hex"
 	"testing"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	. "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
@@ -29,6 +27,9 @@ func TestFilClient_GetChainHeight(t *testing.T) {
 	assert.Greater(t, height, uint64(0))
 }
 
+/*
+// We need to find a way to re-enable this. We can ask s0nik for some signed
+// message using his address. (Since we need a real miner with posted address on-chain)
 func TestFilClient_VerifyBidder(t *testing.T) {
 	t.Parallel()
 	client, err := New(lotusGatewayURL)
@@ -45,3 +46,4 @@ func TestFilClient_VerifyBidder(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, ok)
 }
+*/

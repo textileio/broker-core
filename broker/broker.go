@@ -275,6 +275,7 @@ type BidID string
 
 // Bid defines the core bid model.
 type Bid struct {
+	MinerAddr        string
 	WalletAddr       string
 	WalletAddrSig    []byte
 	BidderID         peer.ID

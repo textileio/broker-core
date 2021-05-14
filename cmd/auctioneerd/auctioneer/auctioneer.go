@@ -245,14 +245,14 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	}
 }
 
-func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
+func (a *Auctioneer) bidsHandler(from peer.ID, msg []byte) {
 	bid := &pb.Bid{}
 	if err := proto.Unmarshal(msg, bid); err != nil {
 		log.Errorf("unmarshaling message: %v", err)
 		return
 	}
 
-	ok, err := a.fc.VerifyBidder(bid.WalletAddr, bid.WalletAddrSig, from)
+	ok, err := a.fc.VerifyBidder(bid.WalletAddr, bid.WalletAddrSig, from, bid.MinerAddr)
 	if err != nil {
 		log.Errorf("verifying miner address: %v", err)
 		return
@@ -267,6 +267,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	ch, ok := a.bids[core.AuctionID(bid.AuctionId)]
 	if ok {
 		ch <- core.Bid{
+			MinerAddr:        bid.MinerAddr,
 			WalletAddr:       bid.WalletAddr,
 			WalletAddrSig:    bid.WalletAddrSig,
 			BidderID:         from,

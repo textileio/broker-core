@@ -34,9 +34,14 @@ func init() {
 
 	flags := []common.Flag{
 		{
+			Name:        "miner-addr",
+			DefValue:    "",
+			Description: "Miner miner address (fxxxx); required",
+		},
+		{
 			Name:        "wallet-addr",
 			DefValue:    "",
-			Description: "Miner wallet address; required",
+			Description: "Miner owner wallet address; required",
 		},
 		{
 			Name:        "wallet-addr-sig",
@@ -142,7 +147,7 @@ environment variable:
 
 		fmt.Printf(`Bidbot needs a signature from a miner wallet address to authenticate bids.
 
-1. Sign this token with an address from your Lotus wallet:
+1. Sign this token with an address from your miner owner Lotus wallet address:
 
     lotus wallet sign [address] %s
 
@@ -201,6 +206,7 @@ var daemonCmd = &cobra.Command{
 			RepoPath: pconfig.RepoPath,
 			Peer:     pconfig,
 			BidParams: service.BidParams{
+				MinerAddr:        v.GetString("miner-addr"),
 				WalletAddr:       v.GetString("wallet-addr"),
 				WalletAddrSig:    walletAddrSig,
 				AskPrice:         v.GetInt64("ask-price"),
