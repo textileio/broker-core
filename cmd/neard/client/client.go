@@ -3,11 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/broker-core/chainapi"
 	pb "github.com/textileio/broker-core/gen/broker/chainapi/v1"
-	"github.com/textileio/broker-core/reporter"
 	"google.golang.org/grpc"
 )
 
@@ -17,43 +16,56 @@ type Client struct {
 }
 
 // New returns a new client.
-func New(cc *grpc.ClientConn) *Client {
+func New(cc *grpc.ClientConn) chainapi.ChainAPI {
 	return &Client{
 		c: pb.NewChainApiServiceClient(cc),
 	}
 }
 
-// ReportStorageInfo reports deal information on-chain.
-func (c *Client) ReportStorageInfo(
-	ctx context.Context,
-	payloadCid cid.Cid,
-	pieceCid cid.Cid,
-	deals []reporter.DealInfo,
-	dataCids []cid.Cid,
-) error {
-	dealInfos := make([]*pb.DealInfo, len(deals))
-	for i := range deals {
+// HasDeposit checks if an account has deposited funds for a broker.
+func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
+	req := &pb.HasDepositRequest{
+		BrokerId:  brokerID,
+		AccountId: accountID,
+	}
+	res, err := c.c.HasDeposit(ctx, req)
+	if err != nil {
+		return false, fmt.Errorf("calling has deposit api: %v", err)
+	}
+	return res.HasDeposit, nil
+}
+
+// UpdatePayload creates or updates a storage payload.
+func (c *Client) UpdatePayload(ctx context.Context, payloadCid cid.Cid, opts ...chainapi.UpdatePayloadOption) error {
+	options := &chainapi.UpdatePayloadOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+	dealInfos := make([]*pb.DealInfo, len(options.Deals))
+	for i := range options.Deals {
 		dealInfos[i] = &pb.DealInfo{
-			DealId:     strconv.FormatInt(deals[i].DealID, 10),
-			MinerId:    deals[i].MinerID,
-			Expiration: deals[i].Expiration,
+			DealId:     options.Deals[i].DealID,
+			MinerId:    options.Deals[i].MinerID,
+			Expiration: options.Deals[i].Expiration,
 		}
 	}
-	dataCidsStr := make([]string, len(dataCids))
-	for i := range dataCids {
-		dataCidsStr[i] = dataCids[i].String()
+	dataCidsStr := make([]string, len(options.DataCids))
+	for i := range options.DataCids {
+		dataCidsStr[i] = options.DataCids[i].String()
 	}
-	req := pb.ReportStorageInfoRequest{
-		StorageInfo: &pb.StorageInfo{
-			Cid:      payloadCid.String(),
-			PieceCid: pieceCid.String(),
-			Deals:    dealInfos,
-		},
+	pbOptions := &pb.PayloadOptions{
+		Deals:    dealInfos,
 		DataCids: dataCidsStr,
 	}
-	if _, err := c.c.ReportStorageInfo(ctx, &req); err != nil {
-		return fmt.Errorf("call report storage info api: %s", err)
+	if options.PieceCid != nil {
+		pbOptions.PieceCid = options.PieceCid.String()
 	}
-
+	req := &pb.UpdatePayloadRequest{
+		PayloadCid: payloadCid.String(),
+		Options:    pbOptions,
+	}
+	if _, err := c.c.UpdatePayload(ctx, req); err != nil {
+		return fmt.Errorf("call update payload api: %s", err)
+	}
 	return nil
 }

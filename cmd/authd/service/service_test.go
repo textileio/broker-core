@@ -139,7 +139,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: true,
 	}, nil)
-	ok, err := service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
+	ok, err := service.ValidateDepositedFunds(context.Background(), aud, sub, mockChain)
 	require.NoError(t, err)
 	require.True(t, ok)
 	mockChain.AssertExpectations(t)
@@ -153,7 +153,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	).Return(&chainapi.HasFundsResponse{
 		HasFunds: false,
 	}, nil)
-	ok, err = service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
+	ok, err = service.ValidateDepositedFunds(context.Background(), aud, sub, mockChain)
 	require.Error(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
@@ -192,7 +192,7 @@ func newChainAPIClientMock() chainapi.ChainApiServiceClient {
 func newService(t *testing.T) *service.Service {
 	listener := bufconn.Listen(bufSize)
 	config := service.Config{Listener: listener}
-	deps := service.Deps{ChainAPIServiceClient: newChainAPIClientMock()}
+	deps := service.Deps{NearAPI: newChainAPIClientMock()}
 	serv, err := service.New(config, deps)
 	require.NoError(t, err)
 	return serv

@@ -14,8 +14,8 @@ import (
 	mbase "github.com/multiformats/go-multibase"
 	varint "github.com/multiformats/go-varint"
 	"github.com/ockam-network/did"
+	"github.com/textileio/broker-core/chainapi"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
-	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	"github.com/textileio/broker-core/rpc"
 
 	// This import runs the init, which registers the algo with jwt-go.
@@ -42,7 +42,7 @@ type Config struct {
 
 // Deps comprises the service dependencies.
 type Deps struct {
-	ChainAPIServiceClient chainapi.ChainApiServiceClient
+	NearAPI chainapi.ChainAPI
 }
 
 var _ pb.AuthAPIServiceServer = (*Service)(nil)
@@ -166,23 +166,19 @@ func ValidateKeyDID(sub string, x string) (bool, error) {
 	return true, nil
 }
 
-// ValidateLockedFunds validates that the user has locked funds on chain.
-func ValidateLockedFunds(
+// ValidateDepositedFunds validates that the user has locked funds on chain.
+func ValidateDepositedFunds(
 	ctx context.Context,
 	brokerID string,
 	accountID string,
-	s chainapi.ChainApiServiceClient,
+	s chainapi.ChainAPI,
 ) (bool, error) {
-	var chainReq = &chainapi.HasFundsRequest{
-		BrokerId:  brokerID,
-		AccountId: accountID,
-	}
-	chainRes, err := s.HasFunds(ctx, chainReq)
+	hasDeposit, err := s.HasDeposit(ctx, brokerID, accountID)
 	if err != nil {
 		return false, fmt.Errorf("locked funds: %v", err)
 	}
-	if !chainRes.HasFunds {
-		return false, errors.New("account doesn't have locked funds")
+	if !hasDeposit {
+		return false, errors.New("account doesn't have deposited funds")
 	}
 	return true, nil
 }
@@ -209,7 +205,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		return nil, status.Errorf(codes.Unauthenticated, "invalid Key DID: %v", keyErr)
 	}
 	// Check for locked funds
-	fundsOk, fundsErr := ValidateLockedFunds(ctx, token.Aud, token.Iss, s.Deps.ChainAPIServiceClient)
+	fundsOk, fundsErr := ValidateDepositedFunds(ctx, token.Aud, token.Iss, s.Deps.NearAPI)
 	if !fundsOk || fundsErr != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", fundsErr)
 	}

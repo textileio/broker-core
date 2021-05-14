@@ -11,12 +11,12 @@ import (
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
-	"github.com/textileio/broker-core/reporter"
 )
 
 var (
@@ -41,7 +41,7 @@ type Broker struct {
 	piecer       piecer.Piecer
 	auctioneer   auctioneer.Auctioneer
 	dealer       dealer.Dealer
-	reporter     reporter.Reporter
+	chainAPI     chainapi.ChainAPI
 	dealDuration uint64
 }
 
@@ -52,7 +52,7 @@ func New(
 	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,
 	dealer dealer.Dealer,
-	reporter reporter.Reporter,
+	chainAPI chainapi.ChainAPI,
 	dealEpochs uint64,
 ) (*Broker, error) {
 	if dealEpochs < broker.MinDealEpochs {
@@ -73,7 +73,7 @@ func New(
 		piecer:       piecer,
 		dealer:       dealer,
 		auctioneer:   auctioneer,
-		reporter:     reporter,
+		chainAPI:     chainAPI,
 		dealDuration: dealEpochs,
 	}
 	return b, nil
@@ -336,13 +336,13 @@ func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (b
 }
 
 func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.StorageDeal) error {
-	deals := make([]reporter.DealInfo, 0, len(sd.Deals))
+	deals := make([]chainapi.DealInfo, 0, len(sd.Deals))
 	for i := range sd.Deals {
 		if sd.Deals[i].ErrorCause != "" {
 			// Skip errored deals.
 			continue
 		}
-		d := reporter.DealInfo{
+		d := chainapi.DealInfo{
 			DealID:     sd.Deals[i].DealID,
 			MinerID:    sd.Deals[i].Miner,
 			Expiration: sd.Deals[i].DealExpiration,
@@ -357,7 +357,13 @@ func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.Stora
 		}
 		dataCids[i] = br.DataCid
 	}
-	if err := b.reporter.ReportStorageInfo(ctx, sd.PayloadCid, sd.PieceCid, deals, dataCids); err != nil {
+	if err := b.chainAPI.UpdatePayload(
+		ctx,
+		sd.PayloadCid,
+		chainapi.UpdatePayloadWithDataCids(dataCids),
+		chainapi.UpdatePayloadWithPieceCid(sd.PieceCid),
+		chainapi.UpdatePayloadWithDeals(deals),
+	); err != nil {
 		return fmt.Errorf("reporting storage info: %s", err)
 	}
 	return nil

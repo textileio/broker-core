@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/authd/service"
 	"github.com/textileio/broker-core/cmd/common"
-	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
+	"github.com/textileio/broker-core/cmd/neard/client"
 	"google.golang.org/grpc"
 )
 
@@ -54,14 +54,14 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("creating near api connection: %v", err)
 		}
-		chainAPIClient := chainapi.NewChainApiServiceClient(chainAPIClientConn)
+		nearAPIClient := client.New(chainAPIClientConn)
 
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
 		if err != nil {
 			log.Fatalf("creating listener connection: %v", err)
 		}
 		config := service.Config{Listener: listener}
-		deps := service.Deps{ChainAPIServiceClient: chainAPIClient}
+		deps := service.Deps{NearAPI: nearAPIClient}
 		serv, err := service.New(config, deps)
 		common.CheckErr(err)
 

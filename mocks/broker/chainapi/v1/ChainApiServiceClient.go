@@ -17,8 +17,8 @@ type ChainApiServiceClient struct {
 	mock.Mock
 }
 
-// HasFunds provides a mock function with given fields: ctx, in, opts
-func (_m *ChainApiServiceClient) HasFunds(ctx context.Context, in *chainapi.HasFundsRequest, opts ...grpc.CallOption) (*chainapi.HasFundsResponse, error) {
+// HasDeposit provides a mock function with given fields: ctx, in, opts
+func (_m *ChainApiServiceClient) HasDeposit(ctx context.Context, in *chainapi.HasDepositRequest, opts ...grpc.CallOption) (*chainapi.HasDepositResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -28,17 +28,17 @@ func (_m *ChainApiServiceClient) HasFunds(ctx context.Context, in *chainapi.HasF
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *chainapi.HasFundsResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *chainapi.HasFundsRequest, ...grpc.CallOption) *chainapi.HasFundsResponse); ok {
+	var r0 *chainapi.HasDepositResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *chainapi.HasDepositRequest, ...grpc.CallOption) *chainapi.HasDepositResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chainapi.HasFundsResponse)
+			r0 = ret.Get(0).(*chainapi.HasDepositResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *chainapi.HasFundsRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *chainapi.HasDepositRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)
@@ -47,8 +47,8 @@ func (_m *ChainApiServiceClient) HasFunds(ctx context.Context, in *chainapi.HasF
 	return r0, r1
 }
 
-// LockInfo provides a mock function with given fields: ctx, in, opts
-func (_m *ChainApiServiceClient) LockInfo(ctx context.Context, in *chainapi.LockInfoRequest, opts ...grpc.CallOption) (*chainapi.LockInfoResponse, error) {
+// UpdatePayload provides a mock function with given fields: ctx, in, opts
+func (_m *ChainApiServiceClient) UpdatePayload(ctx context.Context, in *chainapi.UpdatePayloadRequest, opts ...grpc.CallOption) (*chainapi.UpdatePayloadResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -58,77 +58,17 @@ func (_m *ChainApiServiceClient) LockInfo(ctx context.Context, in *chainapi.Lock
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *chainapi.LockInfoResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *chainapi.LockInfoRequest, ...grpc.CallOption) *chainapi.LockInfoResponse); ok {
+	var r0 *chainapi.UpdatePayloadResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *chainapi.UpdatePayloadRequest, ...grpc.CallOption) *chainapi.UpdatePayloadResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chainapi.LockInfoResponse)
+			r0 = ret.Get(0).(*chainapi.UpdatePayloadResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *chainapi.LockInfoRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ReportStorageInfo provides a mock function with given fields: ctx, in, opts
-func (_m *ChainApiServiceClient) ReportStorageInfo(ctx context.Context, in *chainapi.ReportStorageInfoRequest, opts ...grpc.CallOption) (*chainapi.ReportStorageInfoResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *chainapi.ReportStorageInfoResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *chainapi.ReportStorageInfoRequest, ...grpc.CallOption) *chainapi.ReportStorageInfoResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chainapi.ReportStorageInfoResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *chainapi.ReportStorageInfoRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// State provides a mock function with given fields: ctx, in, opts
-func (_m *ChainApiServiceClient) State(ctx context.Context, in *chainapi.StateRequest, opts ...grpc.CallOption) (*chainapi.StateResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *chainapi.StateResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *chainapi.StateRequest, ...grpc.CallOption) *chainapi.StateResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chainapi.StateResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *chainapi.StateRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *chainapi.UpdatePayloadRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)

@@ -10,11 +10,11 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
-	"github.com/textileio/broker-core/reporter"
 	"github.com/textileio/broker-core/tests"
 )
 
@@ -334,7 +334,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 func TestStorageDealFinalizedDeals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, _, _, reporter := createBroker(t)
+	b, _, _, _, _, chainAPI := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared, auctioned, and deal making.
@@ -405,18 +405,18 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
 
-	// 4- Verify that the reporter was called to report results on-chain.
-	require.Equal(t, brgCid, reporter.callPayloadCid)
-	require.Equal(t, dpr.PieceCid, reporter.callPieceCid)
-	require.Len(t, reporter.callDeals, 1)
-	require.Equal(t, fads[0].DealID, reporter.callDeals[0].DealID)
-	require.Equal(t, fads[0].Miner, reporter.callDeals[0].MinerID)
-	require.Equal(t, fads[0].DealExpiration, reporter.callDeals[0].Expiration)
-	require.Len(t, reporter.callDataCids, 2)
-	require.Equal(t, c1, reporter.callDataCids[0])
-	require.Equal(t, c2, reporter.callDataCids[1])
+	// 4- Verify that the chainAPI was called to report results on-chain.
+	require.Equal(t, brgCid, chainAPI.callPayloadCid)
+	require.Equal(t, dpr.PieceCid, chainAPI.callPieceCid)
+	require.Len(t, chainAPI.callDeals, 1)
+	require.Equal(t, fads[0].DealID, chainAPI.callDeals[0].DealID)
+	require.Equal(t, fads[0].Miner, chainAPI.callDeals[0].MinerID)
+	require.Equal(t, fads[0].DealExpiration, chainAPI.callDeals[0].Expiration)
+	require.Len(t, chainAPI.callDataCids, 2)
+	require.Equal(t, c1, chainAPI.callDataCids[0])
+	require.Equal(t, c2, chainAPI.callDataCids[1])
 
-	reporter.clean() // clean the previous call stack
+	chainAPI.clean() // clean the previous call stack
 	// 5- Let's finalize the other one but with error. This results in a storage deal
 	//    that had two winning bids, one of them succeeded and othe other failed deal making.
 	fads = []broker.FinalizedAuctionDeal{{
@@ -439,8 +439,8 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestSuccess, mbr2.Status)
 
-	// 4- Verify that the reporter was NOT called to report results on-chain.
-	require.Equal(t, cid.Undef, reporter.callPayloadCid)
+	// 4- Verify that the chainAPI was NOT called to report results on-chain.
+	require.Equal(t, cid.Undef, chainAPI.callPayloadCid)
 }
 
 func createBroker(t *testing.T) (
@@ -449,17 +449,17 @@ func createBroker(t *testing.T) (
 	*dumbPiecer,
 	*dumbAuctioneer,
 	*dumbDealer,
-	*dumbReporter) {
+	*dumbChainAPI) {
 	ds := tests.NewTxMapDatastore()
 	packer := &dumbPacker{}
 	piecer := &dumbPiecer{}
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
-	reporter := &dumbReporter{}
-	b, err := New(ds, packer, piecer, auctioneer, dealer, reporter, broker.MaxDealEpochs)
+	chainAPI := &dumbChainAPI{}
+	b, err := New(ds, packer, piecer, auctioneer, dealer, chainAPI, broker.MaxDealEpochs)
 	require.NoError(t, err)
 
-	return b, packer, piecer, auctioneer, dealer, reporter
+	return b, packer, piecer, auctioneer, dealer, chainAPI
 }
 
 type dumbPacker struct {
@@ -530,30 +530,36 @@ func createCidFromString(s string) cid.Cid {
 	return cid.NewCidV1(cid.Raw, multihash.Multihash(mh))
 }
 
-type dumbReporter struct {
+type dumbChainAPI struct {
 	callPayloadCid cid.Cid
 	callPieceCid   cid.Cid
-	callDeals      []reporter.DealInfo
+	callDeals      []chainapi.DealInfo
 	callDataCids   []cid.Cid
 }
 
-var _ reporter.Reporter = (*dumbReporter)(nil)
+var _ chainapi.ChainAPI = (*dumbChainAPI)(nil)
 
-func (dr *dumbReporter) ReportStorageInfo(
+func (dr *dumbChainAPI) UpdatePayload(
 	ctx context.Context,
 	payloadCid cid.Cid,
-	pieceCid cid.Cid,
-	deals []reporter.DealInfo,
-	dataCids []cid.Cid,
+	opts ...chainapi.UpdatePayloadOption,
 ) error {
+	options := &chainapi.UpdatePayloadOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	dr.callPayloadCid = payloadCid
-	dr.callPieceCid = pieceCid
-	dr.callDeals = deals
-	dr.callDataCids = dataCids
+	dr.callPieceCid = *options.PieceCid
+	dr.callDeals = options.Deals
+	dr.callDataCids = options.DataCids
 	return nil
 }
 
-func (dr *dumbReporter) clean() {
+func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
+	return true, nil
+}
+
+func (dr *dumbChainAPI) clean() {
 	dr.callPayloadCid = cid.Undef
 	dr.callPieceCid = cid.Undef
 	dr.callDeals = nil
