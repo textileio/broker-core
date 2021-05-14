@@ -53,7 +53,11 @@ func (fc *FilClient) Close() error {
 
 // VerifyBidder ensures that the wallet address authorized the use of bidder peer.ID to make bids.
 // Miner's authorize a bidding peer.ID by signing it with a wallet address private key.
-func (fc *FilClient) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID, minerAddrStr string) (bool, error) {
+func (fc *FilClient) VerifyBidder(
+	walletAddr string,
+	bidderSig []byte,
+	bidderID peer.ID,
+	minerAddrStr string) (bool, error) {
 	pubkey, err := address.NewFromString(walletAddr)
 	if err != nil {
 		return false, fmt.Errorf("parsing wallet address: %v", err)
@@ -81,7 +85,8 @@ func (fc *FilClient) VerifyBidder(walletAddr string, bidderSig []byte, bidderID 
 	}
 
 	if ownerWalletAddr.String() != walletAddr {
-		return false, fmt.Errorf("the owner wallet addr %s doesn't match with the provided addr %s", ownerWalletAddr, walletAddr)
+		return false,
+			fmt.Errorf("the owner wallet addr %s doesn't match with the provided addr %s", ownerWalletAddr, walletAddr)
 	}
 
 	ctx, cancel = context.WithTimeout(fc.ctx, requestTimeout)

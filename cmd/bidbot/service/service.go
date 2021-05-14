@@ -116,7 +116,11 @@ func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
 	fin.Add(p)
 
 	// Verify miner address
-	ok, err := fc.VerifyBidder(conf.BidParams.WalletAddr, conf.BidParams.WalletAddrSig, p.Host().ID(), conf.BidParams.MinerAddr)
+	ok, err := fc.VerifyBidder(
+		conf.BidParams.WalletAddr,
+		conf.BidParams.WalletAddrSig,
+		p.Host().ID(),
+		conf.BidParams.MinerAddr)
 	if err != nil {
 		return nil, fin.Cleanupf("verifying miner address: %v", err)
 	}

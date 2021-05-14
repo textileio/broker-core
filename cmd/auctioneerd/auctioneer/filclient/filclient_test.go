@@ -10,11 +10,6 @@ import (
 
 const (
 	lotusGatewayURL = "https://api.node.glif.io"
-
-	walletAddr = "f1u44svaac2dzqbgbbizwutibq6lsud2qzcnedxuq"
-	bidderSig  = "0116acc1675a21bb4a1355a2ebceb24fa5bea612fd5b88fb6894f3139eae73f6142121ce6c1c837cc45022abdcb49dca" +
-		"77435a41d30ca8ef613aa4d50f1707538001"
-	bidderID = "002408011220bc22df3d9a3a8202ddf6e3dbf7cb07c872dc2e024737318a223e275bd06c1281"
 )
 
 func TestFilClient_GetChainHeight(t *testing.T) {
@@ -28,6 +23,13 @@ func TestFilClient_GetChainHeight(t *testing.T) {
 }
 
 /*
+const (
+	walletAddr = "f1u44svaac2dzqbgbbizwutibq6lsud2qzcnedxuq"
+	bidderSig  = "0116acc1675a21bb4a1355a2ebceb24fa5bea612fd5b88fb6894f3139eae73f6142121ce6c1c837cc45022abdcb49dca" +
+		"77435a41d30ca8ef613aa4d50f1707538001"
+	bidderID = "002408011220bc22df3d9a3a8202ddf6e3dbf7cb07c872dc2e024737318a223e275bd06c1281"
+)
+
 // We need to find a way to re-enable this. We can ask s0nik for some signed
 // message using his address. (Since we need a real miner with posted address on-chain)
 func TestFilClient_VerifyBidder(t *testing.T) {
