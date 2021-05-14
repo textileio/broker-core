@@ -245,7 +245,7 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	}
 }
 
-func (a *Auctioneer) bidsHandler(from peer.ID, msg []byte) {
+func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	bid := &pb.Bid{}
 	if err := proto.Unmarshal(msg, bid); err != nil {
 		log.Errorf("unmarshaling message: %v", err)
