@@ -20,7 +20,7 @@ var Flags = []common.Flag{
 	{
 		Name:        "fake-mode",
 		DefValue:    false,
-		Description: "Avoid onwner wallet-address verification",
+		Description: "Avoid owner wallet-address verification",
 	},
 	{
 		Name:        "private-key",

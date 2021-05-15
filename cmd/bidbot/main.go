@@ -36,7 +36,7 @@ func init() {
 		{
 			Name:        "miner-addr",
 			DefValue:    "",
-			Description: "Miner miner address (fxxxx); required",
+			Description: "Miner address (fxxxx); required",
 		},
 		{
 			Name:        "wallet-addr-sig",
