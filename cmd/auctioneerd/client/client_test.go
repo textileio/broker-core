@@ -164,7 +164,6 @@ func addMiners(t *testing.T, n int) {
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				WalletAddr:       "foo",
 				WalletAddrSig:    []byte("bar"),
 				AskPrice:         100000000000,
 				VerifiedAskPrice: 100000000000,
@@ -251,8 +250,8 @@ func (fc *fcMock) Close() error {
 	return args.Error(0)
 }
 
-func (fc *fcMock) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	args := fc.Called(walletAddr, bidderSig, bidderID)
+func (fc *fcMock) VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error) {
+	args := fc.Called(bidderSig, bidderID, minerAddr)
 	return args.Bool(0), args.Error(1)
 }
 

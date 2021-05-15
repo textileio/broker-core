@@ -122,7 +122,7 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("dialing broker: %v", err)
 		fin.Add(broker)
 
-		fc, err := filclient.New(v.GetString("lotus-gateway-url"))
+		fc, err := filclient.New(v.GetString("lotus-gateway-url"), v.GetBool("fake-mode"))
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
 
