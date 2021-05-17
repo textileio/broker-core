@@ -10,20 +10,19 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/sigs/secp"
 )
 
-// Config is the config.
-type Config struct {
+type config struct {
 	privKey []byte
 	pubKey  address.Address
 }
 
-var defaultConfig = Config{}
+var defaultConfig = config{}
 
 // Option applies a configuration change.
-type Option func(*Config) error
+type Option func(*config) error
 
 // WithExportedKey configures the wallet address private key used to make deals.
 func WithExportedKey(exportedHexKey string) Option {
-	return func(c *Config) error {
+	return func(c *config) error {
 		if exportedHexKey == "" {
 			return fmt.Errorf("exported wallet key is empty")
 		}

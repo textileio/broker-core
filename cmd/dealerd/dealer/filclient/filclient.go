@@ -42,7 +42,7 @@ const dealProtocol = "/fil/storage/mk/1.1.0"
 
 // FilClient provides API to interact with the Filecoin network.
 type FilClient struct {
-	conf Config
+	conf config
 
 	api  api.Gateway
 	host host.Host
