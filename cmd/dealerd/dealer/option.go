@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// config is the config.
 type config struct {
 	dealMakingFreq      time.Duration
 	dealMakingRateLim   int

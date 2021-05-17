@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// config holds options for creating a new packer.
 type config struct {
 	frequency  time.Duration
 	sectorSize int64
