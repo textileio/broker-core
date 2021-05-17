@@ -11,7 +11,7 @@ checkEnv SEED_PHRASE
 
 lockFunds() {
   echo "Locking funds on NEAR..."
-  near call lock-box.testnet lockFunds '{ "brokerId": "lock-box.testnet", "accountId": "lock-box.testnet" }' \
+  near call lock-box.testnet addDeposit '{ "brokerId": "lock-box.testnet", "accountId": "lock-box.testnet" }' \
   --account-id "lock-box.testnet" \
   --amount 1 \
   --seedPhrase "$SEED_PHRASE"
