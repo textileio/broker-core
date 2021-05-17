@@ -5,25 +5,25 @@ import (
 	"time"
 )
 
-// Config holds options for creating a new packer.
-type Config struct {
+// config holds options for creating a new packer.
+type config struct {
 	frequency  time.Duration
 	sectorSize int64
 }
 
-var defaultConfig = Config{
+var defaultConfig = config{
 	frequency:  time.Second * 20,
 	sectorSize: 32 << 30,
 }
 
 // Option applies a configuration change.
-type Option func(*Config) error
+type Option func(*config) error
 
 // WithFrequency indicates how much time should pass until a batch is
 // created. e.g: every 20 seconds as a maximum waiting time for the next batch
 // if data is available.
 func WithFrequency(frequency time.Duration) Option {
-	return func(c *Config) error {
+	return func(c *config) error {
 		if frequency <= 0 {
 			return fmt.Errorf("max wait should be positive")
 		}
@@ -35,7 +35,7 @@ func WithFrequency(frequency time.Duration) Option {
 // WithSectorSize configures the sector size that will be considered for the
 // maximum size of batches.
 func WithSectorSize(sectorSize int64) Option {
-	return func(c *Config) error {
+	return func(c *config) error {
 		if sectorSize <= 0 {
 			return fmt.Errorf("sector size should be positive")
 		}

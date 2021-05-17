@@ -16,7 +16,7 @@ var log = logger.Logger("dealer")
 
 // Dealer creates, monitors and reports deals in the Filecoin network.
 type Dealer struct {
-	config    Config
+	config    config
 	store     *store.Store
 	broker    broker.Broker
 	filclient FilClient
