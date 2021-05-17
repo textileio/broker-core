@@ -272,6 +272,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
+			MinerAddr:        "f01111",
 			WalletAddr:       "miner1",
 			AskPrice:         100,
 			VerifiedAskPrice: 200,
@@ -279,6 +280,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 			FastRetrieval:    true,
 		},
 		broker.BidID("Bid2"): {
+			MinerAddr:        "f02222",
 			WalletAddr:       "miner2",
 			AskPrice:         1100,
 			VerifiedAskPrice: 1200,
@@ -440,6 +442,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
+			MinerAddr:        "f1",
 			WalletAddr:       "miner1",
 			AskPrice:         100,
 			VerifiedAskPrice: 200,
@@ -447,6 +450,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 			FastRetrieval:    true,
 		},
 		broker.BidID("Bid2"): {
+			MinerAddr:        "f2",
 			WalletAddr:       "miner2",
 			AskPrice:         1100,
 			VerifiedAskPrice: 1200,

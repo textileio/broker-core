@@ -54,7 +54,7 @@ func AuctionBidsToPb(bids map[broker.BidID]broker.Bid) map[string]*pb.Auction_Bi
 	pbbids := make(map[string]*pb.Auction_Bid)
 	for k, v := range bids {
 		pbbids[string(k)] = &pb.Auction_Bid{
-			WalletAddr:       v.WalletAddr,
+			MinerAddr:        v.MinerAddr,
 			WalletAddrSig:    v.WalletAddrSig,
 			BidderId:         v.BidderID.String(),
 			AskPrice:         v.AskPrice,
@@ -119,7 +119,7 @@ func AuctionBidsFromPb(pbbids map[string]*pb.Auction_Bid) (map[broker.BidID]brok
 			return nil, fmt.Errorf("decoding peer: %v", err)
 		}
 		bids[broker.BidID(k)] = broker.Bid{
-			WalletAddr:       v.WalletAddr,
+			MinerAddr:        v.MinerAddr,
 			WalletAddrSig:    v.WalletAddrSig,
 			BidderID:         from,
 			AskPrice:         v.AskPrice,

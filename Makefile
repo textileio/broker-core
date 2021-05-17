@@ -13,7 +13,7 @@ lint: $(GOLANGCI_LINT)
 .PHONYY: lint
 
 build: $(GOVVV)
-	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./...
+	go build -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: build
 
 build-storaged: $(GOVVV)

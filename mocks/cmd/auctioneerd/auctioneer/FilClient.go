@@ -47,20 +47,20 @@ func (_m *FilClient) GetChainHeight() (uint64, error) {
 	return r0, r1
 }
 
-// VerifyBidder provides a mock function with given fields: walletAddr, bidderSig, bidderID
-func (_m *FilClient) VerifyBidder(walletAddr string, bidderSig []byte, bidderID peer.ID) (bool, error) {
-	ret := _m.Called(walletAddr, bidderSig, bidderID)
+// VerifyBidder provides a mock function with given fields: bidderSig, bidderID, minerAddr
+func (_m *FilClient) VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error) {
+	ret := _m.Called(bidderSig, bidderID, minerAddr)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(string, []byte, peer.ID) bool); ok {
-		r0 = rf(walletAddr, bidderSig, bidderID)
+	if rf, ok := ret.Get(0).(func([]byte, peer.ID, string) bool); ok {
+		r0 = rf(bidderSig, bidderID, minerAddr)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, []byte, peer.ID) error); ok {
-		r1 = rf(walletAddr, bidderSig, bidderID)
+	if rf, ok := ret.Get(1).(func([]byte, peer.ID, string) error); ok {
+		r1 = rf(bidderSig, bidderID, minerAddr)
 	} else {
 		r1 = ret.Error(1)
 	}

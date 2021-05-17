@@ -25,7 +25,7 @@ message Auction {
     }
 
     message Bid {
-        string wallet_addr = 1;
+        string miner_addr = 1;
         bytes wallet_addr_sig = 2;
         string bidder_id = 3;
         int64 ask_price = 4;

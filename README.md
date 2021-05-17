@@ -36,7 +36,7 @@ go get github.com/textileio/broker-core
 
 Miners on the Filecoin Network can bid in storage deal auctions.
 
-1. [Install Go 1.16.X](https://golang.org/doc/install).
+1. [Install Go 1.16.X](https://golang.org/doc/install) (1.15.5 should work as well)
 2. `git clone https://github.com/textileio/broker-core.git`
 3. `cd broker-core`
 4. `make install-bidbot`

@@ -160,7 +160,6 @@ func addMiners(t *testing.T, n int) {
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				WalletAddr:       "foo",
 				WalletAddrSig:    []byte("bar"),
 				AskPrice:         100000000000,
 				VerifiedAskPrice: 100000000000,

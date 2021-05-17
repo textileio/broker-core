@@ -34,9 +34,9 @@ func init() {
 
 	flags := []common.Flag{
 		{
-			Name:        "wallet-addr",
+			Name:        "miner-addr",
 			DefValue:    "",
-			Description: "Miner wallet address; required",
+			Description: "Miner address (fxxxx); required",
 		},
 		{
 			Name:        "wallet-addr-sig",
@@ -142,13 +142,13 @@ environment variable:
 
 		fmt.Printf(`Bidbot needs a signature from a miner wallet address to authenticate bids.
 
-1. Sign this token with an address from your Lotus wallet:
+1. Sign this token with an address from your miner owner Lotus wallet address:
 
-    lotus wallet sign [address] %s
+    lotus wallet sign [owner-address] %s
 
 2. Start listening for deal auctions using the wallet address and signature from step 1:
 
-    bidbot daemon --wallet-addr [address] --wallet-addr-sig [signature]
+    bidbot daemon --miner-addr [address] --wallet-addr-sig [signature]
 
 Note: In the event you win an auction, you must use this wallet address to make the deal(s).
 
@@ -172,8 +172,8 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		if v.GetString("wallet-addr") == "" {
-			common.CheckErr(errors.New("--wallet-addr is required. See 'bidbot help init' for instructions"))
+		if v.GetString("miner-addr") == "" {
+			common.CheckErr(errors.New("--miner-addr is required. See 'bidbot help init' for instructions"))
 		}
 		if v.GetString("wallet-addr-sig") == "" {
 			common.CheckErr(errors.New("--wallet-addr-sig is required. See 'bidbot help init' for instructions"))
@@ -193,7 +193,7 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("decoding wallet address signature: %v", err)
 
 		fin := finalizer.NewFinalizer()
-		fc, err := filclient.New(v.GetString("lotus-gateway-url"))
+		fc, err := filclient.New(v.GetString("lotus-gateway-url"), v.GetBool("fake-mode"))
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
 
@@ -201,7 +201,7 @@ var daemonCmd = &cobra.Command{
 			RepoPath: pconfig.RepoPath,
 			Peer:     pconfig,
 			BidParams: service.BidParams{
-				WalletAddr:       v.GetString("wallet-addr"),
+				MinerAddr:        v.GetString("miner-addr"),
 				WalletAddrSig:    walletAddrSig,
 				AskPrice:         v.GetInt64("ask-price"),
 				VerifiedAskPrice: v.GetInt64("verified-ask-price"),
