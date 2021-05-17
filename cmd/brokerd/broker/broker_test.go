@@ -8,18 +8,11 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
-	auctioneermocks "github.com/textileio/broker-core/mocks/auctioneer"
-	chainapimocks "github.com/textileio/broker-core/mocks/chainapi"
-	dealermocks "github.com/textileio/broker-core/mocks/dealer"
-	packermocks "github.com/textileio/broker-core/mocks/packer"
-	piecermocks "github.com/textileio/broker-core/mocks/piecer"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
 	"github.com/textileio/broker-core/tests"
@@ -28,16 +21,7 @@ import (
 func TestCreateSuccess(t *testing.T) {
 	t.Parallel()
 
-	packer := defaultPackerMock(1)
-	b := createBroker(
-		t,
-		packer,
-		defaultPiecerMock(),
-		defaultActioneerMock(),
-		defaultDealerMock(),
-		defaultChainAPIMock(),
-	)
-
+	b, packer, _, _, _, _ := createBroker(t)
 	c := createCidFromString("BrokerRequest1")
 
 	meta := broker.Metadata{Region: "Region1"}
@@ -50,7 +34,7 @@ func TestCreateSuccess(t *testing.T) {
 	require.True(t, time.Since(br.UpdatedAt).Seconds() < 5)
 
 	// Check that the packer was notified.
-	packer.AssertExpectations(t)
+	require.Len(t, packer.calledBrokerRequestIDs, 1)
 }
 
 func TestCreateFail(t *testing.T) {
@@ -58,14 +42,7 @@ func TestCreateFail(t *testing.T) {
 
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
-		b := createBroker(
-			t,
-			defaultPackerMock(1),
-			defaultPiecerMock(),
-			defaultActioneerMock(),
-			defaultDealerMock(),
-			defaultChainAPIMock(),
-		)
+		b, _, _, _, _, _ := createBroker(t)
 		_, err := b.Create(context.Background(), cid.Undef, broker.Metadata{})
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -77,16 +54,7 @@ func TestCreateFail(t *testing.T) {
 func TestCreateStorageDeal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-
-	piecer := defaultPiecerMock()
-	b := createBroker(
-		t,
-		defaultPackerMock(2),
-		piecer,
-		defaultActioneerMock(),
-		defaultDealerMock(),
-		defaultChainAPIMock(),
-	)
+	b, _, piecer, _, _, _ := createBroker(t)
 
 	// 1- Create two broker requests.
 	c := createCidFromString("BrokerRequest1")
@@ -106,7 +74,8 @@ func TestCreateStorageDeal(t *testing.T) {
 
 	// Check that what Piecer was notified about matches
 	// the BrokerRequest group to be prepared.
-	piecer.AssertExpectations(t)
+	require.Equal(t, brgCid, piecer.calledCid)
+	require.Equal(t, sd, piecer.calledID)
 
 	// Check that all broker request:
 	// 1- Moved to StatusPreparing
@@ -137,14 +106,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b := createBroker(
-			t,
-			defaultPackerMock(1),
-			defaultPiecerMock(),
-			defaultActioneerMock(),
-			defaultDealerMock(),
-			defaultChainAPIMock(),
-		)
+		b, _, _, _, _, _ := createBroker(t)
 		_, err := b.CreateStorageDeal(ctx, cid.Undef, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -152,14 +114,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("empty group", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b := createBroker(
-			t,
-			defaultPackerMock(1),
-			defaultPiecerMock(),
-			defaultActioneerMock(),
-			defaultDealerMock(),
-			defaultChainAPIMock(),
-		)
+		b, _, _, _, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
 		_, err := b.CreateStorageDeal(ctx, brgCid, nil)
 		require.Equal(t, ErrEmptyGroup, err)
@@ -168,14 +123,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("group contains unknown broker request id", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b := createBroker(
-			t,
-			defaultPackerMock(1),
-			defaultPiecerMock(),
-			defaultActioneerMock(),
-			defaultDealerMock(),
-			defaultChainAPIMock(),
-		)
+		b, _, _, _, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
 		_, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
@@ -186,17 +134,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 func TestStorageDealPrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-
-	auctioneer := defaultActioneerMock()
-
-	b := createBroker(
-		t,
-		defaultPackerMock(2),
-		defaultPiecerMock(),
-		auctioneer,
-		defaultDealerMock(),
-		defaultChainAPIMock(),
-	)
+	b, _, _, auctioneer, _, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal.
 	c := createCidFromString("BrokerRequest1")
@@ -225,7 +163,9 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.AuctionID("AUCTION1"), sd2.Auction.ID)
 
 	// 4- Verify that Auctioneer was called to prepare the data.
-	auctioneer.AssertExpectations(t)
+	require.Equal(t, broker.MaxDealEpochs, auctioneer.calledDealDuration)
+	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
+	require.Equal(t, sd, auctioneer.calledStorageDealID)
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
@@ -240,16 +180,7 @@ func TestStorageDealPrepared(t *testing.T) {
 func TestStorageDealAuctioned(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-
-	dealer := defaultDealerMock()
-	b := createBroker(
-		t,
-		defaultPackerMock(2),
-		defaultPiecerMock(),
-		defaultActioneerMock(),
-		dealer,
-		defaultChainAPIMock(),
-	)
+	b, _, _, _, dealer, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -306,29 +237,25 @@ func TestStorageDealAuctioned(t *testing.T) {
 	require.Equal(t, broker.StorageDealDealMaking, sd2.Status)
 
 	// 4- Verify that Dealer was called to execute the winning bids.
-	dealer.AssertExpectations(t)
+	calledADS := dealer.calledAuctionDeals
+	require.Equal(t, sd, calledADS.StorageDealID)
+	require.Equal(t, brgCid, calledADS.PayloadCid)
+	require.Equal(t, dpr.PieceCid, calledADS.PieceCid)
+	require.Equal(t, dpr.PieceSize, calledADS.PieceSize)
+	require.Equal(t, broker.MaxDealEpochs, calledADS.Duration)
+	require.Len(t, calledADS.Targets, 2)
 
-	// TODO: verify arg values passed to dealer and other places of interest in all the tests
+	require.Equal(t, bids[broker.BidID("Bid1")].MinerAddr, calledADS.Targets[0].Miner)
+	require.Equal(t, bids[broker.BidID("Bid1")].AskPrice, calledADS.Targets[0].PricePerGiBPerEpoch)
+	require.Equal(t, bids[broker.BidID("Bid1")].StartEpoch, calledADS.Targets[0].StartEpoch)
+	require.True(t, calledADS.Targets[0].Verified)
+	require.Equal(t, bids[broker.BidID("Bid1")].FastRetrieval, calledADS.Targets[0].FastRetrieval)
 
-	// calledADS := dealer.calledAuctionDeals
-	// require.Equal(t, sd, calledADS.StorageDealID)
-	// require.Equal(t, brgCid, calledADS.PayloadCid)
-	// require.Equal(t, dpr.PieceCid, calledADS.PieceCid)
-	// require.Equal(t, dpr.PieceSize, calledADS.PieceSize)
-	// require.Equal(t, broker.MaxDealEpochs, calledADS.Duration)
-	// require.Len(t, calledADS.Targets, 2)
-
-	// require.Equal(t, bids[broker.BidID("Bid1")].WalletAddr, calledADS.Targets[0].Miner)
-	// require.Equal(t, bids[broker.BidID("Bid1")].AskPrice, calledADS.Targets[0].PricePerGiBPerEpoch)
-	// require.Equal(t, bids[broker.BidID("Bid1")].StartEpoch, calledADS.Targets[0].StartEpoch)
-	// require.True(t, calledADS.Targets[0].Verified)
-	// require.Equal(t, bids[broker.BidID("Bid1")].FastRetrieval, calledADS.Targets[0].FastRetrieval)
-
-	// require.Equal(t, bids[broker.BidID("Bid2")].WalletAddr, calledADS.Targets[1].Miner)
-	// require.Equal(t, bids[broker.BidID("Bid2")].AskPrice, calledADS.Targets[1].PricePerGiBPerEpoch)
-	// require.Equal(t, bids[broker.BidID("Bid2")].StartEpoch, calledADS.Targets[1].StartEpoch)
-	// require.True(t, calledADS.Targets[1].Verified)
-	// require.Equal(t, bids[broker.BidID("Bid2")].FastRetrieval, calledADS.Targets[1].FastRetrieval)
+	require.Equal(t, bids[broker.BidID("Bid2")].MinerAddr, calledADS.Targets[1].Miner)
+	require.Equal(t, bids[broker.BidID("Bid2")].AskPrice, calledADS.Targets[1].PricePerGiBPerEpoch)
+	require.Equal(t, bids[broker.BidID("Bid2")].StartEpoch, calledADS.Targets[1].StartEpoch)
+	require.True(t, calledADS.Targets[1].Verified)
+	require.Equal(t, bids[broker.BidID("Bid2")].FastRetrieval, calledADS.Targets[1].FastRetrieval)
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
@@ -343,15 +270,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 func TestStorageDealFailedAuction(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	packer := defaultPackerMock(4)
-	b := createBroker(
-		t,
-		packer,
-		defaultPiecerMock(),
-		defaultActioneerMock(),
-		defaultDealerMock(),
-		defaultChainAPIMock(),
-	)
+	b, packer, _, _, dealerd, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -372,7 +291,8 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Empty the call stack of the  mocks, since it has calls from before.
-	// dealerd.calledAuctionDeals = dealer.AuctionDeals{}
+	dealerd.calledAuctionDeals = dealer.AuctionDeals{}
+	packer.calledBrokerRequestIDs = nil
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	auction := broker.Auction{
@@ -393,7 +313,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.Equal(t, auction.Error, sd2.Error)
 
 	// 4- Verify that Dealer was NOT called
-	// require.Equal(t, broker.StorageDealID(""), dealerd.calledAuctionDeals.StorageDealID)
+	require.Equal(t, broker.StorageDealID(""), dealerd.calledAuctionDeals.StorageDealID)
 
 	// 5- Verify that the underlying broker requests were moved
 	//    to Batching again.
@@ -404,23 +324,19 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, mbr2.Status)
 
-	// 6- Verify that Packerd was called as expected.
-	packer.AssertExpectations(t)
+	// 6- Verify that Packerd was called again with the new liberated broker requests
+	//    that can be batched again.
+	require.Len(t, packer.calledBrokerRequestIDs, 2)
+	require.Equal(t, br1.ID, packer.calledBrokerRequestIDs[0].id)
+	require.Equal(t, br1.DataCid, packer.calledBrokerRequestIDs[0].dataCid)
+	require.Equal(t, br2.ID, packer.calledBrokerRequestIDs[1].id)
+	require.Equal(t, br2.DataCid, packer.calledBrokerRequestIDs[1].dataCid)
 }
 
 func TestStorageDealFinalizedDeals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-
-	chainAPI := defaultChainAPIMock()
-	b := createBroker(
-		t,
-		defaultPackerMock(2),
-		defaultPiecerMock(),
-		defaultActioneerMock(),
-		defaultDealerMock(),
-		chainAPI,
-	)
+	b, _, _, _, _, chainAPI := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared, auctioned, and deal making.
@@ -493,7 +409,19 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
 
-	// 4- Let's finalize the other one but with error. This results in a storage deal
+	// 4- Verify that the chainAPI was called to report results on-chain.
+	require.Equal(t, brgCid, chainAPI.callPayloadCid)
+	require.Equal(t, dpr.PieceCid, chainAPI.callPieceCid)
+	require.Len(t, chainAPI.callDeals, 1)
+	require.Equal(t, fads[0].DealID, chainAPI.callDeals[0].DealID)
+	require.Equal(t, fads[0].Miner, chainAPI.callDeals[0].MinerID)
+	require.Equal(t, fads[0].DealExpiration, chainAPI.callDeals[0].Expiration)
+	require.Len(t, chainAPI.callDataCids, 2)
+	require.Equal(t, c1, chainAPI.callDataCids[0])
+	require.Equal(t, c2, chainAPI.callDataCids[1])
+
+	chainAPI.clean() // clean the previous call stack
+	// 5- Let's finalize the other one but with error. This results in a storage deal
 	//    that had two winning bids, one of them succeeded and othe other failed deal making.
 	fads = []broker.FinalizedAuctionDeal{{
 		StorageDealID: auction.StorageDealID,
@@ -503,7 +431,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	err = b.StorageDealFinalizedDeals(ctx, fads)
 	require.NoError(t, err)
 
-	// 5- Verify that the storage deal switched to Success, since at least one of the winning bids
+	// 6- Verify that the storage deal switched to Success, since at least one of the winning bids
 	//    succeeded.
 	sd2, err = b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
@@ -515,83 +443,129 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestSuccess, mbr2.Status)
 
-	// 6- Verify that the chainAPI was called only once to report results on-chain.
-	chainAPI.AssertExpectations(t)
+	// 4- Verify that the chainAPI was NOT called to report results on-chain.
+	require.Equal(t, cid.Undef, chainAPI.callPayloadCid)
 }
 
-func createBroker(
-	t *testing.T,
-	packer packer.Packer,
-	piecer piecer.Piecer,
-	auctioneer auctioneer.Auctioneer,
-	dealer dealer.Dealer,
-	chainAPI chainapi.ChainAPI,
-) *Broker {
+func createBroker(t *testing.T) (
+	*Broker,
+	*dumbPacker,
+	*dumbPiecer,
+	*dumbAuctioneer,
+	*dumbDealer,
+	*dumbChainAPI) {
 	ds := tests.NewTxMapDatastore()
+	packer := &dumbPacker{}
+	piecer := &dumbPiecer{}
+	auctioneer := &dumbAuctioneer{}
+	dealer := &dumbDealer{}
+	chainAPI := &dumbChainAPI{}
 	b, err := New(ds, packer, piecer, auctioneer, dealer, chainAPI, broker.MaxDealEpochs)
 	require.NoError(t, err)
 
-	return b
+	return b, packer, piecer, auctioneer, dealer, chainAPI
 }
 
-func defaultPackerMock(times int) *packermocks.Packer {
-	p := &packermocks.Packer{}
-	p.On(
-		"ReadyToPack",
-		mock.Anything,
-		mock.AnythingOfType("broker.BrokerRequestID"),
-		mock.AnythingOfType("cid.Cid"),
-	).Return(nil).Times(times)
-	return p
+type dumbPacker struct {
+	calledBrokerRequestIDs []brc
 }
 
-func defaultPiecerMock() *piecermocks.Piecer {
-	p := &piecermocks.Piecer{}
-	p.On(
-		"ReadyToPrepare",
-		mock.Anything,
-		mock.AnythingOfType("broker.StorageDealID"),
-		mock.AnythingOfType("cid.Cid"),
-	).Return(nil).Once()
-	return p
+type brc struct {
+	id      broker.BrokerRequestID
+	dataCid cid.Cid
 }
 
-func defaultActioneerMock() *auctioneermocks.Auctioneer {
-	a := &auctioneermocks.Auctioneer{}
-	a.On(
-		"ReadyToAuction",
-		mock.Anything,
-		mock.AnythingOfType("broker.StorageDealID"),
-		mock.AnythingOfType("uint64"),
-		mock.AnythingOfType("uint64"),
-	).Return(broker.AuctionID("AUCTION1"), nil).Once()
-	return a
+var _ packer.Packer = (*dumbPacker)(nil)
+
+func (dp *dumbPacker) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
+	dp.calledBrokerRequestIDs = append(dp.calledBrokerRequestIDs, brc{id: id, dataCid: dataCid})
+
+	return nil
 }
 
-func defaultDealerMock() *dealermocks.Dealer {
-	d := &dealermocks.Dealer{}
-	d.On(
-		"ReadyToCreateDeals",
-		mock.Anything,
-		mock.AnythingOfType("dealer.AuctionDeals"),
-	).Return(nil).Once()
-	return d
+type dumbPiecer struct {
+	calledCid cid.Cid
+	calledID  broker.StorageDealID
 }
 
-func defaultChainAPIMock() *chainapimocks.ChainAPI {
-	c := &chainapimocks.ChainAPI{}
-	c.On(
-		"UpdatePayload",
-		mock.Anything,
-		mock.AnythingOfType("cid.Cid"),
-		mock.AnythingOfType("chainapi.UpdatePayloadOption"),
-		mock.AnythingOfType("chainapi.UpdatePayloadOption"),
-		mock.AnythingOfType("chainapi.UpdatePayloadOption"),
-	).Return(nil).Once()
-	return c
+var _ piecer.Piecer = (*dumbPiecer)(nil)
+
+func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, c cid.Cid) error {
+	dp.calledCid = c
+	dp.calledID = id
+
+	return nil
+}
+
+type dumbAuctioneer struct {
+	calledStorageDealID broker.StorageDealID
+	calledPieceSize     uint64
+	calledDealDuration  uint64
+}
+
+func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error) {
+	panic("shouldn't be called")
+}
+
+func (dp *dumbAuctioneer) ReadyToAuction(
+	ctx context.Context,
+	id broker.StorageDealID,
+	dealSize, dealDuration uint64,
+) (broker.AuctionID, error) {
+	dp.calledStorageDealID = id
+	dp.calledPieceSize = dealSize
+	dp.calledDealDuration = dealDuration
+	return broker.AuctionID("AUCTION1"), nil
+}
+
+type dumbDealer struct {
+	calledAuctionDeals dealer.AuctionDeals
+}
+
+var _ dealer.Dealer = (*dumbDealer)(nil)
+
+func (dd *dumbDealer) ReadyToCreateDeals(ctx context.Context, ads dealer.AuctionDeals) error {
+	dd.calledAuctionDeals = ads
+	return nil
 }
 
 func createCidFromString(s string) cid.Cid {
 	mh, _ := multihash.Encode([]byte(s), multihash.SHA2_256)
 	return cid.NewCidV1(cid.Raw, multihash.Multihash(mh))
+}
+
+type dumbChainAPI struct {
+	callPayloadCid cid.Cid
+	callPieceCid   cid.Cid
+	callDeals      []chainapi.DealInfo
+	callDataCids   []cid.Cid
+}
+
+var _ chainapi.ChainAPI = (*dumbChainAPI)(nil)
+
+func (dr *dumbChainAPI) UpdatePayload(
+	ctx context.Context,
+	payloadCid cid.Cid,
+	opts ...chainapi.UpdatePayloadOption,
+) error {
+	options := &chainapi.UpdatePayloadOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+	dr.callPayloadCid = payloadCid
+	dr.callPieceCid = *options.PieceCid
+	dr.callDeals = options.Deals
+	dr.callDataCids = options.DataCids
+	return nil
+}
+
+func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
+	return true, nil
+}
+
+func (dr *dumbChainAPI) clean() {
+	dr.callPayloadCid = cid.Undef
+	dr.callPieceCid = cid.Undef
+	dr.callDeals = nil
+	dr.callDataCids = nil
 }
