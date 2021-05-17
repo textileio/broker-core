@@ -2,67 +2,35 @@ syntax = "proto3";
 package chainapi.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/chainapi/v1;chainapi";
 
-message DepositInfo {
-  string amount = 1;
-  string sender = 2;
-  uint64 expiration = 3;
-}
-
-message LockInfo {
-  string account_id = 1;
-  string broker_id = 2;
-  DepositInfo deposit = 3;
-}
-
 message DealInfo {
-	string deal_id = 1;
+	int64 deal_id = 1;
 	string miner_id = 2;
 	uint64 expiration = 3;
 }
 
-message StorageInfo {
-  string cid = 1;
-	string piece_cid = 2;
-	repeated DealInfo deals = 3;
+message PayloadOptions {
+	string piece_cid = 1;
+	repeated DealInfo deals = 2;
+  repeated string data_cids = 3;
 }
 
-message LockInfoRequest {
-  string account_id = 1;
-  uint64 block_height = 2;
-}
-
-message LockInfoResponse {
-  LockInfo lock_info = 1;
-}
-
-message HasFundsRequest {
+message HasDepositRequest {
   string broker_id = 1;
   string account_id = 2;
 }
 
-message HasFundsResponse {
-  bool has_funds = 1;
+message HasDepositResponse {
+  bool has_deposit = 1;
 }
 
-message ReportStorageInfoRequest {
-  StorageInfo storage_info = 1;
-  repeated string data_cids = 2;
+message UpdatePayloadRequest {
+  string payload_cid = 1;
+  PayloadOptions options = 2;
 }
 
-message ReportStorageInfoResponse {}
-
-message StateRequest {
-}
-
-message StateResponse {
-  map<string, LockInfo> locked_funds = 1;
-  uint64 block_height = 2;
-  string block_hash = 3;
-}
+message UpdatePayloadResponse {}
 
 service ChainApiService {
-  rpc LockInfo(LockInfoRequest) returns (LockInfoResponse) {};
-  rpc HasFunds(HasFundsRequest) returns (HasFundsResponse) {}
-  rpc ReportStorageInfo(ReportStorageInfoRequest) returns (ReportStorageInfoResponse) {};
-  rpc State(StateRequest) returns (StateResponse) {};
+  rpc HasDeposit(HasDepositRequest) returns (HasDepositResponse) {}
+  rpc UpdatePayload(UpdatePayloadRequest) returns (UpdatePayloadResponse) {};
 }

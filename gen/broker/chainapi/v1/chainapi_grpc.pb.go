@@ -18,10 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChainApiServiceClient interface {
-	LockInfo(ctx context.Context, in *LockInfoRequest, opts ...grpc.CallOption) (*LockInfoResponse, error)
-	HasFunds(ctx context.Context, in *HasFundsRequest, opts ...grpc.CallOption) (*HasFundsResponse, error)
-	ReportStorageInfo(ctx context.Context, in *ReportStorageInfoRequest, opts ...grpc.CallOption) (*ReportStorageInfoResponse, error)
-	State(ctx context.Context, in *StateRequest, opts ...grpc.CallOption) (*StateResponse, error)
+	HasDeposit(ctx context.Context, in *HasDepositRequest, opts ...grpc.CallOption) (*HasDepositResponse, error)
+	UpdatePayload(ctx context.Context, in *UpdatePayloadRequest, opts ...grpc.CallOption) (*UpdatePayloadResponse, error)
 }
 
 type chainApiServiceClient struct {
@@ -32,36 +30,18 @@ func NewChainApiServiceClient(cc grpc.ClientConnInterface) ChainApiServiceClient
 	return &chainApiServiceClient{cc}
 }
 
-func (c *chainApiServiceClient) LockInfo(ctx context.Context, in *LockInfoRequest, opts ...grpc.CallOption) (*LockInfoResponse, error) {
-	out := new(LockInfoResponse)
-	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/LockInfo", in, out, opts...)
+func (c *chainApiServiceClient) HasDeposit(ctx context.Context, in *HasDepositRequest, opts ...grpc.CallOption) (*HasDepositResponse, error) {
+	out := new(HasDepositResponse)
+	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/HasDeposit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *chainApiServiceClient) HasFunds(ctx context.Context, in *HasFundsRequest, opts ...grpc.CallOption) (*HasFundsResponse, error) {
-	out := new(HasFundsResponse)
-	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/HasFunds", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *chainApiServiceClient) ReportStorageInfo(ctx context.Context, in *ReportStorageInfoRequest, opts ...grpc.CallOption) (*ReportStorageInfoResponse, error) {
-	out := new(ReportStorageInfoResponse)
-	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/ReportStorageInfo", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *chainApiServiceClient) State(ctx context.Context, in *StateRequest, opts ...grpc.CallOption) (*StateResponse, error) {
-	out := new(StateResponse)
-	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/State", in, out, opts...)
+func (c *chainApiServiceClient) UpdatePayload(ctx context.Context, in *UpdatePayloadRequest, opts ...grpc.CallOption) (*UpdatePayloadResponse, error) {
+	out := new(UpdatePayloadResponse)
+	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/UpdatePayload", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -72,10 +52,8 @@ func (c *chainApiServiceClient) State(ctx context.Context, in *StateRequest, opt
 // All implementations must embed UnimplementedChainApiServiceServer
 // for forward compatibility
 type ChainApiServiceServer interface {
-	LockInfo(context.Context, *LockInfoRequest) (*LockInfoResponse, error)
-	HasFunds(context.Context, *HasFundsRequest) (*HasFundsResponse, error)
-	ReportStorageInfo(context.Context, *ReportStorageInfoRequest) (*ReportStorageInfoResponse, error)
-	State(context.Context, *StateRequest) (*StateResponse, error)
+	HasDeposit(context.Context, *HasDepositRequest) (*HasDepositResponse, error)
+	UpdatePayload(context.Context, *UpdatePayloadRequest) (*UpdatePayloadResponse, error)
 	mustEmbedUnimplementedChainApiServiceServer()
 }
 
@@ -83,17 +61,11 @@ type ChainApiServiceServer interface {
 type UnimplementedChainApiServiceServer struct {
 }
 
-func (UnimplementedChainApiServiceServer) LockInfo(context.Context, *LockInfoRequest) (*LockInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LockInfo not implemented")
+func (UnimplementedChainApiServiceServer) HasDeposit(context.Context, *HasDepositRequest) (*HasDepositResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HasDeposit not implemented")
 }
-func (UnimplementedChainApiServiceServer) HasFunds(context.Context, *HasFundsRequest) (*HasFundsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method HasFunds not implemented")
-}
-func (UnimplementedChainApiServiceServer) ReportStorageInfo(context.Context, *ReportStorageInfoRequest) (*ReportStorageInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReportStorageInfo not implemented")
-}
-func (UnimplementedChainApiServiceServer) State(context.Context, *StateRequest) (*StateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method State not implemented")
+func (UnimplementedChainApiServiceServer) UpdatePayload(context.Context, *UpdatePayloadRequest) (*UpdatePayloadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePayload not implemented")
 }
 func (UnimplementedChainApiServiceServer) mustEmbedUnimplementedChainApiServiceServer() {}
 
@@ -108,74 +80,38 @@ func RegisterChainApiServiceServer(s grpc.ServiceRegistrar, srv ChainApiServiceS
 	s.RegisterService(&ChainApiService_ServiceDesc, srv)
 }
 
-func _ChainApiService_LockInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LockInfoRequest)
+func _ChainApiService_HasDeposit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HasDepositRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChainApiServiceServer).LockInfo(ctx, in)
+		return srv.(ChainApiServiceServer).HasDeposit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/chainapi.v1.ChainApiService/LockInfo",
+		FullMethod: "/chainapi.v1.ChainApiService/HasDeposit",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChainApiServiceServer).LockInfo(ctx, req.(*LockInfoRequest))
+		return srv.(ChainApiServiceServer).HasDeposit(ctx, req.(*HasDepositRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ChainApiService_HasFunds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HasFundsRequest)
+func _ChainApiService_UpdatePayload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePayloadRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChainApiServiceServer).HasFunds(ctx, in)
+		return srv.(ChainApiServiceServer).UpdatePayload(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/chainapi.v1.ChainApiService/HasFunds",
+		FullMethod: "/chainapi.v1.ChainApiService/UpdatePayload",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChainApiServiceServer).HasFunds(ctx, req.(*HasFundsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ChainApiService_ReportStorageInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReportStorageInfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChainApiServiceServer).ReportStorageInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/chainapi.v1.ChainApiService/ReportStorageInfo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChainApiServiceServer).ReportStorageInfo(ctx, req.(*ReportStorageInfoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ChainApiService_State_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StateRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChainApiServiceServer).State(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/chainapi.v1.ChainApiService/State",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChainApiServiceServer).State(ctx, req.(*StateRequest))
+		return srv.(ChainApiServiceServer).UpdatePayload(ctx, req.(*UpdatePayloadRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -188,20 +124,12 @@ var ChainApiService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ChainApiServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "LockInfo",
-			Handler:    _ChainApiService_LockInfo_Handler,
+			MethodName: "HasDeposit",
+			Handler:    _ChainApiService_HasDeposit_Handler,
 		},
 		{
-			MethodName: "HasFunds",
-			Handler:    _ChainApiService_HasFunds_Handler,
-		},
-		{
-			MethodName: "ReportStorageInfo",
-			Handler:    _ChainApiService_ReportStorageInfo_Handler,
-		},
-		{
-			MethodName: "State",
-			Handler:    _ChainApiService_State_Handler,
+			MethodName: "UpdatePayload",
+			Handler:    _ChainApiService_UpdatePayload_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

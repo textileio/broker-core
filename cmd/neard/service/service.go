@@ -45,73 +45,42 @@ func NewService(listener net.Listener, stateCache *statecache.StateCache, lc *lo
 	return s, nil
 }
 
-// LockInfo returns the LockInfo for the specified account id.
-func (s *Service) LockInfo(ctx context.Context, req *chainapi.LockInfoRequest) (*chainapi.LockInfoResponse, error) {
-	state := s.sc.GetState()
-	if state.BlockHeight < int(req.BlockHeight) {
-		return nil, status.Errorf(
-			codes.FailedPrecondition,
-			"specified block height %v is greater than current state block height %v",
-			req.BlockHeight,
-			state.BlockHeight,
-		)
-	}
-	li, ok := state.LockedFunds[req.AccountId]
-	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no lock info for account id %v", req.AccountId)
-	}
-	return &chainapi.LockInfoResponse{
-		LockInfo: toPbLockInfo(li),
-	}, nil
-}
-
-// HasFunds returns whether or not the specified account id has locked funds.
-func (s *Service) HasFunds(ctx context.Context, req *chainapi.HasFundsRequest) (*chainapi.HasFundsResponse, error) {
-	res, err := s.lc.HasLocked(ctx, req.BrokerId, req.AccountId)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "calling has funds: %v", err)
-	}
-	return &chainapi.HasFundsResponse{
-		HasFunds: res,
-	}, nil
-}
-
-// ReportStorageInfo reports storage info back to the smart contract.
-func (s *Service) ReportStorageInfo(
+// HasDeposit returns whether or not the specified account id has deposited funds.
+func (s *Service) HasDeposit(
 	ctx context.Context,
-	req *chainapi.ReportStorageInfoRequest,
-) (*chainapi.ReportStorageInfoResponse, error) {
+	req *chainapi.HasDepositRequest,
+) (*chainapi.HasDepositResponse, error) {
+	res, err := s.lc.HasDeposit(ctx, req.BrokerId, req.AccountId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "calling has deposit: %v", err)
+	}
+	return &chainapi.HasDepositResponse{
+		HasDeposit: res,
+	}, nil
+}
+
+// UpdatePayload reports storage info back to the smart contract.
+func (s *Service) UpdatePayload(
+	ctx context.Context,
+	req *chainapi.UpdatePayloadRequest,
+) (*chainapi.UpdatePayloadResponse, error) {
 	var dealInfos []lockboxclient.DealInfo
-	for _, info := range req.StorageInfo.Deals {
+	for _, info := range req.Options.Deals {
 		dealInfos = append(dealInfos, lockboxclient.DealInfo{
-			DealID:     info.DealId,
+			// DealID:     info.DealId,
 			MinerID:    info.MinerId,
 			Expiration: info.Expiration,
 		})
 	}
-	payload := lockboxclient.PayloadInfo{
-		PayloadCid: req.StorageInfo.Cid,
-		PieceCid:   req.StorageInfo.PieceCid,
-		Deals:      dealInfos,
+	opts := lockboxclient.PayloadOptions{
+		PieceCid: req.Options.PieceCid,
+		Deals:    dealInfos,
+		DataCids: req.Options.DataCids,
 	}
-	if err := s.lc.PushPayload(ctx, payload, req.DataCids); err != nil {
-		return nil, status.Errorf(codes.Internal, "calling push payload: %v", err)
+	if err := s.lc.UpdatePayload(ctx, req.PayloadCid, opts); err != nil {
+		return nil, status.Errorf(codes.Internal, "calling update payload: %v", err)
 	}
-	return &chainapi.ReportStorageInfoResponse{}, nil
-}
-
-// State returns the entire Lock Box state.
-func (s *Service) State(ctx context.Context, req *chainapi.StateRequest) (*chainapi.StateResponse, error) {
-	state := s.sc.GetState()
-	lockedFunds := make(map[string]*chainapi.LockInfo)
-	for accountID, li := range state.LockedFunds {
-		lockedFunds[accountID] = toPbLockInfo(li)
-	}
-	return &chainapi.StateResponse{
-		LockedFunds: lockedFunds,
-		BlockHeight: uint64(state.BlockHeight),
-		BlockHash:   state.BlockHash,
-	}, nil
+	return &chainapi.UpdatePayloadResponse{}, nil
 }
 
 // Close stops the server and cleans up all internally created resources.
@@ -131,16 +100,4 @@ func (s *Service) Close() error {
 	log.Info("gRPC server stopped")
 
 	return nil
-}
-
-func toPbLockInfo(li lockboxclient.LockInfo) *chainapi.LockInfo {
-	return &chainapi.LockInfo{
-		AccountId: li.AccountID,
-		BrokerId:  li.BrokerID,
-		Deposit: &chainapi.DepositInfo{
-			Amount:     li.Deposit.Amount.String(),
-			Sender:     li.Deposit.Sender,
-			Expiration: li.Deposit.Expiration,
-		},
-	}
 }

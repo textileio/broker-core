@@ -21,7 +21,7 @@ type StateCache struct {
 func NewStateCache() (*StateCache, error) {
 	return &StateCache{
 		state: lockboxclient.State{
-			LockedFunds: make(map[string]lockboxclient.LockInfo),
+			LockedFunds: make(map[string]lockboxclient.DepositInfo),
 		},
 	}, nil
 }

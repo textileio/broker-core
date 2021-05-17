@@ -10,12 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/logging"
-	mocks "github.com/textileio/broker-core/mocks/broker/chainapi/v1"
+	mocks "github.com/textileio/broker-core/mocks/chainapi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/textileio/broker-core/cmd/authd/service"
-	chainapi "github.com/textileio/broker-core/gen/broker/chainapi/v1"
 )
 
 const bufSize = 1024 * 1024
@@ -131,29 +130,27 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	// Funds ok
 	sub := "sub"
 	aud := "aud"
-	mockChain := &mocks.ChainApiServiceClient{}
+	mockChain := &mocks.ChainAPI{}
 	mockChain.On(
-		"HasFunds",
+		"HasDeposit",
 		mock.Anything, // this is the ctx, can't use AnythingOfType because context.Context is an interface.
-		mock.AnythingOfType("*chainapi.HasFundsRequest"),
-	).Return(&chainapi.HasFundsResponse{
-		HasFunds: true,
-	}, nil)
-	ok, err := service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+	).Return(true, nil)
+	ok, err := service.ValidateDepositedFunds(context.Background(), aud, sub, mockChain)
 	require.NoError(t, err)
 	require.True(t, ok)
 	mockChain.AssertExpectations(t)
 
 	// Funds not ok
-	mockChain = &mocks.ChainApiServiceClient{}
+	mockChain = &mocks.ChainAPI{}
 	mockChain.On(
-		"HasFunds",
+		"HasDeposit",
 		mock.Anything, // this is the ctx, can't use AnythingOfType because context.Context is an interface.
-		mock.AnythingOfType("*chainapi.HasFundsRequest"),
-	).Return(&chainapi.HasFundsResponse{
-		HasFunds: false,
-	}, nil)
-	ok, err = service.ValidateLockedFunds(context.Background(), aud, sub, mockChain)
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+	).Return(false, nil)
+	ok, err = service.ValidateDepositedFunds(context.Background(), aud, sub, mockChain)
 	require.Error(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
@@ -177,22 +174,21 @@ func newClient(t *testing.T, listener *bufconn.Listener) pb.AuthAPIServiceClient
 	return pb.NewAuthAPIServiceClient(conn)
 }
 
-func newChainAPIClientMock() chainapi.ChainApiServiceClient {
-	mockChain := &mocks.ChainApiServiceClient{}
+func newChainAPIClientMock() *mocks.ChainAPI {
+	mockChain := &mocks.ChainAPI{}
 	mockChain.On(
-		"HasFunds",
+		"HasDeposit",
 		mock.Anything, // this is the ctx, can't use AnythingOfType because context.Context is an interface.
-		mock.AnythingOfType("*chainapi.HasFundsRequest"),
-	).Return(&chainapi.HasFundsResponse{
-		HasFunds: true,
-	}, nil)
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+	).Return(true, nil)
 	return mockChain
 }
 
 func newService(t *testing.T) *service.Service {
 	listener := bufconn.Listen(bufSize)
 	config := service.Config{Listener: listener}
-	deps := service.Deps{ChainAPIServiceClient: newChainAPIClientMock()}
+	deps := service.Deps{NearAPI: newChainAPIClientMock()}
 	serv, err := service.New(config, deps)
 	require.NoError(t, err)
 	return serv
