@@ -41,7 +41,7 @@ while ((i<=$COUNT)); do
 
   echo "Uploading file of size $SIZE..."
   OUT=$(curl -H "Authorization: $TOKEN" -F "region=europe" -F "file=@$TMPFILE" $TARGET 2>/dev/null)
-  if [[ $OUT == *"account doesn't have locked funds"* ]]; then
+  if [[ $OUT == *"account doesn't have deposited funds"* ]]; then
 	  lockFunds
   fi
 
