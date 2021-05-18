@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: broker-ingress
+  namespace: broker-staging
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: lb-broker-staging-ipv4-1
+    networking.gke.io/managed-certificates: broker-staging-textile-dev
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /upload
+            backend:
+              serviceName: storage
+              servicePort: 8888
+          - path: /storagerequest/*
+            backend:
+              serviceName: storage
+              servicePort: 8888

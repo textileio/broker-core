@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: broker-staging-textile-dev
+  namespace: broker-staging
+spec:
+  domains:
+    - broker.staging.textile.dev

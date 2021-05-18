@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auctioneer
+spec:
+  selector:
+    app: auctioneer-v1 # point this to desired deployment
+  ports:
+    - port: 5000
+      name: api
+    - port: 9090
+      name: metrics
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auctioneer-swarm
+spec:
+  selector:
+    app: auctioneer-v1 # point this to desired deployment
+  ports:
+    - port: 4001
+      name: swarm
+  type: LoadBalancer
+---
+#apiVersion: monitoring.coreos.com/v1
+#kind: ServiceMonitor
+#metadata:
+#  name: auctioneer
+#  labels:
+#    app: auctioneer
+#spec:
+#  endpoints:
+#    - port: metrics
+#  selector:
+#    matchLabels:
+#      app: auctioneer
+#---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: auctioneer-01
+  labels:
+    app: auctioneer
+spec:
+  serviceName: auctioneer
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auctioneer-v1
+  template:
+    metadata:
+      labels:
+        app: auctioneer-v1
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 2000
+        fsGroup: 2000
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: auctioneer
+          image: textile/auctioneer
+          imagePullPolicy: Always
+          ports:
+            - name: api
+              containerPort: 5000
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: config-01
+          volumeMounts:
+            - name: auctioneer-store
+              mountPath: /data/auctioneerd
+          resources:
+            requests:
+              memory: 4Gi
+              cpu: "2"
+            limits:
+              memory: 6Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: auctioneer-store
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi

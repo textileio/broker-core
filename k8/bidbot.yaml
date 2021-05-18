@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bidbot
+spec:
+  selector:
+    app: bidbot-v1 # point this to desired deployment
+  ports:
+    - port: 5000
+      name: api
+    - port: 9090
+      name: metrics
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bidbot-swarm
+spec:
+  selector:
+    app: bidbot-v1 # point this to desired deployment
+  ports:
+    - port: 4001
+      name: swarm
+  type: LoadBalancer
+---
+#apiVersion: monitoring.coreos.com/v1
+#kind: ServiceMonitor
+#metadata:
+#  name: bidbot
+#  labels:
+#    app: bidbot
+#spec:
+#  endpoints:
+#    - port: metrics
+#  selector:
+#    matchLabels:
+#      app: bidbot
+#---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bidbot-01
+data:
+  BIDBOT_LOG_DEBUG: "true"
+  BIDBOT_LOG_JSON: "true"
+  BIDBOT_WALLET_ADDR: "f1u44svaac2dzqbgbbizwutibq6lsud2qzcnedxuq"
+  BIDBOT_WALLET_ADDR_SIG: "01b90514471ab855c61f939bde01784d3cbdfdefa4357ea689d1f6b65d922ad7600056f9431cbaf868f7f1b51c461400cbf6d58e6a030b5a01be2d466db8da1af801"
+  BIDBOT_ASK_PRICE: "100000000000"
+  BIDBOT_VERIFIED_ASK_PRICE: "100000000000"
+  BIDBOT_FAST_RETRIEVAL: "false"
+  BIDBOT_DEAL_START_WINDOW: "2880"
+  BIDBOT_DEAL_DURATION_MIN: "525600"
+  BIDBOT_DEAL_DURATION_MAX: "1051200"
+  BIDBOT_DEAL_SIZE_MIN: "57344"
+  BIDBOT_DEAL_SIZE_MAX: "32000000000"
+  BIDBOT_PRIVATE_KEY: "mCAESQN+ZIm+63f0oblgO8Y7Lq4aOZmHURLzgp512Iliex/nWXhhtbUnFKmRFb1joyudYQErnYBAhNEkwlGMVdqO6Y6g"
+  BIDBOT_LISTEN_MULTIADDR: "/ip4/0.0.0.0/tcp/4001,/ip4/0.0.0.0/udp/4001/quic"
+  BIDBOT_ANNOUNCE_MULTIADDR: "/ip4/35.185.238.206/tcp/4001,/ip4/35.185.238.206/udp/4001/quic"
+  BIDBOT_BOOTSTRAP_MULTIADDR: "/ip4/34.83.24.156/tcp/4001/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ,/ip4/34.83.24.156/udp/4001/quic/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ"
+  BIDBOT_QUIC: "true"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bidbot-01
+  labels:
+    app: bidbot
+spec:
+  serviceName: bidbot
+  replicas: 0
+  selector:
+    matchLabels:
+      app: bidbot-v1
+  template:
+    metadata:
+      labels:
+        app: bidbot-v1
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 2000
+        fsGroup: 2000
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: bidbot
+          image: "textile/bidbot:sha-206629e"
+          imagePullPolicy: Always
+          ports:
+            - name: api
+              containerPort: 5000
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: bidbot-01
+          volumeMounts:
+            - name: bidbot-store
+              mountPath: /data/bidbot
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: "1"
+            limits:
+              memory: 4Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: bidbot-store
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi
