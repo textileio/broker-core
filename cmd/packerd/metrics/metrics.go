@@ -1,5 +1,10 @@
 package metrics
 
-import "go.opentelemetry.io/otel/metric/global"
+import (
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
+)
 
-var _ = global.Meter("packerd")
+const Prefix = "packerd"
+
+var Meter = metric.Must(global.Meter(Prefix))
