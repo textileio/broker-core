@@ -28,8 +28,8 @@ import (
 	"github.com/multiformats/go-multibase"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/sigs/secp"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
-	"github.com/textileio/broker-core/cmd/dealerd/metrics"
 	"github.com/textileio/broker-core/logging"
+	"github.com/textileio/broker-core/metrics"
 	"go.opentelemetry.io/otel/metric"
 )
 

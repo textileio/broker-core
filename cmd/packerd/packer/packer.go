@@ -19,6 +19,7 @@ import (
 	"github.com/textileio/broker-core/cmd/packerd/packer/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	packeri "github.com/textileio/broker-core/packer"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
@@ -39,6 +40,10 @@ type Packer struct {
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
+
+	statLastBatch     time.Time
+	metricNewBatch    metric.Int64Counter
+	metricLastCreated metric.Int64ValueObserver
 }
 
 var _ packeri.Packer = (*Packer)(nil)
@@ -74,6 +79,7 @@ func New(
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
 	}
+	p.initMetrics()
 
 	go p.daemon()
 
@@ -148,6 +154,8 @@ func (p *Packer) pack(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("dequeueing batched broker requests: %s", err)
 	}
 
+	p.metricNewBatch.Add(ctx, 1)
+	p.statLastBatch = time.Now()
 	log.Infof("storage deal created: {id: %s, cid: %s, numCidsBatched: %d}", sdID, batchCid, numCidsBatched)
 
 	return numCidsBatched, nil

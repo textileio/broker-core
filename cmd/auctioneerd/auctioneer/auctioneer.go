@@ -19,7 +19,9 @@ import (
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
+	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/broker-core/pubsub"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -58,6 +60,12 @@ type Auctioneer struct {
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
+
+	statLastCreatedAuction    time.Time
+	metricNewAuction          metric.Int64Counter
+	metricNewFinalizedAuction metric.Int64Counter
+	metricNewBid              metric.Int64Counter
+	metricLastCreatedAuction  metric.Int64ValueObserver
 }
 
 // New returns a new Auctioneer.
@@ -80,6 +88,7 @@ func New(
 		auctionConf: auctionConf,
 		finalizer:   finalizer.NewFinalizer(),
 	}
+	a.initMetrics()
 
 	queue, err := q.NewQueue(store, a.runAuction)
 	if err != nil {
@@ -150,6 +159,9 @@ func (a *Auctioneer) CreateAuction(
 	}
 
 	log.Debugf("created auction %s", id)
+	a.metricNewAuction.Add(context.Background(), 1)
+	a.statLastCreatedAuction = time.Now()
+
 	return id, nil
 }
 
@@ -213,9 +225,11 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 		select {
 		case <-actx.Done():
 			if err := a.selectWinner(ctx, auction); err != nil {
+				a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrError)
 				return fmt.Errorf("selecting winner: %v", err)
 			}
 
+			a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrOK)
 			// TODO: Ensure auction state is persisted before notifying broker?
 			auction.Status = core.AuctionStatusEnded
 			if err := a.broker.StorageDealAuctioned(ctx, *auction); err != nil {
@@ -233,6 +247,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction) erro
 					return fmt.Errorf("generating bid id: %v", err)
 				}
 				auction.Bids[core.BidID(id)] = bid
+				a.metricNewBid.Add(ctx, 1)
 			}
 		}
 	}
