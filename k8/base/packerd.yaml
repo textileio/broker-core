@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: near
+  name: packer
 spec:
   selector:
-    app: near-v1 # point this to desired deployment
+    app: packer-v1 # point this to desired deployment
   ports:
     - port: 5000
       name: api
@@ -15,35 +15,35 @@ spec:
 #apiVersion: monitoring.coreos.com/v1
 #kind: ServiceMonitor
 #metadata:
-#  name: near
+#  name: packer
 #  labels:
-#    app: near
+#    app: packer
 #spec:
 #  endpoints:
 #    - port: metrics
 #  selector:
 #    matchLabels:
-#      app: near
+#      app: packer
 #---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: near-01
+  name: packer-01
   labels:
-    app: near
+    app: packer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: near-v1
+      app: packer-v1
   template:
     metadata:
       labels:
-        app: near-v1
+        app: packer-v1
     spec:
       containers:
-        - name: near
-          image: textile/near
+        - name: packer
+          image: textile/packer
           imagePullPolicy: Always
           ports:
             - name: api
@@ -52,7 +52,7 @@ spec:
               containerPort: 9090
           envFrom:
             - configMapRef:
-                name: config-01
+                name: configmap-01
           resources:
             requests:
               memory: 100Mi

@@ -2,7 +2,11 @@ name: Deploy
 
 on:
   push:
-    branches: [ sander/cd ]
+    branches:
+      - sander/cd
+  pull_request:
+    branches:
+      - main
 
 env:
   GKE_PROJECT: ${{ secrets.GKE_PROJECT }}
@@ -43,8 +47,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      - name: Build and push
-        id: docker_build
+      - name: Build and push auctioneer
         uses: docker/build-push-action@v2
         with:
           context: ./
@@ -55,22 +58,80 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
-#      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-#        with:
-#          version: '270.0.0'
-#          service_account_email: ${{ secrets.GKE_EMAIL }}
-#          service_account_key: ${{ secrets.GKE_KEY }}
-#
-#      - name: Set up Kustomize
-#        run: |
-#          curl -o kustomize --location https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
-#          chmod u+x ./kustomize
-#
-#      # Deploy the Docker image to the GKE cluster
-#      - name: Deploy
-#        run: |
-#          gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION --project $GKE_PROJECT
-#          ./kustomize edit set image $REGISTRY_HOSTNAME/$GKE_PROJECT/$IMAGE:${GITHUB_SHA}
-#          ./kustomize build . | kubectl apply -f -
-#          kubectl rollout status deployment/$DEPLOYMENT_NAME
-#          kubectl get services -o wide
+      - name: Build and push auth
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/authd/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/auth:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build and push broker
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/brokerd/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/broker:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build and push dealer
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/dealerd/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/dealer:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build and push near
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/neard/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/near:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build and push packer
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/packerd/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/packer:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build and push storage
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/storaged/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/storage:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - uses: google-github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          service_account_key: ${{ secrets.GKE_KEY }}
+          project_id: ${{ secrets.GKE_PROJECT }}
+
+      - name: Deploy
+        run: |
+          cd k8
+          gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION --project $GKE_PROJECT
+          K8_DEPLOYMENT=dev make -s build

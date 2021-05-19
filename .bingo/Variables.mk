@@ -29,6 +29,12 @@ $(BUF): $(BINGO_DIR)/buf.mod
 	@echo "(re)installing $(GOBIN)/buf-v0.41.0"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=buf.mod -o=$(GOBIN)/buf-v0.41.0 "github.com/bufbuild/buf/cmd/buf"
 
+ENVSUBST := $(GOBIN)/envsubst-v1.2.0
+$(ENVSUBST): $(BINGO_DIR)/envsubst.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/envsubst-v1.2.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=envsubst.mod -o=$(GOBIN)/envsubst-v1.2.0 "github.com/a8m/envsubst/cmd/envsubst"
+
 GOLANGCI_LINT := $(GOBIN)/golangci-lint-v1.39.0
 $(GOLANGCI_LINT): $(BINGO_DIR)/golangci-lint.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
@@ -52,6 +58,12 @@ $(GOX): $(BINGO_DIR)/gox.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/gox-v1.0.1"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=gox.mod -o=$(GOBIN)/gox-v1.0.1 "github.com/mitchellh/gox"
+
+KUSTOMIZE := $(GOBIN)/kustomize-v4.1.2
+$(KUSTOMIZE): $(BINGO_DIR)/kustomize.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/kustomize-v4.1.2"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=kustomize.mod -o=$(GOBIN)/kustomize-v4.1.2 "sigs.k8s.io/kustomize/kustomize/v4"
 
 MOCKERY := $(GOBIN)/mockery-v2.7.4
 $(MOCKERY): $(BINGO_DIR)/mockery.mod

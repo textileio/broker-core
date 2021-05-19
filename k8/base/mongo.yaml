@@ -2,7 +2,6 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: mongo-sidecar
-  namespace: broker-staging
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -23,7 +22,7 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: system:serviceaccount:broker-staging:mongo
+  name: ${MONGO_SIDECAR_ROLE_NAME}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -31,7 +30,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: mongo-sidecar
-    namespace: broker-staging
 ---
 apiVersion: v1
 kind: Service
@@ -68,12 +66,10 @@ spec:
   selector:
     matchLabels:
       role: mongo
-      environment: staging
   template:
     metadata:
       labels:
         role: mongo
-        environment: staging
     spec:
       serviceAccountName: mongo-sidecar
       automountServiceAccountToken: true
@@ -95,7 +91,7 @@ spec:
           image: morphy/k8s-mongo-sidecar:0.5.1
           env:
             - name: KUBERNETES_POD_LABELS
-              value: "role=mongo,environment=staging"
+              value: "role=mongo"
             - name: KUBERNETES_SERVICE_NAME
               value: "mongo"
   volumeClaimTemplates:

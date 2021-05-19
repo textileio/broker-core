@@ -52,7 +52,7 @@ spec:
               containerPort: 9090
           envFrom:
             - configMapRef:
-                name: config-01
+                name: configmap-01
           resources:
             requests:
               memory: 100Mi
