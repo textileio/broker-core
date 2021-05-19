@@ -66,10 +66,12 @@ spec:
   selector:
     matchLabels:
       role: mongo
+      environment: ${MONGO_ENVIRONMENT}
   template:
     metadata:
       labels:
         role: mongo
+        environment: ${MONGO_ENVIRONMENT}
     spec:
       serviceAccountName: mongo-sidecar
       automountServiceAccountToken: true
@@ -91,7 +93,7 @@ spec:
           image: morphy/k8s-mongo-sidecar:0.5.1
           env:
             - name: KUBERNETES_POD_LABELS
-              value: "role=mongo"
+              value: "role=mongo,environment=${MONGO_ENVIRONMENT}"
             - name: KUBERNETES_SERVICE_NAME
               value: "mongo"
   volumeClaimTemplates:

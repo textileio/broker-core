@@ -1,14 +1,14 @@
 include ../.bingo/Variables.mk
 
-include ${K8_DEPLOYMENT}/config.env
+include ${DEPLOYMENT}/config.env
 export
 
-.DEFAULT_GOAL=build
+.DEFAULT_GOAL=deploy
 
 HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
 
-build: $(ENVSUBST) $(KUSTOMIZE)
-	cd ${K8_DEPLOYMENT} && $(KUSTOMIZE) edit set image \
+deploy: $(ENVSUBST) $(KUSTOMIZE)
+	cd ${DEPLOYMENT} && $(KUSTOMIZE) edit set image \
 		textile/auctioneer:sha-$(HEAD_SHORT) \
 		textile/auth:sha-$(HEAD_SHORT) \
 		textile/broker:sha-$(HEAD_SHORT) \
@@ -16,5 +16,5 @@ build: $(ENVSUBST) $(KUSTOMIZE)
 		textile/near:sha-$(HEAD_SHORT) \
 		textile/packer:sha-$(HEAD_SHORT) \
 		textile/storage:sha-$(HEAD_SHORT)
-	cd ${K8_DEPLOYMENT} && $(KUSTOMIZE) build . | $(ENVSUBST)
-.PHONY: build
+	cd ${DEPLOYMENT} && $(KUSTOMIZE) build . | $(ENVSUBST) | kubectl apply -f -
+.PHONY: deploy
