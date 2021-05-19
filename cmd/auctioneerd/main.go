@@ -108,7 +108,7 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
-		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
+		err = common.SetupInstrumentation(v.GetString("metrics-addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
