@@ -16,9 +16,10 @@ import (
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
+	"go.opentelemetry.io/otel/metric"
 )
 
-var log = logger.Logger("packer")
+var log = logger.Logger("piecer")
 
 // Piecer provides a data-preparation pipeline for StorageDeals.
 type Piecer struct {
@@ -33,6 +34,10 @@ type Piecer struct {
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
+
+	statLastPrepared   time.Time
+	metricNewPrepare   metric.Int64Counter
+	metricLastPrepared metric.Int64ValueObserver
 }
 
 // New returns a nice Piecer.
@@ -54,6 +59,8 @@ func New(ipfsAPIMultiaddr string) (*Piecer, error) {
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
 	}
+
+	p.initMetrics()
 
 	go p.daemon()
 
@@ -178,6 +185,9 @@ func (p *Piecer) prepare(ctx context.Context, psd pendingStorageDeal) error {
 	if err := p.broker.StorageDealPrepared(ctx, psd.id, dpr); err != nil {
 		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
 	}
+
+	p.metricNewPrepare.Add(ctx, 1)
+	p.statLastPrepared = time.Now()
 
 	return nil
 }

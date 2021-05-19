@@ -1,5 +1,8 @@
 package metrics
 
-import "go.opentelemetry.io/otel/metric/global"
+import (
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
+)
 
-var _ = global.Meter("brokerd")
+var Meter = metric.Must(global.Meter("brokerd"))
