@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: uploadbot
+  namespace: broker-${DEPLOYMENT}
 spec:
   completions: 1
   parallelism: 1
@@ -32,6 +33,6 @@ spec:
             - -c
             - |
               npm install -g near-cli
-              wget -O bench.sh https://raw.githubusercontent.com/textileio/broker-core/main/cmd/storaged/bench.sh?token=ABO2DNKW6N77JH6UBXGDLL3AUUL72 
+              wget -O bench.sh https://gist.githubusercontent.com/jsign/4333ac2cfa3a1f34ce5f11d215b96a43/raw/1a5e6cf786c6ead153dd446271f8acf7d2e742d9/bench.sh
               chmod 755 bench.sh
               ./bench.sh $ENDPOINT $MIN_SIZE $MAX_SIZE $COUNT $SLEEP
