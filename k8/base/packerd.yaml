@@ -2,9 +2,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: packer
+  labels:
+     app: packer
 spec:
   selector:
-    app: packer-v1 # point this to desired deployment
+    app: packer-v1
   ports:
     - port: 5000
       name: api
@@ -12,19 +14,19 @@ spec:
       name: metrics
   type: ClusterIP
 ---
-#apiVersion: monitoring.coreos.com/v1
-#kind: ServiceMonitor
-#metadata:
-#  name: packer
-#  labels:
-#    app: packer
-#spec:
-#  endpoints:
-#    - port: metrics
-#  selector:
-#    matchLabels:
-#      app: packer
-#---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: packer
+  labels:
+    app: packer
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: packer
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -52,7 +54,7 @@ spec:
               containerPort: 9090
           envFrom:
             - configMapRef:
-                name: configmap
+                name: configmap-packer
           resources:
             requests:
               memory: 100Mi

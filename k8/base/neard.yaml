@@ -2,9 +2,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: near
+  labels:
+     app: near
 spec:
   selector:
-    app: near-v1 # point this to desired deployment
+    app: near-v1
   ports:
     - port: 5000
       name: api
@@ -12,19 +14,19 @@ spec:
       name: metrics
   type: ClusterIP
 ---
-#apiVersion: monitoring.coreos.com/v1
-#kind: ServiceMonitor
-#metadata:
-#  name: near
-#  labels:
-#    app: near
-#spec:
-#  endpoints:
-#    - port: metrics
-#  selector:
-#    matchLabels:
-#      app: near
-#---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: near
+  labels:
+    app: near
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: near
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -52,7 +54,7 @@ spec:
               containerPort: 9090
           envFrom:
             - configMapRef:
-                name: configmap
+                name: configmap-near
           resources:
             requests:
               memory: 100Mi

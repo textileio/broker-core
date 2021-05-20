@@ -19,18 +19,6 @@ rules:
       - list
       - watch
 ---
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: ${MONGO_SIDECAR_ROLE_NAME}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: read-pod-service-endpoint
-subjects:
-  - kind: ServiceAccount
-    name: mongo-sidecar
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -66,12 +54,10 @@ spec:
   selector:
     matchLabels:
       role: mongo
-      environment: ${MONGO_ENVIRONMENT}
   template:
     metadata:
       labels:
         role: mongo
-        environment: ${MONGO_ENVIRONMENT}
     spec:
       serviceAccountName: mongo-sidecar
       automountServiceAccountToken: true
@@ -89,13 +75,6 @@ spec:
           volumeMounts:
             - name: mongo-store
               mountPath: /data/db
-        - name: mongo-sidecar
-          image: morphy/k8s-mongo-sidecar:0.5.1
-          env:
-            - name: KUBERNETES_POD_LABELS
-              value: "role=mongo,environment=${MONGO_ENVIRONMENT}"
-            - name: KUBERNETES_SERVICE_NAME
-              value: "mongo"
   volumeClaimTemplates:
     - metadata:
         name: mongo-store
