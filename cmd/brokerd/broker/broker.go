@@ -217,7 +217,7 @@ func (b *Broker) StorageDealPrepared(
 
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
-	log.Debugf("storage deal %s was auctioned, signaling dealer...", auction.StorageDealID)
+	log.Debugf("storage deal %s was auctioned", auction.StorageDealID)
 
 	if auction.Status != broker.AuctionStatusEnded && auction.Status != broker.AuctionStatusError {
 		return errors.New("auction status should be final")
@@ -265,6 +265,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 		}
 	}
 
+	log.Debug("signaling dealer...")
 	if err := b.dealer.ReadyToCreateDeals(ctx, ads); err != nil {
 		return fmt.Errorf("signaling dealer to execute winning bids: %s", err)
 	}
@@ -278,6 +279,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 
 // StorageDealFinalizedDeals reports deals that reached final status in the Filecoin network.
 func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
+	log.Debugf("received %d finalized deals...", len(fads))
 	for i := range fads {
 		if err := b.store.StorageDealFinalizedDeal(fads[i]); err != nil {
 			return fmt.Errorf("adding finalized info to the store: %s", err)
@@ -336,6 +338,7 @@ func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (b
 }
 
 func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.StorageDeal) error {
+	log.Debugf("reporting finalized auction deal %s", sd.ID)
 	deals := make([]chainapi.DealInfo, 0, len(sd.Deals))
 	for i := range sd.Deals {
 		if sd.Deals[i].ErrorCause != "" {
@@ -366,6 +369,8 @@ func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.Stora
 	); err != nil {
 		return fmt.Errorf("reporting storage info: %s", err)
 	}
+	log.Debugf("update payload for payloadcid %s confirmed", sd.PayloadCid)
+
 	return nil
 }
 

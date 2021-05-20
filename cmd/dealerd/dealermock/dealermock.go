@@ -27,6 +27,7 @@ func New(broker broker.Broker) *Dealer {
 
 // ReadyToCreateDeals registers deals to execute.
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, sdb dealeri.AuctionDeals) error {
+	log.Debugf("received ready to create deals %s", sdb.StorageDealID)
 	go d.reportToBroker(sdb)
 	return nil
 }

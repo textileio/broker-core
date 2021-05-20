@@ -229,6 +229,7 @@ func (s *Service) StorageDealAuctioned(
 	}
 
 	if err := s.broker.StorageDealAuctioned(ctx, auction); err != nil {
+		log.Errorf("storage deal auctioned: %s", err)
 		return nil, status.Errorf(codes.Internal, "storage deal auctioned: %s", err)
 	}
 
