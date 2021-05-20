@@ -12,7 +12,7 @@ deploy: $(KUSTOMIZE)
 		textile/broker:sha-$(HEAD_SHORT) \
 		textile/dealer:sha-$(HEAD_SHORT) \
 		textile/near:sha-$(HEAD_SHORT) \
-		textile/packer:$(HEAD_SHORT) \
+		textile/packer:sha-$(HEAD_SHORT) \
 		textile/storage:sha-$(HEAD_SHORT)
 	cd ${DEPLOYMENT} && $(KUSTOMIZE) build . | kubectl apply -f -
 .PHONY: deploy
