@@ -19,4 +19,4 @@ deploy: $(KUSTOMIZE)
 
 run-uploadbot:
 	- kubectl -n broker-${DEPLOYMENT} delete job/uploadbot
-	cat base/uploadbot.yaml | $(ENVSUBST) | kubectl apply -f -
+	cat base/uploadbot.yaml | sed 's/<ENV>/${DEPLOYMENT}/g' | kubectl apply -f -

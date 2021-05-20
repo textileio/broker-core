@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: uploadbot
-  namespace: broker-${DEPLOYMENT}
+  namespace: broker-<ENV>
 spec:
   completions: 1
   parallelism: 1
@@ -32,6 +32,7 @@ spec:
             - /bin/bash
             - -c
             - |
+              set -x
               npm install -g near-cli
               wget -O bench.sh https://gist.githubusercontent.com/jsign/4333ac2cfa3a1f34ce5f11d215b96a43/raw/1a5e6cf786c6ead153dd446271f8acf7d2e742d9/bench.sh
               chmod 755 bench.sh
