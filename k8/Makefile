@@ -16,3 +16,7 @@ deploy: $(KUSTOMIZE)
 		textile/storage:sha-$(HEAD_SHORT)
 	cd ${DEPLOYMENT} && $(KUSTOMIZE) build . | kubectl apply -f -
 .PHONY: deploy
+
+run-uploadbot:
+	- kubectl -n broker-${DEPLOYMENT} delete job/uploadbot
+	cat base/uploadbot.yaml | sed 's/<ENV>/${DEPLOYMENT}/g' | kubectl apply -f -

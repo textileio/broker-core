@@ -10,4 +10,3 @@ resources:
 - neard.yaml
 - packerd.yaml
 - storaged.yaml
-- uploadbot.yaml

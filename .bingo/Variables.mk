@@ -29,12 +29,6 @@ $(BUF): $(BINGO_DIR)/buf.mod
 	@echo "(re)installing $(GOBIN)/buf-v0.41.0"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=buf.mod -o=$(GOBIN)/buf-v0.41.0 "github.com/bufbuild/buf/cmd/buf"
 
-ENVSUBST := $(GOBIN)/envsubst-v1.2.0
-$(ENVSUBST): $(BINGO_DIR)/envsubst.mod
-	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/envsubst-v1.2.0"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=envsubst.mod -o=$(GOBIN)/envsubst-v1.2.0 "github.com/a8m/envsubst/cmd/envsubst"
-
 GOLANGCI_LINT := $(GOBIN)/golangci-lint-v1.39.0
 $(GOLANGCI_LINT): $(BINGO_DIR)/golangci-lint.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.

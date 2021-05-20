@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var log = golog.Logger("packer/service")
+var log = golog.Logger("dealer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
