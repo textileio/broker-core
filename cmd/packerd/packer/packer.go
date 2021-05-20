@@ -90,6 +90,7 @@ func New(
 // considered. Packer will notify the broker async when the final StorageDeal
 // that contains this BrokerRequest gets created.
 func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
+	log.Debugf("received ready to pack: %s %s", id, dataCid)
 	if dataCid.Version() != 1 {
 		return fmt.Errorf("only cidv1 is supported")
 	}
@@ -171,12 +172,14 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 
 	it := p.store.NewIterator()
 	for {
+		log.Debugf("getting next batchable cid...")
 		br, ok := it.Next()
 		if !ok {
 			break
 		}
 
 		// 1- See if adding this extra node will go beyond the maximum DAG size.
+		log.Debugf("get datacid %s", br.DataCid)
 		targetNode, err := p.ipfs.Dag().Get(ctx, br.DataCid)
 		if err != nil {
 			return cid.Undef, nil, 0, fmt.Errorf("getting node by cid: %s", err)
