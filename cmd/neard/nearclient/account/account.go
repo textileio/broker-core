@@ -278,23 +278,25 @@ func (a *Account) SignAndSendTransaction(
 	// }
 	status, ok := result.GetStatus()
 	if ok && status.Failure != nil {
-		if status.Failure.ErrorMessage != "" && status.Failure.ErrorType != "" {
+		errorMessage, hasErrorMessage := status.Failure["error_message"]
+		errorType, hasErrorType := status.Failure["error_type"]
+		if hasErrorMessage && hasErrorType {
 			return nil, fmt.Errorf(
-				"transaction %s failed with message < %s > and type < %s > ",
+				"transaction %s failed with message < %v > and type < %v > ",
 				result.TransactionOutcome.ID,
-				status.Failure.ErrorMessage,
-				status.Failure.ErrorType,
+				errorMessage,
+				errorType,
 			)
 		}
 		// TODO: the parse result error thing
 		// The JS client code looks wrong/conflicting because the TS types say that status.Failure is always
 		// and object of Execution error type. But then they have code that reads like it can be some complex
-		// schema type. Just going to dump the transaction outcome as json into an error for now.
-		bytes, err := json.MarshalIndent(result.TransactionOutcome, "", "  ")
+		// schema type. Just going to marshal the Failure map for now.
+		bytes, err := json.MarshalIndent(status.Failure, "", "  ")
 		if err != nil {
-			return nil, fmt.Errorf("marshaling transaction outcome to json: %v", err)
+			return nil, fmt.Errorf("marshaling failure to json: %v", err)
 		}
-		return nil, fmt.Errorf("other error with transaction outcome: %s", string(bytes))
+		return nil, fmt.Errorf("status failure: %s", string(bytes))
 	}
 
 	return result, nil

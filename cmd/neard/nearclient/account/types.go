@@ -58,16 +58,10 @@ type FunctionCallPermissionView struct {
 	FunctionCall FunctionCall `json:"FunctionCall"`
 }
 
-// ExecutionError describes a failed transaction error.
-type ExecutionError struct {
-	ErrorMessage string `json:"error_message"`
-	ErrorType    string `json:"error_type"`
-}
-
 // FinalExecutionStatus is the final status of a transaction.
 type FinalExecutionStatus struct {
-	SuccessValue string          `json:"SuccessValue"`
-	Failure      *ExecutionError `json:"Failure,omitempty"`
+	SuccessValue string                 `json:"SuccessValue"`
+	Failure      map[string]interface{} `json:"Failure,omitempty"`
 }
 
 // FinalExecutionStatusBasic is the final status of a transaction.
@@ -84,9 +78,9 @@ const (
 
 // ExecutionStatus is the status of a transaction.
 type ExecutionStatus struct {
-	SuccessValue     string          `json:"SuccessValue"`
-	SuccessReceiptID string          `json:"SuccessReceiptId"`
-	Failure          *ExecutionError `json:"Failure"`
+	SuccessValue     string                 `json:"SuccessValue"`
+	SuccessReceiptID string                 `json:"SuccessReceiptId"`
+	Failure          map[string]interface{} `json:"Failure,omitempty"`
 }
 
 // ExecutionStatusBasic is the status of a transaction.
