@@ -7,7 +7,7 @@ spec:
   parallelism: 1
   template:
     metadata:
-      labels: 
+      labels:
         app: uploadbot
     spec:
       restartPolicy: OnFailure
@@ -27,7 +27,7 @@ spec:
               value: "3"
             - name: SEED_PHRASE
               value: "height unusual narrow dream follow grow rebel panda because then equip basic"
-          command: 
+          command:
             - /bin/bash
             - -c
             - |
@@ -35,4 +35,3 @@ spec:
               wget -O bench.sh https://raw.githubusercontent.com/textileio/broker-core/main/cmd/storaged/bench.sh?token=ABO2DNKW6N77JH6UBXGDLL3AUUL72 
               chmod 755 bench.sh
               ./bench.sh $ENDPOINT $MIN_SIZE $MAX_SIZE $COUNT $SLEEP
-
