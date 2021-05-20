@@ -8,22 +8,6 @@ resources:
 - cert.yaml
 - mongo-cluster-rolebinding.yaml
 
-images:
-- name: textile/auctioneer
-  newTag: sha-2ba05b0
-- name: textile/auth
-  newTag: sha-2ba05b0
-- name: textile/broker
-  newTag: sha-2ba05b0
-- name: textile/dealer
-  newTag: sha-2ba05b0
-- name: textile/near
-  newTag: sha-2ba05b0
-- name: textile/packer
-  newTag: sha-2ba05b0
-- name: textile/storage
-  newTag: sha-2ba05b0
-
 configMapGenerator:
 - envs:
   - configAuctioneer.env
