@@ -1,0 +1,7 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: broker-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: lb-broker-staging-ipv4-1
+    networking.gke.io/managed-certificates: broker-staging-textile-dev
