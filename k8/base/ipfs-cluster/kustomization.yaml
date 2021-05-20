@@ -2,7 +2,6 @@ resources:
   - cluster-service.yaml
   - cluster-setup-confmap.yaml
   - cluster-statefulset.yaml
-  - storage-class.yaml
 
 vars:
   - name: CLUSTER_SVC_NAME

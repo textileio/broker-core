@@ -7,7 +7,7 @@ spec:
     - metadata:
         name: cluster-storage
       spec:
-        storageClassName: balanced-ipfs-cluster
+        storageClassName: balanced-rwo
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
@@ -15,7 +15,7 @@ spec:
     - metadata:
         name: ipfs-storage
       spec:
-        storageClassName: premium-ipfs-cluster
+        storageClassName: premium-rwo
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
