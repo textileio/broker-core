@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-cluster
+  labels:
+    app: ipfs-cluster
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    # IPFS ports
+    - name: swarm
+      targetPort: swarm
+      port: 4001
+    # Cluster ports
+    - name: cluster-swarm
+      targetPort: cluster-swarm
+      port: 9096
+    - name: api-http
+      targetPort: api-http
+      port: 9094
+    - name: proxy-http
+      targetPort: proxy-http
+      port: 9095
+    - name: metrics
+      targetPort: metrics
+      port: 8888
+  selector:
+    app: ipfs-cluster
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-cluster-lb
+  labels:
+    app: ipfs-cluster
+spec:
+  type: ClusterIP
+  ports:
+    # Other Cluster ports; expose via overlay config
+    - name: api-http
+      targetPort: api-http
+      port: 9094
+    - name: proxy-http
+      targetPort: proxy-http
+      port: 9095
+  selector:
+    app: ipfs-cluster
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ipfs-cluster
+  labels:
+    app: ipfs-cluster
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: ipfs-cluster
+    

@@ -1,0 +1,13 @@
+resources:
+  - cluster-service.yaml
+  - cluster-setup-confmap.yaml
+  - cluster-statefulset.yaml
+
+vars:
+  - name: CLUSTER_SVC_NAME
+    objref:
+      kind: Service
+      name: ipfs-cluster
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name

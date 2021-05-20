@@ -1,0 +1,11 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: system:serviceaccount:broker-staging:mongo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: read-pod-service-endpoint
+subjects:
+  - kind: ServiceAccount
+    name: mongo-sidecar

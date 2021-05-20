@@ -1,9 +1,48 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: broker-edge
-configMapGenerator:
-- envs:
-  - config.env
-  name: configmap
+
 resources:
 - ../base
+- ../base/ipfs-cluster
+- cert.yaml
+- mongo-cluster-rolebinding.yaml
+
+configMapGenerator:
+- envs:
+  - configAuctioneer.env
+  name: configmap-auctioneer
+- envs:
+  - configAuth.env
+  name: configmap-auth
+- envs:
+  - configBroker.env
+  name: configmap-broker
+- envs:
+  - configDealer.env
+  name: configmap-dealer
+- envs:
+  - configNear.env
+  name: configmap-near
+- envs:
+  - configPacker.env
+  name: configmap-packer
+- envs:
+  - configStorage.env
+  name: configmap-storage
+- envs:
+  - configIpfsCluster.env
+  name: ipfs-cluster-env-config
+
+secretGenerator:
+- files:
+  - secret/cluster-secret
+  - secret/bootstrap-peer-priv-key
+  name: ipfs-cluster-secret-config
+  type: Opaque
+
+patchesStrategicMerge:
+- ipfs-cluster-volumeclaim-patch.yaml
+- ipfs-cluster-statefulset-patch.yaml
+- ingress-patch.yaml
+- mongo-patch.yaml

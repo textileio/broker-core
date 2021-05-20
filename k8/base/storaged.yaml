@@ -2,9 +2,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: storage
+  labels:
+    app: storage
 spec:
   selector:
-    app: storage-v1 # point this to desired deployment
+    app: storage-v1
   ports:
     - port: 8888
       name: api
@@ -12,19 +14,19 @@ spec:
       name: metrics
   type: ClusterIP
 ---
-#apiVersion: monitoring.coreos.com/v1
-#kind: ServiceMonitor
-#metadata:
-#  name: storage
-#  labels:
-#    app: storage
-#spec:
-#  endpoints:
-#    - port: metrics
-#  selector:
-#    matchLabels:
-#      app: storage
-#---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: storage
+  labels:
+    app: storage
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: storage
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -52,7 +54,7 @@ spec:
               containerPort: 9090
           envFrom:
             - configMapRef:
-                name: configmap
+                name: configmap-storage
           resources:
             requests:
               memory: 100Mi

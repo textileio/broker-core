@@ -4,8 +4,6 @@ metadata:
   name: broker-ingress
   annotations:
     kubernetes.io/ingress.class: "gce"
-    kubernetes.io/ingress.global-static-ip-name: ${LOAD_BALANCER_NAME}
-    networking.gke.io/managed-certificates: ${CERT_NAME}
     kubernetes.io/ingress.allow-http: "false"
 spec:
   rules:

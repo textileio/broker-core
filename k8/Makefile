@@ -1,13 +1,11 @@
 include ../.bingo/Variables.mk
 
-include ${DEPLOYMENT}/config.env
-export
 
 .DEFAULT_GOAL=deploy
 
 HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
 
-deploy: $(ENVSUBST) $(KUSTOMIZE)
+deploy: $(KUSTOMIZE)
 	cd ${DEPLOYMENT} && $(KUSTOMIZE) edit set image \
 		textile/auctioneer:sha-$(HEAD_SHORT) \
 		textile/auth:sha-$(HEAD_SHORT) \
@@ -16,5 +14,5 @@ deploy: $(ENVSUBST) $(KUSTOMIZE)
 		textile/near:sha-$(HEAD_SHORT) \
 		textile/packer:sha-$(HEAD_SHORT) \
 		textile/storage:sha-$(HEAD_SHORT)
-	cd ${DEPLOYMENT} && $(KUSTOMIZE) build . | $(ENVSUBST) | kubectl apply -f -
+	cd ${DEPLOYMENT} && $(KUSTOMIZE) build . | kubectl apply -f -
 .PHONY: deploy
