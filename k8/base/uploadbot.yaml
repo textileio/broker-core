@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: uploadbot
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels: 
+        app: uploadbot
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: uploadbot
+          image: "node:16-buster"
+          env:
+            - name: COUNT
+              value: "1000000000"
+            - name: MIN_SIZE
+              value: "1000"
+            - name: MAX_SIZE
+              value: "100000"
+            - name: ENDPOINT
+              value: "http://storage:8888"
+            - name: SLEEP
+              value: "3"
+            - name: SEED_PHRASE
+              value: "height unusual narrow dream follow grow rebel panda because then equip basic"
+          command: 
+            - /bin/bash
+            - -c
+            - |
+              npm install -g near-cli
+              wget -O bench.sh https://raw.githubusercontent.com/textileio/broker-core/main/cmd/storaged/bench.sh?token=ABO2DNKW6N77JH6UBXGDLL3AUUL72 
+              chmod 755 bench.sh
+              ./bench.sh $ENDPOINT $MIN_SIZE $MAX_SIZE $COUNT $SLEEP
+

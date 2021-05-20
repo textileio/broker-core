@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage
+spec:
+  selector:
+    app: storage-v1 # point this to desired deployment
+  ports:
+    - port: 8888
+      name: api
+    - port: 9090
+      name: metrics
+  type: ClusterIP
+---
+#apiVersion: monitoring.coreos.com/v1
+#kind: ServiceMonitor
+#metadata:
+#  name: storage
+#  labels:
+#    app: storage
+#spec:
+#  endpoints:
+#    - port: metrics
+#  selector:
+#    matchLabels:
+#      app: storage
+#---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-01
+  labels:
+    app: storage
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: storage-v1
+  template:
+    metadata:
+      labels:
+        app: storage-v1
+    spec:
+      containers:
+        - name: storage
+          image: textile/storage
+          imagePullPolicy: Always
+          ports:
+            - name: api
+              containerPort: 8888
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: configmap
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: "0.6"
+            limits:
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              port: api
+              path: "/health"
