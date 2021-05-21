@@ -1,7 +1,6 @@
 package auctioneer
 
 // TODO: Add ACK response to incoming bids.
-// TODO: Allow for multiple winners.
 
 import (
 	"context"
