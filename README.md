@@ -36,15 +36,17 @@ go get github.com/textileio/broker-core
 
 Miners on the Filecoin Network can bid in storage deal auctions.
 
-1. [Install Go 1.16.X](https://golang.org/doc/install) (1.15.5 should work as well)
+1. [Install Go 1.15 or newer](https://golang.org/doc/install)
 2. `git clone https://github.com/textileio/broker-core.git`
 3. `cd broker-core`
 4. `make install-bidbot`
 5. `bidbot init`
-6. The output from step 5 will ask you to sign a token with an address from your Lotus wallet.
+6. The output from step 5 will ask you to sign a token with the owner address of your miner.
 7. Configure your _ask price_, other bid settings, and auction filters. See `bidbot help daemon` for details. You can edit the configuration file generated in step 5 or use the equivalent flag for any given option.
-8. Use the signature you generated in step 6 to start the daemon: `bidbot daemon --wallet-addr [address] --wallet-addr-sig [signature]`
+8. Use the signature you generated in step 6 to start the daemon: `bidbot daemon --miner-addr [address] --wallet-addr-sig [signature]`
 9. Good luck! Your `bidbot` will automatically bid in open deal auctions. If it wins an auction, the broker will automatically start making a deal with the Lotus wallet address used in step 6.   
+
+For testing enviroments, you can use the `--fake-mode` flag to run in unsafe mode, where the provided wallet signature won't be verified with the owner address of the miner that is posted on-chain. The `auctioneerd` should also be running with `--fake-mode` to avoid verifying signatures. If you're a real miner, **don't** use this flag, since there's no reason to fake signatures.
 
 ### Running locally with some test data
 
@@ -55,14 +57,22 @@ $ REPO_PATH=. make up
 $ cmd/storaged/bench.sh 127.0.0.1:8888 100 200 10 0.1
 ```
 
-### Steps to deploy a daemon
+### CI/CD
 
-Here's an example of deploying `authd`:
+The `k8` folder contains manifests to deploy the Broker system to a Kubernetes cluster.
 
-1. `git pull main`
-2. `make docker-push-head` (this simply rebuilds all containers and pushes them to Docker Hub)
-3. Changed `authd` yaml https://github.com/textileio/ttcloud/pull/282/commits/01eee8b949f3194c844b0f43ada0f89fa459eaaf
-4. Run `kubectl -n broker-staging apply -f authd.yaml`  (`k8/broker/broker-staging` in ttcloud repo)
+The system is automatically deployed with the following rules:
+- There are three environments: `edge`, `staging`, and `production` (these correspond to k8 namespaces).
+- Any push on any branch will trigger a deploy to `edge` if the commit message contains the substring `[shipit]` :sunglasses:.
+- Any push to `main` (including pull request merges) will trigger a deploy to `staging`.
+- Releases trigger a deploy to `production`.
+
+A bot named `uploadbot` also is available to run in any enviroment. To run it, go to the `k8` folder and run `DEPLOYMENT=<production|staging|edge> make run-uploadbot`.
+
+### Dashboard
+
+A [Grafana dashboard](https://gke.grafana.textile.dev/) are available to have observability in the system.
+To sign in, use your GH account that should be part of the Textile organization.
 
 ## Contributing
 
