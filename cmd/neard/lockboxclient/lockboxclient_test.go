@@ -2,6 +2,7 @@ package lockboxclient
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -16,6 +17,25 @@ func TestIt(t *testing.T) {
 	c, cleanup := makeClient(t)
 	defer cleanup()
 	require.NotNil(t, c)
+}
+
+func TestDealInfoJSON(t *testing.T) {
+	d := &DealInfo{
+		DealID:     1,
+		MinerID:    "miner0",
+		Expiration: 1234,
+	}
+	bytes, err := json.MarshalIndent(d, "", "  ")
+	require.NoError(t, err)
+	s := string(bytes)
+	require.NotEmpty(t, s)
+
+	out := DealInfo{}
+	err = json.Unmarshal([]byte(s), &out)
+	require.NoError(t, err)
+	require.Equal(t, d.DealID, out.DealID)
+	require.Equal(t, d.MinerID, out.MinerID)
+	require.Equal(t, d.Expiration, out.Expiration)
 }
 
 // func TestSetBroker(t *testing.T) {
