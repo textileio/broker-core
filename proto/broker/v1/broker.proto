@@ -31,6 +31,14 @@ message CreateStorageDealResponse {
   string id = 1;
 }
 
+message StorageDealProposalAcceptedRequest {
+  string miner = 1;
+  string proposal_cid = 2;
+}
+
+message StorageDealProposalAcceptedResponse {
+}
+
 message StorageDealAuctionedRequest {
   broker.auctioneer.v1.Auction auction = 2;
 }
@@ -82,6 +90,7 @@ service APIService {
   rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
   rpc StorageDealFinalizedDeals(StorageDealFinalizedDealsRequest) returns (StorageDealFinalizedDealsResponse) {}
+  rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
 }
 
 

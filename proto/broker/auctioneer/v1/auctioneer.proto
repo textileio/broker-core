@@ -59,7 +59,16 @@ message GetAuctionResponse {
     Auction auction = 1;
 }
 
+message ProposalAcceptedRequest {
+    string miner = 1;
+    string proposal_cid = 2;
+}
+
+message ProposalAcceptedResponse {
+}
+
 service APIService {
     rpc ReadyToAuction(ReadyToAuctionRequest) returns (ReadyToAuctionResponse) {}
     rpc GetAuction(GetAuctionRequest) returns (GetAuctionResponse) {}
+    rpc ProposalAccepted(ProposalAcceptedRequest) returns (ProposalAcceptedResponse) {}
 }
