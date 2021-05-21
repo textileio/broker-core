@@ -3,6 +3,7 @@ package auctioneer
 import (
 	"context"
 
+	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -19,4 +20,7 @@ type Auctioneer interface {
 
 	// GetAuction returns an auction by broker.AuctionID.
 	GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error)
+
+	// ProposalAccepted notifies about an accepted deal proposal by a miner.
+	ProposalAccepted(ctx context.Context, miner string, proposal cid.Cid) error
 }

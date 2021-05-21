@@ -122,6 +122,18 @@ func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	return nil
 }
 
+// StorageDealProposalAccepted notifies that a proposal has been accepted by a miner.
+func (c *Client) StorageDealProposalAccepted(ctx context.Context, miner string, proposalCid cid.Cid) error {
+	req := &pb.StorageDealProposalAcceptedRequest{
+		Miner:       miner,
+		ProposalCid: proposalCid.String(),
+	}
+	if _, err := c.c.StorageDealProposalAccepted(ctx, req); err != nil {
+		return fmt.Errorf("calling proposal accepted deals api: %s", err)
+	}
+	return nil
+}
+
 // StorageDealFinalizedDeals reports finalized winning bids deals to the broker.
 func (c *Client) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
 	req := &pb.StorageDealFinalizedDealsRequest{

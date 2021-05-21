@@ -230,6 +230,16 @@ func (b *Broker) StorageDealPrepared(
 	return nil
 }
 
+func (b *Broker) StorageDealProposalAccepted(ctx context.Context, miner string, proposal cid.Cid) error {
+	log.Debugf("storage deal has an accepted proposal %s from miner %s, signaling auctioneer to report back", proposal, miner)
+
+	if err := b.auctioneer.ProposalAccepted(ctx, miner, proposal); err != nil {
+		return fmt.Errorf("signaling auctioneer about accepted proposal: %s", err)
+	}
+
+	return nil
+}
+
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
 	log.Debugf("storage deal %s was auctioned", auction.StorageDealID)
