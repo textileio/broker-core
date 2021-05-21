@@ -9,8 +9,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-state-types/crypto"
-	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/api/apistruct"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/finalizer"
@@ -20,7 +19,7 @@ var requestTimeout = time.Second * 10
 
 // FilClient provides functionalities to verify bidders.
 type FilClient struct {
-	api      api.FullNode
+	api      v0api.FullNode
 	fakeMode bool
 
 	ctx       context.Context
@@ -33,7 +32,7 @@ func New(lotusGatewayURL string, fakeMode bool) (*FilClient, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
 
-	var fn apistruct.FullNodeStruct
+	var fn v0api.FullNodeStruct
 	closer, err := jsonrpc.NewClient(ctx, lotusGatewayURL, "Filecoin", &fn.Internal, http.Header{})
 	if err != nil {
 		return nil, fmt.Errorf("creating json rpc client: %v", err)

@@ -13,7 +13,7 @@ import (
 	"github.com/filecoin-project/go-fil-markets/storagemarket/network"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/ipfs/go-cid"
@@ -44,7 +44,7 @@ const dealProtocol = "/fil/storage/mk/1.1.0"
 type FilClient struct {
 	conf config
 
-	api  api.FullNode
+	api  v0api.FullNode
 	host host.Host
 
 	metricExecAuctionDeal          metric.Int64Counter
@@ -55,7 +55,7 @@ type FilClient struct {
 }
 
 // New returns a new FilClient.
-func New(api api.FullNode, opts ...Option) (*FilClient, error) {
+func New(api v0api.FullNode, opts ...Option) (*FilClient, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
