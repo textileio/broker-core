@@ -45,7 +45,7 @@ func UpdatePayloadWithDataCids(dataCids []cid.Cid) UpdatePayloadOption {
 
 // DealInfo contains information from an active deal.
 type DealInfo struct {
-	DealID     int64
+	DealID     uint64
 	MinerID    string
 	Expiration uint64
 }

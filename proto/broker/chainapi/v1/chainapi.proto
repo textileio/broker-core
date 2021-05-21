@@ -3,7 +3,7 @@ package chainapi.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/chainapi/v1;chainapi";
 
 message DealInfo {
-	int64 deal_id = 1;
+	uint64 deal_id = 1;
 	string miner_id = 2;
 	uint64 expiration = 3;
 }

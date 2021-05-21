@@ -413,7 +413,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.Equal(t, brgCid, chainAPI.callPayloadCid)
 	require.Equal(t, dpr.PieceCid, chainAPI.callPieceCid)
 	require.Len(t, chainAPI.callDeals, 1)
-	require.Equal(t, fads[0].DealID, chainAPI.callDeals[0].DealID)
+	require.Equal(t, uint64(fads[0].DealID), chainAPI.callDeals[0].DealID)
 	require.Equal(t, fads[0].Miner, chainAPI.callDeals[0].MinerID)
 	require.Equal(t, fads[0].DealExpiration, chainAPI.callDeals[0].Expiration)
 	require.Len(t, chainAPI.callDataCids, 2)

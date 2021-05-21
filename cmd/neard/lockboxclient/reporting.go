@@ -12,20 +12,22 @@ import (
 
 // DealInfo desscribes a single storage deal.
 type DealInfo struct {
-	DealID     string `json:"dealId"`
+	DealID     uint64 `json:"dealId"`
 	MinerID    string `json:"minerId"`
 	Expiration uint64 `json:"expiration"`
 }
 
 // MarshalJSON implements MarshalJSON.
-func (d *DealInfo) MarshalJSON() ([]byte, error) {
+func (d DealInfo) MarshalJSON() ([]byte, error) {
 	type Alias DealInfo
 	return json.Marshal(&struct {
+		DealID     string `json:"dealId"`
 		Expiration string `json:"expiration"`
-		*Alias
+		Alias
 	}{
+		DealID:     strconv.FormatUint(d.DealID, 10),
 		Expiration: strconv.FormatUint(d.Expiration, 10),
-		Alias:      (*Alias)(d),
+		Alias:      (Alias)(d),
 	})
 }
 
@@ -33,6 +35,7 @@ func (d *DealInfo) MarshalJSON() ([]byte, error) {
 func (d *DealInfo) UnmarshalJSON(data []byte) error {
 	type Alias DealInfo
 	aux := &struct {
+		DealID     string `json:"dealId"`
 		Expiration string `json:"expiration"`
 		*Alias
 	}{
@@ -41,10 +44,15 @@ func (d *DealInfo) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
+	dealID, err := strconv.ParseUint(aux.DealID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("parsing dealId: %v", err)
+	}
 	exp, err := strconv.ParseUint(aux.Expiration, 10, 64)
 	if err != nil {
 		return fmt.Errorf("parsing expiration: %v", err)
 	}
+	d.DealID = dealID
 	d.Expiration = exp
 	return nil
 }
