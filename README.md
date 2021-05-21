@@ -46,7 +46,7 @@ Miners on the Filecoin Network can bid in storage deal auctions.
 8. Use the signature you generated in step 6 to start the daemon: `bidbot daemon --miner-addr [address] --wallet-addr-sig [signature]`
 9. Good luck! Your `bidbot` will automatically bid in open deal auctions. If it wins an auction, the broker will automatically start making a deal with the Lotus wallet address used in step 6.   
 
-For testing enviroments, you can use the `--fake-mode` flag to run in unsafe mode, where the provided wallet signature won't be verified with the owner address of the miner that is posted on-chain. The `auctioneerd` should also be running with `--fake-mode` to avoid verifying signatures. If you're a real miner, **don't** use this flag, since there's no reason to fake signatures.
+For testing environments, you can use the `--fake-mode` flag to run in unsafe mode, where the provided wallet signature won't be verified with the owner address of the miner that is posted on-chain. The `auctioneerd` should also be running with `--fake-mode` to avoid verifying signatures. If you're a real miner, **don't** use this flag, since there's no reason to fake signatures.
 
 ### Running locally with some test data
 
@@ -67,7 +67,7 @@ The system is automatically deployed with the following rules:
 - Any push to `main` (including pull request merges) will trigger a deploy to `staging`.
 - Releases trigger a deploy to `production`.
 
-A bot named `uploadbot` also is available to run in any enviroment. To run it, go to the `k8` folder and run `DEPLOYMENT=<production|staging|edge> make run-uploadbot`.
+A bot named `uploadbot` also is available to run in any environment. To run it, go to the `k8` folder and run `DEPLOYMENT=<production|staging|edge> make run-uploadbot`.
 
 ### Dashboard
 
