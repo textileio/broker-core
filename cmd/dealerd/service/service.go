@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/filecoin-project/go-jsonrpc"
-	"github.com/filecoin-project/lotus/api/apistruct"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
@@ -78,9 +78,10 @@ func New(conf Config) (*Service, error) {
 		log.Warnf("running in mocked mode")
 		lib = dealermock.New(broker)
 	} else {
-		var lotusAPI apistruct.GatewayStruct
+		var lotusAPI v0api.FullNodeStruct
 		closer, err := jsonrpc.NewMergeClient(context.Background(), conf.LotusGatewayURL, "Filecoin",
 			[]interface{}{
+				&lotusAPI.CommonStruct.Internal,
 				&lotusAPI.Internal,
 			},
 			http.Header{},

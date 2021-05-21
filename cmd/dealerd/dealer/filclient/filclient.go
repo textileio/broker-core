@@ -13,7 +13,7 @@ import (
 	"github.com/filecoin-project/go-fil-markets/storagemarket/network"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/ipfs/go-cid"
@@ -44,7 +44,7 @@ const dealProtocol = "/fil/storage/mk/1.1.0"
 type FilClient struct {
 	conf config
 
-	api  api.Gateway
+	api  v0api.FullNode
 	host host.Host
 
 	metricExecAuctionDeal          metric.Int64Counter
@@ -55,7 +55,7 @@ type FilClient struct {
 }
 
 // New returns a new FilClient.
-func New(api api.Gateway, opts ...Option) (*FilClient, error) {
+func New(api v0api.FullNode, opts ...Option) (*FilClient, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
@@ -359,13 +359,21 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 		return "", fmt.Errorf("miner %s has no peer ID set", maddr)
 	}
 
-	var maddrs []multiaddr.Multiaddr
-	for _, mma := range minfo.Multiaddrs {
-		ma, err := multiaddr.NewMultiaddrBytes(mma)
-		if err != nil {
-			return "", fmt.Errorf("miner %s had invalid multiaddrs in their info: %w", maddr, err)
+	addrInfo, err := fc.api.NetFindPeer(ctx, *minfo.PeerId)
+	if err != nil {
+		return "", fmt.Errorf("find peer by id: %s", err)
+	}
+
+	maddrs := addrInfo.Addrs
+	if len(maddrs) == 0 {
+		// Try checking on-chain as a last resource.
+		for _, mma := range minfo.Multiaddrs {
+			ma, err := multiaddr.NewMultiaddrBytes(mma)
+			if err != nil {
+				return "", fmt.Errorf("miner %s had invalid multiaddrs in their info: %w", maddr, err)
+			}
+			maddrs = append(maddrs, ma)
 		}
-		maddrs = append(maddrs, ma)
 	}
 
 	if err := fc.host.Connect(ctx, peer.AddrInfo{

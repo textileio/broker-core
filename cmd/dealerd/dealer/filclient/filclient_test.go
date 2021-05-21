@@ -9,7 +9,7 @@ import (
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-jsonrpc"
-	"github.com/filecoin-project/lotus/api/apistruct"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
@@ -98,9 +98,10 @@ func TestGetChainHeight(t *testing.T) {
 }
 
 func create(t *testing.T) *FilClient {
-	var api apistruct.GatewayStruct
+	var api v0api.FullNodeStruct
 	closer, err := jsonrpc.NewMergeClient(context.Background(), "https://api.node.glif.io", "Filecoin",
 		[]interface{}{
+			&api.CommonStruct.Internal,
 			&api.Internal,
 		},
 		http.Header{},
