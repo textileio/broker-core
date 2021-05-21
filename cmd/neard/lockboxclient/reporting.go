@@ -12,7 +12,7 @@ import (
 
 // DealInfo desscribes a single storage deal.
 type DealInfo struct {
-	DealID     string `json:"dealId"`
+	DealID     uint64 `json:"dealId"`
 	MinerID    string `json:"minerId"`
 	Expiration uint64 `json:"expiration"`
 }

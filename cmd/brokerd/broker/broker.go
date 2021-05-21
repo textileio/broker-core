@@ -346,7 +346,7 @@ func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.Stora
 			continue
 		}
 		d := chainapi.DealInfo{
-			DealID:     sd.Deals[i].DealID,
+			DealID:     uint64(sd.Deals[i].DealID),
 			MinerID:    sd.Deals[i].Miner,
 			Expiration: sd.Deals[i].DealExpiration,
 		}
