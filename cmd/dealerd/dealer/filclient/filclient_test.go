@@ -101,6 +101,7 @@ func create(t *testing.T) *FilClient {
 	var api v0api.FullNodeStruct
 	closer, err := jsonrpc.NewMergeClient(context.Background(), "https://api.node.glif.io", "Filecoin",
 		[]interface{}{
+			&api.CommonStruct.Internal,
 			&api.Internal,
 		},
 		http.Header{},
