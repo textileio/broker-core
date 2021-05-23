@@ -51,17 +51,17 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c := newClient(t)
+	c := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 1, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	c := newClient(t)
+	c := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 1, true)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -73,16 +73,17 @@ func TestClient_GetAuction(t *testing.T) {
 
 	got, err = c.GetAuction(context.Background(), id)
 	require.NoError(t, err)
+	assert.Equal(t, 1, int(got.Attempts))
 	assert.Equal(t, core.AuctionStatusError, got.Status) // no miners making bids
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	c := newClient(t)
+	c := newClient(t, 2)
 	addMiners(t, 10)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 2, true)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -91,13 +92,12 @@ func TestClient_RunAuction(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
-	assert.NotEmpty(t, got.WinningBids)
-	if len(got.WinningBids) != 0 {
-		assert.NotNil(t, got.Bids[got.WinningBids[0]])
-	}
+	require.Len(t, got.WinningBids, 2)
+	assert.NotNil(t, got.Bids[got.WinningBids[0]])
+	assert.NotNil(t, got.Bids[got.WinningBids[1]])
 }
 
-func newClient(t *testing.T) *client.Client {
+func newClient(t *testing.T, attempts uint32) *client.Client {
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
 		require.NoError(t, fin.Cleanup(nil))
@@ -116,6 +116,7 @@ func newClient(t *testing.T) *client.Client {
 		},
 		Auction: auctioneer.AuctionConfig{
 			Duration: time.Second * 10,
+			Attempts: attempts,
 		},
 	}
 

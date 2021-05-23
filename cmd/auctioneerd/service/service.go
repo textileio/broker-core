@@ -52,9 +52,7 @@ func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc auc
 	fin.Add(p)
 
 	// Create auctioneer
-	lib, err := auctioneer.New(p, store, broker, fc, auctioneer.AuctionConfig{
-		Duration: conf.Auction.Duration,
-	})
+	lib, err := auctioneer.New(p, store, broker, fc, conf.Auction)
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctioneer: %v", err)
 	}
@@ -93,7 +91,28 @@ func (s *Service) Start(bootstrap bool) error {
 
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
-	id, err := s.lib.CreateAuction(broker.StorageDealID(req.StorageDealId), req.DealSize, req.DealDuration)
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+	if req.StorageDealId == "" {
+		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
+	}
+	if req.DealSize == 0 {
+		return nil, status.Error(codes.InvalidArgument, "deal size must be greater than zero")
+	}
+	if req.DealDuration == 0 {
+		return nil, status.Error(codes.InvalidArgument, "deal duration must be greater than zero")
+	}
+	if req.DealReplication == 0 {
+		return nil, status.Error(codes.InvalidArgument, "deal replication must be greater than zero")
+	}
+
+	id, err := s.lib.CreateAuction(
+		broker.StorageDealID(req.StorageDealId),
+		req.DealSize,
+		req.DealDuration,
+		req.DealReplication,
+	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating auction: %s", err)
 	}

@@ -29,11 +29,15 @@ func (c *Client) ReadyToAuction(
 	ctx context.Context,
 	storageDealID broker.StorageDealID,
 	dealSize, dealDuration uint64,
+	dealReplication uint32,
+	dealVerified bool,
 ) (broker.AuctionID, error) {
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
-		StorageDealId: string(storageDealID),
-		DealSize:      dealSize,
-		DealDuration:  dealDuration,
+		StorageDealId:   string(storageDealID),
+		DealSize:        dealSize,
+		DealDuration:    dealDuration,
+		DealReplication: dealReplication,
+		DealVerified:    dealVerified,
 	})
 	if err != nil {
 		return "", err

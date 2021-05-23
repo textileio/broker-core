@@ -44,6 +44,7 @@ type Broker struct {
 	chainAPI   chainapi.ChainAPI
 
 	dealDuration  uint64
+	verifiedDeals bool
 	skipReporting bool
 }
 
@@ -55,13 +56,14 @@ func New(
 	auctioneer auctioneer.Auctioneer,
 	dealer dealer.Dealer,
 	chainAPI chainapi.ChainAPI,
-	dealEpochs uint64,
+	dealDuration uint64,
+	verifiedDeals bool,
 	skipReporting bool,
 ) (*Broker, error) {
-	if dealEpochs < broker.MinDealEpochs {
+	if dealDuration < broker.MinDealEpochs {
 		return nil, fmt.Errorf("deal epochs is less than minimum allowed: %d", broker.MinDealEpochs)
 	}
-	if dealEpochs > broker.MaxDealEpochs {
+	if dealDuration > broker.MaxDealEpochs {
 		return nil, fmt.Errorf("deal epochs is greater than maximum allowed: %d", broker.MaxDealEpochs)
 	}
 
@@ -77,7 +79,8 @@ func New(
 		dealer:        dealer,
 		auctioneer:    auctioneer,
 		chainAPI:      chainAPI,
-		dealDuration:  dealEpochs,
+		dealDuration:  dealDuration,
+		verifiedDeals: verifiedDeals,
 		skipReporting: skipReporting,
 	}
 	return b, nil
@@ -206,7 +209,15 @@ func (b *Broker) StorageDealPrepared(
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
 	// us about who won things.
-	auctionID, err := b.auctioneer.ReadyToAuction(ctx, id, dpr.PieceSize, b.dealDuration)
+	// TODO: Parameterize deal replication from end user
+	auctionID, err := b.auctioneer.ReadyToAuction(
+		ctx,
+		id,
+		dpr.PieceSize,
+		b.dealDuration,
+		1,
+		b.verifiedDeals,
+	)
 	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
@@ -264,7 +275,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 			Miner:               bid.MinerAddr,
 			PricePerGiBPerEpoch: bid.AskPrice,
 			StartEpoch:          bid.StartEpoch,
-			Verified:            true, // Hardcoded for now.
+			Verified:            auction.DealVerified,
 			FastRetrieval:       bid.FastRetrieval,
 		}
 	}

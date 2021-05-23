@@ -9,12 +9,15 @@ message Auction {
     string storage_deal_id = 2;
     uint64 deal_size = 3;
     uint64 deal_duration = 4;
-    Status status = 5;
-    map<string, Bid> bids = 6;
-    repeated string winning_bids = 7;
-    google.protobuf.Timestamp started_at = 8;
-    int64 duration = 9;
-    string error = 10;
+    uint32 deal_replication = 5;
+    bool deal_verified = 6;
+    Status status = 7;
+    map<string, Bid> bids = 8;
+    repeated string winning_bids = 9;
+    google.protobuf.Timestamp started_at = 10;
+    int64 duration = 11;
+    uint32 attempts = 12;
+    string error = 13;
 
     enum Status {
         STATUS_UNSPECIFIED = 0;
@@ -40,6 +43,8 @@ message ReadyToAuctionRequest {
     string storage_deal_id = 1;
     uint64 deal_size = 2;
     uint64 deal_duration = 3;
+    uint32 deal_replication = 4;
+    bool deal_verified = 5;
 }
 
 message ReadyToAuctionResponse {

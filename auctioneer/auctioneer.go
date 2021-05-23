@@ -10,7 +10,13 @@ import (
 type Auctioneer interface {
 	// ReadyToAuction signals the auctioneer that this storage deal is ready to be included in a broker.Auction.
 	// dealDuration is in units of Filecoin epochs (~30s).
-	ReadyToAuction(ctx context.Context, id broker.StorageDealID, dealSize, dealDuration uint64) (broker.AuctionID, error)
+	ReadyToAuction(
+		ctx context.Context,
+		id broker.StorageDealID,
+		dealSize, dealDuration uint64,
+		dealReplication uint32,
+		dealVerified bool,
+	) (broker.AuctionID, error)
 
 	// GetAuction returns an auction by broker.AuctionID.
 	GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error)

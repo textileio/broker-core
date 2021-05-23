@@ -17,16 +17,19 @@ func AuctionToPb(a broker.Auction) *pb.Auction {
 		wbids[i] = string(id)
 	}
 	pba := &pb.Auction{
-		Id:            string(a.ID),
-		StorageDealId: string(a.StorageDealID),
-		DealSize:      a.DealSize,
-		DealDuration:  a.DealDuration,
-		Status:        AuctionStatusToPb(a.Status),
-		Bids:          AuctionBidsToPb(a.Bids),
-		WinningBids:   wbids,
-		StartedAt:     timestamppb.New(a.StartedAt),
-		Duration:      int64(a.Duration),
-		Error:         a.Error,
+		Id:              string(a.ID),
+		StorageDealId:   string(a.StorageDealID),
+		DealSize:        a.DealSize,
+		DealDuration:    a.DealDuration,
+		DealReplication: a.DealReplication,
+		DealVerified:    a.DealVerified,
+		Status:          AuctionStatusToPb(a.Status),
+		Bids:            AuctionBidsToPb(a.Bids),
+		WinningBids:     wbids,
+		StartedAt:       timestamppb.New(a.StartedAt),
+		Duration:        int64(a.Duration),
+		Attempts:        a.Attempts,
+		Error:           a.Error,
 	}
 	return pba
 }
@@ -78,16 +81,19 @@ func AuctionFromPb(pba *pb.Auction) (broker.Auction, error) {
 		wbids[i] = broker.BidID(id)
 	}
 	a := broker.Auction{
-		ID:            broker.AuctionID(pba.Id),
-		StorageDealID: broker.StorageDealID(pba.StorageDealId),
-		DealSize:      pba.DealSize,
-		DealDuration:  pba.DealDuration,
-		Status:        AuctionStatusFromPb(pba.Status),
-		Bids:          bids,
-		WinningBids:   wbids,
-		StartedAt:     pba.StartedAt.AsTime(),
-		Duration:      time.Duration(pba.Duration),
-		Error:         pba.Error,
+		ID:              broker.AuctionID(pba.Id),
+		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
+		DealSize:        pba.DealSize,
+		DealDuration:    pba.DealDuration,
+		DealReplication: pba.DealReplication,
+		DealVerified:    pba.DealVerified,
+		Status:          AuctionStatusFromPb(pba.Status),
+		Bids:            bids,
+		WinningBids:     wbids,
+		StartedAt:       pba.StartedAt.AsTime(),
+		Duration:        time.Duration(pba.Duration),
+		Attempts:        pba.Attempts,
+		Error:           pba.Error,
 	}
 	return a, nil
 }

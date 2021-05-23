@@ -204,7 +204,6 @@ func TestStorageDealAuctioned(t *testing.T) {
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
 			MinerAddr:        "f01111",
-			WalletAddr:       "miner1",
 			AskPrice:         100,
 			VerifiedAskPrice: 200,
 			StartEpoch:       300,
@@ -212,7 +211,6 @@ func TestStorageDealAuctioned(t *testing.T) {
 		},
 		broker.BidID("Bid2"): {
 			MinerAddr:        "f02222",
-			WalletAddr:       "miner2",
 			AskPrice:         1100,
 			VerifiedAskPrice: 1200,
 			StartEpoch:       1300,
@@ -220,13 +218,14 @@ func TestStorageDealAuctioned(t *testing.T) {
 		},
 	}
 	auction := broker.Auction{
-		ID:            broker.AuctionID("AUCTION1"),
-		StorageDealID: sd,
-		DealSize:      dpr.PieceSize,
-		DealDuration:  broker.MaxDealEpochs,
-		Status:        broker.AuctionStatusEnded,
-		Bids:          bids,
-		WinningBids:   []broker.BidID{broker.BidID("Bid1"), broker.BidID("Bid2")},
+		ID:              broker.AuctionID("AUCTION1"),
+		StorageDealID:   sd,
+		DealSize:        dpr.PieceSize,
+		DealDuration:    broker.MaxDealEpochs,
+		DealReplication: 2,
+		Status:          broker.AuctionStatusEnded,
+		Bids:            bids,
+		WinningBids:     []broker.BidID{broker.BidID("Bid1"), broker.BidID("Bid2")},
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)
@@ -290,18 +289,19 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	err = b.StorageDealPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
-	// Empty the call stack of the  mocks, since it has calls from before.
+	// Empty the call stack of the mocks, since it has calls from before.
 	dealerd.calledAuctionDeals = dealer.AuctionDeals{}
 	packer.calledBrokerRequestIDs = nil
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	auction := broker.Auction{
-		ID:            broker.AuctionID("AUCTION1"),
-		StorageDealID: sd,
-		DealSize:      dpr.PieceSize,
-		DealDuration:  broker.MaxDealEpochs,
-		Status:        broker.AuctionStatusError,
-		Error:         "reached max retries",
+		ID:              broker.AuctionID("AUCTION1"),
+		StorageDealID:   sd,
+		DealSize:        dpr.PieceSize,
+		DealDuration:    broker.MaxDealEpochs,
+		DealReplication: 1,
+		Status:          broker.AuctionStatusError,
+		Error:           "reached max retries",
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)
@@ -359,7 +359,6 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
 			MinerAddr:        "f1",
-			WalletAddr:       "miner1",
 			AskPrice:         100,
 			VerifiedAskPrice: 200,
 			StartEpoch:       300,
@@ -367,7 +366,6 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		},
 		broker.BidID("Bid2"): {
 			MinerAddr:        "f2",
-			WalletAddr:       "miner2",
 			AskPrice:         1100,
 			VerifiedAskPrice: 1200,
 			StartEpoch:       1300,
@@ -375,13 +373,14 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		},
 	}
 	auction := broker.Auction{
-		ID:            broker.AuctionID("AUCTION1"),
-		StorageDealID: sd,
-		DealSize:      dpr.PieceSize,
-		DealDuration:  broker.MaxDealEpochs,
-		Status:        broker.AuctionStatusEnded,
-		Bids:          bids,
-		WinningBids:   []broker.BidID{broker.BidID("Bid1"), broker.BidID("Bid2")},
+		ID:              broker.AuctionID("AUCTION1"),
+		StorageDealID:   sd,
+		DealSize:        dpr.PieceSize,
+		DealDuration:    broker.MaxDealEpochs,
+		DealReplication: 2,
+		Status:          broker.AuctionStatusEnded,
+		Bids:            bids,
+		WinningBids:     []broker.BidID{broker.BidID("Bid1"), broker.BidID("Bid2")},
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)
@@ -460,7 +459,7 @@ func createBroker(t *testing.T) (
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
 	chainAPI := &dumbChainAPI{}
-	b, err := New(ds, packer, piecer, auctioneer, dealer, chainAPI, broker.MaxDealEpochs, false)
+	b, err := New(ds, packer, piecer, auctioneer, dealer, chainAPI, broker.MaxDealEpochs, true, false)
 	require.NoError(t, err)
 
 	return b, packer, piecer, auctioneer, dealer, chainAPI
@@ -498,9 +497,11 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 }
 
 type dumbAuctioneer struct {
-	calledStorageDealID broker.StorageDealID
-	calledPieceSize     uint64
-	calledDealDuration  uint64
+	calledStorageDealID   broker.StorageDealID
+	calledPieceSize       uint64
+	calledDealDuration    uint64
+	calledDealReplication uint32
+	calledDealVerified    bool
 }
 
 func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error) {
@@ -511,10 +512,14 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
 	id broker.StorageDealID,
 	dealSize, dealDuration uint64,
+	dealReplication uint32,
+	dealVerified bool,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
 	dp.calledPieceSize = dealSize
 	dp.calledDealDuration = dealDuration
+	dp.calledDealReplication = dealReplication
+	dp.calledDealVerified = dealVerified
 	return broker.AuctionID("AUCTION1"), nil
 }
 
