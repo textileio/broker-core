@@ -45,7 +45,8 @@ type Config struct {
 
 	IpfsMultiaddr string
 
-	DealEpochs uint64
+	DealEpochs    uint64
+	SkipReporting bool
 }
 
 // Service provides an implementation of the broker API.
@@ -98,7 +99,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating reporter implementation: %s", err)
 	}
 
-	broker, err := brokeri.New(ds, packer, piecer, auctioneer, dealer, reporter, config.DealEpochs)
+	broker, err := brokeri.New(ds, packer, piecer, auctioneer, dealer, reporter, config.DealEpochs, config.SkipReporting)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}

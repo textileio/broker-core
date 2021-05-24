@@ -36,13 +36,15 @@ var (
 // Broker creates and tracks request to store Cids in
 // the Filecoin network.
 type Broker struct {
-	store        *store.Store
-	packer       packer.Packer
-	piecer       piecer.Piecer
-	auctioneer   auctioneer.Auctioneer
-	dealer       dealer.Dealer
-	chainAPI     chainapi.ChainAPI
-	dealDuration uint64
+	store      *store.Store
+	packer     packer.Packer
+	piecer     piecer.Piecer
+	auctioneer auctioneer.Auctioneer
+	dealer     dealer.Dealer
+	chainAPI   chainapi.ChainAPI
+
+	dealDuration  uint64
+	skipReporting bool
 }
 
 // New creates a Broker backed by the provided `ds`.
@@ -54,6 +56,7 @@ func New(
 	dealer dealer.Dealer,
 	chainAPI chainapi.ChainAPI,
 	dealEpochs uint64,
+	skipReporting bool,
 ) (*Broker, error) {
 	if dealEpochs < broker.MinDealEpochs {
 		return nil, fmt.Errorf("deal epochs is less than minimum allowed: %d", broker.MinDealEpochs)
@@ -68,13 +71,14 @@ func New(
 	}
 
 	b := &Broker{
-		store:        store,
-		packer:       packer,
-		piecer:       piecer,
-		dealer:       dealer,
-		auctioneer:   auctioneer,
-		chainAPI:     chainAPI,
-		dealDuration: dealEpochs,
+		store:         store,
+		packer:        packer,
+		piecer:        piecer,
+		dealer:        dealer,
+		auctioneer:    auctioneer,
+		chainAPI:      chainAPI,
+		dealDuration:  dealEpochs,
+		skipReporting: skipReporting,
 	}
 	return b, nil
 }
@@ -290,13 +294,6 @@ func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.Fi
 			return fmt.Errorf("get storage deal: %s", err)
 		}
 
-		// Only report the deal to the chain if it was successful.
-		if fads[i].ErrorCause == "" {
-			if err := b.reportFinalizedAuctionDeal(ctx, sd); err != nil {
-				return fmt.Errorf("reporting finalized auction deal to the chain: %s", err)
-			}
-		}
-
 		// Do we got the last finalized transaction?
 		if len(sd.Deals) == len(sd.Auction.WinningBids) {
 			// If we have at least one successful deal, then we succeed.
@@ -317,6 +314,13 @@ func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.Fi
 				if err := b.errorStorageDealAndRebatch(ctx, sd.ID, errAllDealsFailed); err != nil {
 					return fmt.Errorf("erroring storage deal and rebatching storage requests: %s", err)
 				}
+			}
+		}
+
+		// Only report the deal to the chain if it was successful.
+		if !b.skipReporting && fads[i].ErrorCause == "" {
+			if err := b.reportFinalizedAuctionDeal(ctx, sd); err != nil {
+				return fmt.Errorf("reporting finalized auction deal to the chain: %s", err)
 			}
 		}
 	}

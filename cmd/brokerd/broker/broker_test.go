@@ -460,7 +460,7 @@ func createBroker(t *testing.T) (
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
 	chainAPI := &dumbChainAPI{}
-	b, err := New(ds, packer, piecer, auctioneer, dealer, chainAPI, broker.MaxDealEpochs)
+	b, err := New(ds, packer, piecer, auctioneer, dealer, chainAPI, broker.MaxDealEpochs, false)
 	require.NoError(t, err)
 
 	return b, packer, piecer, auctioneer, dealer, chainAPI
