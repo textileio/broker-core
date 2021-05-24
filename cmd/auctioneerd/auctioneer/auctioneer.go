@@ -162,13 +162,15 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 func (a *Auctioneer) CreateAuction(
 	storageDealID core.StorageDealID,
 	dealSize, dealDuration uint64,
-	replication uint32,
+	dealReplication uint32,
+	dealVerified bool,
 ) (core.AuctionID, error) {
 	auction := core.Auction{
 		StorageDealID:   storageDealID,
 		DealSize:        dealSize,
 		DealDuration:    dealDuration,
-		DealReplication: replication,
+		DealReplication: dealReplication,
+		DealVerified:    dealVerified,
 		Status:          broker.AuctionStatusUnspecified,
 		Duration:        a.auctionConf.Duration,
 	}

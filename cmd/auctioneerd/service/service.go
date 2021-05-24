@@ -112,6 +112,7 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		req.DealSize,
 		req.DealDuration,
 		req.DealReplication,
+		req.DealVerified,
 	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating auction: %s", err)
