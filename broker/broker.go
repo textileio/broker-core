@@ -213,10 +213,16 @@ func BidsTopic(auctionID AuctionID) string {
 	return path.Join(AuctionTopic, string(auctionID), "bids")
 }
 
-// WinsTopic is used by brokers to notify a miner thay have won the deal auction.
+// WinsTopic is used by brokers to notify a bidbot that it has won the deal auction.
 // "/textile/auction/0.0.1/<peer_id>/wins".
 func WinsTopic(pid peer.ID) string {
 	return path.Join(AuctionTopic, pid.String(), "wins")
+}
+
+// AcksTopic is used to acknowledge publishers that a message was received.
+// "<base_topic>/<publisher_peer_id>/acks".
+func AcksTopic(base string, pid peer.ID) string {
+	return path.Join(base, pid.String(), "acks")
 }
 
 // AuctionID is a unique identifier for an Auction.

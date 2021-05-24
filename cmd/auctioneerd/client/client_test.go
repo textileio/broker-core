@@ -45,6 +45,7 @@ func init() {
 		"auctioneer/service": golog.LevelDebug,
 		"bidbot/service":     golog.LevelDebug,
 		"mpeer":              golog.LevelDebug,
+		"mpeer/pubsub":       golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}

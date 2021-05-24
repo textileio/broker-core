@@ -1,7 +1,5 @@
 package auctioneer
 
-// TODO: Add ACK response to incoming bids.
-
 import (
 	"container/heap"
 	"context"
@@ -31,6 +29,9 @@ var (
 
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
+
+	// winsAckTimeout is the max duration the auctioneer will wait for an ack after notifying auction winners.
+	winsAckTimeout = time.Second * 10
 
 	// ErrNotFound indicates the requested auction was not found.
 	ErrNotFound = errors.New("auction not found")
@@ -235,7 +236,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	if err := a.auctions.Publish(ctx, msg); err != nil {
+	if err := a.auctions.Publish(ctx, msg, 0); err != nil {
 		return fmt.Errorf("publishing auction: %v", err)
 	}
 
@@ -419,7 +420,7 @@ func (a *Auctioneer) selectWinners(ctx context.Context, auction *core.Auction) e
 			_ = wins.Close()
 			return fmt.Errorf("marshaling message: %v", err)
 		}
-		if err := wins.Publish(ctx, msg); err != nil {
+		if err := wins.Publish(ctx, msg, winsAckTimeout); err != nil {
 			_ = wins.Close()
 			return fmt.Errorf("publishing win: %v", err)
 		}
