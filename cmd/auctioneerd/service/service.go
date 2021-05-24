@@ -132,3 +132,9 @@ func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.
 		Auction: cast.AuctionToPb(*a),
 	}, nil
 }
+
+// ProposalAccepted receives an accepted deal proposal from a miner.
+func (s *Service) ProposalAccepted(ctx context.Context, req *pb.ProposalAcceptedRequest) (*pb.ProposalAcceptedResponse, error) {
+	// TODO
+	return nil, status.Errorf(codes.Unimplemented, "method ProposalAccepted not implemented")
+}
