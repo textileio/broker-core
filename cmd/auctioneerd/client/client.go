@@ -67,7 +67,12 @@ func (c *Client) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Au
 	return cast.AuctionFromPb(res.Auction)
 }
 
-func (c *Client) ProposalAccepted(ctx context.Context, auctionID broker.AuctionID, bidID broker.BidID, proposal cid.Cid) error {
+// ProposalAccepted signals the auctioneer that a miner has accepted a deal proposal.
+func (c *Client) ProposalAccepted(
+	ctx context.Context,
+	auctionID broker.AuctionID,
+	bidID broker.BidID,
+	proposal cid.Cid) error {
 	_, err := c.c.ProposalAccepted(ctx, &pb.ProposalAcceptedRequest{
 		AuctionId:   string(auctionID),
 		BidId:       string(bidID),

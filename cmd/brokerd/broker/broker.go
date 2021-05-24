@@ -230,8 +230,13 @@ func (b *Broker) StorageDealPrepared(
 	return nil
 }
 
-func (b *Broker) StorageDealProposalAccepted(ctx context.Context, sdID broker.StorageDealID, miner string, proposal cid.Cid) error {
-	log.Debugf("storage deal has an accepted proposal %s from miner %s, signaling auctioneer to report back", proposal, miner)
+// StorageDealProposalAccepted indicates that a miner has accepted a proposed deal.
+func (b *Broker) StorageDealProposalAccepted(
+	ctx context.Context,
+	sdID broker.StorageDealID,
+	miner string,
+	proposal cid.Cid) error {
+	log.Debugf("accepted proposal %s from miner %s, signaling auctioneer to report back", proposal, miner)
 
 	sd, err := b.store.GetStorageDeal(ctx, sdID)
 	if err != nil {

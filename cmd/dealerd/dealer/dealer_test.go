@@ -287,7 +287,11 @@ func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.Au
 	panic("shouldn't be called")
 }
 
-func (b *brokerMock) StorageDealProposalAccepted(_ context.Context, sdID broker.StorageDealID, miner string, proposalCid cid.Cid) error {
+func (b *brokerMock) StorageDealProposalAccepted(
+	_ context.Context,
+	sdID broker.StorageDealID,
+	miner string,
+	proposalCid cid.Cid) error {
 	b.callerPASdID = sdID
 	b.calledPAMiner = miner
 	b.calledPAProposalCid = proposalCid
