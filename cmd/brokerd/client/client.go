@@ -123,10 +123,11 @@ func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 }
 
 // StorageDealProposalAccepted notifies that a proposal has been accepted by a miner.
-func (c *Client) StorageDealProposalAccepted(ctx context.Context, miner string, proposalCid cid.Cid) error {
+func (c *Client) StorageDealProposalAccepted(ctx context.Context, sdID broker.StorageDealID, miner string, proposalCid cid.Cid) error {
 	req := &pb.StorageDealProposalAcceptedRequest{
-		Miner:       miner,
-		ProposalCid: proposalCid.String(),
+		StorageDealId: string(sdID),
+		Miner:         miner,
+		ProposalCid:   proposalCid.String(),
 	}
 	if _, err := c.c.StorageDealProposalAccepted(ctx, req); err != nil {
 		return fmt.Errorf("calling proposal accepted deals api: %s", err)

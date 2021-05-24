@@ -230,10 +230,30 @@ func (b *Broker) StorageDealPrepared(
 	return nil
 }
 
-func (b *Broker) StorageDealProposalAccepted(ctx context.Context, miner string, proposal cid.Cid) error {
+func (b *Broker) StorageDealProposalAccepted(ctx context.Context, sdID broker.StorageDealID, miner string, proposal cid.Cid) error {
 	log.Debugf("storage deal has an accepted proposal %s from miner %s, signaling auctioneer to report back", proposal, miner)
 
-	if err := b.auctioneer.ProposalAccepted(ctx, miner, proposal); err != nil {
+	sd, err := b.store.GetStorageDeal(ctx, sdID)
+	if err != nil {
+		return fmt.Errorf("storage deal not found: %s", err)
+	}
+
+	var winningBid broker.BidID
+	for _, wbid := range sd.Auction.WinningBids {
+		bid, ok := sd.Auction.Bids[wbid]
+		if !ok {
+			continue
+		}
+		if bid.MinerAddr == miner {
+			winningBid = wbid
+		}
+	}
+
+	if winningBid == "" {
+		return fmt.Errorf("coudn't find winning bid in auction: %s", err)
+	}
+
+	if err := b.auctioneer.ProposalAccepted(ctx, sd.Auction.ID, winningBid, proposal); err != nil {
 		return fmt.Errorf("signaling auctioneer about accepted proposal: %s", err)
 	}
 

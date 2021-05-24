@@ -67,9 +67,10 @@ func (c *Client) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Au
 	return cast.AuctionFromPb(res.Auction)
 }
 
-func (c *Client) ProposalAccepted(ctx context.Context, miner string, proposal cid.Cid) error {
+func (c *Client) ProposalAccepted(ctx context.Context, auctionID broker.AuctionID, bidID broker.BidID, proposal cid.Cid) error {
 	_, err := c.c.ProposalAccepted(ctx, &pb.ProposalAcceptedRequest{
-		Miner:       miner,
+		AuctionId:   string(auctionID),
+		BidId:       string(bidID),
 		ProposalCid: proposal.String(),
 	})
 	if err != nil {

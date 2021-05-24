@@ -86,7 +86,7 @@ func (d *Dealer) executePending(ctx context.Context, aud store.AuctionDeal) erro
 		return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
 	}
 
-	if err := d.broker.StorageDealProposalAccepted(ctx, aud.Miner, proposalCid); err != nil {
+	if err := d.broker.StorageDealProposalAccepted(ctx, ad.StorageDealID, aud.Miner, proposalCid); err != nil {
 		return fmt.Errorf("signaling broker of accepted proposal %s: %s", proposalCid, err)
 	}
 

@@ -60,8 +60,9 @@ message GetAuctionResponse {
 }
 
 message ProposalAcceptedRequest {
-    string miner = 1;
-    string proposal_cid = 2;
+    string auction_id = 1;
+    string bid_id = 2;
+    string proposal_cid = 3;
 }
 
 message ProposalAcceptedResponse {

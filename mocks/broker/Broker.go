@@ -121,13 +121,13 @@ func (_m *Broker) StorageDealPrepared(ctx context.Context, id broker.StorageDeal
 	return r0
 }
 
-// StorageDealProposalAccepted provides a mock function with given fields: ctx, miner, proposalCid
-func (_m *Broker) StorageDealProposalAccepted(ctx context.Context, miner string, proposalCid cid.Cid) error {
-	ret := _m.Called(ctx, miner, proposalCid)
+// StorageDealProposalAccepted provides a mock function with given fields: ctx, sdID, miner, proposalCid
+func (_m *Broker) StorageDealProposalAccepted(ctx context.Context, sdID broker.StorageDealID, miner string, proposalCid cid.Cid) error {
+	ret := _m.Called(ctx, sdID, miner, proposalCid)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, cid.Cid) error); ok {
-		r0 = rf(ctx, miner, proposalCid)
+	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, string, cid.Cid) error); ok {
+		r0 = rf(ctx, sdID, miner, proposalCid)
 	} else {
 		r0 = ret.Error(0)
 	}

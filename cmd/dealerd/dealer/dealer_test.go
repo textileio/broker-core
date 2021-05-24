@@ -144,6 +144,7 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.Equal(t, fakeExpiration, wc.DealExpiration) // Crucial check
 
 	// Check that dealer has notified broker of accepted proposal.
+	require.Equal(t, auds.StorageDealID, broker.callerPASdID)
 	require.Equal(t, auds.Targets[0].Miner, broker.calledPAMiner)
 	require.Equal(t, fakeProposalCid, broker.calledPAProposalCid)
 }
@@ -263,6 +264,7 @@ func (fc *fcMock) CheckDealStatusWithMiner(
 type brokerMock struct {
 	calledFAD []broker.FinalizedAuctionDeal
 
+	callerPASdID        broker.StorageDealID
 	calledPAMiner       string
 	calledPAProposalCid cid.Cid
 }
@@ -285,7 +287,8 @@ func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.Au
 	panic("shouldn't be called")
 }
 
-func (b *brokerMock) StorageDealProposalAccepted(_ context.Context, miner string, proposalCid cid.Cid) error {
+func (b *brokerMock) StorageDealProposalAccepted(_ context.Context, sdID broker.StorageDealID, miner string, proposalCid cid.Cid) error {
+	b.callerPASdID = sdID
 	b.calledPAMiner = miner
 	b.calledPAProposalCid = proposalCid
 	return nil

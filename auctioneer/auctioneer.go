@@ -22,5 +22,5 @@ type Auctioneer interface {
 	GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error)
 
 	// ProposalAccepted notifies about an accepted deal proposal by a miner.
-	ProposalAccepted(ctx context.Context, miner string, proposal cid.Cid) error
+	ProposalAccepted(ctx context.Context, auID broker.AuctionID, bidID broker.BidID, proposal cid.Cid) error
 }

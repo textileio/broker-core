@@ -510,7 +510,7 @@ func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (
 	panic("shouldn't be called")
 }
 
-func (dp *dumbAuctioneer) ProposalAccepted(_ context.Context, _ string, _ cid.Cid) error {
+func (dp *dumbAuctioneer) ProposalAccepted(context.Context, broker.AuctionID, broker.BidID, cid.Cid) error {
 	panic("shouldn't be called")
 }
 

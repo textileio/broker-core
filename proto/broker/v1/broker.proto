@@ -32,8 +32,9 @@ message CreateStorageDealResponse {
 }
 
 message StorageDealProposalAcceptedRequest {
-  string miner = 1;
-  string proposal_cid = 2;
+  string storage_deal_id = 1;
+  string miner = 2;
+  string proposal_cid = 3;
 }
 
 message StorageDealProposalAcceptedResponse {
