@@ -45,7 +45,7 @@ type Config struct {
 
 	IpfsMultiaddr string
 
-	DealEpochs    uint64
+	DealDuration  uint64
 	VerifiedDeals bool
 	SkipReporting bool
 }
@@ -107,7 +107,7 @@ func New(config Config) (*Service, error) {
 		auctioneer,
 		dealer,
 		reporter,
-		config.DealEpochs,
+		config.DealDuration,
 		config.VerifiedDeals,
 		config.SkipReporting,
 	)

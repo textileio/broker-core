@@ -61,10 +61,10 @@ func New(
 	skipReporting bool,
 ) (*Broker, error) {
 	if dealDuration < broker.MinDealEpochs {
-		return nil, fmt.Errorf("deal epochs is less than minimum allowed: %d", broker.MinDealEpochs)
+		return nil, fmt.Errorf("deal duration is less than minimum allowed: %d", broker.MinDealEpochs)
 	}
 	if dealDuration > broker.MaxDealEpochs {
-		return nil, fmt.Errorf("deal epochs is greater than maximum allowed: %d", broker.MaxDealEpochs)
+		return nil, fmt.Errorf("deal duration is greater than maximum allowed: %d", broker.MaxDealEpochs)
 	}
 
 	store, err := store.New(txndswrap.Wrap(ds, "/broker-store"))

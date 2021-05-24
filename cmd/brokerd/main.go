@@ -28,8 +28,8 @@ func init() {
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
-		{Name: "deal-epochs", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
-		{Name: "verified-deals", DefValue: true, Description: "Make verified deals"},
+		{Name: "deal-duration", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
+		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "skip-reporting", DefValue: false, Description: "Skips reporting successful deals"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
@@ -70,7 +70,7 @@ var rootCmd = &cobra.Command{
 
 			IpfsMultiaddr: v.GetString("ipfs-multiaddr"),
 
-			DealEpochs:    v.GetUint64("deal-epochs"),
+			DealDuration:  v.GetUint64("deal-duration"),
 			VerifiedDeals: v.GetBool("verified-deals"),
 			SkipReporting: v.GetBool("skip-reporting"),
 		}
