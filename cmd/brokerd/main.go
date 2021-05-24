@@ -30,6 +30,7 @@ func init() {
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "deal-epochs", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "skip-reporting", DefValue: false, Description: "Skips reporting successful deals"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -68,7 +69,8 @@ var rootCmd = &cobra.Command{
 
 			IpfsMultiaddr: v.GetString("ipfs-multiaddr"),
 
-			DealEpochs: v.GetUint64("deal-epochs"),
+			DealEpochs:    v.GetUint64("deal-epochs"),
+			SkipReporting: v.GetBool("skip-reporting"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
