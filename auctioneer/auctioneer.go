@@ -13,8 +13,7 @@ type Auctioneer interface {
 	ReadyToAuction(
 		ctx context.Context,
 		id broker.StorageDealID,
-		dealSize, dealDuration uint64,
-		dealReplication uint32,
+		dealSize, dealDuration, dealReplication int,
 		dealVerified bool,
 	) (broker.AuctionID, error)
 

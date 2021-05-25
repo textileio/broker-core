@@ -213,8 +213,8 @@ func (b *Broker) StorageDealPrepared(
 	auctionID, err := b.auctioneer.ReadyToAuction(
 		ctx,
 		id,
-		dpr.PieceSize,
-		b.dealDuration,
+		int(dpr.PieceSize),
+		int(b.dealDuration),
 		1,
 		b.verifiedDeals,
 	)

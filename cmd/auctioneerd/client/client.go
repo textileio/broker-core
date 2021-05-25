@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
@@ -28,15 +29,23 @@ func New(cc *grpc.ClientConn) *Client {
 func (c *Client) ReadyToAuction(
 	ctx context.Context,
 	storageDealID broker.StorageDealID,
-	dealSize, dealDuration uint64,
-	dealReplication uint32,
+	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 ) (broker.AuctionID, error) {
+	if dealSize <= 0 {
+		return "", errors.New("deal size must be greater than zero")
+	}
+	if dealDuration <= 0 {
+		return "", errors.New("deal duration must be greater than zero")
+	}
+	if dealReplication <= 0 {
+		return "", errors.New("deal replication must be greater than zero")
+	}
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
 		StorageDealId:   string(storageDealID),
-		DealSize:        dealSize,
-		DealDuration:    dealDuration,
-		DealReplication: dealReplication,
+		DealSize:        uint64(dealSize),
+		DealDuration:    uint64(dealDuration),
+		DealReplication: uint32(dealReplication),
 		DealVerified:    dealVerified,
 	})
 	if err != nil {

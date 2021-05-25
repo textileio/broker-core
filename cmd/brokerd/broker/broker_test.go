@@ -500,9 +500,9 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 
 type dumbAuctioneer struct {
 	calledStorageDealID   broker.StorageDealID
-	calledPieceSize       uint64
-	calledDealDuration    uint64
-	calledDealReplication uint32
+	calledPieceSize       int
+	calledDealDuration    int
+	calledDealReplication int
 	calledDealVerified    bool
 }
 
@@ -513,8 +513,7 @@ func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (
 func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
 	id broker.StorageDealID,
-	dealSize, dealDuration uint64,
-	dealReplication uint32,
+	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
