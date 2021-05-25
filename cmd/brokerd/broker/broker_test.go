@@ -163,8 +163,8 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.AuctionID("AUCTION1"), sd2.Auction.ID)
 
 	// 4- Verify that Auctioneer was called to prepare the data.
-	require.Equal(t, broker.MaxDealEpochs, auctioneer.calledDealDuration)
-	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
+	require.Equal(t, broker.MaxDealEpochs, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 
 	// 5- Verify that the underlying broker requests also moved to
