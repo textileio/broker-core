@@ -2,13 +2,18 @@ package main
 
 import (
 	"encoding/json"
+	"net"
 	_ "net/http/pprof"
 
+	httpapi "github.com/ipfs/go-ipfs-http-client"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
+	"github.com/textileio/broker-core/dshelper"
 )
 
 var (
@@ -50,13 +55,25 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		config := service.Config{
-			ListenAddr:       v.GetString("rpc-addr"),
-			IpfsAPIMultiaddr: v.GetString("ipfs-multiaddr"),
-			BrokerAPIAddr:    v.GetString("broker-addr"),
+		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
+		common.CheckErrf("creating listener: %v", err)
 
-			MongoURI:    v.GetString("mongo-uri"),
-			MongoDBName: v.GetString("mongo-dbname"),
+		ma, err := multiaddr.NewMultiaddr(v.GetString("ipfs-multiaddr"))
+		common.CheckErrf("parsing ipfs multiaddr: %v", err)
+		ipfsClient, err := httpapi.NewApi(ma)
+		common.CheckErrf("creating ipfs http api client: %v", err)
+
+		broker, err := client.New(v.GetString("broker-addr"))
+		common.CheckErrf("creating broker client: %v", err)
+
+		ds, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
+		common.CheckErrf("creating mongo datastore: %v", err)
+
+		config := service.Config{
+			Listener:   listener,
+			IpfsClient: ipfsClient,
+			Broker:     broker,
+			Datastore:  ds,
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)

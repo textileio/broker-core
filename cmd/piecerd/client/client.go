@@ -17,15 +17,11 @@ type Client struct {
 }
 
 // NewClient starts the client.
-func NewClient(addr string, opts ...grpc.DialOption) (*Client, error) {
-	conn, err := grpc.Dial(addr, opts...)
-	if err != nil {
-		return nil, err
-	}
+func NewClient(cc *grpc.ClientConn) *Client {
 	return &Client{
-		c:    pb.NewAPIServiceClient(conn),
-		conn: conn,
-	}, nil
+		c:    pb.NewAPIServiceClient(cc),
+		conn: cc,
+	}
 }
 
 // ReadyToPrepare signals the piecer that a new StorageDeal is ready to be prepared.

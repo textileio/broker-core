@@ -18,7 +18,7 @@ import (
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
-	pieceri "github.com/textileio/broker-core/cmd/piecerd/client"
+	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
 
 	"github.com/textileio/broker-core/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -85,7 +85,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
 
-	piecer, err := pieceri.NewClient(config.PiecerAddr)
+	piecer, err := pieceri.New(config.PiecerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating piecer implementation: %s", err)
 	}

@@ -21,6 +21,7 @@ require (
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/gogo/status v1.1.0
 	github.com/google/uuid v1.2.0
+	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hsanjuan/ipfs-lite v1.1.19
 	github.com/ipfs/go-cid v0.0.7
@@ -49,6 +50,7 @@ require (
 	github.com/near/borsh-go v0.3.0
 	github.com/ockam-network/did v0.1.3
 	github.com/oklog/ulid/v2 v2.0.2
+	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/ory/dockertest/v3 v3.6.3
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5

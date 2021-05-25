@@ -3,17 +3,14 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	golog "github.com/ipfs/go-log/v2"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
-	"github.com/textileio/broker-core/dshelper"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/piecer/v1"
 	"github.com/textileio/broker-core/rpc"
@@ -26,13 +23,11 @@ var log = golog.Logger("piecer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	ListenAddr string
+	Listener net.Listener
 
-	MongoDBName string
-	MongoURI    string
-
-	IpfsAPIMultiaddr string
-	BrokerAPIAddr    string
+	IpfsClient *httpapi.HttpApi
+	Broker     broker.Broker
+	Datastore  txndswrap.TxnDatastore
 }
 
 // Service is a gRPC service wrapper around a piecer.
@@ -48,31 +43,9 @@ var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
 func New(conf Config) (*Service, error) {
-	if err := validateConfig(conf); err != nil {
-		return nil, fmt.Errorf("config is invalid: %s", err)
-	}
-
 	fin := finalizer.NewFinalizer()
 
-	ds, err := dshelper.NewMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("creating datastore: %s", err)
-	}
-	fin.Add(ds)
-
-	ma, err := multiaddr.NewMultiaddr(conf.IpfsAPIMultiaddr)
-	if err != nil {
-		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
-	}
-	ipfsClient, err := httpapi.NewApi(ma)
-	if err != nil {
-		return nil, fmt.Errorf("creating ipfs client: %s", err)
-	}
-	brokerClient, err := client.New(conf.BrokerAPIAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating broker client: %s", err)
-	}
-	lib, err := piecer.New(ds, ipfsClient, brokerClient)
+	lib, err := piecer.New(conf.Datastore, conf.IpfsClient, conf.Broker)
 	if err != nil {
 		return nil, fin.Cleanupf("creating piecer: %v", err)
 	}
@@ -84,18 +57,13 @@ func New(conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	listener, err := net.Listen("tcp", conf.ListenAddr)
-	if err != nil {
-		return nil, fmt.Errorf("getting net listener: %v", err)
-	}
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
-		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+		if err := s.server.Serve(conf.Listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Errorf("server error: %v", err)
 		}
 	}()
 
-	log.Infof("service listening at %s", conf.ListenAddr)
 	return s, nil
 }
 
@@ -127,24 +95,4 @@ func (s *Service) Close() error {
 	rpc.StopServer(s.server)
 	log.Info("service was shutdown")
 	return s.finalizer.Cleanup(nil)
-}
-
-func validateConfig(conf Config) error {
-	if conf.BrokerAPIAddr == "" {
-		return fmt.Errorf("broker api addr is empty")
-	}
-	if conf.IpfsAPIMultiaddr == "" {
-		return fmt.Errorf("ipfs api multiaddr is empty")
-	}
-	if conf.ListenAddr == "" {
-		return fmt.Errorf("service listen addr is empty")
-	}
-	if conf.MongoDBName == "" {
-		return fmt.Errorf("mongo db name is empty")
-	}
-	if conf.MongoURI == "" {
-		return fmt.Errorf("mongo uri is empty")
-	}
-
-	return nil
 }
