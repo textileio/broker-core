@@ -10,3 +10,4 @@ resources:
 - neard.yaml
 - packerd.yaml
 - storaged.yaml
+- piecer.yaml
