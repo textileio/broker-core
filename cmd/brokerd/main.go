@@ -23,6 +23,7 @@ func init() {
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "piecer-addr", DefValue: "", Description: "Piecer API address"},
 		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
@@ -60,6 +61,7 @@ var rootCmd = &cobra.Command{
 		serviceConfig := service.Config{
 			ListenAddr: v.GetString("rpc-addr"),
 
+			PiecerAddr:     v.GetString("piecer-addr"),
 			PackerAddr:     v.GetString("packer-addr"),
 			AuctioneerAddr: v.GetString("auctioneer-addr"),
 			DealerAddr:     v.GetString("dealer-addr"),
