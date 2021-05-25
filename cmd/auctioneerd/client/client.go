@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/ipfs/go-cid"
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
@@ -49,7 +51,7 @@ func (c *Client) ReadyToAuction(
 		DealVerified:    dealVerified,
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("calling ready to auction api: %s", err)
 	}
 	return broker.AuctionID(res.Id), nil
 }
@@ -63,4 +65,21 @@ func (c *Client) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Au
 		return broker.Auction{}, err
 	}
 	return cast.AuctionFromPb(res.Auction)
+}
+
+// ProposalAccepted signals the auctioneer that a miner has accepted a deal proposal.
+func (c *Client) ProposalAccepted(
+	ctx context.Context,
+	auctionID broker.AuctionID,
+	bidID broker.BidID,
+	proposal cid.Cid) error {
+	_, err := c.c.ProposalAccepted(ctx, &pb.ProposalAcceptedRequest{
+		AuctionId:   string(auctionID),
+		BidId:       string(bidID),
+		ProposalCid: proposal.String(),
+	})
+	if err != nil {
+		return fmt.Errorf("calling proposal accepted api: %s", err)
+	}
+	return nil
 }

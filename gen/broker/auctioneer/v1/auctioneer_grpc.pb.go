@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type APIServiceClient interface {
 	ReadyToAuction(ctx context.Context, in *ReadyToAuctionRequest, opts ...grpc.CallOption) (*ReadyToAuctionResponse, error)
 	GetAuction(ctx context.Context, in *GetAuctionRequest, opts ...grpc.CallOption) (*GetAuctionResponse, error)
+	ProposalAccepted(ctx context.Context, in *ProposalAcceptedRequest, opts ...grpc.CallOption) (*ProposalAcceptedResponse, error)
 }
 
 type aPIServiceClient struct {
@@ -48,12 +49,22 @@ func (c *aPIServiceClient) GetAuction(ctx context.Context, in *GetAuctionRequest
 	return out, nil
 }
 
+func (c *aPIServiceClient) ProposalAccepted(ctx context.Context, in *ProposalAcceptedRequest, opts ...grpc.CallOption) (*ProposalAcceptedResponse, error) {
+	out := new(ProposalAcceptedResponse)
+	err := c.cc.Invoke(ctx, "/broker.auctioneer.v1.APIService/ProposalAccepted", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // APIServiceServer is the server API for APIService service.
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
 type APIServiceServer interface {
 	ReadyToAuction(context.Context, *ReadyToAuctionRequest) (*ReadyToAuctionResponse, error)
 	GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error)
+	ProposalAccepted(context.Context, *ProposalAcceptedRequest) (*ProposalAcceptedResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -66,6 +77,9 @@ func (UnimplementedAPIServiceServer) ReadyToAuction(context.Context, *ReadyToAuc
 }
 func (UnimplementedAPIServiceServer) GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAuction not implemented")
+}
+func (UnimplementedAPIServiceServer) ProposalAccepted(context.Context, *ProposalAcceptedRequest) (*ProposalAcceptedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProposalAccepted not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -116,6 +130,24 @@ func _APIService_GetAuction_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _APIService_ProposalAccepted_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProposalAcceptedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServiceServer).ProposalAccepted(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/broker.auctioneer.v1.APIService/ProposalAccepted",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServiceServer).ProposalAccepted(ctx, req.(*ProposalAcceptedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -130,6 +162,10 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAuction",
 			Handler:    _APIService_GetAuction_Handler,
+		},
+		{
+			MethodName: "ProposalAccepted",
+			Handler:    _APIService_ProposalAccepted_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

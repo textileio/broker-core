@@ -23,6 +23,7 @@ type APIServiceClient interface {
 	CreateStorageDeal(ctx context.Context, in *CreateStorageDealRequest, opts ...grpc.CallOption) (*CreateStorageDealResponse, error)
 	StorageDealAuctioned(ctx context.Context, in *StorageDealAuctionedRequest, opts ...grpc.CallOption) (*StorageDealAuctionedResponse, error)
 	StorageDealFinalizedDeals(ctx context.Context, in *StorageDealFinalizedDealsRequest, opts ...grpc.CallOption) (*StorageDealFinalizedDealsResponse, error)
+	StorageDealProposalAccepted(ctx context.Context, in *StorageDealProposalAcceptedRequest, opts ...grpc.CallOption) (*StorageDealProposalAcceptedResponse, error)
 }
 
 type aPIServiceClient struct {
@@ -78,6 +79,15 @@ func (c *aPIServiceClient) StorageDealFinalizedDeals(ctx context.Context, in *St
 	return out, nil
 }
 
+func (c *aPIServiceClient) StorageDealProposalAccepted(ctx context.Context, in *StorageDealProposalAcceptedRequest, opts ...grpc.CallOption) (*StorageDealProposalAcceptedResponse, error) {
+	out := new(StorageDealProposalAcceptedResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/StorageDealProposalAccepted", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // APIServiceServer is the server API for APIService service.
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
@@ -87,6 +97,7 @@ type APIServiceServer interface {
 	CreateStorageDeal(context.Context, *CreateStorageDealRequest) (*CreateStorageDealResponse, error)
 	StorageDealAuctioned(context.Context, *StorageDealAuctionedRequest) (*StorageDealAuctionedResponse, error)
 	StorageDealFinalizedDeals(context.Context, *StorageDealFinalizedDealsRequest) (*StorageDealFinalizedDealsResponse, error)
+	StorageDealProposalAccepted(context.Context, *StorageDealProposalAcceptedRequest) (*StorageDealProposalAcceptedResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -108,6 +119,9 @@ func (UnimplementedAPIServiceServer) StorageDealAuctioned(context.Context, *Stor
 }
 func (UnimplementedAPIServiceServer) StorageDealFinalizedDeals(context.Context, *StorageDealFinalizedDealsRequest) (*StorageDealFinalizedDealsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorageDealFinalizedDeals not implemented")
+}
+func (UnimplementedAPIServiceServer) StorageDealProposalAccepted(context.Context, *StorageDealProposalAcceptedRequest) (*StorageDealProposalAcceptedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorageDealProposalAccepted not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -212,6 +226,24 @@ func _APIService_StorageDealFinalizedDeals_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _APIService_StorageDealProposalAccepted_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorageDealProposalAcceptedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServiceServer).StorageDealProposalAccepted(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/broker.v1.APIService/StorageDealProposalAccepted",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServiceServer).StorageDealProposalAccepted(ctx, req.(*StorageDealProposalAcceptedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -238,6 +270,10 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StorageDealFinalizedDeals",
 			Handler:    _APIService_StorageDealFinalizedDeals_Handler,
+		},
+		{
+			MethodName: "StorageDealProposalAccepted",
+			Handler:    _APIService_StorageDealProposalAccepted_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

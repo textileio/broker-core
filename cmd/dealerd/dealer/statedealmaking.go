@@ -1,6 +1,7 @@
 package dealer
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -53,7 +54,7 @@ Loop1:
 			default:
 			}
 			rl.Exec(func() error {
-				if err := d.executePending(aud); err != nil {
+				if err := d.executePending(d.daemonCtx, aud); err != nil {
 					// TODO: most probably we want to include logic
 					// to retry a bounded number of times (or similar)
 					// when went stop trying to make the deal with the miner.
@@ -69,7 +70,7 @@ Loop1:
 	return nil
 }
 
-func (d *Dealer) executePending(aud store.AuctionDeal) error {
+func (d *Dealer) executePending(ctx context.Context, aud store.AuctionDeal) error {
 	ad, err := d.store.GetAuctionData(aud.AuctionDataID)
 	if err != nil {
 		return fmt.Errorf("get auction data %s: %s", aud.AuctionDataID, err)
@@ -83,6 +84,10 @@ func (d *Dealer) executePending(aud store.AuctionDeal) error {
 	aud.ProposalCid = proposalCid
 	if err := d.store.SaveAuctionDeal(aud); err != nil {
 		return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
+	}
+
+	if err := d.broker.StorageDealProposalAccepted(ctx, ad.StorageDealID, aud.Miner, proposalCid); err != nil {
+		return fmt.Errorf("signaling broker of accepted proposal %s: %s", proposalCid, err)
 	}
 
 	return nil

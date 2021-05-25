@@ -41,7 +41,8 @@ var (
 func TestReadyToCreateDeals(t *testing.T) {
 	t.Parallel()
 
-	dealer := newDealer(t, nil)
+	broker := &brokerMock{}
+	dealer := newDealer(t, broker)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -80,7 +81,8 @@ func TestReadyToCreateDeals(t *testing.T) {
 func TestStateMachineExecPending(t *testing.T) {
 	t.Parallel()
 
-	dealer := newDealer(t, nil)
+	broker := &brokerMock{}
+	dealer := newDealer(t, broker)
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
 
@@ -110,7 +112,8 @@ func TestStateMachineExecPending(t *testing.T) {
 func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	t.Parallel()
 
-	dealer := newDealer(t, nil)
+	broker := &brokerMock{}
+	dealer := newDealer(t, broker)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -139,6 +142,11 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.True(t, time.Since(wc.UpdatedAt) < time.Minute)
 	require.Equal(t, fakeDealID, wc.DealID)             // Crucial check
 	require.Equal(t, fakeExpiration, wc.DealExpiration) // Crucial check
+
+	// Check that dealer has notified broker of accepted proposal.
+	require.Equal(t, auds.StorageDealID, broker.callerPASdID)
+	require.Equal(t, auds.Targets[0].Miner, broker.calledPAMiner)
+	require.Equal(t, fakeProposalCid, broker.calledPAProposalCid)
 }
 
 func TestStateMachineExecReporting(t *testing.T) {
@@ -255,6 +263,10 @@ func (fc *fcMock) CheckDealStatusWithMiner(
 
 type brokerMock struct {
 	calledFAD []broker.FinalizedAuctionDeal
+
+	callerPASdID        broker.StorageDealID
+	calledPAMiner       string
+	calledPAProposalCid cid.Cid
 }
 
 func (b *brokerMock) CreateStorageDeal(
@@ -273,6 +285,17 @@ func (b *brokerMock) StorageDealPrepared(
 
 func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
 	panic("shouldn't be called")
+}
+
+func (b *brokerMock) StorageDealProposalAccepted(
+	_ context.Context,
+	sdID broker.StorageDealID,
+	miner string,
+	proposalCid cid.Cid) error {
+	b.callerPASdID = sdID
+	b.calledPAMiner = miner
+	b.calledPAProposalCid = proposalCid
+	return nil
 }
 
 func (b *brokerMock) StorageDealFinalizedDeals(ctx context.Context, res []broker.FinalizedAuctionDeal) error {

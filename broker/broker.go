@@ -36,6 +36,9 @@ type Broker interface {
 
 	// StorageDealFinalizedDeals signals to the broker results about deal making.
 	StorageDealFinalizedDeals(ctx context.Context, res []FinalizedAuctionDeal) error
+
+	// StorageDealProposalAcceted signals the broker that a miner has accepted a deal proposal.
+	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
 }
 
 // BrokerRequestor alows to create and query BrokerRequests.

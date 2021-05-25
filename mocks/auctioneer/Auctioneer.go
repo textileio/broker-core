@@ -3,9 +3,10 @@
 package mocks
 
 import (
-	context "context"
-
+	cid "github.com/ipfs/go-cid"
 	broker "github.com/textileio/broker-core/broker"
+
+	context "context"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -34,6 +35,20 @@ func (_m *Auctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (brok
 	}
 
 	return r0, r1
+}
+
+// ProposalAccepted provides a mock function with given fields: ctx, auID, bidID, proposal
+func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID broker.AuctionID, bidID broker.BidID, proposal cid.Cid) error {
+	ret := _m.Called(ctx, auID, bidID, proposal)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, broker.AuctionID, broker.BidID, cid.Cid) error); ok {
+		r0 = rf(ctx, auID, bidID, proposal)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // ReadyToAuction provides a mock function with given fields: ctx, id, dealSize, dealDuration, dealReplication, dealVerified

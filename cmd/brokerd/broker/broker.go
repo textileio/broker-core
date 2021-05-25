@@ -230,6 +230,41 @@ func (b *Broker) StorageDealPrepared(
 	return nil
 }
 
+// StorageDealProposalAccepted indicates that a miner has accepted a proposed deal.
+func (b *Broker) StorageDealProposalAccepted(
+	ctx context.Context,
+	sdID broker.StorageDealID,
+	miner string,
+	proposal cid.Cid) error {
+	log.Debugf("accepted proposal %s from miner %s, signaling auctioneer to report back", proposal, miner)
+
+	sd, err := b.store.GetStorageDeal(ctx, sdID)
+	if err != nil {
+		return fmt.Errorf("storage deal not found: %s", err)
+	}
+
+	var winningBid broker.BidID
+	for _, wbid := range sd.Auction.WinningBids {
+		bid, ok := sd.Auction.Bids[wbid]
+		if !ok {
+			continue
+		}
+		if bid.MinerAddr == miner {
+			winningBid = wbid
+		}
+	}
+
+	if winningBid == "" {
+		return fmt.Errorf("coudn't find winning bid in auction: %s", err)
+	}
+
+	if err := b.auctioneer.ProposalAccepted(ctx, sd.Auction.ID, winningBid, proposal); err != nil {
+		return fmt.Errorf("signaling auctioneer about accepted proposal: %s", err)
+	}
+
+	return nil
+}
+
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
 	log.Debugf("storage deal %s was auctioned", auction.StorageDealID)
