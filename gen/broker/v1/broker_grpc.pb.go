@@ -24,6 +24,7 @@ type APIServiceClient interface {
 	StorageDealAuctioned(ctx context.Context, in *StorageDealAuctionedRequest, opts ...grpc.CallOption) (*StorageDealAuctionedResponse, error)
 	StorageDealFinalizedDeals(ctx context.Context, in *StorageDealFinalizedDealsRequest, opts ...grpc.CallOption) (*StorageDealFinalizedDealsResponse, error)
 	StorageDealProposalAccepted(ctx context.Context, in *StorageDealProposalAcceptedRequest, opts ...grpc.CallOption) (*StorageDealProposalAcceptedResponse, error)
+	StorageDealPrepared(ctx context.Context, in *StorageDealPreparedRequest, opts ...grpc.CallOption) (*StorageDealPreparedResponse, error)
 }
 
 type aPIServiceClient struct {
@@ -88,6 +89,15 @@ func (c *aPIServiceClient) StorageDealProposalAccepted(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *aPIServiceClient) StorageDealPrepared(ctx context.Context, in *StorageDealPreparedRequest, opts ...grpc.CallOption) (*StorageDealPreparedResponse, error) {
+	out := new(StorageDealPreparedResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/StorageDealPrepared", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // APIServiceServer is the server API for APIService service.
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
@@ -98,6 +108,7 @@ type APIServiceServer interface {
 	StorageDealAuctioned(context.Context, *StorageDealAuctionedRequest) (*StorageDealAuctionedResponse, error)
 	StorageDealFinalizedDeals(context.Context, *StorageDealFinalizedDealsRequest) (*StorageDealFinalizedDealsResponse, error)
 	StorageDealProposalAccepted(context.Context, *StorageDealProposalAcceptedRequest) (*StorageDealProposalAcceptedResponse, error)
+	StorageDealPrepared(context.Context, *StorageDealPreparedRequest) (*StorageDealPreparedResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -122,6 +133,9 @@ func (UnimplementedAPIServiceServer) StorageDealFinalizedDeals(context.Context, 
 }
 func (UnimplementedAPIServiceServer) StorageDealProposalAccepted(context.Context, *StorageDealProposalAcceptedRequest) (*StorageDealProposalAcceptedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorageDealProposalAccepted not implemented")
+}
+func (UnimplementedAPIServiceServer) StorageDealPrepared(context.Context, *StorageDealPreparedRequest) (*StorageDealPreparedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StorageDealPrepared not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -244,6 +258,24 @@ func _APIService_StorageDealProposalAccepted_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _APIService_StorageDealPrepared_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorageDealPreparedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServiceServer).StorageDealPrepared(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/broker.v1.APIService/StorageDealPrepared",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServiceServer).StorageDealPrepared(ctx, req.(*StorageDealPreparedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // APIService_ServiceDesc is the grpc.ServiceDesc for APIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -274,6 +306,10 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StorageDealProposalAccepted",
 			Handler:    _APIService_StorageDealProposalAccepted_Handler,
+		},
+		{
+			MethodName: "StorageDealPrepared",
+			Handler:    _APIService_StorageDealPrepared_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
