@@ -250,6 +250,29 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
+func (s *Service) StorageDealPrepared(
+	ctx context.Context,
+	r *pb.StorageDealPreparedRequest) (*pb.StorageDealPreparedResponse, error) {
+	if r == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+
+	pieceCid, err := cid.Decode(r.PieceCid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "decoding piece cid: %s", err)
+	}
+	id := broker.StorageDealID(r.StorageDealId)
+	pr := broker.DataPreparationResult{
+		PieceCid:  pieceCid,
+		PieceSize: r.PieceSize,
+	}
+	if err := s.broker.StorageDealPrepared(ctx, id, pr); err != nil {
+		return nil, status.Errorf(codes.Internal, "calling storage deal prepared: %s", err)
+	}
+
+	return &pb.StorageDealPreparedResponse{}, nil
+}
+
 // StorageDealFinalizedDeals reports the result of finalized deals.
 func (s *Service) StorageDealFinalizedDeals(
 	ctx context.Context,
