@@ -311,7 +311,16 @@ func (q *Queue) worker(num int) {
 			a.Bids = make(map[broker.BidID]broker.Bid)
 		}
 		a.Bids[broker.BidID(id)] = bid
-		return err
+
+		// Save auction data
+		val, err := encode(a)
+		if err != nil {
+			return fmt.Errorf("encoding value: %v", err)
+		}
+		if err := q.store.Put(dsPrefix.ChildString(string(a.ID)), val); err != nil {
+			return fmt.Errorf("putting value: %v", err)
+		}
+		return nil
 	}
 
 	fail := func(a *broker.Auction, err error) (status broker.AuctionStatus) {
