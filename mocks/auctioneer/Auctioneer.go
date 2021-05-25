@@ -37,18 +37,13 @@ func (_m *Auctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (brok
 	return r0, r1
 }
 
-<<<<<<< HEAD
-// ReadyToAuction provides a mock function with given fields: ctx, id, dealSize, dealDuration, dealReplication, dealVerified
-func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dealSize int, dealDuration int, dealReplication int, dealVerified bool) (broker.AuctionID, error) {
-	ret := _m.Called(ctx, id, dealSize, dealDuration, dealReplication, dealVerified)
-=======
-// ProposalAccepted provides a mock function with given fields: ctx, miner, proposal
-func (_m *Auctioneer) ProposalAccepted(ctx context.Context, miner string, proposal cid.Cid) error {
-	ret := _m.Called(ctx, miner, proposal)
+// ProposalAccepted provides a mock function with given fields: ctx, auID, bidID, proposal
+func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID broker.AuctionID, bidID broker.BidID, proposal cid.Cid) error {
+	ret := _m.Called(ctx, auID, bidID, proposal)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, cid.Cid) error); ok {
-		r0 = rf(ctx, miner, proposal)
+	if rf, ok := ret.Get(0).(func(context.Context, broker.AuctionID, broker.BidID, cid.Cid) error); ok {
+		r0 = rf(ctx, auID, bidID, proposal)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -56,10 +51,9 @@ func (_m *Auctioneer) ProposalAccepted(ctx context.Context, miner string, propos
 	return r0
 }
 
-// ReadyToAuction provides a mock function with given fields: ctx, id, dealSize, dealDuration
-func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dealSize uint64, dealDuration uint64) (broker.AuctionID, error) {
-	ret := _m.Called(ctx, id, dealSize, dealDuration)
->>>>>>> d3c0b50... mocks: update
+// ReadyToAuction provides a mock function with given fields: ctx, id, dealSize, dealDuration, dealReplication, dealVerified
+func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dealSize int, dealDuration int, dealReplication int, dealVerified bool) (broker.AuctionID, error) {
+	ret := _m.Called(ctx, id, dealSize, dealDuration, dealReplication, dealVerified)
 
 	var r0 broker.AuctionID
 	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, int, int, int, bool) broker.AuctionID); ok {
