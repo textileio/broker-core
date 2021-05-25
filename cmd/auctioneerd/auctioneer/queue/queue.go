@@ -56,18 +56,23 @@ var (
 	dsStartedPrefix = ds.NewKey("/started")
 )
 
-// Handler is called when an auction moves from "queued" to "started".
-// This separates the queue's job from the auction handling, making the queue logic easier to test.
-type Handler func(ctx context.Context, auction *broker.Auction) error
+// Runner is called when an auction moves from "queued" to "started".
+type Runner func(ctx context.Context, auction *broker.Auction, addBid func(bid broker.Bid) error) error
+
+// Finalizer is called when an auction moves from "started" to "ended" or "error".
+type Finalizer func(ctx context.Context, auction broker.Auction) error
 
 // Queue is a persistent worker-based task queue.
 type Queue struct {
 	store txndswrap.TxnDatastore
 
-	handler Handler
-	jobCh   chan *broker.Auction
-	doneCh  chan struct{}
-	entropy *ulid.MonotonicEntropy
+	runner    Runner
+	finalizer Finalizer
+	jobCh     chan *broker.Auction
+	doneCh    chan struct{}
+	entropy   *ulid.MonotonicEntropy
+
+	runAttempts uint32
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -76,15 +81,17 @@ type Queue struct {
 }
 
 // NewQueue returns a new Queue using handler to process auctions.
-func NewQueue(store txndswrap.TxnDatastore, handler Handler) (*Queue, error) {
+func NewQueue(store txndswrap.TxnDatastore, runner Runner, finalizer Finalizer, runAttempts uint32) (*Queue, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	q := &Queue{
-		store:   store,
-		handler: handler,
-		jobCh:   make(chan *broker.Auction, MaxConcurrency),
-		doneCh:  make(chan struct{}, MaxConcurrency),
-		ctx:     ctx,
-		cancel:  cancel,
+		store:       store,
+		runner:      runner,
+		finalizer:   finalizer,
+		jobCh:       make(chan *broker.Auction, MaxConcurrency),
+		doneCh:      make(chan struct{}, MaxConcurrency),
+		runAttempts: runAttempts,
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 
 	// Create queue workers
@@ -102,8 +109,44 @@ func (q *Queue) Close() error {
 	return nil
 }
 
-// NewID returns new monotonically increasing auction ids.
-func (q *Queue) NewID(t time.Time) (broker.AuctionID, error) {
+// CreateAuction adds a new auction to the queue.
+// The new auction will be handled immediately if workers are not busy.
+func (q *Queue) CreateAuction(auction broker.Auction) (broker.AuctionID, error) {
+	if err := validate(auction); err != nil {
+		return "", fmt.Errorf("invalid auction data: %s", err)
+	}
+	id, err := q.newID(time.Now())
+	if err != nil {
+		return "", fmt.Errorf("creating id: %v", err)
+	}
+	auction.ID = id
+	if err := q.enqueue(&auction); err != nil {
+		return "", fmt.Errorf("enqueueing: %v", err)
+	}
+	return id, nil
+}
+
+func validate(a broker.Auction) error {
+	if a.StorageDealID == "" {
+		return errors.New("storage deal id is empty")
+	}
+	if a.DealSize == 0 {
+		return errors.New("deal size must be greater than zero")
+	}
+	if a.DealDuration == 0 {
+		return errors.New("deal duration must be greater than zero")
+	}
+	if a.DealReplication == 0 {
+		return errors.New("deal replication must be greater than zero")
+	}
+	if a.Status != broker.AuctionStatusUnspecified {
+		return errors.New("invalid initial deal status")
+	}
+	return nil
+}
+
+// newID returns new monotonically increasing auction ids.
+func (q *Queue) newID(t time.Time) (broker.AuctionID, error) {
 	q.lk.Lock() // entropy is not safe for concurrent use
 
 	if q.entropy == nil {
@@ -113,38 +156,13 @@ func (q *Queue) NewID(t time.Time) (broker.AuctionID, error) {
 	if errors.Is(err, ulid.ErrMonotonicOverflow) {
 		q.entropy = nil
 		q.lk.Unlock()
-		return q.NewID(t)
+		return q.newID(t)
 	} else if err != nil {
 		q.lk.Unlock()
 		return "", fmt.Errorf("generating id: %v", err)
 	}
 	q.lk.Unlock()
 	return broker.AuctionID(strings.ToLower(id.String())), nil
-}
-
-// CreateAuction adds a new auction to the queue.
-// The new auction will be handled immediately if workers are not busy.
-func (q *Queue) CreateAuction(
-	storageDealID broker.StorageDealID,
-	dealSize, dealDuration uint64,
-	auctionDuration time.Duration,
-) (broker.AuctionID, error) {
-	id, err := q.NewID(time.Now())
-	if err != nil {
-		return "", fmt.Errorf("creating id: %v", err)
-	}
-	a := &broker.Auction{
-		ID:            id,
-		StorageDealID: storageDealID,
-		DealSize:      dealSize,
-		DealDuration:  dealDuration,
-		Status:        broker.AuctionStatusUnspecified,
-		Duration:      auctionDuration,
-	}
-	if err := q.enqueue(a); err != nil {
-		return "", fmt.Errorf("enqueueing: %v", err)
-	}
-	return id, nil
 }
 
 // GetAuction returns an auction by id.
@@ -261,7 +279,7 @@ func (q *Queue) ListAuctions(query Query) ([]broker.Auction, error) {
 
 func (q *Queue) enqueue(a *broker.Auction) error {
 	// Set the auction to "started"
-	if err := q.setStatus(a, broker.AuctionStatusStarted); err != nil {
+	if err := q.saveAndTransitionStatus(nil, a, broker.AuctionStatusStarted); err != nil {
 		return fmt.Errorf("updating status (started): %v", err)
 	}
 
@@ -272,7 +290,7 @@ func (q *Queue) enqueue(a *broker.Auction) error {
 		default:
 			log.Debugf("workers are busy; queueing %s", a.ID)
 			// Workers are busy, set back to "queued"
-			if err := q.setStatus(a, broker.AuctionStatusQueued); err != nil {
+			if err := q.saveAndTransitionStatus(nil, a, broker.AuctionStatusQueued); err != nil {
 				log.Errorf("error updating status (queued): %v", err)
 			}
 		}
@@ -281,6 +299,42 @@ func (q *Queue) enqueue(a *broker.Auction) error {
 }
 
 func (q *Queue) worker(num int) {
+	addBid := func(a *broker.Auction, bid broker.Bid) error {
+		if a.Status != broker.AuctionStatusStarted {
+			return errors.New("auction has not started")
+		}
+		id, err := q.newID(bid.ReceivedAt)
+		if err != nil {
+			return fmt.Errorf("generating bid id: %v", err)
+		}
+		if a.Bids == nil {
+			a.Bids = make(map[broker.BidID]broker.Bid)
+		}
+		a.Bids[broker.BidID(id)] = bid
+
+		// Save auction data
+		val, err := encode(a)
+		if err != nil {
+			return fmt.Errorf("encoding value: %v", err)
+		}
+		if err := q.store.Put(dsPrefix.ChildString(string(a.ID)), val); err != nil {
+			return fmt.Errorf("putting value: %v", err)
+		}
+		return nil
+	}
+
+	fail := func(a *broker.Auction, err error) (status broker.AuctionStatus) {
+		a.Error = err.Error()
+		if a.Attempts >= q.runAttempts {
+			status = broker.AuctionStatusError
+			log.Warnf("job %s exhausted all %d attempts with error: %v", a.ID, q.runAttempts, err)
+		} else {
+			status = broker.AuctionStatusQueued
+			log.Debugf("retrying job %s with error: %v", a.ID, err)
+		}
+		return status
+	}
+
 	for {
 		select {
 		case <-q.ctx.Done():
@@ -290,19 +344,30 @@ func (q *Queue) worker(num int) {
 			if q.ctx.Err() != nil {
 				return
 			}
-			log.Debugf("worker %d got job %s", num, a.ID)
+			a.Attempts++
+			a.Error = ""
+			log.Debugf("worker %d got job %s (attempt=%d/%d)", num, a.ID, a.Attempts, q.runAttempts)
 
 			// Handle the auction with the handler func
 			status := broker.AuctionStatusEnded
-			if err := q.handler(q.ctx, a); err != nil {
-				status = broker.AuctionStatusError
-				a.Error = err.Error()
-				log.Errorf("error handling auction: %v", err)
+			if err := q.runner(q.ctx, a, func(bid broker.Bid) error {
+				return addBid(a, bid)
+			}); err != nil {
+				status = fail(a, err)
 			}
 
-			// Finalize auction by setting status to "closed" or "error"
-			if err := q.setStatus(a, status); err != nil {
-				log.Errorf("error updating status (%s): %v", status, err)
+			// Save and update status to "ended" or "error"
+			if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
+				log.Errorf("error updating runner status (%s): %v", status, err)
+			} else if status != broker.AuctionStatusQueued {
+				if err := q.finalizer(q.ctx, *a); err != nil {
+					status = fail(a, err)
+
+					// Save and update status to "error"
+					if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
+						log.Errorf("error updating finalizer status (%s): %v", status, err)
+					}
+				}
 			}
 
 			log.Debugf("worker %d finished job %s", num, a.ID)
@@ -344,7 +409,7 @@ func (q *Queue) getNext() {
 }
 
 func (q *Queue) getQueued() (*broker.Auction, error) {
-	txn, err := q.store.NewTransaction(true)
+	txn, err := q.store.NewTransaction(false)
 	if err != nil {
 		return nil, fmt.Errorf("creating txn: %v", err)
 	}
@@ -372,15 +437,24 @@ func (q *Queue) getQueued() (*broker.Auction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}
+	if err := q.saveAndTransitionStatus(txn, a, broker.AuctionStatusStarted); err != nil {
+		return nil, fmt.Errorf("getting auction: %v", err)
+	}
 	return a, nil
 }
 
-func (q *Queue) setStatus(a *broker.Auction, status broker.AuctionStatus) error {
-	txn, err := q.store.NewTransaction(false)
-	if err != nil {
-		return fmt.Errorf("creating txn: %v", err)
+// saveAndTransitionStatus sets a new status, updating the started time if needed.
+// Do not directly edit the auction status because it is needed to determine the correct status transition.
+// Pass the desired new status with newStatus.
+func (q *Queue) saveAndTransitionStatus(txn ds.Txn, a *broker.Auction, newStatus broker.AuctionStatus) error {
+	if txn == nil {
+		var err error
+		txn, err = q.store.NewTransaction(false)
+		if err != nil {
+			return fmt.Errorf("creating txn: %v", err)
+		}
+		defer txn.Discard()
 	}
-	defer txn.Discard()
 
 	// Handle currently "queued" and "started" status
 	if a.Status == broker.AuctionStatusQueued {
@@ -392,12 +466,12 @@ func (q *Queue) setStatus(a *broker.Auction, status broker.AuctionStatus) error 
 			return fmt.Errorf("deleting from started: %v", err)
 		}
 	}
-	if status == broker.AuctionStatusQueued {
+	if newStatus == broker.AuctionStatusQueued {
 		a.StartedAt = time.Time{} // reset started
 		if err := txn.Put(dsQueuePrefix.ChildString(string(a.ID)), nil); err != nil {
 			return fmt.Errorf("putting to queue: %v", err)
 		}
-	} else if status == broker.AuctionStatusStarted {
+	} else if newStatus == broker.AuctionStatusStarted {
 		a.StartedAt = time.Now()
 		if err := txn.Put(dsStartedPrefix.ChildString(string(a.ID)), nil); err != nil {
 			return fmt.Errorf("putting to started: %v", err)
@@ -405,7 +479,7 @@ func (q *Queue) setStatus(a *broker.Auction, status broker.AuctionStatus) error 
 	}
 
 	// Update status
-	a.Status = status
+	a.Status = newStatus
 	val, err := encode(a)
 	if err != nil {
 		return fmt.Errorf("encoding value: %v", err)

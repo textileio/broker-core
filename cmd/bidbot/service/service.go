@@ -20,7 +20,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = golog.Logger("bidbot/service")
+var (
+	log = golog.Logger("bidbot/service")
+
+	// bidsAckTimeout is the max duration bidbot will wait for an ack after bidding in an auction.
+	bidsAckTimeout = time.Second * 10
+)
 
 // Config defines params for Service configuration.
 type Config struct {
@@ -207,7 +212,7 @@ func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
 		log.Errorf("marshaling json: %v", err)
 		return
 	}
-	log.Infof("found auction %s from %s: \n%s", auction.Id, from, string(auctionj))
+	log.Infof("received auction %s from %s: \n%s", auction.Id, from, string(auctionj))
 
 	go func() {
 		if err := s.makeBid(auction, from); err != nil {
@@ -267,7 +272,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	if err := bids.Publish(s.ctx, msg); err != nil {
+	if err := bids.Publish(s.ctx, msg, bidsAckTimeout); err != nil {
 		return fmt.Errorf("publishing bid: %v", err)
 	}
 	return nil

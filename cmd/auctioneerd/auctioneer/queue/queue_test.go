@@ -1,4 +1,4 @@
-package queue_test
+package queue
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
-	. "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/logging"
 	badger "github.com/textileio/go-ds-badger3"
 )
@@ -24,14 +23,14 @@ func init() {
 	}
 }
 
-func TestQueue_NewID(t *testing.T) {
+func TestQueue_newID(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
 	// Ensure monotonic
 	var last broker.AuctionID
 	for i := 0; i < 10000; i++ {
-		id, err := q.NewID(time.Now())
+		id, err := q.newID(time.Now())
 		require.NoError(t, err)
 
 		if i > 0 {
@@ -51,7 +50,13 @@ func TestQueue_ListRequests(t *testing.T) {
 		ids := make([]broker.AuctionID, limit)
 		for i := 0; i < limit; i++ {
 			now = now.Add(time.Millisecond)
-			id, err := q.CreateAuction(broker.StorageDealID(uuid.NewString()), 0, 0, time.Second)
+			id, err := q.CreateAuction(broker.Auction{
+				StorageDealID:   broker.StorageDealID(uuid.NewString()),
+				DealSize:        1024,
+				DealDuration:    1,
+				DealReplication: 1,
+				Duration:        time.Second,
+			})
 			require.NoError(t, err)
 			ids[i] = id
 		}
@@ -88,7 +93,13 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(broker.StorageDealID(uuid.NewString()), 0, 0, time.Millisecond)
+	id, err := q.CreateAuction(broker.Auction{
+		StorageDealID:   broker.StorageDealID(uuid.NewString()),
+		DealSize:        1024,
+		DealDuration:    1,
+		DealReplication: 1,
+		Duration:        time.Millisecond,
+	})
 	require.NoError(t, err)
 
 	// Allow to finish
@@ -104,7 +115,7 @@ func newQueue(t *testing.T) *Queue {
 	require.NoError(t, err)
 	s, err := badger.NewDatastore(dir, &badger.DefaultOptions)
 	require.NoError(t, err)
-	q, err := NewQueue(s, handler)
+	q, err := NewQueue(s, runner, finalizer, 2)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, q.Close())
@@ -113,7 +124,11 @@ func newQueue(t *testing.T) *Queue {
 	return q
 }
 
-func handler(_ context.Context, _ *broker.Auction) error {
+func runner(_ context.Context, _ *broker.Auction, _ func(bid broker.Bid) error) error {
 	time.Sleep(time.Millisecond * 100)
+	return nil
+}
+
+func finalizer(_ context.Context, _ broker.Auction) error {
 	return nil
 }

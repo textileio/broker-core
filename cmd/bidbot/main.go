@@ -168,6 +168,7 @@ var daemonCmd = &cobra.Command{
 			cliName,
 			"bidbot/service",
 			"mpeer",
+			"mpeer/pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},

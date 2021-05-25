@@ -213,10 +213,16 @@ func BidsTopic(auctionID AuctionID) string {
 	return path.Join(AuctionTopic, string(auctionID), "bids")
 }
 
-// WinsTopic is used by brokers to notify a miner thay have won the deal auction.
+// WinsTopic is used by brokers to notify a bidbot that it has won the deal auction.
 // "/textile/auction/0.0.1/<peer_id>/wins".
 func WinsTopic(pid peer.ID) string {
 	return path.Join(AuctionTopic, pid.String(), "wins")
+}
+
+// AcksTopic is used to acknowledge publishers that a message was received.
+// "<base_topic>/<publisher_peer_id>/acks".
+func AcksTopic(base string, pid peer.ID) string {
+	return path.Join(base, pid.String(), "acks")
 }
 
 // AuctionID is a unique identifier for an Auction.
@@ -224,16 +230,19 @@ type AuctionID string
 
 // Auction defines the core auction model.
 type Auction struct {
-	ID            AuctionID
-	StorageDealID StorageDealID
-	DealSize      uint64
-	DealDuration  uint64
-	Status        AuctionStatus
-	Bids          map[BidID]Bid
-	WinningBids   []BidID
-	StartedAt     time.Time
-	Duration      time.Duration
-	Error         string
+	ID              AuctionID
+	StorageDealID   StorageDealID
+	DealSize        uint64
+	DealDuration    uint64
+	DealReplication uint32
+	DealVerified    bool
+	Status          AuctionStatus
+	Bids            map[BidID]Bid
+	WinningBids     []BidID
+	StartedAt       time.Time
+	Duration        time.Duration
+	Attempts        uint32
+	Error           string
 }
 
 // AuctionStatus is the status of an auction.
@@ -276,7 +285,6 @@ type BidID string
 // Bid defines the core bid model.
 type Bid struct {
 	MinerAddr        string
-	WalletAddr       string
 	WalletAddrSig    []byte
 	BidderID         peer.ID
 	BrokerID         peer.ID

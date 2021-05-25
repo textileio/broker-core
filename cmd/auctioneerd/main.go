@@ -38,6 +38,7 @@ func init() {
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration"},
+		{Name: "auction-attempts", DefValue: 10, Description: "Number of attempts an auction will run before failing"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
@@ -97,6 +98,7 @@ var daemonCmd = &cobra.Command{
 			"auctioneer/queue",
 			"auctioneer/service",
 			"mpeer",
+			"mpeer/pubsub",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},
@@ -131,6 +133,7 @@ var daemonCmd = &cobra.Command{
 			Peer:     pconfig,
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
+				Attempts: v.GetUint32("auction-attempts"),
 			},
 		}
 		serv, err := service.New(config, store, broker, fc)
