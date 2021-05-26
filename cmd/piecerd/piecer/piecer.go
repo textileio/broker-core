@@ -30,6 +30,7 @@ type Piecer struct {
 
 	store           *store.Store
 	daemonFrequency time.Duration
+	retryDelay      time.Duration
 	newRequest      chan struct{}
 
 	onceClose       sync.Once
@@ -53,7 +54,8 @@ func New(
 	ds txndswrap.TxnDatastore,
 	ipfs *httpapi.HttpApi,
 	b broker.Broker,
-	daemonFrequency time.Duration) (*Piecer, error) {
+	daemonFrequency time.Duration,
+	retryDelay time.Duration) (*Piecer, error) {
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
 		store:  store.New(txndswrap.Wrap(ds, "/store")),
@@ -61,6 +63,7 @@ func New(
 		broker: b,
 
 		daemonFrequency: daemonFrequency,
+		retryDelay:      retryDelay,
 		newRequest:      make(chan struct{}, 1),
 
 		daemonCtx:       ctx,
@@ -129,7 +132,7 @@ func (p *Piecer) daemon() {
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
 				log.Errorf("preparing: %s", err)
-				if err := p.store.MoveToPending(usd.ID); err != nil {
+				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
@@ -137,7 +140,7 @@ func (p *Piecer) daemon() {
 
 			if err := p.store.Delete(usd.ID); err != nil {
 				log.Errorf("deleting: %s", err)
-				if err := p.store.MoveToPending(usd.ID); err != nil {
+				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break

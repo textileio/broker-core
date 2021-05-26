@@ -67,6 +67,7 @@ func newClient(t *testing.T) (*client.Client, *brokerMock, *httpapi.HttpApi) {
 		Broker:          bm,
 		Datastore:       tests.NewTxMapDatastore(),
 		DaemonFrequency: time.Millisecond * 200,
+		RetryDelay:      time.Second,
 	}
 	s, err := service.New(config)
 	require.NoError(t, err)

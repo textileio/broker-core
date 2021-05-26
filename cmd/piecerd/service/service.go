@@ -31,6 +31,7 @@ type Config struct {
 	Datastore  txndswrap.TxnDatastore
 
 	DaemonFrequency time.Duration
+	RetryDelay      time.Duration
 }
 
 // Service is a gRPC service wrapper around a piecer.
@@ -48,7 +49,7 @@ var _ pb.APIServiceServer = (*Service)(nil)
 func New(conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
-	lib, err := piecer.New(conf.Datastore, conf.IpfsClient, conf.Broker, conf.DaemonFrequency)
+	lib, err := piecer.New(conf.Datastore, conf.IpfsClient, conf.Broker, conf.DaemonFrequency, conf.RetryDelay)
 	if err != nil {
 		return nil, fin.Cleanupf("creating piecer: %v", err)
 	}

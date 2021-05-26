@@ -31,6 +31,7 @@ func init() {
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "daemon-frequency", DefValue: time.Second * 30, Description: "Daemon frequency to process pending data"},
+		{Name: "retry-delay", DefValue: time.Second * 20, Description: "Delay duration into the future for reprocessing items"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -72,6 +73,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("creating mongo datastore: %v", err)
 
 		daemonFrequency := v.GetDuration("daemon-frequency")
+		retryDelay := v.GetDuration("retry-delay")
 
 		config := service.Config{
 			Listener:        listener,
@@ -79,6 +81,7 @@ var rootCmd = &cobra.Command{
 			Broker:          broker,
 			Datastore:       ds,
 			DaemonFrequency: daemonFrequency,
+			RetryDelay:      retryDelay,
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)
