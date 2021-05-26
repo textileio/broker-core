@@ -202,7 +202,8 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	}
 
 	log.Debugf("piece-size: %s, piece-cid: %s", humanize.IBytes(dpr.PieceSize), dpr.PieceCid)
-	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, time.Since(start).Seconds())
+	duration := time.Since(start).Seconds()
+	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, duration)
 
 	if err := p.broker.StorageDealPrepared(ctx, usd.StorageDealID, dpr); err != nil {
 		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
@@ -210,6 +211,8 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 
 	p.metricNewPrepare.Add(ctx, 1)
 	p.statLastPrepared = time.Now()
+	p.statLastSize = int64(dpr.PieceSize)
+	p.statLastDurationSeconds = int64(duration)
 
 	return nil
 }
