@@ -44,6 +44,10 @@ build-packerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/packerd
 .PHONY: build-packerd
 
+build-piecerd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/piecerd
+.PHONY: build-piecerd
+
 build-dealerd: $(GOVVV)
 	go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
 .PHONY: build-dealerd
@@ -134,6 +138,6 @@ define docker_push_bot_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneer auth broker dealer near packer storage);
+	$(call docker_push_daemon_head,auctioneer auth broker dealer near packer piecer storage);
 	$(call docker_push_bot_head,bidbot);
 .PHONY: docker-push-head

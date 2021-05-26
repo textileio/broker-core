@@ -35,6 +35,7 @@ var (
 type Config struct {
 	ListenAddr string
 
+	PiecerAddr     string
 	PackerAddr     string
 	AuctioneerAddr string
 	DealerAddr     string
@@ -42,8 +43,6 @@ type Config struct {
 
 	MongoDBName string
 	MongoURI    string
-
-	IpfsMultiaddr string
 
 	DealDuration  uint64
 	VerifiedDeals bool
@@ -65,6 +64,10 @@ var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
 func New(config Config) (*Service, error) {
+	if err := validateConfig(config); err != nil {
+		return nil, fmt.Errorf("config is invalid: %s", err)
+	}
+
 	listener, err := net.Listen("tcp", config.ListenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("getting net listener: %v", err)
@@ -80,7 +83,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
 
-	piecer, err := pieceri.New(config.IpfsMultiaddr)
+	piecer, err := pieceri.New(config.PiecerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating piecer implementation: %s", err)
 	}
@@ -114,9 +117,6 @@ func New(config Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
-
-	// TODO: this line will go away soon when piecer lives in its own daemon
-	piecer.SetBroker(broker)
 
 	s := &Service{
 		config: config,
@@ -248,6 +248,30 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
+// StorageDealPrepared indicates that a data batch is prepared for Filecoin onboarding.
+func (s *Service) StorageDealPrepared(
+	ctx context.Context,
+	r *pb.StorageDealPreparedRequest) (*pb.StorageDealPreparedResponse, error) {
+	if r == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+
+	pieceCid, err := cid.Decode(r.PieceCid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "decoding piece cid: %s", err)
+	}
+	id := broker.StorageDealID(r.StorageDealId)
+	pr := broker.DataPreparationResult{
+		PieceCid:  pieceCid,
+		PieceSize: r.PieceSize,
+	}
+	if err := s.broker.StorageDealPrepared(ctx, id, pr); err != nil {
+		return nil, status.Errorf(codes.Internal, "calling storage deal prepared: %s", err)
+	}
+
+	return &pb.StorageDealPreparedResponse{}, nil
+}
+
 // StorageDealFinalizedDeals reports the result of finalized deals.
 func (s *Service) StorageDealFinalizedDeals(
 	ctx context.Context,
@@ -311,6 +335,38 @@ func (s *Service) Close() error {
 
 	if errors != nil {
 		return fmt.Errorf(strings.Join(errors, "\n"))
+	}
+
+	return nil
+}
+
+func validateConfig(conf Config) error {
+	if conf.PiecerAddr == "" {
+		return fmt.Errorf("piecer api addr is empty")
+	}
+	if conf.PackerAddr == "" {
+		return fmt.Errorf("packer api addr is empty")
+	}
+	if conf.AuctioneerAddr == "" {
+		return fmt.Errorf("auctioneer api addr is empty")
+	}
+	if conf.DealerAddr == "" {
+		return fmt.Errorf("dealer api addr is empty")
+	}
+	if conf.ReporterAddr == "" {
+		return fmt.Errorf("reporter api addr is empty")
+	}
+	if conf.DealDuration <= 0 {
+		return fmt.Errorf("deal duration should be positive")
+	}
+	if conf.ListenAddr == "" {
+		return fmt.Errorf("service listen addr is empty")
+	}
+	if conf.MongoDBName == "" {
+		return fmt.Errorf("mongo db name is empty")
+	}
+	if conf.MongoURI == "" {
+		return fmt.Errorf("mongo uri is empty")
 	}
 
 	return nil

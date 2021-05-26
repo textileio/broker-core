@@ -23,11 +23,11 @@ func init() {
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "piecer-addr", DefValue: "", Description: "Piecer API address"},
 		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
-		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "deal-duration", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "skip-reporting", DefValue: false, Description: "Skips reporting successful deals"},
@@ -60,6 +60,7 @@ var rootCmd = &cobra.Command{
 		serviceConfig := service.Config{
 			ListenAddr: v.GetString("rpc-addr"),
 
+			PiecerAddr:     v.GetString("piecer-addr"),
 			PackerAddr:     v.GetString("packer-addr"),
 			AuctioneerAddr: v.GetString("auctioneer-addr"),
 			DealerAddr:     v.GetString("dealer-addr"),
@@ -67,8 +68,6 @@ var rootCmd = &cobra.Command{
 
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),
-
-			IpfsMultiaddr: v.GetString("ipfs-multiaddr"),
 
 			DealDuration:  v.GetUint64("deal-duration"),
 			VerifiedDeals: v.GetBool("verified-deals"),

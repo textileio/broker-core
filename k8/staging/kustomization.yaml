@@ -28,6 +28,9 @@ configMapGenerator:
   - configPacker.env
   name: configmap-packer
 - envs:
+  - configPiecer.env
+  name: configmap-piecer
+- envs:
   - configStorage.env
   name: configmap-storage
 - envs:

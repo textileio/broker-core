@@ -175,6 +175,7 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 		log.Debugf("getting next batchable cid...")
 		br, ok := it.Next()
 		if !ok {
+			log.Debugf("none available")
 			break
 		}
 
