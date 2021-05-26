@@ -2,16 +2,17 @@ package pubsub
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
+	util "github.com/ipfs/go-ipfs-util"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -32,7 +33,7 @@ type Topic struct {
 	eventHandler   Handler
 	messageHandler Handler
 
-	acks      map[ulid.ULID]chan struct{}
+	acks      map[cid.Cid]chan struct{}
 	acksTopic *Topic
 
 	t *pubsub.Topic
@@ -57,7 +58,7 @@ func NewTopic(ctx context.Context, ps *pubsub.PubSub, host peer.ID, topic string
 	}
 	t.acksTopic.eventHandler = t.ackEventHandler
 	t.acksTopic.messageHandler = t.ackMessageHandler
-	t.acks = make(map[ulid.ULID]chan struct{})
+	t.acks = make(map[cid.Cid]chan struct{})
 	return t, nil
 }
 
@@ -135,28 +136,22 @@ func (t *Topic) SetMessageHandler(handler Handler) {
 // A zero or negative ackTimeout will cause Publish to not wait for an ack.
 // A positive ackTimeout will cause Publish to block until a single ack is received or ackTimout is reached.
 func (t *Topic) Publish(ctx context.Context, data []byte, ackTimeout time.Duration, opts ...pubsub.PubOpt) error {
-	msg := make([]byte, 16+len(data))
-	id := ulid.MustNew(ulid.Now(), rand.Reader)
-	copy(msg, id[:])
-	copy(msg[16:], data[:])
-
 	var ackCh chan struct{}
-	if ackTimeout > 0 {
-		if t.acksTopic != nil {
-			ackCh = make(chan struct{})
-			t.lk.Lock()
-			t.acks[id] = ackCh
-			t.lk.Unlock()
+	if ackTimeout > 0 && t.acksTopic != nil {
+		msgID := cid.NewCidV1(cid.Raw, util.Hash(data))
+		ackCh = make(chan struct{})
+		t.lk.Lock()
+		t.acks[msgID] = ackCh
+		t.lk.Unlock()
 
-			defer func() {
-				t.lk.Lock()
-				delete(t.acks, id)
-				t.lk.Unlock()
-			}()
-		}
+		defer func() {
+			t.lk.Lock()
+			delete(t.acks, msgID)
+			t.lk.Unlock()
+		}()
 	}
 
-	if err := t.t.Publish(ctx, msg, opts...); err != nil {
+	if err := t.t.Publish(ctx, data, opts...); err != nil {
 		return fmt.Errorf("publishing to main topic: %v", err)
 	}
 
@@ -207,27 +202,20 @@ func (t *Topic) listen() {
 		t.lk.Lock()
 
 		if t.messageHandler != nil {
-			id := make([]byte, 16)
-			copy(id, msg.Data[:16])
-			var data []byte
-			if len(msg.Data) > 16 {
-				// This is a normal message; grab data after id
-				data = make([]byte, len(msg.Data)-16)
-				copy(data, msg.Data[16:])
-
-				// Respond with ACK
-				go t.publishAck(msg.ReceivedFrom, id)
-			} else {
-				// This is an ACK message
-				data = id
+			if !strings.Contains(t.t.String(), "/ack") {
+				// This is a normal message; respond with ACK
+				go func() {
+					msgID := cid.NewCidV1(cid.Raw, util.Hash(msg.Data))
+					t.publishAck(msg.ReceivedFrom, msgID)
+				}()
 			}
-			t.messageHandler(msg.ReceivedFrom, t.t.String(), data)
+			t.messageHandler(msg.ReceivedFrom, t.t.String(), msg.Data)
 		}
 		t.lk.Unlock()
 	}
 }
 
-func (t *Topic) publishAck(from peer.ID, id []byte) {
+func (t *Topic) publishAck(from peer.ID, msgID cid.Cid) {
 	acks, err := newTopic(t.ctx, t.ps, t.host, broker.AcksTopic(t.t.String(), from), false)
 	if err != nil {
 		log.Errorf("creating ack topic: %v", err)
@@ -236,7 +224,7 @@ func (t *Topic) publishAck(from peer.ID, id []byte) {
 	defer func() { _ = acks.Close() }()
 	acks.SetEventHandler(t.ackEventHandler)
 
-	if err := acks.t.Publish(t.ctx, id); err != nil {
+	if err := acks.t.Publish(t.ctx, msgID.Bytes()); err != nil {
 		log.Errorf("publishing ack: %v", err)
 	}
 }
@@ -246,11 +234,14 @@ func (t *Topic) ackEventHandler(from peer.ID, topic string, msg []byte) {
 }
 
 func (t *Topic) ackMessageHandler(from peer.ID, topic string, msg []byte) {
-	id := ulid.ULID{}
-	copy(id[:], msg)
-	log.Debugf("%s ack from %s: %s", topic, from, id)
+	msgID, err := cid.Cast(msg)
+	if err != nil {
+		log.Errorf("parsing cid in ack handler: %v", err)
+		return
+	}
+	log.Debugf("%s ack from %s: %s", topic, from, msgID)
 	t.lk.Lock()
-	ch := t.acks[id]
+	ch := t.acks[msgID]
 	t.lk.Unlock()
 	if ch != nil {
 		select {

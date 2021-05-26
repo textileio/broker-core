@@ -291,7 +291,7 @@ func (q *Queue) enqueue(a *broker.Auction) error {
 			log.Debugf("workers are busy; queueing %s", a.ID)
 			// Workers are busy, set back to "queued"
 			if err := q.saveAndTransitionStatus(nil, a, broker.AuctionStatusQueued); err != nil {
-				log.Errorf("error updating status (queued): %v", err)
+				log.Errorf("updating status (queued): %v", err)
 			}
 		}
 	}()
@@ -358,14 +358,14 @@ func (q *Queue) worker(num int) {
 
 			// Save and update status to "ended" or "error"
 			if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
-				log.Errorf("error updating runner status (%s): %v", status, err)
+				log.Errorf("updating runner status (%s): %v", status, err)
 			} else if status != broker.AuctionStatusQueued {
 				if err := q.finalizer(q.ctx, *a); err != nil {
 					status = fail(a, err)
 
 					// Save and update status to "error"
 					if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
-						log.Errorf("error updating finalizer status (%s): %v", status, err)
+						log.Errorf("updating finalizer status (%s): %v", status, err)
 					}
 				}
 			}
