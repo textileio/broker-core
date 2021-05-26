@@ -430,6 +430,7 @@ func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.Stora
 		return fmt.Errorf("moving storage deal to error status: %s", err)
 	}
 
+	log.Debugf("erroring storage deal %s, rebatching %d broker-requests: %s", id, len(brs), errCause)
 	for i := range brs {
 		br, err := b.store.GetBrokerRequest(ctx, brs[i])
 		if err != nil {
