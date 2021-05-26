@@ -142,6 +142,10 @@ func (bm *brokerMock) Get(context.Context, broker.BrokerRequestID) (broker.Broke
 	panic("shouldn't be called")
 }
 
+func (bm *brokerMock) StorageDealProposalAccepted(context.Context, broker.StorageDealID, string, cid.Cid) error {
+	panic("shouldn't be called")
+}
+
 func launchIPFSContainer(t *testing.T) *dockertest.Resource {
 	pool, err := dockertest.NewPool("")
 	require.NoError(t, err)

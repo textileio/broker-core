@@ -358,7 +358,7 @@ func validateConfig(conf Config) error {
 	if conf.ReporterAddr == "" {
 		return fmt.Errorf("reporter api addr is empty")
 	}
-	if conf.DealEpochs <= 0 {
+	if conf.DealDuration <= 0 {
 		return fmt.Errorf("deal duration should be positive")
 	}
 	if conf.ListenAddr == "" {
