@@ -60,10 +60,11 @@ func newClient(t *testing.T) (*client.Client, *httpapi.HttpApi) {
 	).Return(nil)
 
 	config := service.Config{
-		Listener:   listener,
-		IpfsClient: ipfs,
-		Broker:     bm,
-		Datastore:  tests.NewTxMapDatastore(),
+		Listener:        listener,
+		IpfsClient:      ipfs,
+		Broker:          bm,
+		Datastore:       tests.NewTxMapDatastore(),
+		DaemonFrequency: time.Second,
 	}
 	s, err := service.New(config)
 	require.NoError(t, err)

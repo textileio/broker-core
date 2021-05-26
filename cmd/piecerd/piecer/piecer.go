@@ -15,6 +15,7 @@ import (
 	logger "github.com/ipfs/go-log/v2"
 	"github.com/ipld/go-car"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	pieceri "github.com/textileio/broker-core/piecer"
 	"go.opentelemetry.io/otel/metric"
@@ -27,29 +28,37 @@ type Piecer struct {
 	broker broker.Broker
 	ipfs   *httpapi.HttpApi
 
-	checkQueue chan struct{}
-	lock       sync.Mutex
-	queue      []pendingStorageDeal
+	store           *store.Store
+	daemonFrequency time.Duration
+	newRequest      chan struct{}
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
 
-	statLastPrepared   time.Time
-	metricNewPrepare   metric.Int64Counter
-	metricLastPrepared metric.Int64ValueObserver
+	statLastSize              int64
+	metricLastSize            metric.Int64ValueObserver
+	statLastDurationSeconds   int64
+	metricLastDurationSeconds metric.Int64ValueObserver
+	metricNewPrepare          metric.Int64Counter
+	statLastPrepared          time.Time
+	metricLastPrepared        metric.Int64ValueObserver
 }
 
 var _ pieceri.Piecer = (*Piecer)(nil)
 
 // New returns a new Piecer.
-func New(ds txndswrap.TxnDatastore, ipfs *httpapi.HttpApi, b broker.Broker) (*Piecer, error) {
+func New(ds txndswrap.TxnDatastore, ipfs *httpapi.HttpApi, b broker.Broker, daemonFrequency time.Duration) (*Piecer, error) {
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
-		ipfs:            ipfs,
-		broker:          b,
-		checkQueue:      make(chan struct{}, 1),
+		store:  store.New(txndswrap.Wrap(ds, "/store")),
+		ipfs:   ipfs,
+		broker: b,
+
+		daemonFrequency: daemonFrequency,
+		newRequest:      make(chan struct{}),
+
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
@@ -63,12 +72,19 @@ func New(ds txndswrap.TxnDatastore, ipfs *httpapi.HttpApi, b broker.Broker) (*Pi
 // ReadyToPrepare signals the Piecer that a new StorageDeal is ready to be prepared.
 // Piecer will call the broker async with the end result.
 func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, dataCid cid.Cid) error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	p.queue = append(p.queue, pendingStorageDeal{id: id, dataCid: dataCid})
+	if id == "" {
+		return fmt.Errorf("storage deal id is empty")
+	}
+	if !dataCid.Defined() {
+		return fmt.Errorf("data-cid is undefined")
+	}
+
+	if err := p.store.Create(id, dataCid); err != nil {
+		return fmt.Errorf("saving %s %s: %s", id, dataCid, err)
+	}
 
 	select {
-	case p.checkQueue <- struct{}{}:
+	case p.newRequest <- struct{}{}:
 	default:
 	}
 
@@ -86,34 +102,48 @@ func (p *Piecer) Close() error {
 
 func (p *Piecer) daemon() {
 	defer close(p.daemonClosed)
+
+	p.newRequest <- struct{}{}
 	for {
 		select {
 		case <-p.daemonCtx.Done():
 			log.Infof("piecer closed")
 			return
-		case <-p.checkQueue:
-			for {
-				p.lock.Lock()
-				if len(p.queue) == 0 {
-					p.lock.Unlock()
-					break
+		case <-p.newRequest:
+		case <-time.After(p.daemonFrequency):
+		}
+		for {
+			usd, ok, err := p.store.GetNext()
+			if err != nil {
+				log.Errorf("get next unprepared batch: %s", err)
+				break
+			}
+			if !ok {
+				log.Debug("no remaning unprepared batches")
+			}
+
+			if err := p.prepare(p.daemonCtx, usd); err != nil {
+				log.Errorf("preparing: %s", err)
+				if err := p.store.MoveToPending(usd.ID); err != nil {
+					log.Errorf("moving again to pending: %s", err)
 				}
-				tip := p.queue[0]
-				p.lock.Unlock()
-				if err := p.prepare(p.daemonCtx, tip); err != nil {
-					log.Errorf("preparing: %s", err)
+				break
+			}
+
+			if err := p.store.Delete(usd.ID); err != nil {
+				log.Errorf("deleting: %s", err)
+				if err := p.store.MoveToPending(usd.ID); err != nil {
+					log.Errorf("moving again to pending: %s", err)
 				}
-				p.lock.Lock()
-				p.queue = p.queue[1:]
-				p.lock.Unlock()
+				break
 			}
 		}
 	}
 }
 
-func (p *Piecer) prepare(ctx context.Context, psd pendingStorageDeal) error {
+func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) error {
 	start := time.Now()
-	log.Debugf("preparing storage deal %s with cid %s", psd.id, psd.dataCid)
+	log.Debugf("preparing storage deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
 
 	prCAR, pwCAR := io.Pipe()
 	var errCarGen error
@@ -123,7 +153,7 @@ func (p *Piecer) prepare(ctx context.Context, psd pendingStorageDeal) error {
 				errCarGen = err
 			}
 		}()
-		if err := car.WriteCar(ctx, p.ipfs.Dag(), []cid.Cid{psd.dataCid}, pwCAR); err != nil {
+		if err := car.WriteCar(ctx, p.ipfs.Dag(), []cid.Cid{usd.DataCid}, pwCAR); err != nil {
 			errCarGen = err
 			return
 		}
@@ -167,9 +197,9 @@ func (p *Piecer) prepare(ctx context.Context, psd pendingStorageDeal) error {
 	}
 
 	log.Debugf("piece-size: %s, piece-cid: %s", humanize.IBytes(dpr.PieceSize), dpr.PieceCid)
-	log.Debugf("preparation of storage deal %s took %.2f seconds", psd.id, time.Since(start).Seconds())
+	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, time.Since(start).Seconds())
 
-	if err := p.broker.StorageDealPrepared(ctx, psd.id, dpr); err != nil {
+	if err := p.broker.StorageDealPrepared(ctx, usd.StorageDealID, dpr); err != nil {
 		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
 	}
 
@@ -177,9 +207,4 @@ func (p *Piecer) prepare(ctx context.Context, psd pendingStorageDeal) error {
 	p.statLastPrepared = time.Now()
 
 	return nil
-}
-
-type pendingStorageDeal struct {
-	id      broker.StorageDealID
-	dataCid cid.Cid
 }

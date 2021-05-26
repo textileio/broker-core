@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -28,6 +29,8 @@ type Config struct {
 	IpfsClient *httpapi.HttpApi
 	Broker     broker.Broker
 	Datastore  txndswrap.TxnDatastore
+
+	DaemonFrequency time.Duration
 }
 
 // Service is a gRPC service wrapper around a piecer.
@@ -45,7 +48,7 @@ var _ pb.APIServiceServer = (*Service)(nil)
 func New(conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
-	lib, err := piecer.New(conf.Datastore, conf.IpfsClient, conf.Broker)
+	lib, err := piecer.New(conf.Datastore, conf.IpfsClient, conf.Broker, conf.DaemonFrequency)
 	if err != nil {
 		return nil, fin.Cleanupf("creating piecer: %v", err)
 	}

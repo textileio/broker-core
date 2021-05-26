@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	_ "net/http/pprof"
+	"time"
 
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	logging "github.com/ipfs/go-log/v2"
@@ -29,6 +30,7 @@ func init() {
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+		{Name: "daemon-frequency", DefValue: time.Second * 30, Description: "Daemon frequency to process pending data"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -69,11 +71,14 @@ var rootCmd = &cobra.Command{
 		ds, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
 		common.CheckErrf("creating mongo datastore: %v", err)
 
+		daemonFrequency := v.GetDuration("daemon-frequency")
+
 		config := service.Config{
-			Listener:   listener,
-			IpfsClient: ipfsClient,
-			Broker:     broker,
-			Datastore:  ds,
+			Listener:        listener,
+			IpfsClient:      ipfsClient,
+			Broker:          broker,
+			Datastore:       ds,
+			DaemonFrequency: daemonFrequency,
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)
