@@ -44,8 +44,6 @@ type Config struct {
 	MongoDBName string
 	MongoURI    string
 
-	IpfsMultiaddr string
-
 	DealDuration  uint64
 	VerifiedDeals bool
 	SkipReporting bool

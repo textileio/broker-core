@@ -28,7 +28,6 @@ func init() {
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
-		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "deal-duration", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "skip-reporting", DefValue: false, Description: "Skips reporting successful deals"},
@@ -69,8 +68,6 @@ var rootCmd = &cobra.Command{
 
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),
-
-			IpfsMultiaddr: v.GetString("ipfs-multiaddr"),
 
 			DealDuration:  v.GetUint64("deal-duration"),
 			VerifiedDeals: v.GetBool("verified-deals"),
