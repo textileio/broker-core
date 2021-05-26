@@ -250,6 +250,7 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
+// StorageDealPrepared indicates that a data batch is prepared for Filecoin onboarding.
 func (s *Service) StorageDealPrepared(
 	ctx context.Context,
 	r *pb.StorageDealPreparedRequest) (*pb.StorageDealPreparedResponse, error) {

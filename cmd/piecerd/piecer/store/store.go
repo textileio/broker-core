@@ -20,20 +20,23 @@ import (
 )
 
 type (
-	Status                  int
+	status int
+
+	// UnpreparedStorageDealID is an identifier for a pending storage deal
+	// to be prepared.
 	UnpreparedStorageDealID string
 )
 
 const (
-	StatusPending Status = iota
-	StatusInProgress
+	statusPending status = iota
+	statusInProgress
 )
 
 // UnpreparedStorageDeal contains a StorageDeal data to be
 // prepared for Filecoin onboarding.
 type UnpreparedStorageDeal struct {
 	ID            UnpreparedStorageDealID
-	Status        Status
+	Status        status
 	StorageDealID broker.StorageDealID
 	DataCid       cid.Cid
 	CreatedAt     time.Time
@@ -62,6 +65,7 @@ func New(ds txndswrap.TxnDatastore) *Store {
 	}
 }
 
+// Create creates a new pending data to be prepared.
 func (s *Store) Create(sdID broker.StorageDealID, dataCid cid.Cid) error {
 	newID, err := s.newID()
 	if err != nil {
@@ -71,7 +75,7 @@ func (s *Store) Create(sdID broker.StorageDealID, dataCid cid.Cid) error {
 	now := time.Now()
 	usd := UnpreparedStorageDeal{
 		ID:            UnpreparedStorageDealID(newID),
-		Status:        StatusPending,
+		Status:        statusPending,
 		StorageDealID: sdID,
 		DataCid:       dataCid,
 		CreatedAt:     now,
@@ -140,7 +144,7 @@ func (s *Store) GetNext() (UnpreparedStorageDeal, bool, error) {
 	}
 
 	usd.UpdatedAt = time.Now()
-	usd.Status = StatusInProgress
+	usd.Status = statusInProgress
 	inprogressKey := makeInProgressUSDKey(usd.ID)
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(usd); err != nil {
@@ -157,6 +161,7 @@ func (s *Store) GetNext() (UnpreparedStorageDeal, bool, error) {
 	return usd, true, nil
 }
 
+// Delete removes an in-progress unprepared storage deal.
 func (s *Store) Delete(id UnpreparedStorageDealID) error {
 	inprogressKey := makeInProgressUSDKey(id)
 	if err := s.ds.Delete(inprogressKey); err != nil {
@@ -165,6 +170,8 @@ func (s *Store) Delete(id UnpreparedStorageDealID) error {
 	return nil
 }
 
+// MoveToPending moves an unprepared storage deal that's currently in-progress to
+// pending.
 func (s *Store) MoveToPending(id UnpreparedStorageDealID) error {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {
@@ -187,7 +194,7 @@ func (s *Store) MoveToPending(id UnpreparedStorageDealID) error {
 		return fmt.Errorf("removing from in-progress namespace: %s", err)
 	}
 
-	usd.Status = StatusPending
+	usd.Status = statusPending
 	usd.UpdatedAt = time.Now()
 
 	pendingKey := makePendingUSDKey(usd.ID)

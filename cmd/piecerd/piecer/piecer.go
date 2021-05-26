@@ -49,7 +49,11 @@ type Piecer struct {
 var _ pieceri.Piecer = (*Piecer)(nil)
 
 // New returns a new Piecer.
-func New(ds txndswrap.TxnDatastore, ipfs *httpapi.HttpApi, b broker.Broker, daemonFrequency time.Duration) (*Piecer, error) {
+func New(
+	ds txndswrap.TxnDatastore,
+	ipfs *httpapi.HttpApi,
+	b broker.Broker,
+	daemonFrequency time.Duration) (*Piecer, error) {
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
 		store:  store.New(txndswrap.Wrap(ds, "/store")),
@@ -57,7 +61,7 @@ func New(ds txndswrap.TxnDatastore, ipfs *httpapi.HttpApi, b broker.Broker, daem
 		broker: b,
 
 		daemonFrequency: daemonFrequency,
-		newRequest:      make(chan struct{}),
+		newRequest:      make(chan struct{}, 1),
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
@@ -120,6 +124,7 @@ func (p *Piecer) daemon() {
 			}
 			if !ok {
 				log.Debug("no remaning unprepared batches")
+				break
 			}
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {

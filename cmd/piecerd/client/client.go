@@ -40,7 +40,6 @@ func (c *Client) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, da
 	if _, err := c.c.ReadyToPrepare(ctx, req); err != nil {
 		return fmt.Errorf("calling ready to prepare api: %s", err)
 	}
-
 	return nil
 }
 
