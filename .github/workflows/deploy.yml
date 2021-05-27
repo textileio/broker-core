@@ -56,6 +56,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      - name: Buildx patch
+        run: |
+          Dockfiles="$(find $1  -name 'Dockerfile')"
+          d=$(date +%s)
+          i=0
+          for file in $Dockfiles; do
+            i=$(( i + 1 ))
+            echo "patching timestamp for $file"
+            touch -d @$(( d + i )) "$file"
+          done
+
       - name: Build and push auctioneer
         uses: docker/build-push-action@v2
         with:
