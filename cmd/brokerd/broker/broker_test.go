@@ -389,13 +389,13 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	// 2- Call StorageDealFinalizedDeals with the first deal having
 	//    success. We'll make a further call to the second one.
-	fads := []broker.FinalizedAuctionDeal{{
+	fad := broker.FinalizedAuctionDeal{
 		StorageDealID:  auction.StorageDealID,
 		DealID:         100,
 		DealExpiration: 200,
 		Miner:          "f0011",
-	}}
-	err = b.StorageDealFinalizedDeals(ctx, fads)
+	}
+	err = b.StorageDealFinalizedDeal(ctx, fad)
 	require.NoError(t, err)
 
 	// 3- Verify the storage deal and underlying broker request are still in deal making,
@@ -414,9 +414,9 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.Equal(t, brgCid, chainAPI.callPayloadCid)
 	require.Equal(t, dpr.PieceCid, chainAPI.callPieceCid)
 	require.Len(t, chainAPI.callDeals, 1)
-	require.Equal(t, uint64(fads[0].DealID), chainAPI.callDeals[0].DealID)
-	require.Equal(t, fads[0].Miner, chainAPI.callDeals[0].MinerID)
-	require.Equal(t, fads[0].DealExpiration, chainAPI.callDeals[0].Expiration)
+	require.Equal(t, uint64(fad.DealID), chainAPI.callDeals[0].DealID)
+	require.Equal(t, fad.Miner, chainAPI.callDeals[0].MinerID)
+	require.Equal(t, fad.DealExpiration, chainAPI.callDeals[0].Expiration)
 	require.Len(t, chainAPI.callDataCids, 2)
 	require.Equal(t, c1, chainAPI.callDataCids[0])
 	require.Equal(t, c2, chainAPI.callDataCids[1])
@@ -424,12 +424,12 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	chainAPI.clean() // clean the previous call stack
 	// 5- Let's finalize the other one but with error. This results in a storage deal
 	//    that had two winning bids, one of them succeeded and othe other failed deal making.
-	fads = []broker.FinalizedAuctionDeal{{
+	fad = broker.FinalizedAuctionDeal{
 		StorageDealID: auction.StorageDealID,
 		Miner:         "f0012",
 		ErrorCause:    "the miner rejected our proposal",
-	}}
-	err = b.StorageDealFinalizedDeals(ctx, fads)
+	}
+	err = b.StorageDealFinalizedDeal(ctx, fad)
 	require.NoError(t, err)
 
 	// 6- Verify that the storage deal switched to Success, since at least one of the winning bids

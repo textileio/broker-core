@@ -327,47 +327,45 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	return nil
 }
 
-// StorageDealFinalizedDeals reports deals that reached final status in the Filecoin network.
-func (b *Broker) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
-	log.Debugf("received %d finalized deals...", len(fads))
-	for i := range fads {
-		if err := b.store.StorageDealFinalizedDeal(fads[i]); err != nil {
-			return fmt.Errorf("adding finalized info to the store: %s", err)
-		}
+// StorageDealFinalizedDeal report a deal that reached final status in the Filecoin network.
+func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
+	log.Debug("received a finalized deal...")
+	if err := b.store.StorageDealFinalizedDeal(fad); err != nil {
+		return fmt.Errorf("adding finalized info to the store: %s", err)
+	}
 
-		sd, err := b.store.GetStorageDeal(ctx, fads[i].StorageDealID)
-		if err != nil {
-			return fmt.Errorf("get storage deal: %s", err)
-		}
+	sd, err := b.store.GetStorageDeal(ctx, fad.StorageDealID)
+	if err != nil {
+		return fmt.Errorf("get storage deal: %s", err)
+	}
 
-		// Do we got the last finalized transaction?
-		if len(sd.Deals) == len(sd.Auction.WinningBids) {
-			// If we have at least one successful deal, then we succeed.
-			finalStatus := broker.StorageDealError
-			for i := range sd.Deals {
-				if sd.Deals[i].ErrorCause == "" {
-					finalStatus = broker.StorageDealSuccess
-				}
-			}
-			sd.Status = finalStatus
-
-			switch finalStatus {
-			case broker.StorageDealSuccess:
-				if err := b.store.StorageDealSuccess(ctx, sd.ID); err != nil {
-					return fmt.Errorf("moving to storage deal success: %s", err)
-				}
-			case broker.StorageDealError:
-				if err := b.errorStorageDealAndRebatch(ctx, sd.ID, errAllDealsFailed); err != nil {
-					return fmt.Errorf("erroring storage deal and rebatching storage requests: %s", err)
-				}
+	// Do we got the last finalized transaction?
+	if len(sd.Deals) == len(sd.Auction.WinningBids) {
+		// If we have at least one successful deal, then we succeed.
+		finalStatus := broker.StorageDealError
+		for i := range sd.Deals {
+			if sd.Deals[i].ErrorCause == "" {
+				finalStatus = broker.StorageDealSuccess
 			}
 		}
+		sd.Status = finalStatus
 
-		// Only report the deal to the chain if it was successful.
-		if !b.skipReporting && fads[i].ErrorCause == "" {
-			if err := b.reportFinalizedAuctionDeal(ctx, sd); err != nil {
-				return fmt.Errorf("reporting finalized auction deal to the chain: %s", err)
+		switch finalStatus {
+		case broker.StorageDealSuccess:
+			if err := b.store.StorageDealSuccess(ctx, sd.ID); err != nil {
+				return fmt.Errorf("moving to storage deal success: %s", err)
 			}
+		case broker.StorageDealError:
+			if err := b.errorStorageDealAndRebatch(ctx, sd.ID, errAllDealsFailed); err != nil {
+				return fmt.Errorf("erroring storage deal and rebatching storage requests: %s", err)
+			}
+		}
+	}
+
+	// Only report the deal to the chain if it was successful.
+	if !b.skipReporting && fad.ErrorCause == "" {
+		if err := b.reportFinalizedAuctionDeal(ctx, sd); err != nil {
+			return fmt.Errorf("reporting finalized auction deal to the chain: %s", err)
 		}
 	}
 	return nil
