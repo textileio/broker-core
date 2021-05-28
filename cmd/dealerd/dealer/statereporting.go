@@ -63,6 +63,7 @@ func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
+	log.Debugf("reporting finalized auction deal (errorcause=%s)", aud.ErrorCause)
 	// We report finalized Auction Deals to the broker.
 	if err := d.broker.StorageDealFinalizedDeal(ctx, fad); err != nil {
 		return fmt.Errorf("reporting auction deal results to the broker: %s", err)

@@ -65,6 +65,8 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 	if err != nil {
 		return fmt.Errorf("get auction data %s: %s", aud.AuctionDataID, err)
 	}
+
+	log.Debugf("executing deal for %s with miner %s", ad.PayloadCid, aud.Miner)
 	proposalCid, retry, err := d.filclient.ExecuteAuctionDeal(d.daemonCtx, ad, aud)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
@@ -76,6 +78,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 	if retry {
 		aud.Retries++
 		if aud.Retries > d.config.dealMakingMaxRetries {
+			log.Warnf("deal for %s with %s failed the max number of retries, failing", ad.PayloadCid, aud.Miner)
 			aud.ErrorCause = failureDealMakingMaxRetries
 			aud.ReadyAt = time.Unix(0, 0)
 			if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
@@ -84,6 +87,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 			return nil
 		}
 
+		log.Warnf("deal for %s with %s failed, we'll retry soon...", ad.PayloadCid, aud.Miner)
 		aud.ReadyAt = time.Now().Add(d.config.dealMakingRetryDelay)
 		if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingDealMaking); err != nil {
 			return fmt.Errorf("saving auction deal: %s", err)
@@ -91,14 +95,17 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		return nil
 	}
 
+	log.Infof("deal %s with %s successfully executed", ad.PayloadCid, aud.Miner)
 	aud.Retries = 0
 	aud.ProposalCid = proposalCid
 	aud.ReadyAt = time.Unix(0, 0)
 
+	log.Debugf("moving %s deal to PendingConfirmation", ad.PayloadCid)
 	if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingConfirmation); err != nil {
 		return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
 	}
 
+	log.Debugf("reporting accepted deal of %s to the broker: %s", ad.PayloadCid, proposalCid)
 	if err := d.broker.StorageDealProposalAccepted(ctx, ad.StorageDealID, aud.Miner, proposalCid); err != nil {
 		return fmt.Errorf("signaling broker of accepted proposal %s: %s", proposalCid, err)
 	}
