@@ -110,9 +110,9 @@ func (d *Dealer) daemon() {
 	// PendingDealMaking <--> ExecutingDealMaking --> PendingConfirmation
 	go d.daemonDealMaker()
 	// daemonDealMonitorer makes status transitions:
-	// PendingConfirmation <--> ExecutingConfirmation --> (Success | Error)
+	// PendingConfirmation <--> ExecutingConfirmation --> PendingReportFinalized
 	go d.daemonDealMonitorer()
-	// daemonDealWatcher takes records in (Success | Error) and reports back the
+	// daemonDealWatcher takes records in PendingReportFinalized and reports back the
 	// result to the broker. If the broker ACKs correctly, then it deletes them.
 	go d.daemonDealReporter()
 
