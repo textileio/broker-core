@@ -13,7 +13,7 @@ message Auction {
     bool deal_verified = 6;
     Status status = 7;
     map<string, Bid> bids = 8;
-    repeated string winning_bids = 9;
+    map<string, WinningBid> winning_bids = 9;
     google.protobuf.Timestamp started_at = 10;
     int64 duration = 11;
     uint32 attempts = 12;
@@ -36,6 +36,12 @@ message Auction {
         uint64 start_epoch = 6;
         bool fast_retrieval = 7;
         google.protobuf.Timestamp received_at = 8;
+    }
+
+    message WinningBid {
+        bool acknowledged = 1;
+        string proposal_cid = 2;
+        bool proposal_cid_acknowledged = 3;
     }
 }
 

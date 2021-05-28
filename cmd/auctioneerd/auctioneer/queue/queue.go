@@ -345,15 +345,18 @@ func (q *Queue) worker(num int) {
 				return
 			}
 			a.Attempts++
-			a.Error = ""
 			log.Debugf("worker %d got job %s (attempt=%d/%d)", num, a.ID, a.Attempts, q.runAttempts)
 
 			// Handle the auction with the handler func
-			status := broker.AuctionStatusEnded
+			var status broker.AuctionStatus
 			if err := q.runner(q.ctx, a, func(bid broker.Bid) error {
 				return addBid(a, bid)
 			}); err != nil {
 				status = fail(a, err)
+			} else {
+				status = broker.AuctionStatusEnded
+				// Reset error
+				a.Error = ""
 			}
 
 			// Save and update status to "ended" or "error"

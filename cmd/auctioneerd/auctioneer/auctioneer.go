@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
@@ -135,7 +136,7 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 		return nil
 	}
 
-	// Bootstrap against configured addresses.
+	// Bootstrap against configured addresses
 	if bootstrap {
 		a.peer.Bootstrap()
 	}
@@ -214,7 +215,25 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 	}()
 	log.Debugf("auction %s started", auction.ID)
 
-	// Subscribe to bids topic.
+	// No need to re-auction if we have enough bids; just re-select winners.
+	// This case can happen if there was an error during winner selection on
+	// a prior attempt.
+	if len(auction.WinningBids) == int(auction.DealReplication) {
+		log.Debugf(
+			"auction %s completed (attempt=%d/%d); total bids: %d/%d",
+			auction.ID,
+			auction.Attempts,
+			a.auctionConf.Attempts,
+			len(auction.Bids),
+			auction.DealReplication,
+		)
+		if err := a.selectWinners(ctx, auction); err != nil {
+			return fmt.Errorf("selecting winners: %v", err)
+		}
+		return nil
+	}
+
+	// Subscribe to bids topic
 	bids, err := a.peer.NewTopic(ctx, core.BidsTopic(auction.ID), true)
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
@@ -226,7 +245,7 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 	// Set deadline
 	deadline := auction.StartedAt.Add(auction.Duration)
 
-	// Publish the auction.
+	// Publish the auction
 	msg, err := proto.Marshal(&pb.Auction{
 		Id:           string(auction.ID),
 		DealSize:     auction.DealSize,
@@ -339,6 +358,7 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 type bid struct {
 	ID  core.BidID
 	Bid core.Bid
+	Err error
 }
 
 func heapifyBids(bids map[core.BidID]core.Bid, dealVerified bool) *BidHeap {
@@ -389,42 +409,89 @@ func (a *Auctioneer) selectWinners(ctx context.Context, auction *core.Auction) e
 	if len(auction.Bids) == 0 {
 		return ErrAuctionFailed
 	}
-	var winners []peer.ID
 	bh := heapifyBids(auction.Bids, auction.DealVerified)
+	winners := make(map[peer.ID]bid)
 
 	// Select lowest bids until deal replication is met w/o overwriting past winners
 	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
 	for i := 0; i < selectCount; i++ {
+		if bh.Len() == 0 {
+			break
+		}
 		b := heap.Pop(bh).(bid)
-		winners = append(winners, b.Bid.BidderID)
-		auction.WinningBids = append(auction.WinningBids, b.ID)
+		if _, ok := winners[b.Bid.BidderID]; ok {
+			continue // Already have a winning bid from this bidder in this auction, skip it
+		}
+		if _, ok := auction.WinningBids[b.ID]; ok {
+			continue // Already have a winning bid from this bidder from a prior auction, skip it
+		}
+		winners[b.Bid.BidderID] = b
 	}
+
+	// Add non-acked winners from prior attempts
+	for id, wb := range auction.WinningBids {
+		if !wb.Acknowledged || (wb.ProposalCid.Defined() && !wb.ProposalCidAcknowledged) {
+			b, ok := auction.Bids[id]
+			if !ok {
+				return fmt.Errorf("existing winning bid %s not found", id)
+			}
+			winners[b.BidderID] = bid{
+				ID:  id,
+				Bid: b,
+			}
+		}
+	}
+
+	// Bail if nothing to do
 	if len(winners) == 0 {
 		return ErrAuctionFailed
 	}
 
-	// Create win topics.
-	for _, w := range winners {
-		wins, err := a.peer.NewTopic(ctx, core.WinsTopic(w), false)
-		if err != nil {
-			return fmt.Errorf("creating win topic: %v", err)
-		}
-		wins.SetEventHandler(a.eventHandler)
+	// Create win topics
+	var wg sync.WaitGroup
+	bidCh := make(chan bid, len(winners))
+	for pid, b := range winners {
+		wg.Add(1)
+		go func(pid peer.ID, b bid) {
+			defer wg.Done()
+			wins, err := a.peer.NewTopic(ctx, core.WinsTopic(pid), false)
+			if err != nil {
+				b.Err = fmt.Errorf("creating win topic: %v", err)
+				bidCh <- b
+				return
+			}
+			defer func() { _ = wins.Close() }()
+			wins.SetEventHandler(a.eventHandler)
 
-		// Notify winner.
-		msg, err := proto.Marshal(&pb.Win{
-			AuctionId: string(auction.ID),
-			BidId:     string(auction.WinningBids[0]),
-		})
-		if err != nil {
-			_ = wins.Close()
-			return fmt.Errorf("marshaling message: %v", err)
-		}
-		if err := wins.Publish(ctx, msg, winsAckTimeout); err != nil {
-			_ = wins.Close()
-			return fmt.Errorf("publishing win: %v", err)
-		}
-		_ = wins.Close()
+			// Notify winner
+			msg, err := proto.Marshal(&pb.Win{
+				AuctionId: string(auction.ID),
+				BidId:     string(b.ID),
+			})
+			if err != nil {
+				b.Err = fmt.Errorf("marshaling message: %v", err)
+				bidCh <- b
+				return
+			}
+			if err := wins.Publish(ctx, msg, winsAckTimeout); err != nil {
+				b.Err = fmt.Errorf("publishing win to %s: %v", pid, err)
+				bidCh <- b
+			}
+			bidCh <- b
+		}(pid, b)
 	}
-	return nil
+	wg.Wait()
+	close(bidCh)
+
+	if auction.WinningBids == nil {
+		auction.WinningBids = make(map[core.BidID]core.WinningBid)
+	}
+	merr := &multierror.Error{}
+	for b := range bidCh {
+		merr = multierror.Append(merr, b.Err)
+		auction.WinningBids[b.ID] = core.WinningBid{
+			Acknowledged: b.Err == nil,
+		}
+	}
+	return merr.ErrorOrNil()
 }

@@ -301,7 +301,8 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 		Targets:       make([]dealer.AuctionDealsTarget, len(auction.WinningBids)),
 	}
 
-	for i, wbid := range auction.WinningBids {
+	var i int
+	for wbid := range auction.WinningBids {
 		bid, ok := auction.Bids[wbid]
 		if !ok {
 			return fmt.Errorf("winning bid %s wasn't found in bid map", wbid)
@@ -313,6 +314,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 			Verified:            auction.DealVerified,
 			FastRetrieval:       bid.FastRetrieval,
 		}
+		i++
 	}
 
 	log.Debug("signaling dealer...")

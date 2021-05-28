@@ -241,7 +241,7 @@ type Auction struct {
 	DealVerified    bool
 	Status          AuctionStatus
 	Bids            map[BidID]Bid
-	WinningBids     []BidID
+	WinningBids     map[BidID]WinningBid
 	StartedAt       time.Time
 	Duration        time.Duration
 	Attempts        uint32
@@ -290,12 +290,18 @@ type Bid struct {
 	MinerAddr        string
 	WalletAddrSig    []byte
 	BidderID         peer.ID
-	BrokerID         peer.ID
 	AskPrice         int64 // attoFIL per GiB per epoch
 	VerifiedAskPrice int64 // attoFIL per GiB per epoch
 	StartEpoch       uint64
 	FastRetrieval    bool
 	ReceivedAt       time.Time
+}
+
+// WinningBid contains details about a winning bid.
+type WinningBid struct {
+	Acknowledged            bool // Whether or not the bidder acknowledged receipt of the win
+	ProposalCid             cid.Cid
+	ProposalCidAcknowledged bool // Whether or not the bidder acknowledged receipt of the proposal Cid
 }
 
 // FinalizedAuctionDeal contains information about final status of an executed

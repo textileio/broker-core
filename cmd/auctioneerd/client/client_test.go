@@ -94,8 +94,10 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 	require.Len(t, got.WinningBids, 2)
-	assert.NotNil(t, got.Bids[got.WinningBids[0]])
-	assert.NotNil(t, got.Bids[got.WinningBids[1]])
+	for k, v := range got.WinningBids {
+		assert.NotNil(t, got.Bids[k])
+		assert.True(t, v.Acknowledged)
+	}
 }
 
 func newClient(t *testing.T, attempts uint32) *client.Client {
