@@ -78,7 +78,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		if aud.Retries > d.config.dealMakingMaxRetries {
 			aud.ErrorCause = failureDealMakingMaxRetries
 			aud.ReadyAt = time.Unix(0, 0)
-			if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingDealMaking); err != nil {
+			if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
 				return fmt.Errorf("saving auction deal: %s", err)
 			}
 			return nil
