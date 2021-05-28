@@ -13,7 +13,7 @@ data:
     # allow changes on the fly.
 
     if [ ! -f /data/ipfs-cluster/service.json ]; then
-      ipfs-cluster-service init --consensus crdt
+      ipfs-cluster-service init
     fi
 
     PEER_HOSTNAME=`cat /proc/sys/kernel/hostname`
