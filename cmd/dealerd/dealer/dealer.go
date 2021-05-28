@@ -67,16 +67,16 @@ func New(
 
 // ReadyToCreateDeals signal the dealer that new deals are ready to be executed.
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals) error {
-	auctionData := store.AuctionData{
+	auctionData := &store.AuctionData{
 		StorageDealID: ad.StorageDealID,
 		PayloadCid:    ad.PayloadCid,
 		PieceCid:      ad.PieceCid,
 		PieceSize:     ad.PieceSize,
 		Duration:      ad.Duration,
 	}
-	auctionDeals := make([]store.AuctionDeal, len(ad.Targets))
+	auctionDeals := make([]*store.AuctionDeal, len(ad.Targets))
 	for i, t := range ad.Targets {
-		auctionDeal := store.AuctionDeal{
+		auctionDeal := &store.AuctionDeal{
 			Miner:               t.Miner,
 			PricePerGiBPerEpoch: t.PricePerGiBPerEpoch,
 			StartEpoch:          t.StartEpoch,
@@ -106,15 +106,14 @@ func (d *Dealer) daemon() {
 
 	d.daemonWg.Add(3)
 
-	// daemonDealMaker make status changes from Pending -> (Watching | Error).
-	// i.e: takes Pending deals, executes them, and leave them ready
-	// to be confirmed on-chain.
+	// daemonDealMaker makes status transitions:
+	// PendingDealMaking <--> ExecutingDealMaking --> PendingConfirmation
 	go d.daemonDealMaker()
-	// daemonDealMonitoring makes status changes from Pending -> (Success | Error)
-	// i.e: monitors the fired deal until is confirmed on-chain.
-	go d.daemonDealMonitoring()
-	// daemonDealWatcher takes statuses (Success | Error) and reports the results
-	// back to the broker, deleting them after getting ACK from it.
+	// daemonDealMonitorer makes status transitions:
+	// PendingConfirmation <--> ExecutingConfirmation --> (Success | Error)
+	go d.daemonDealMonitorer()
+	// daemonDealWatcher takes records in (Success | Error) and reports back the
+	// result to the broker. If the broker ACKs correctly, then it deletes them.
 	go d.daemonDealReporter()
 
 	<-d.daemonCtx.Done()
