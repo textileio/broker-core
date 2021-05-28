@@ -216,7 +216,6 @@ func (s *Store) GetNext(status AuctionDealStatus) (AuctionDeal, bool, error) {
 
 	// 2. To "lock" the item, we move to the next status (PendingXXX -> ExecutingXXX).
 	//    Delete it from the current key, and insert it to the new one.
-
 	if err := txn.Delete(oldKey); err != nil {
 		return AuctionDeal{}, false, fmt.Errorf("deleting from current key: %s", err)
 	}
