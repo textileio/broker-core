@@ -56,9 +56,9 @@ type AuctionDealStatus int
 const (
 	// PendingDealMaking indicates that an auction data is ready for deal making.
 	PendingDealMaking AuctionDealStatus = iota
-	// Executing indicates that a deal is being executed.
+	// ExecutingDealMaking indicates that a deal is being executed.
 	ExecutingDealMaking
-	// WaitingConfirmation indicates that a deal is pending to be confirmed.
+	// PendingConfirmation indicates that a deal is pending to be confirmed.
 	PendingConfirmation
 	// ExecutingConfirmation indicates that a deal confirmation is being evaluated.
 	ExecutingConfirmation
@@ -158,6 +158,8 @@ func (s *Store) Create(ad *AuctionData, ads []*AuctionDeal) error {
 	return nil
 }
 
+// GetNext returns the next auction deal in the provided status. If non exist, it returns
+// false in the second parameter.
 func (s *Store) GetNext(status AuctionDealStatus) (AuctionDeal, bool, error) {
 	dsPrefix, err := getAuctionDealDSPrefix(status)
 	if err != nil {
@@ -176,7 +178,11 @@ func (s *Store) GetNext(status AuctionDealStatus) (AuctionDeal, bool, error) {
 	if err != nil {
 		return AuctionDeal{}, false, fmt.Errorf("creating query: %s", err)
 	}
-	defer res.Close()
+	defer func() {
+		if err := res.Close(); err != nil {
+			log.Errorf("closing query result: %s", err)
+		}
+	}()
 
 	now := time.Now()
 	var found bool
@@ -208,7 +214,8 @@ func (s *Store) GetNext(status AuctionDealStatus) (AuctionDeal, bool, error) {
 		return AuctionDeal{}, false, nil
 	}
 
-	// 2. To "lock" the item, we move to the next status (PendingXXX -> ExecutingXXX). Delete it from the current key, and insert it to the new one.
+	// 2. To "lock" the item, we move to the next status (PendingXXX -> ExecutingXXX).
+	//    Delete it from the current key, and insert it to the new one.
 
 	if err := txn.Delete(oldKey); err != nil {
 		return AuctionDeal{}, false, fmt.Errorf("deleting from current key: %s", err)
@@ -480,7 +487,7 @@ func getAuctionDealDSPrefix(status AuctionDealStatus) (datastore.Key, error) {
 		return dsPrefixAuctionExecutingReportFinalized, nil
 
 	default:
-		return datastore.Key{}, fmt.Errorf("unkown status: %s", status)
+		return datastore.Key{}, fmt.Errorf("unknown status: %s", status)
 	}
 }
 
@@ -503,9 +510,9 @@ func (ads AuctionDealStatus) String() string {
 	}
 }
 
-// getAll is a method only to be used in tests.
-func (s *Store) getAll(status AuctionDealStatus) ([]AuctionDeal, error) {
-	dsPrefix, err := getAuctionDealDSPrefix(status)
+// getAllPending is a method only to be used in tests.
+func (s *Store) getAllPending() ([]AuctionDeal, error) {
+	dsPrefix, err := getAuctionDealDSPrefix(PendingDealMaking)
 	if err != nil {
 		return nil, fmt.Errorf("get auction deal datastore prefix: %s", err)
 	}
@@ -515,7 +522,11 @@ func (s *Store) getAll(status AuctionDealStatus) ([]AuctionDeal, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating query: %s", err)
 	}
-	defer res.Close()
+	defer func() {
+		if err := res.Close(); err != nil {
+			log.Errorf("closing query result: %s", err)
+		}
+	}()
 
 	var ads []AuctionDeal
 	for item := range res.Next() {

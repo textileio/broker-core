@@ -36,10 +36,8 @@ func (d *Dealer) daemonDealMakerTick() error {
 	}
 
 	for {
-		select {
-		case <-d.daemonCtx.Done():
+		if d.daemonCtx.Err() != nil {
 			break
-		default:
 		}
 
 		aud, ok, err := d.store.GetNext(store.PendingDealMaking)

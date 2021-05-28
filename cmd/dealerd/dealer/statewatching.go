@@ -40,13 +40,12 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 	if err != nil {
 		return fmt.Errorf("get chain height: %s", err)
 	}
-Loop1:
+
 	for {
-		select {
-		case <-d.daemonCtx.Done():
-			break Loop1
-		default:
+		if d.daemonCtx.Err() != nil {
+			break
 		}
+
 		aud, ok, err := d.store.GetNext(store.PendingConfirmation)
 		if err != nil {
 			return fmt.Errorf("get waiting-confirmation deals: %s", err)

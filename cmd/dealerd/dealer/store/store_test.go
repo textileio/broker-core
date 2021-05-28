@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"encoding/gob"
+	"sort"
 	"testing"
 
 	"github.com/ipfs/go-cid"
@@ -107,7 +108,7 @@ func TestSaveAuctionDeal(t *testing.T) {
 	err = s.Create(&ad, []*AuctionDeal{&aud})
 	require.NoError(t, err)
 
-	auds, err := s.getAll(PendingDealMaking)
+	auds, err := s.getAllPending()
 	require.NoError(t, err)
 	require.Len(t, auds, 1)
 
@@ -142,7 +143,7 @@ func TestSaveAuctionDealFail(t *testing.T) {
 		aud := gaud1
 		err = s.Create(&ad, []*AuctionDeal{&aud})
 		require.NoError(t, err)
-		auds, err := s.getAll(PendingDealMaking)
+		auds, err := s.getAllPending()
 		require.NoError(t, err)
 
 		auds[0].Status = PendingReportFinalized
@@ -200,7 +201,7 @@ func TestGetNext(t *testing.T) {
 			require.Equal(t, aud.ID, aud2.ID)
 
 			// 2. Verify that the returned element changed status
-			//    to the next appropiate status.
+			//    to the next appropriate status.
 			require.Equal(t, tt.PostStatus, aud2.Status)
 
 			// 3. Verify that calling GetNext again returns no results.
@@ -225,9 +226,10 @@ func TestGetAllAuctionDeals(t *testing.T) {
 	deepCheckAuctionData(t, s, ad)
 	deepCheckAuctionDeals(t, s, aud1, aud2)
 
-	auds, err := s.getAll(PendingDealMaking)
+	auds, err := s.getAllPending()
 	require.NoError(t, err)
 	require.Len(t, auds, 2)
+	sort.Slice(auds, func(i, j int) bool { return auds[i].ID < auds[j].ID })
 	cmpAuctionDeals(t, aud1, auds[0])
 	cmpAuctionDeals(t, aud2, auds[1])
 }
@@ -241,7 +243,7 @@ func TestGetAuctionData(t *testing.T) {
 	aud := gaud1
 	err = s.Create(&ad, []*AuctionDeal{&aud})
 	require.NoError(t, err)
-	auds, err := s.getAll(PendingDealMaking)
+	auds, err := s.getAllPending()
 	require.NoError(t, err)
 
 	ad2, err := s.GetAuctionData(auds[0].AuctionDataID)
@@ -274,7 +276,7 @@ func TestRemoveAuctionDeals(t *testing.T) {
 	err = s.Create(&ad, []*AuctionDeal{&aud1, &aud2})
 	require.NoError(t, err)
 
-	all, err := s.getAll(PendingDealMaking)
+	all, err := s.getAllPending()
 	require.NoError(t, err)
 	err = s.RemoveAuctionDeal(all[0])
 	require.Error(t, err) // Can't remove non-final status (i.e: Pending)

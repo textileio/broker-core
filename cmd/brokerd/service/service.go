@@ -272,7 +272,7 @@ func (s *Service) StorageDealPrepared(
 	return &pb.StorageDealPreparedResponse{}, nil
 }
 
-// StorageDealFinalizedDeals reports the result of finalized deals.
+// StorageDealFinalizedDeal reports the result of finalized deals.
 func (s *Service) StorageDealFinalizedDeal(
 	ctx context.Context,
 	r *pb.StorageDealFinalizedDealRequest) (*pb.StorageDealFinalizedDealResponse, error) {
