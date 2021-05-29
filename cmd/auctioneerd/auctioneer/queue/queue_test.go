@@ -124,9 +124,13 @@ func newQueue(t *testing.T) *Queue {
 	return q
 }
 
-func runner(_ context.Context, _ *broker.Auction, _ func(bid broker.Bid) error) error {
+func runner(
+	_ context.Context,
+	_ broker.Auction,
+	_ func(bid broker.Bid) (broker.BidID, error),
+) (map[broker.BidID]broker.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)
-	return nil
+	return nil, nil
 }
 
 func finalizer(_ context.Context, _ broker.Auction) error {

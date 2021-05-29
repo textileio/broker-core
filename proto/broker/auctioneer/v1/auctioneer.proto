@@ -39,9 +39,10 @@ message Auction {
     }
 
     message WinningBid {
-        bool acknowledged = 1;
-        string proposal_cid = 2;
-        bool proposal_cid_acknowledged = 3;
+        string bidder_id = 1;
+        bool acknowledged = 2;
+        string proposal_cid = 3;
+        bool proposal_cid_acknowledged = 4;
     }
 }
 

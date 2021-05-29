@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
@@ -31,14 +32,17 @@ var (
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
 
-	// winsAckTimeout is the max duration the auctioneer will wait for an ack after notifying auction winners.
-	winsAckTimeout = time.Second * 10
+	// ackTimeout is the max duration the auctioneer will wait for an ack after notifying bidders.
+	ackTimeout = time.Second * 10
 
-	// ErrNotFound indicates the requested auction was not found.
-	ErrNotFound = errors.New("auction not found")
+	// ErrAuctionNotFound indicates the requested auction was not found.
+	ErrAuctionNotFound = errors.New("auction not found")
 
-	// ErrAuctionFailed indicates an auction was not successful.
-	ErrAuctionFailed = errors.New("auction failed; no acceptable bids")
+	// ErrBidNotFound indicates the requested bid was not found.
+	ErrBidNotFound = errors.New("bid not found")
+
+	// ErrInsufficientBids indicates the auction failed due to insufficient bids.
+	ErrInsufficientBids = errors.New("auction failed; insufficient bids")
 )
 
 // AuctionConfig defines auction params.
@@ -191,19 +195,35 @@ func (a *Auctioneer) CreateAuction(
 // GetAuction returns an auction by id.
 func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
 	auction, err := a.queue.GetAuction(id)
-	if errors.Is(q.ErrNotFound, err) {
-		return nil, ErrNotFound
+	if errors.Is(q.ErrAuctionNotFound, err) {
+		return nil, ErrAuctionNotFound
 	} else if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}
 	return auction, nil
 }
 
-func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addBid func(bid core.Bid) error) error {
+// DeliverProposal delivers the proposal Cid for an accepted deal to the winning bidder.
+func (a *Auctioneer) DeliverProposal(id broker.AuctionID, bid broker.BidID, pcid cid.Cid) error {
+	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid); errors.Is(q.ErrAuctionNotFound, err) {
+		return ErrAuctionNotFound
+	} else if errors.Is(q.ErrBidNotFound, err) {
+		return ErrBidNotFound
+	} else if err != nil {
+		return fmt.Errorf("setting winning bid proposal cid: %v", err)
+	}
+	return nil
+}
+
+func (a *Auctioneer) runAuction(
+	ctx context.Context,
+	auction core.Auction,
+	addBid func(bid core.Bid) (core.BidID, error),
+) (map[core.BidID]core.WinningBid, error) {
 	a.lk.Lock()
 	if _, ok := a.bids[auction.ID]; ok {
 		a.lk.Unlock()
-		return fmt.Errorf("auction %s already started", auction.ID)
+		return nil, fmt.Errorf("auction %s already started", auction.ID)
 	}
 	resCh := make(chan core.Bid)
 	a.bids[auction.ID] = resCh
@@ -215,9 +235,10 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 	}()
 	log.Debugf("auction %s started", auction.ID)
 
-	// No need to re-auction if we have enough bids; just re-select winners.
+	// No need to re-auction if we have enough bids; just notify winners.
 	// This case can happen if there was an error during winner selection on
-	// a prior attempt.
+	// a prior attempt, or if an auction was re-queued after receiving
+	// a proposal Cid from the broker.
 	if len(auction.WinningBids) == int(auction.DealReplication) {
 		log.Debugf(
 			"auction %s completed (attempt=%d/%d); total bids: %d/%d",
@@ -227,20 +248,21 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 			len(auction.Bids),
 			auction.DealReplication,
 		)
-		if err := a.selectWinners(ctx, auction); err != nil {
-			return fmt.Errorf("selecting winners: %v", err)
+		winners, err := a.notifyWinners(ctx, auction, nil)
+		if err != nil {
+			return nil, fmt.Errorf("notifying winners: %v", err)
 		}
-		return nil
+		return winners, nil
 	}
 
 	// Subscribe to bids topic
-	bids, err := a.peer.NewTopic(ctx, core.BidsTopic(auction.ID), true)
+	topic, err := a.peer.NewTopic(ctx, core.BidsTopic(auction.ID), true)
 	if err != nil {
-		return fmt.Errorf("creating bids topic: %v", err)
+		return nil, fmt.Errorf("creating bids topic: %v", err)
 	}
-	defer func() { _ = bids.Close() }()
-	bids.SetEventHandler(a.eventHandler)
-	bids.SetMessageHandler(a.bidsHandler)
+	defer func() { _ = topic.Close() }()
+	topic.SetEventHandler(a.eventHandler)
+	topic.SetMessageHandler(a.bidsHandler)
 
 	// Set deadline
 	deadline := auction.StartedAt.Add(auction.Duration)
@@ -253,12 +275,13 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 		EndsAt:       timestamppb.New(deadline),
 	})
 	if err != nil {
-		return fmt.Errorf("marshaling message: %v", err)
+		return nil, fmt.Errorf("marshaling message: %v", err)
 	}
 	if err := a.auctions.Publish(ctx, msg, 0); err != nil {
-		return fmt.Errorf("publishing auction: %v", err)
+		return nil, fmt.Errorf("publishing auction: %v", err)
 	}
 
+	bids := make(map[core.BidID]core.Bid)
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	for {
@@ -269,13 +292,18 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 				auction.ID,
 				auction.Attempts,
 				a.auctionConf.Attempts,
-				len(auction.Bids),
+				len(bids),
 				auction.DealReplication,
 			)
-			if err := a.selectWinners(ctx, auction); err != nil {
-				return fmt.Errorf("selecting winners: %v", err)
+			winners, err := a.selectNewWinners(auction, bids)
+			if err != nil {
+				return nil, fmt.Errorf("selecting new winners: %v", err)
 			}
-			return nil
+			winners, err = a.notifyWinners(ctx, auction, winners)
+			if err != nil {
+				return nil, fmt.Errorf("notifying winners: %v", err)
+			}
+			return winners, nil
 		case bid, ok := <-resCh:
 			if ok {
 				var price int64
@@ -285,10 +313,13 @@ func (a *Auctioneer) runAuction(ctx context.Context, auction *core.Auction, addB
 					price = bid.AskPrice
 				}
 				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
-				if err := addBid(bid); err != nil {
+				id, err := addBid(bid)
+				if err != nil {
 					log.Errorf("adding bid to auction %s: %v", auction.ID, err)
+				} else {
+					bids[id] = bid
+					a.metricNewBid.Add(ctx, 1)
 				}
-				a.metricNewBid.Add(ctx, 1)
 			}
 		}
 	}
@@ -355,24 +386,23 @@ func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
 	}
 }
 
-type bid struct {
+type rankedBid struct {
 	ID  core.BidID
 	Bid core.Bid
-	Err error
 }
 
 func heapifyBids(bids map[core.BidID]core.Bid, dealVerified bool) *BidHeap {
 	h := &BidHeap{dealVerified: dealVerified}
 	heap.Init(h)
 	for id, b := range bids {
-		heap.Push(h, bid{ID: id, Bid: b})
+		heap.Push(h, rankedBid{ID: id, Bid: b})
 	}
 	return h
 }
 
 // BidHeap is used to efficiently select auction winners.
 type BidHeap struct {
-	h            []bid
+	h            []rankedBid
 	dealVerified bool
 }
 
@@ -396,7 +426,7 @@ func (bh *BidHeap) Swap(i, j int) {
 
 // Push adds x to h.
 func (bh *BidHeap) Push(x interface{}) {
-	bh.h = append(bh.h, x.(bid))
+	bh.h = append(bh.h, x.(rankedBid))
 }
 
 // Pop removes and returns the last element in h.
@@ -405,93 +435,156 @@ func (bh *BidHeap) Pop() (x interface{}) {
 	return x
 }
 
-func (a *Auctioneer) selectWinners(ctx context.Context, auction *core.Auction) error {
-	if len(auction.Bids) == 0 {
-		return ErrAuctionFailed
+func (a *Auctioneer) selectNewWinners(
+	auction core.Auction,
+	bids map[core.BidID]core.Bid,
+) (map[core.BidID]core.WinningBid, error) {
+	if len(bids) == 0 {
+		return nil, ErrInsufficientBids
 	}
-	bh := heapifyBids(auction.Bids, auction.DealVerified)
-	winners := make(map[peer.ID]bid)
+
+	var (
+		bh      = heapifyBids(bids, auction.DealVerified)
+		winners = make(map[core.BidID]core.WinningBid)
+		bidders = make(map[peer.ID]struct{})
+	)
+	for _, b := range auction.WinningBids {
+		bidders[b.BidderID] = struct{}{}
+	}
 
 	// Select lowest bids until deal replication is met w/o overwriting past winners
 	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
 	for i := 0; i < selectCount; i++ {
 		if bh.Len() == 0 {
+
 			break
 		}
-		b := heap.Pop(bh).(bid)
-		if _, ok := winners[b.Bid.BidderID]; ok {
-			continue // Already have a winning bid from this bidder in this auction, skip it
+		b := heap.Pop(bh).(rankedBid)
+		if _, ok := bidders[b.Bid.BidderID]; ok {
+			continue // Already have a bid from this bidder, skip it
 		}
 		if _, ok := auction.WinningBids[b.ID]; ok {
-			continue // Already have a winning bid from this bidder from a prior auction, skip it
+			continue // Already have this bid from a prior auction, skip it
 		}
-		winners[b.Bid.BidderID] = b
+		winners[b.ID] = core.WinningBid{
+			BidderID: b.Bid.BidderID,
+		}
+		bidders[b.Bid.BidderID] = struct{}{}
+	}
+
+	return winners, nil
+}
+
+type notifyResult struct {
+	id  core.BidID
+	wb  core.WinningBid
+	err error
+}
+
+func (a *Auctioneer) notifyWinners(
+	ctx context.Context,
+	auction core.Auction,
+	winners map[core.BidID]core.WinningBid,
+) (map[core.BidID]core.WinningBid, error) {
+	if winners == nil {
+		winners = make(map[core.BidID]core.WinningBid)
 	}
 
 	// Add non-acked winners from prior attempts
 	for id, wb := range auction.WinningBids {
 		if !wb.Acknowledged || (wb.ProposalCid.Defined() && !wb.ProposalCidAcknowledged) {
-			b, ok := auction.Bids[id]
-			if !ok {
-				return fmt.Errorf("existing winning bid %s not found", id)
-			}
-			winners[b.BidderID] = bid{
-				ID:  id,
-				Bid: b,
-			}
+			winners[id] = wb
 		}
 	}
 
 	// Bail if nothing to do
 	if len(winners) == 0 {
-		return ErrAuctionFailed
+		return nil, nil
 	}
 
-	// Create win topics
 	var wg sync.WaitGroup
-	bidCh := make(chan bid, len(winners))
-	for pid, b := range winners {
+	resCh := make(chan notifyResult, len(winners))
+	aid := auction.ID
+	for id, wb := range winners {
 		wg.Add(1)
-		go func(pid peer.ID, b bid) {
+		go func(id core.BidID, wb core.WinningBid) {
 			defer wg.Done()
-			wins, err := a.peer.NewTopic(ctx, core.WinsTopic(pid), false)
-			if err != nil {
-				b.Err = fmt.Errorf("creating win topic: %v", err)
-				bidCh <- b
-				return
-			}
-			defer func() { _ = wins.Close() }()
-			wins.SetEventHandler(a.eventHandler)
+			res := notifyResult{id: id, wb: wb}
 
-			// Notify winner
-			msg, err := proto.Marshal(&pb.Win{
-				AuctionId: string(auction.ID),
-				BidId:     string(b.ID),
-			})
-			if err != nil {
-				b.Err = fmt.Errorf("marshaling message: %v", err)
-				bidCh <- b
-				return
+			if !wb.Acknowledged {
+				if err := a.publishWin(ctx, aid, id, wb.BidderID); err != nil {
+					res.err = fmt.Errorf("publishing win: %v", err)
+				} else {
+					res.wb.Acknowledged = true
+				}
+			} else if !wb.ProposalCidAcknowledged {
+				if err := a.publishProposal(ctx, aid, id, wb.BidderID, wb.ProposalCid); err != nil {
+					res.err = fmt.Errorf("publishing win: %v", err)
+				} else {
+					res.wb.ProposalCidAcknowledged = true
+				}
+			} else {
+				res.err = fmt.Errorf("nothing to do for winning bid %s", id)
 			}
-			if err := wins.Publish(ctx, msg, winsAckTimeout); err != nil {
-				b.Err = fmt.Errorf("publishing win to %s: %v", pid, err)
-				bidCh <- b
-			}
-			bidCh <- b
-		}(pid, b)
+			resCh <- res
+		}(id, wb)
 	}
 	wg.Wait()
-	close(bidCh)
+	close(resCh)
 
-	if auction.WinningBids == nil {
-		auction.WinningBids = make(map[core.BidID]core.WinningBid)
-	}
 	merr := &multierror.Error{}
-	for b := range bidCh {
-		merr = multierror.Append(merr, b.Err)
-		auction.WinningBids[b.ID] = core.WinningBid{
-			Acknowledged: b.Err == nil,
-		}
+	for r := range resCh {
+		merr = multierror.Append(merr, r.err)
+		winners[r.id] = r.wb
 	}
-	return merr.ErrorOrNil()
+	return winners, merr.ErrorOrNil()
+}
+
+func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core.BidID, bidder peer.ID) error {
+	topic, err := a.peer.NewTopic(ctx, core.WinsTopic(bidder), false)
+	if err != nil {
+		return fmt.Errorf("creating win topic: %v", err)
+	}
+	defer func() { _ = topic.Close() }()
+	topic.SetEventHandler(a.eventHandler)
+
+	msg, err := proto.Marshal(&pb.WinningBid{
+		AuctionId: string(id),
+		BidId:     string(bid),
+	})
+	if err != nil {
+		return fmt.Errorf("marshaling message: %v", err)
+	}
+	if err := topic.Publish(ctx, msg, ackTimeout); err != nil {
+		return fmt.Errorf("publishing to %s: %v", bidder, err)
+	}
+	return nil
+}
+
+func (a *Auctioneer) publishProposal(
+	ctx context.Context,
+	id core.AuctionID,
+	bid core.BidID,
+	bidder peer.ID,
+	pcid cid.Cid,
+) error {
+	topic, err := a.peer.NewTopic(ctx, core.ProposalsTopic(bidder), false)
+	if err != nil {
+		return fmt.Errorf("creating proposal topic: %v", err)
+	}
+	defer func() { _ = topic.Close() }()
+	topic.SetEventHandler(a.eventHandler)
+
+	msg, err := proto.Marshal(&pb.WinningBidProposal{
+		AuctionId:   string(id),
+		BidId:       string(bid),
+		ProposalCid: pcid.String(),
+	})
+	if err != nil {
+		return fmt.Errorf("marshaling message: %v", err)
+	}
+	if err := topic.Publish(ctx, msg, ackTimeout); err != nil {
+		return fmt.Errorf("publishing to %s: %v", bidder, err)
+	}
+	return nil
 }

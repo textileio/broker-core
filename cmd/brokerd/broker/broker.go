@@ -244,7 +244,7 @@ func (b *Broker) StorageDealProposalAccepted(
 	}
 
 	var winningBid broker.BidID
-	for _, wbid := range sd.Auction.WinningBids {
+	for wbid := range sd.Auction.WinningBids {
 		bid, ok := sd.Auction.Bids[wbid]
 		if !ok {
 			continue

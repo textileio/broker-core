@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/gogo/status"
+	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -115,7 +116,7 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		req.DealVerified,
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "creating auction: %s", err)
+		return nil, status.Errorf(codes.Internal, "creating auction: %v", err)
 	}
 	return &pb.ReadyToAuctionResponse{
 		Id: string(id),
@@ -135,8 +136,21 @@ func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.
 
 // ProposalAccepted receives an accepted deal proposal from a miner.
 func (s *Service) ProposalAccepted(
-	ctx context.Context,
-	req *pb.ProposalAcceptedRequest) (*pb.ProposalAcceptedResponse, error) {
-	// TODO
-	return nil, status.Errorf(codes.Unimplemented, "method ProposalAccepted not implemented")
+	_ context.Context,
+	req *pb.ProposalAcceptedRequest,
+) (*pb.ProposalAcceptedResponse, error) {
+	if req.AuctionId == "" {
+		return nil, status.Error(codes.InvalidArgument, "auction id is required")
+	}
+	if req.BidId == "" {
+		return nil, status.Error(codes.InvalidArgument, "bid id is required")
+	}
+	pcid, err := cid.Decode(req.ProposalCid)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid proposal cid")
+	}
+	if err := s.lib.DeliverProposal(broker.AuctionID(req.AuctionId), broker.BidID(req.BidId), pcid); err != nil {
+		return nil, status.Errorf(codes.Internal, "delivering proposal: %v", err)
+	}
+	return &pb.ProposalAcceptedResponse{}, nil
 }

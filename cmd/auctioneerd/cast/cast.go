@@ -76,6 +76,7 @@ func AuctionWinningBidsToPb(bids map[broker.BidID]broker.WinningBid) map[string]
 			pcid = v.ProposalCid.String()
 		}
 		pbbids[string(k)] = &pb.Auction_WinningBid{
+			BidderId:                v.BidderID.String(),
 			Acknowledged:            v.Acknowledged,
 			ProposalCid:             pcid,
 			ProposalCidAcknowledged: v.ProposalCidAcknowledged,
@@ -134,14 +135,14 @@ func AuctionStatusFromPb(pbs pb.Auction_Status) broker.AuctionStatus {
 func AuctionBidsFromPb(pbbids map[string]*pb.Auction_Bid) (map[broker.BidID]broker.Bid, error) {
 	bids := make(map[broker.BidID]broker.Bid)
 	for k, v := range pbbids {
-		from, err := peer.Decode(v.BidderId)
+		bidder, err := peer.Decode(v.BidderId)
 		if err != nil {
-			return nil, fmt.Errorf("decoding peer: %v", err)
+			return nil, fmt.Errorf("decoding bidder: %v", err)
 		}
 		bids[broker.BidID(k)] = broker.Bid{
 			MinerAddr:        v.MinerAddr,
 			WalletAddrSig:    v.WalletAddrSig,
-			BidderID:         from,
+			BidderID:         bidder,
 			AskPrice:         v.AskPrice,
 			VerifiedAskPrice: v.VerifiedAskPrice,
 			StartEpoch:       v.StartEpoch,
@@ -156,6 +157,10 @@ func AuctionBidsFromPb(pbbids map[string]*pb.Auction_Bid) (map[broker.BidID]brok
 func AuctionWinningBidsFromPb(pbbids map[string]*pb.Auction_WinningBid) (map[broker.BidID]broker.WinningBid, error) {
 	wbids := make(map[broker.BidID]broker.WinningBid)
 	for k, v := range pbbids {
+		bidder, err := peer.Decode(v.BidderId)
+		if err != nil {
+			return nil, fmt.Errorf("decoding bidder id: %v", err)
+		}
 		pcid := cid.Undef
 		if v.ProposalCid != "" {
 			var err error
@@ -165,6 +170,7 @@ func AuctionWinningBidsFromPb(pbbids map[string]*pb.Auction_WinningBid) (map[bro
 			}
 		}
 		wbids[broker.BidID(k)] = broker.WinningBid{
+			BidderID:                bidder,
 			Acknowledged:            v.Acknowledged,
 			ProposalCid:             pcid,
 			ProposalCidAcknowledged: v.ProposalCidAcknowledged,

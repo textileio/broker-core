@@ -222,6 +222,12 @@ func WinsTopic(pid peer.ID) string {
 	return path.Join(AuctionTopic, pid.String(), "wins")
 }
 
+// ProposalsTopic is used by brokers to notify a bidbot of the proposal cid.Cid for an accepted deal auction.
+// "/textile/auction/0.0.1/<peer_id>/proposals".
+func ProposalsTopic(pid peer.ID) string {
+	return path.Join(AuctionTopic, pid.String(), "proposals")
+}
+
 // AcksTopic is used to acknowledge publishers that a message was received.
 // "<base_topic>/<publisher_peer_id>/acks".
 func AcksTopic(base string, pid peer.ID) string {
@@ -299,6 +305,7 @@ type Bid struct {
 
 // WinningBid contains details about a winning bid.
 type WinningBid struct {
+	BidderID                peer.ID
 	Acknowledged            bool // Whether or not the bidder acknowledged receipt of the win
 	ProposalCid             cid.Cid
 	ProposalCidAcknowledged bool // Whether or not the bidder acknowledged receipt of the proposal Cid

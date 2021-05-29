@@ -178,15 +178,30 @@ func (s *Service) Subscribe(bootstrap bool) error {
 	wins, err := s.peer.NewTopic(s.ctx, broker.WinsTopic(s.peer.Host().ID()), true)
 	if err != nil {
 		if err := auctions.Close(); err != nil {
-			log.Errorf("closing auctions feed: %v", err)
+			log.Errorf("closing auctions topic: %v", err)
 		}
 		return fmt.Errorf("creating wins topic: %v", err)
 	}
 	wins.SetEventHandler(s.eventHandler)
 	wins.SetMessageHandler(s.winsHandler)
 
+	// Subscribe to our own proposals topic
+	props, err := s.peer.NewTopic(s.ctx, broker.ProposalsTopic(s.peer.Host().ID()), true)
+	if err != nil {
+		if err := auctions.Close(); err != nil {
+			log.Errorf("closing auctions topic: %v", err)
+		}
+		if err := wins.Close(); err != nil {
+			log.Errorf("closing wins topic: %v", err)
+		}
+		return fmt.Errorf("creating proposals topic: %v", err)
+	}
+	props.SetEventHandler(s.eventHandler)
+	props.SetMessageHandler(s.proposalHandler)
+
 	s.finalizer.Add(auctions)
 	s.finalizer.Add(wins)
+	s.finalizer.Add(props)
 
 	log.Info("subscribed to the deal auction feed")
 
@@ -224,12 +239,23 @@ func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
 func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s received win from %s", topic, from)
 
-	win := &pb.Win{}
+	win := &pb.WinningBid{}
 	if err := proto.Unmarshal(msg, win); err != nil {
 		log.Errorf("unmarshaling message: %v", err)
 		return
 	}
 	log.Infof("bid %s won in auction %s", win.BidId, win.AuctionId)
+}
+
+func (s *Service) proposalHandler(from peer.ID, topic string, msg []byte) {
+	log.Debugf("%s received proposal from %s", topic, from)
+
+	prop := &pb.WinningBidProposal{}
+	if err := proto.Unmarshal(msg, prop); err != nil {
+		log.Errorf("unmarshaling message: %v", err)
+		return
+	}
+	log.Infof("bid %s received proposal cid %s in auction %s", prop.BidId, prop.ProposalCid, prop.AuctionId)
 }
 
 func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {

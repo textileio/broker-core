@@ -21,7 +21,13 @@ message Bid {
     bool fast_retrieval = 7;
 }
 
-message Win {
+message WinningBid {
     string auction_id = 1;
     string bid_id = 2;
+}
+
+message WinningBidProposal {
+    string auction_id = 1;
+    string bid_id = 2;
+    string proposal_cid = 3;
 }

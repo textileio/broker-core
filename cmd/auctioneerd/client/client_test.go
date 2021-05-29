@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
+	util "github.com/ipfs/go-ipfs-util"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -94,9 +96,28 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 	require.Len(t, got.WinningBids, 2)
-	for k, v := range got.WinningBids {
-		assert.NotNil(t, got.Bids[k])
-		assert.True(t, v.Acknowledged)
+	pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("lets make a deal")))
+	for id, wb := range got.WinningBids {
+		assert.NotNil(t, got.Bids[id])
+		assert.True(t, wb.Acknowledged)
+
+		// Set the proposal as accepted
+		err = c.ProposalAccepted(context.Background(), got.ID, id, pcid)
+		require.NoError(t, err)
+	}
+
+	time.Sleep(time.Second * 15) // Allow to finish
+
+	got, err = c.GetAuction(context.Background(), id)
+	require.NoError(t, err)
+	assert.Equal(t, id, got.ID)
+	assert.Equal(t, core.AuctionStatusEnded, got.Status)
+	require.Len(t, got.WinningBids, 2)
+	for id, wb := range got.WinningBids {
+		assert.NotNil(t, got.Bids[id])
+		assert.True(t, wb.Acknowledged)
+		assert.True(t, wb.ProposalCidAcknowledged)
+		assert.True(t, wb.ProposalCid.Equals(pcid))
 	}
 }
 

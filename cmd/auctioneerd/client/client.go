@@ -57,9 +57,9 @@ func (c *Client) ReadyToAuction(
 }
 
 // GetAuction returns an auction by id.
-func (c *Client) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error) {
+func (c *Client) GetAuction(ctx context.Context, auctionID broker.AuctionID) (broker.Auction, error) {
 	res, err := c.c.GetAuction(ctx, &pb.GetAuctionRequest{
-		Id: string(id),
+		Id: string(auctionID),
 	})
 	if err != nil {
 		return broker.Auction{}, err
