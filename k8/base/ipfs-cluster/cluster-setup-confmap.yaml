@@ -30,7 +30,7 @@ data:
         exit 1
       fi
       # Only ipfs user can get here
-      exec ipfs-cluster-service daemon --upgrade --bootstrap $BOOTSTRAP_ADDR --leave
+      exec ipfs-cluster-service --loglevel service:debug daemon --upgrade --bootstrap $BOOTSTRAP_ADDR --leave
     fi
 
   configure-ipfs.sh: |
