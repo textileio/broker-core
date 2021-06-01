@@ -37,15 +37,11 @@ configMapGenerator:
   - configIpfsCluster.env
   name: ipfs-cluster-env-config
 
-secretGenerator:
-- files:
-  - secret/cluster-secret
-  - secret/bootstrap-peer-priv-key
-  name: ipfs-cluster-secret-config
-  type: Opaque
-
 patchesStrategicMerge:
 - ipfs-cluster-volumeclaim-patch.yaml
 - ipfs-cluster-statefulset-patch.yaml
 - ingress-patch.yaml
 - mongo-patch.yaml
+- dealerd-patch.yaml
+- auctioneerd-patch.yaml
+- neard-patch.yaml

@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: auctioneer-01
+spec:
+  template:
+    spec:
+      containers:
+        - name: auctioneer
+          env:
+            - name: AUCTIONEER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: auctioneer-private-key
