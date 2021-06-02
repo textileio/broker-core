@@ -4,4 +4,4 @@ metadata:
   name: broker-production-textile-dev
 spec:
   domains:
-    - broker.production.textile.dev
+    - broker.textile.dev
