@@ -13,7 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	st "github.com/textileio/broker-core/cmd/bidbot/service/store"
+	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
@@ -30,7 +30,6 @@ var (
 
 // Config defines params for Service configuration.
 type Config struct {
-	RepoPath       string
 	Peer           marketpeer.Config
 	BidParams      BidParams
 	AuctionFilters AuctionFilters
@@ -45,12 +44,18 @@ type BidParams struct {
 	VerifiedAskPrice int64 // attoFIL per GiB per epoch
 	FastRetrieval    bool
 	DealStartWindow  uint64 // number of epochs after which won deals must start be on-chain
+
+	// ProposalCidFetchAttempts is the number of times fetching proposal cids will be attempted.
+	ProposalCidFetchAttempts uint32
 }
 
 // Validate ensures BidParams are valid.
 func (p *BidParams) Validate() error {
 	if p.DealStartWindow == 0 {
 		return fmt.Errorf("invalid deal start window; must be greater than zero")
+	}
+	if p.ProposalCidFetchAttempts == 0 {
+		return fmt.Errorf("invalid fetch proposal cid attempts; must be greater than zero")
 	}
 	return nil
 }
@@ -90,7 +95,7 @@ func (f *MinMaxFilter) Validate() error {
 type Service struct {
 	peer       *marketpeer.Peer
 	fc         auctioneer.FilClient
-	store      *st.Store
+	store      *bidstore.Store
 	subscribed bool
 
 	bidParams      BidParams
@@ -114,16 +119,16 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
 
-	// Create local datastore
-	// s := st.NewStore(store)
-	// fin.Add(s)
-
 	// Create miner peer
 	p, err := marketpeer.New(conf.Peer)
 	if err != nil {
 		return nil, fin.Cleanupf("creating peer: %v", err)
 	}
 	fin.Add(p)
+
+	// Create bid store
+	s := bidstore.NewStore(store, p.DAGService(), conf.BidParams.ProposalCidFetchAttempts)
+	fin.Add(s)
 
 	// Verify miner address
 	ok, err := fc.VerifyBidder(
@@ -138,7 +143,7 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	}
 
 	srv := &Service{
-		// store:          s,
+		store:          s,
 		peer:           p,
 		fc:             fc,
 		bidParams:      conf.BidParams,
@@ -250,7 +255,11 @@ func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) ([]byte, e
 		return nil, fmt.Errorf("unmarshaling message: %v", err)
 	}
 
-	log.Infof("bid %s won in auction %s", win.BidId, win.AuctionId)
+	if err := s.store.SetAwaitingProposalCid(broker.BidID(win.BidId)); err != nil {
+		return nil, fmt.Errorf("setting awaiting proposal cid: %v", err)
+	}
+
+	log.Infof("bid %s won in auction %s; awaiting proposal cid", win.BidId, win.AuctionId)
 	return nil, nil
 }
 
@@ -261,9 +270,16 @@ func (s *Service) proposalHandler(from peer.ID, topic string, msg []byte) ([]byt
 	if err := proto.Unmarshal(msg, prop); err != nil {
 		return nil, fmt.Errorf("unmarshaling message: %v", err)
 	}
-	log.Infof("bid %s received proposal cid %s in auction %s", prop.BidId, prop.ProposalCid, prop.AuctionId)
 
-	// s.store.SetProposalCid()
+	pcid, err := cid.Decode(prop.ProposalCid)
+	if err != nil {
+		return nil, fmt.Errorf("decoding proposal cid: %v", err)
+	}
+	if err := s.store.SetProposalCid(broker.BidID(prop.BidId), pcid); err != nil {
+		return nil, fmt.Errorf("setting proposal cid: %v", err)
+	}
+
+	log.Infof("bid %s received proposal cid %s in auction %s", prop.BidId, prop.ProposalCid, prop.AuctionId)
 	return nil, nil
 }
 
@@ -311,19 +327,18 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if err != nil {
 		return fmt.Errorf("publishing bid: %v", err)
 	}
-	log.Warn(string(id))
 
 	// Save bid locally
-	// if err := s.store.SaveBid(st.Bid{
-	// 	ID:               broker.BidID(id),
-	// 	AuctionID:        broker.AuctionID(bid.AuctionId),
-	// 	AskPrice:         bid.AskPrice,
-	// 	VerifiedAskPrice: bid.VerifiedAskPrice,
-	// 	StartEpoch:       bid.StartEpoch,
-	// 	FastRetrieval:    bid.FastRetrieval,
-	// }); err != nil {
-	// 	return fmt.Errorf("saving bid: %v", err)
-	// }
+	if err := s.store.SaveBid(bidstore.Bid{
+		ID:               broker.BidID(id),
+		AuctionID:        broker.AuctionID(bid.AuctionId),
+		AskPrice:         bid.AskPrice,
+		VerifiedAskPrice: bid.VerifiedAskPrice,
+		StartEpoch:       bid.StartEpoch,
+		FastRetrieval:    bid.FastRetrieval,
+	}); err != nil {
+		return fmt.Errorf("saving bid: %v", err)
+	}
 
 	log.Debugf("created bid %s in auction %s", id, auction.Id)
 	return nil
@@ -348,12 +363,4 @@ func (s *Service) filterAuction(auction *pb.Auction) bool {
 	}
 
 	return true
-}
-
-func (s *Service) downloadDealData(ctx context.Context, proposalCid cid.Cid) error {
-	_, err := s.peer.DAGService().Get(ctx, proposalCid)
-	if err != nil {
-		return fmt.Errorf("getting node %s: %v", proposalCid, err)
-	}
-	return nil
 }

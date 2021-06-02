@@ -7,6 +7,7 @@ import (
 
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
+	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -34,6 +35,7 @@ type Service struct {
 	pb.UnimplementedAPIServiceServer
 
 	server *grpc.Server
+	peer   *marketpeer.Peer
 	lib    *auctioneer.Auctioneer
 
 	finalizer *finalizer.Finalizer
@@ -61,6 +63,7 @@ func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc auc
 
 	s := &Service{
 		server:    grpc.NewServer(),
+		peer:      p,
 		lib:       lib,
 		finalizer: fin,
 	}
@@ -90,6 +93,11 @@ func (s *Service) Start(bootstrap bool) error {
 	return s.lib.Start(bootstrap)
 }
 
+// DAGService returns the underlying peer's format.DAGService.
+func (s *Service) DAGService() format.DAGService {
+	return s.peer.DAGService()
+}
+
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	if req == nil {
@@ -116,7 +124,7 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		req.DealVerified,
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "creating auction: %v", err)
+		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	return &pb.ReadyToAuctionResponse{
 		Id: string(id),

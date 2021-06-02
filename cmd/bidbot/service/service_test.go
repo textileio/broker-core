@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"crypto/rand"
+	"path/filepath"
 	"testing"
 
 	golog "github.com/ipfs/go-log/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	core "github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 )
@@ -22,6 +24,7 @@ const (
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
 		"bidbot/service": golog.LevelDebug,
+		"bidbot/store":   golog.LevelDebug,
 		"mpeer":          golog.LevelDebug,
 	}); err != nil {
 		panic(err)
@@ -35,11 +38,12 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	bidParams := service.BidParams{
-		WalletAddrSig:    []byte("bar"),
-		AskPrice:         100000000000,
-		VerifiedAskPrice: 100000000000,
-		FastRetrieval:    true,
-		DealStartWindow:  oneDayEpochs,
+		WalletAddrSig:            []byte("bar"),
+		AskPrice:                 100000000000,
+		VerifiedAskPrice:         100000000000,
+		FastRetrieval:            true,
+		DealStartWindow:          oneDayEpochs,
+		ProposalCidFetchAttempts: 3,
 	}
 	auctionFilters := service.AuctionFilters{
 		DealDuration: service.MinMaxFilter{
@@ -53,13 +57,16 @@ func TestNew(t *testing.T) {
 	}
 
 	config := service.Config{
-		RepoPath: dir,
 		Peer: marketpeer.Config{
 			PrivKey:    priv,
 			RepoPath:   dir,
 			EnableMDNS: true,
 		},
 	}
+
+	store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "bidstore"))
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
 
 	fc := newFilClientMock()
 
@@ -68,7 +75,7 @@ func TestNew(t *testing.T) {
 		DealStartWindow: 0,
 	}
 	config.AuctionFilters = auctionFilters
-	_, err = service.New(config, fc)
+	_, err = service.New(config, store, fc)
 	require.Error(t, err)
 
 	config.BidParams = bidParams
@@ -84,13 +91,13 @@ func TestNew(t *testing.T) {
 			Max: 20,
 		},
 	}
-	_, err = service.New(config, fc)
+	_, err = service.New(config, store, fc)
 	require.Error(t, err)
 
 	config.AuctionFilters = auctionFilters
 
 	// Good config
-	s, err := service.New(config, fc)
+	s, err := service.New(config, store, fc)
 	require.NoError(t, err)
 	err = s.Subscribe(false)
 	require.NoError(t, err)
@@ -104,7 +111,7 @@ func TestNew(t *testing.T) {
 		mock.Anything,
 		mock.Anything,
 	).Return(false, nil)
-	_, err = service.New(config, fc2)
+	_, err = service.New(config, store, fc2)
 	require.Error(t, err)
 }
 

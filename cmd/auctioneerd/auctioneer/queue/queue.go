@@ -85,7 +85,7 @@ type Queue struct {
 	lk sync.Mutex
 }
 
-// NewQueue returns a new Queue using handler to process auctions.
+// NewQueue returns a new Queue using runner to process auctions.
 func NewQueue(store txndswrap.TxnDatastore, runner Runner, finalizer Finalizer, runAttempts uint32) *Queue {
 	ctx, cancel := context.WithCancel(context.Background())
 	q := &Queue{
@@ -146,6 +146,27 @@ func validate(a broker.Auction) error {
 	}
 	if a.Status != broker.AuctionStatusUnspecified {
 		return errors.New("invalid initial auction status")
+	}
+	if len(a.Bids) != 0 {
+		return errors.New("initial bids must be empty")
+	}
+	if len(a.WinningBids) != 0 {
+		return errors.New("initial winning bids must be empty")
+	}
+	if !a.StartedAt.IsZero() {
+		return errors.New("initial started at must be zero")
+	}
+	if !a.UpdatedAt.IsZero() {
+		return errors.New("initial updated at must be zero")
+	}
+	if a.Duration == 0 {
+		return errors.New("duration must be greater than zero")
+	}
+	if a.Attempts != 0 {
+		return errors.New("initial attempts must be zero")
+	}
+	if a.ErrorCause != "" {
+		return errors.New("initial error cause must be empty")
 	}
 	return nil
 }
