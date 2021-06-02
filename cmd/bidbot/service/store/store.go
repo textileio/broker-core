@@ -6,7 +6,9 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	dsq "github.com/ipfs/go-datastore/query"
 	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/ipld/go-car"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -35,7 +38,7 @@ var (
 	ProposalFetchStartDelay = time.Second * 10
 
 	// ProposalFetchTimeout is the timeout used when fetching proposal cids.
-	ProposalFetchTimeout = time.Minute
+	ProposalFetchTimeout = time.Hour
 
 	// MaxProposalFetchConcurrency is the maximum number of auctions that will be handled concurrently.
 	MaxProposalFetchConcurrency = 100
@@ -114,12 +117,13 @@ func (as BidStatus) String() string {
 
 // Store stores miner auction deal bids.
 type Store struct {
-	store txndswrap.TxnDatastore
-	dag   format.DAGService
+	store      txndswrap.TxnDatastore
+	nodeGetter format.NodeGetter
 
 	jobCh  chan *Bid
 	tickCh chan struct{}
 
+	proposalDataDirectory string
 	proposalFetchAttempts uint32
 
 	ctx    context.Context
@@ -127,13 +131,23 @@ type Store struct {
 }
 
 // NewStore returns a new Store using handler to process auctions.
-func NewStore(store txndswrap.TxnDatastore, dag format.DAGService, proposalFetchAttempts uint32) *Store {
+func NewStore(
+	store txndswrap.TxnDatastore,
+	nodeGetter format.NodeGetter,
+	proposalDataDirectory string,
+	proposalFetchAttempts uint32,
+) (*Store, error) {
+	if err := os.MkdirAll(proposalDataDirectory, os.ModePerm); err != nil {
+		return nil, fmt.Errorf("initializing proposal data directory: %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Store{
 		store:                 store,
-		dag:                   dag,
+		nodeGetter:            nodeGetter,
 		jobCh:                 make(chan *Bid, MaxProposalFetchConcurrency),
 		tickCh:                make(chan struct{}, MaxProposalFetchConcurrency),
+		proposalDataDirectory: proposalDataDirectory,
 		proposalFetchAttempts: proposalFetchAttempts,
 		ctx:                   ctx,
 		cancel:                cancel,
@@ -145,7 +159,7 @@ func NewStore(store txndswrap.TxnDatastore, dag format.DAGService, proposalFetch
 	}
 
 	go s.startFetching()
-	return s
+	return s, nil
 }
 
 // Close the store. This will wait for "started" auctions.
@@ -409,8 +423,8 @@ func (s *Store) fetchWorker(num int) {
 			// Handle the auction with the runner func
 			var status BidStatus
 			ctx, cancel := context.WithTimeout(s.ctx, ProposalFetchTimeout)
-			if _, err := s.dag.Get(ctx, b.ProposalCid); err != nil {
-				status = fail(b, fmt.Errorf("fetching proposal cid %s: %v", b.ProposalCid, err))
+			if err := s.writeProposalData(ctx, b.ProposalCid); err != nil {
+				status = fail(b, err)
 			} else {
 				status = BidStatusFinalized
 				// Reset error
@@ -429,6 +443,19 @@ func (s *Store) fetchWorker(num int) {
 			cancel()
 		}
 	}
+}
+
+func (s *Store) writeProposalData(ctx context.Context, pcid cid.Cid) error {
+	f, err := os.Create(filepath.Join(s.proposalDataDirectory, pcid.String()))
+	if err != nil {
+		return fmt.Errorf("opening file for proposal data: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	if err := car.WriteCar(ctx, s.nodeGetter, []cid.Cid{pcid}, f); err != nil {
+		return fmt.Errorf("fetching proposal cid %s: %v", pcid, err)
+	}
+	return nil
 }
 
 func (s *Store) startFetching() {

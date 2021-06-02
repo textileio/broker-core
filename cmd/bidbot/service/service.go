@@ -37,14 +37,22 @@ type Config struct {
 
 // BidParams defines how bids are made.
 type BidParams struct {
-	MinerAddr     string
+	// MinerAddr is your Filecoin miner address used to make deals.
+	MinerAddr string
+	// WalletAddrSig is a signature from your owner Lotus wallet address used to authenticate bids.
 	WalletAddrSig []byte
 
-	AskPrice         int64 // attoFIL per GiB per epoch
-	VerifiedAskPrice int64 // attoFIL per GiB per epoch
-	FastRetrieval    bool
-	DealStartWindow  uint64 // number of epochs after which won deals must start be on-chain
+	// AskPrice in attoFIL per GiB per epoch.
+	AskPrice int64
+	// VerifiedAskPrice in attoFIL per GiB per epoch.
+	VerifiedAskPrice int64
+	// FastRetrieval is whether or not you're offering fast retrieval for the deal data.
+	FastRetrieval bool
+	// DealStartWindow is the number of epochs after which won deals must start be on-chain.
+	DealStartWindow uint64
 
+	// ProposalDataDirectory is the directory to which proposal data will be written.
+	ProposalDataDirectory string
 	// ProposalCidFetchAttempts is the number of times fetching proposal cids will be attempted.
 	ProposalCidFetchAttempts uint32
 }
@@ -62,8 +70,10 @@ func (p *BidParams) Validate() error {
 
 // AuctionFilters specifies filters used when selecting auctions to bid on.
 type AuctionFilters struct {
+	// DealDuration sets the min and max deal duration to bid on.
 	DealDuration MinMaxFilter
-	DealSize     MinMaxFilter
+	// DealSize sets the min and max deal size to bid on.
+	DealSize MinMaxFilter
 }
 
 // Validate ensures AuctionFilters are valid.
@@ -127,7 +137,15 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	fin.Add(p)
 
 	// Create bid store
-	s := bidstore.NewStore(store, p.DAGService(), conf.BidParams.ProposalCidFetchAttempts)
+	s, err := bidstore.NewStore(
+		store,
+		p.DAGService(),
+		conf.BidParams.ProposalDataDirectory,
+		conf.BidParams.ProposalCidFetchAttempts,
+	)
+	if err != nil {
+		return nil, fin.Cleanupf("creating bid store: %v", err)
+	}
 	fin.Add(s)
 
 	// Verify miner address
@@ -219,6 +237,16 @@ func (s *Service) Subscribe(bootstrap bool) error {
 
 	s.subscribed = true
 	return nil
+}
+
+// ID returns the underlying peer.ID.
+func (s *Service) ID() peer.ID {
+	return s.peer.Host().ID()
+}
+
+// ListBids lists bids by applying a store.Query.
+func (s *Service) ListBids(query bidstore.Query) ([]bidstore.Bid, error) {
+	return s.store.ListBids(query)
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {

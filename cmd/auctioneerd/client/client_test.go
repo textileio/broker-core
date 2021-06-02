@@ -14,6 +14,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -23,6 +24,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
+	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/logging"
@@ -84,7 +86,7 @@ func TestClient_GetAuction(t *testing.T) {
 
 func TestClient_RunAuction(t *testing.T) {
 	c, dag := newClient(t, 2)
-	addMiners(t, 10)
+	bots := addBidbots(t, 10)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
@@ -114,6 +116,18 @@ func TestClient_RunAuction(t *testing.T) {
 	}
 
 	time.Sleep(time.Second * 15) // Allow to finish
+
+	// Check if the winning bids were able to fetch the proposal cid.
+	for _, wb := range got.WinningBids {
+		bot := bots[wb.BidderID]
+		require.NotNil(t, bot)
+
+		bids, err := bot.ListBids(bidstore.Query{})
+		require.NoError(t, err)
+		require.Len(t, bids, 1)
+		assert.Equal(t, bidstore.BidStatusFinalized, bids[0].Status)
+		assert.Empty(t, bids[0].ErrorCause)
+	}
 
 	got, err = c.GetAuction(context.Background(), id)
 	require.Error(t, err)
@@ -169,7 +183,8 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 	return client.New(conn), s.DAGService()
 }
 
-func addMiners(t *testing.T, n int) {
+func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
+	bots := make(map[peer.ID]*bidbotsrv.Service)
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
@@ -193,6 +208,7 @@ func addMiners(t *testing.T, n int) {
 				FastRetrieval:            true,
 				DealStartWindow:          oneDayEpochs,
 				ProposalCidFetchAttempts: 3,
+				ProposalDataDirectory:    t.TempDir(),
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{
@@ -214,7 +230,9 @@ func addMiners(t *testing.T, n int) {
 		t.Cleanup(func() {
 			require.NoError(t, s.Close())
 		})
+		bots[s.ID()] = s
 	}
+	return bots
 }
 
 func newDealID() core.StorageDealID {

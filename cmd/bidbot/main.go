@@ -130,6 +130,12 @@ located at ~/.bidbot. To change the repo location, set the $BIDBOT_PATH
 environment variable:
 
     export BIDBOT_PATH=/path/to/bidbotrepo
+
+bidbot will fetch and write proposal data to a local directory. This directory should be
+accessible to Lotus. By default, the directory is located at ~/.bidbot/proposal_data.
+The change the proposal data directory, set the $BIDBOT_PROPOSAL_DATA_DIRECTORY environment variable:
+
+    export BIDBOT_PROPOSAL_DATA_DIRECTORY=/path/to/lotus/accessible/directory
 `,
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
@@ -213,6 +219,11 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
 
+		proposalDataDirectory := os.Getenv("BIDBOT_PROPOSAL_DATA_DIRECTORY")
+		if proposalDataDirectory == "" {
+			proposalDataDirectory = filepath.Join(defaultConfigPath, "proposal_data")
+		}
+
 		config := service.Config{
 			Peer: pconfig,
 			BidParams: service.BidParams{
@@ -223,6 +234,7 @@ var daemonCmd = &cobra.Command{
 				FastRetrieval:            v.GetBool("fast-retrieval"),
 				DealStartWindow:          v.GetUint64("deal-start-window"),
 				ProposalCidFetchAttempts: v.GetUint32("proposal-cid-fetch-attempts"),
+				ProposalDataDirectory:    proposalDataDirectory,
 			},
 			AuctionFilters: service.AuctionFilters{
 				DealDuration: service.MinMaxFilter{
