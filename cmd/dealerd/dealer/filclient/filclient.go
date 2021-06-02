@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/filecoin-project/go-address"
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
@@ -85,6 +86,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal) (propCid cid.Cid, ok bool, err error) {
+	log.Debugf("executing auction deal for data-cid %d, piece-cid %s and size %s...", ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal)
 	}()
@@ -105,9 +107,9 @@ func (fc *FilClient) ExecuteAuctionDeal(
 
 	switch pr.Response.State {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal accepted: %s", logging.MustJSONIndent(p))
+		log.Debugf("proposal %s accepted: %s", pr.Response.Proposal, logging.MustJSONIndent(p))
 	default:
-		log.Warnf("proposal failed: %s", logging.MustJSONIndent(p))
+		log.Warnf("proposal failed: %s", pr.Response.Proposal, logging.MustJSONIndent(p))
 		return cid.Undef,
 			false,
 			fmt.Errorf("failed proposal (%s): %s",
@@ -199,6 +201,7 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 // CheckChainDeal checks if a deal is active on-chain. If that's the case, it also returns the
 // deal expiration as a second parameter.
 func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (active bool, expiration uint64, err error) {
+	log.Debugf("checking deal %d on-chain...", dealid)
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricCheckChainDeal)
 	}()
@@ -206,6 +209,7 @@ func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (active b
 	if err != nil {
 		nfs := fmt.Sprintf("deal %d not found", dealid)
 		if strings.Contains(err.Error(), nfs) {
+			log.Debugf("deal %d still isn't on-chain", dealid)
 			return false, 0, nil
 		}
 
@@ -213,6 +217,7 @@ func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (active b
 	}
 
 	if deal.State.SlashEpoch > 0 {
+		log.Warnf("deal %d is on-chain but slashed", dealid)
 		return false, 0, fmt.Errorf("is active on chain but slashed: %d", deal.State.SlashEpoch)
 	}
 
@@ -226,6 +231,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 	ctx context.Context,
 	minerAddr string,
 	propCid cid.Cid) (status *storagemarket.ProviderDealState, err error) {
+	log.Debugf("checking status of proposal %s with miner %s", propCid, minerAddr)
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithMiner)
 	}()
@@ -261,6 +267,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
+	log.Debugf("miner %s replied proposal %s status check: %s", minerAddr, propCid, logging.MustJSONIndent(resp.DealState))
 
 	return &resp.DealState, nil
 }
@@ -350,27 +357,33 @@ func (fc *FilClient) streamToMiner(
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
 	}
+	log.Debugf("stream with miner %s created", maddr)
 
 	return s, nil
 }
 
 func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) (peer.ID, error) {
+	log.Debugf("getting miner %s info...", maddr)
 	minfo, err := fc.api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
 	if err != nil {
 		return "", fmt.Errorf("state miner info call: %s", err)
 	}
 
 	if minfo.PeerId == nil {
+		log.Warnf("miner %s doesn't have a PeerID on-chain", maddr)
 		return "", fmt.Errorf("miner %s has no peer ID set", maddr)
 	}
 
+	log.Debugf("resolving multiaddresses of miner %s", maddr)
 	addrInfo, err := fc.api.NetFindPeer(ctx, *minfo.PeerId)
 	if err != nil {
+		log.Warnf("net-find-peer api call failed: %s", err)
 		return "", fmt.Errorf("find peer by id: %s", err)
 	}
 
 	maddrs := addrInfo.Addrs
 	if len(maddrs) == 0 {
+		log.Debugf("resolving multiaddresses for %s in DHT failed, querying the chain for available ones...", maddr)
 		// Try checking on-chain as a last resource.
 		for _, mma := range minfo.Multiaddrs {
 			ma, err := multiaddr.NewMultiaddrBytes(mma)
@@ -381,12 +394,20 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 		}
 	}
 
+	if len(maddrs) == 0 {
+		return "", fmt.Errorf("no available multiaddresses for miner %s", maddr)
+	}
+
+	log.Debugf("found %d multiaddreses for miner %s", len(maddrs), maddr)
 	if err := fc.host.Connect(ctx, peer.AddrInfo{
 		ID:    *minfo.PeerId,
 		Addrs: maddrs,
 	}); err != nil {
+		log.Warnf("failed connecting with miner %s", maddr)
 		return "", fmt.Errorf("connecting to miner: %s", err)
 	}
+
+	log.Debugf("connected with miner %s!", maddr)
 
 	return *minfo.PeerId, nil
 }
