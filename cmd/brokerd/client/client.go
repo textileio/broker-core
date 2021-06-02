@@ -146,12 +146,15 @@ func (c *Client) StorageDealProposalAccepted(
 	return nil
 }
 
-// StorageDealFinalizedDeals reports finalized winning bids deals to the broker.
-func (c *Client) StorageDealFinalizedDeals(ctx context.Context, fads []broker.FinalizedAuctionDeal) error {
-	req := &pb.StorageDealFinalizedDealsRequest{
-		FinalizedDeals: cast.FinalizedDealsToPb(fads),
+// StorageDealFinalizedDeal report a finalized deal to the broker.
+func (c *Client) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
+	req := &pb.StorageDealFinalizedDealRequest{
+		StorageDealId:  string(fad.StorageDealID),
+		DealId:         fad.DealID,
+		DealExpiration: fad.DealExpiration,
+		ErrorCause:     fad.ErrorCause,
 	}
-	if _, err := c.c.StorageDealFinalizedDeals(ctx, req); err != nil {
+	if _, err := c.c.StorageDealFinalizedDeal(ctx, req); err != nil {
 		return fmt.Errorf("calling storage finalized deals api: %s", err)
 	}
 	return nil

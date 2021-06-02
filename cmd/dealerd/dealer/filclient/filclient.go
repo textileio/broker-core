@@ -84,19 +84,23 @@ func New(api v0api.FullNode, opts ...Option) (*FilClient, error) {
 func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
-	aud store.AuctionDeal) (propCid cid.Cid, err error) {
+	aud store.AuctionDeal) (propCid cid.Cid, ok bool, err error) {
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal)
 	}()
 
 	p, err := fc.createDealProposal(ctx, ad, aud)
 	if err != nil {
-		return cid.Undef, fmt.Errorf("creating deal proposal: %s", err)
+		// Any error here deserves retries.
+		log.Errorf("creating deal proposal: %s", err)
+		return cid.Undef, true, nil
 	}
 	log.Debugf("created proposal: %s", logging.MustJSONIndent(p))
 	pr, err := fc.sendProposal(ctx, p)
 	if err != nil {
-		return cid.Undef, fmt.Errorf("sending proposal to miner: %s", err)
+		log.Errorf("sending proposal to miner: %s", err)
+		// Any error here deserves retries.
+		return cid.Undef, true, nil
 	}
 
 	switch pr.Response.State {
@@ -105,12 +109,13 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	default:
 		log.Warnf("proposal failed: %s", logging.MustJSONIndent(p))
 		return cid.Undef,
+			false,
 			fmt.Errorf("failed proposal (%s): %s",
 				storagemarket.DealStates[pr.Response.State],
 				pr.Response.Message)
 	}
 
-	return pr.Response.Proposal, nil
+	return pr.Response.Proposal, false, nil
 }
 
 // GetChainHeight returns the current chain height.

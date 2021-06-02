@@ -71,7 +71,7 @@ func (_m *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerAddr str
 }
 
 // ExecuteAuctionDeal provides a mock function with given fields: ctx, ad, aud
-func (_m *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (cid.Cid, error) {
+func (_m *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (cid.Cid, bool, error) {
 	ret := _m.Called(ctx, ad, aud)
 
 	var r0 cid.Cid
@@ -81,14 +81,21 @@ func (_m *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionDat
 		r0 = ret.Get(0).(cid.Cid)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, store.AuctionData, store.AuctionDeal) error); ok {
+	var r1 bool
+	if rf, ok := ret.Get(1).(func(context.Context, store.AuctionData, store.AuctionDeal) bool); ok {
 		r1 = rf(ctx, ad, aud)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(bool)
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, store.AuctionData, store.AuctionDeal) error); ok {
+		r2 = rf(ctx, ad, aud)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetChainHeight provides a mock function with given fields: ctx

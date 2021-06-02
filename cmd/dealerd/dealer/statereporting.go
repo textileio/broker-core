@@ -27,46 +27,52 @@ func (d *Dealer) daemonDealReporter() {
 
 func (d *Dealer) daemonDealReporterTick() error {
 	for {
-		adSuccess, err := d.store.GetAllAuctionDeals(store.Success)
+		aud, ok, err := d.store.GetNext(store.PendingReportFinalized)
 		if err != nil {
 			return fmt.Errorf("get successful deals: %s", err)
 		}
-		adError, err := d.store.GetAllAuctionDeals(store.Error)
-		if err != nil {
-			return fmt.Errorf("get errored deals: %s", err)
-		}
-		ads := append(adSuccess, adError...)
-		if len(ads) == 0 {
+		if !ok {
 			break
 		}
-
-		res := make([]broker.FinalizedAuctionDeal, len(ads))
-		for i, aud := range ads {
-			ad, err := d.store.GetAuctionData(aud.AuctionDataID)
-			if err != nil {
-				return fmt.Errorf("get auction data: %s", err)
+		if err := d.reportFinalizedAuctionDeal(aud); err != nil {
+			log.Errorf("reporting finalized auction deal: %s", err)
+			aud.ReadyAt = time.Now().Add(d.config.dealReportingRetryDelay)
+			if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
+				return fmt.Errorf("saving reached deadline: %s", err)
 			}
-			res[i] = broker.FinalizedAuctionDeal{
-				StorageDealID:  ad.StorageDealID,
-				ErrorCause:     aud.ErrorCause,
-				DealID:         aud.DealID,
-				DealExpiration: aud.DealExpiration,
-				Miner:          aud.Miner,
-			}
+			return nil
 		}
+	}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-		// We report finalized Auction Deals to the broker.
-		if err := d.broker.StorageDealFinalizedDeals(ctx, res); err != nil {
-			return fmt.Errorf("reporting auction deal results to the broker: %s", err)
-		}
+	return nil
+}
 
-		// We are safe to remove those from our store. This will indirectly remove also the linked
-		// AuctionData, if no pending/in-progress AuctionDeals exist for them.
-		if err := d.store.RemoveAuctionDeals(ads); err != nil {
-			return fmt.Errorf("removing auction deals: %s", err)
-		}
+func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
+	ad, err := d.store.GetAuctionData(aud.AuctionDataID)
+	if err != nil {
+		return fmt.Errorf("get auction data: %s", err)
+	}
+	fad := broker.FinalizedAuctionDeal{
+		StorageDealID:  ad.StorageDealID,
+		ErrorCause:     aud.ErrorCause,
+		DealID:         aud.DealID,
+		DealExpiration: aud.DealExpiration,
+		Miner:          aud.Miner,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	log.Debugf("reporting finalized auction deal (errorcause=%s)", aud.ErrorCause)
+	// We report finalized Auction Deals to the broker.
+	if err := d.broker.StorageDealFinalizedDeal(ctx, fad); err != nil {
+		return fmt.Errorf("reporting auction deal results to the broker: %s", err)
+	}
+
+	// We are safe to remove it from our store. This will indirectly remove also the linked
+	// AuctionData, if no pending/in-progress AuctionDeals exist for them.
+	if err := d.store.RemoveAuctionDeal(aud); err != nil {
+		return fmt.Errorf("removing auction deals: %s", err)
 	}
 
 	return nil

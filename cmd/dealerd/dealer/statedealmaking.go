@@ -9,6 +9,10 @@ import (
 	"github.com/textileio/broker-core/ratelim"
 )
 
+var (
+	failureDealMakingMaxRetries = "reached maximum amount of deal-making retries"
+)
+
 func (d *Dealer) daemonDealMaker() {
 	defer d.daemonWg.Done()
 
@@ -31,61 +35,77 @@ func (d *Dealer) daemonDealMakerTick() error {
 		return fmt.Errorf("create ratelim: %s", err)
 	}
 
-Loop1:
 	for {
-		select {
-		case <-d.daemonCtx.Done():
-			break Loop1
-		default:
+		if d.daemonCtx.Err() != nil {
+			break
 		}
 
-		ps, err := d.store.GetAllAuctionDeals(store.Pending)
+		aud, ok, err := d.store.GetNext(store.PendingDealMaking)
 		if err != nil {
 			return fmt.Errorf("get pending auction deals: %s", err)
 		}
-		if len(ps) == 0 {
+		if !ok {
 			break
 		}
-	Loop2:
-		for _, aud := range ps {
-			select {
-			case <-d.daemonCtx.Done():
-				break Loop2
-			default:
+		rl.Exec(func() error {
+			if err := d.executePendingDealMaking(d.daemonCtx, aud); err != nil {
+				log.Errorf("executing pending deal making: %s", err)
 			}
-			rl.Exec(func() error {
-				if err := d.executePending(d.daemonCtx, aud); err != nil {
-					// TODO: most probably we want to include logic
-					// to retry a bounded number of times (or similar)
-					// when went stop trying to make the deal with the miner.
-					log.Errorf("executing Pending: %s", err)
-				}
-				// We're not interested in ratelim error inspection.
-				return nil
-			})
-		}
-		rl.Wait()
+			// We're not interested in ratelim error inspection.
+			return nil
+		})
 	}
+	rl.Wait()
 
 	return nil
 }
 
-func (d *Dealer) executePending(ctx context.Context, aud store.AuctionDeal) error {
+func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.AuctionDeal) error {
 	ad, err := d.store.GetAuctionData(aud.AuctionDataID)
 	if err != nil {
 		return fmt.Errorf("get auction data %s: %s", aud.AuctionDataID, err)
 	}
-	proposalCid, err := d.filclient.ExecuteAuctionDeal(d.daemonCtx, ad, aud)
+
+	log.Debugf("executing deal for %s with miner %s", ad.PayloadCid, aud.Miner)
+	proposalCid, retry, err := d.filclient.ExecuteAuctionDeal(d.daemonCtx, ad, aud)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
 	}
 
-	aud.Status = store.WaitingConfirmation
+	// If retry, then we move from ExecutingDealMaking back to PendingDealMaking
+	// with some delay as to retry again. If we tried dealMakingMaxRetries,
+	// we give up and error the auction deal.
+	if retry {
+		aud.Retries++
+		if aud.Retries > d.config.dealMakingMaxRetries {
+			log.Warnf("deal for %s with %s failed the max number of retries, failing", ad.PayloadCid, aud.Miner)
+			aud.ErrorCause = failureDealMakingMaxRetries
+			aud.ReadyAt = time.Unix(0, 0)
+			if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
+				return fmt.Errorf("saving auction deal: %s", err)
+			}
+			return nil
+		}
+
+		log.Warnf("deal for %s with %s failed, we'll retry soon...", ad.PayloadCid, aud.Miner)
+		aud.ReadyAt = time.Now().Add(d.config.dealMakingRetryDelay)
+		if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingDealMaking); err != nil {
+			return fmt.Errorf("saving auction deal: %s", err)
+		}
+		return nil
+	}
+
+	log.Infof("deal %s with %s successfully executed", ad.PayloadCid, aud.Miner)
+	aud.Retries = 0
 	aud.ProposalCid = proposalCid
-	if err := d.store.SaveAuctionDeal(aud); err != nil {
+	aud.ReadyAt = time.Unix(0, 0)
+
+	log.Debugf("moving %s deal to PendingConfirmation", ad.PayloadCid)
+	if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingConfirmation); err != nil {
 		return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
 	}
 
+	log.Debugf("reporting accepted deal of %s to the broker: %s", ad.PayloadCid, proposalCid)
 	if err := d.broker.StorageDealProposalAccepted(ctx, ad.StorageDealID, aud.Miner, proposalCid); err != nil {
 		return fmt.Errorf("signaling broker of accepted proposal %s: %s", proposalCid, err)
 	}

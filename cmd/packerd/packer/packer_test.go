@@ -222,7 +222,7 @@ func (bm *brokerMock) Create(context.Context, cid.Cid, broker.Metadata) (broker.
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) StorageDealFinalizedDeals(context.Context, []broker.FinalizedAuctionDeal) error {
+func (bm *brokerMock) StorageDealFinalizedDeal(context.Context, broker.FinalizedAuctionDeal) error {
 	panic("shouldn't be called")
 }
 

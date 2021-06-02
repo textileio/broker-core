@@ -41,8 +41,9 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		Verified:            false,
 		FastRetrieval:       true,
 	}
-	propCid, err := client.ExecuteAuctionDeal(ctx, ad, aud)
+	propCid, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud)
 	require.NoError(t, err)
+	require.False(t, retry)
 	fmt.Printf("propCid: %s", propCid)
 }
 

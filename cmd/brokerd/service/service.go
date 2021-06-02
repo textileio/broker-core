@@ -272,43 +272,36 @@ func (s *Service) StorageDealPrepared(
 	return &pb.StorageDealPreparedResponse{}, nil
 }
 
-// StorageDealFinalizedDeals reports the result of finalized deals.
-func (s *Service) StorageDealFinalizedDeals(
+// StorageDealFinalizedDeal reports the result of finalized deals.
+func (s *Service) StorageDealFinalizedDeal(
 	ctx context.Context,
-	r *pb.StorageDealFinalizedDealsRequest) (*pb.StorageDealFinalizedDealsResponse, error) {
+	r *pb.StorageDealFinalizedDealRequest) (*pb.StorageDealFinalizedDealResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	if len(r.FinalizedDeals) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "finalized deals list is empty")
+	if r.StorageDealId == "" {
+		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
+	}
+	if r.DealId <= 0 {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			"deal id is %d and should be positive",
+			r.DealId)
+	}
+	fad := broker.FinalizedAuctionDeal{
+		StorageDealID:  broker.StorageDealID(r.StorageDealId),
+		DealID:         r.DealId,
+		DealExpiration: r.DealExpiration,
+		Miner:          r.MinerId,
+		ErrorCause:     r.ErrorCause,
 	}
 
-	fads := make([]broker.FinalizedAuctionDeal, len(r.FinalizedDeals))
-	for i, fd := range r.FinalizedDeals {
-		if fd.StorageDealId == "" {
-			return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
-		}
-		if fd.DealId <= 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"deal id is %d and should be positive",
-				fd.DealId)
-		}
-		fads[i] = broker.FinalizedAuctionDeal{
-			StorageDealID:  broker.StorageDealID(fd.StorageDealId),
-			DealID:         fd.DealId,
-			DealExpiration: fd.DealExpiration,
-			Miner:          fd.MinerId,
-			ErrorCause:     fd.ErrorCause,
-		}
-	}
-
-	if err := s.broker.StorageDealFinalizedDeals(ctx, fads); err != nil {
+	if err := s.broker.StorageDealFinalizedDeal(ctx, fad); err != nil {
 		return nil, status.Errorf(codes.Internal, "processing finalized deals: %s", err)
 	}
 
-	return &pb.StorageDealFinalizedDealsResponse{}, nil
+	return &pb.StorageDealFinalizedDealResponse{}, nil
 }
 
 // Close gracefully closes the service.

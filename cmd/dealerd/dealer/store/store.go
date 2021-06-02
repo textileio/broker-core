@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -22,10 +21,15 @@ import (
 
 var (
 	// ErrNotFound is returned if the item isn't found in the store.
-	ErrNotFound = errors.New("key isn't found")
+	ErrNotFound = errors.New("key not found")
 
-	dsPrefixAuctionData = datastore.NewKey("/auction-data")
-	dsPrefixAuctionDeal = datastore.NewKey("/auction-deal")
+	dsPrefixAuctionData                      = datastore.NewKey("/auction-data")
+	dsPrefixAuctionDealPendingDealMaking     = datastore.NewKey("/auction-deal/pending-deal-making")
+	dsPrefixAuctionDealExecutingDealMaking   = datastore.NewKey("/auction-deal/executing-deal-making")
+	dsPrefixAuctionDealPendingConfirmation   = datastore.NewKey("/auction-deal/pending-confirmation")
+	dsPrefixAuctionDealExecutingConfirmation = datastore.NewKey("/auction-deal/executing-confirmation")
+	dsPrefixAuctionPendingReportFinalized    = datastore.NewKey("/auction-deal/pending-finalized")
+	dsPrefixAuctionExecutingReportFinalized  = datastore.NewKey("/auction-deal/executing-finalized")
 
 	log = logger.Logger("dealer/store")
 )
@@ -42,21 +46,26 @@ type AuctionData struct {
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
+
+	LinkedAuctionDeals int
 }
 
 // AuctionDealStatus is the type of action deal status.
 type AuctionDealStatus int
 
 const (
-	// Pending indicates that an auction data is ready for deal making.
-	Pending AuctionDealStatus = iota
-	// WaitingConfirmation indicates that an auction data deal should be monitored until is active on-chain.
-	WaitingConfirmation
-	// Error is a final status that indicates the deal process failed. More details about the error
-	// are found in the ErorCause field.
-	Error
-	// Success is a final status tha indicates the deal process succeeded.
-	Success
+	// PendingDealMaking indicates that an auction data is ready for deal making.
+	PendingDealMaking AuctionDealStatus = iota
+	// ExecutingDealMaking indicates that a deal is being executed.
+	ExecutingDealMaking
+	// PendingConfirmation indicates that a deal is pending to be confirmed.
+	PendingConfirmation
+	// ExecutingConfirmation indicates that a deal confirmation is being evaluated.
+	ExecutingConfirmation
+	// PendingReportFinalized indicates that a deal result is pending to be reported.
+	PendingReportFinalized
+	// ExecutingReportFinalized indicates that a deal result is being reported.
+	ExecutingReportFinalized
 )
 
 // AuctionDeal contains information to make a deal with a particular miner. The data information is stored
@@ -73,9 +82,11 @@ type AuctionDeal struct {
 
 	Status     AuctionDealStatus
 	ErrorCause string
+	Retries    int
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	ReadyAt   time.Time
 
 	ProposalCid    cid.Cid
 	DealID         int64
@@ -84,29 +95,22 @@ type AuctionDeal struct {
 
 // Store provides persistent storage for Bids.
 type Store struct {
-	ds      datastore.TxnDatastore
-	entropy *ulid.MonotonicEntropy
+	ds datastore.TxnDatastore
 
-	lock         sync.Mutex
-	auctionData  map[string]AuctionData
-	auctionDeals []AuctionDeal
+	lock    sync.Mutex
+	entropy *ulid.MonotonicEntropy
 }
 
 // New returns a *Store.
 func New(ds txndswrap.TxnDatastore) (*Store, error) {
 	s := &Store{
-		ds:          ds,
-		auctionData: map[string]AuctionData{},
+		ds: ds,
 	}
-	if err := s.loadCache(); err != nil {
-		return nil, fmt.Errorf("loading in-memory cache: %s", err)
-	}
-
 	return s, nil
 }
 
 // Create persist new auction data and a set of related auction deals.
-func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
+func (s *Store) Create(ad *AuctionData, ads []*AuctionDeal) error {
 	if err := validate(ad, ads); err != nil {
 		return fmt.Errorf("invalid auction data: %s", err)
 	}
@@ -124,7 +128,8 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 	}
 	ad.ID = newID
 	ad.CreatedAt = time.Now()
-	if err := s.save(txn, makeAuctionDataKey(ad.ID), ad); err != nil {
+	ad.LinkedAuctionDeals = len(ads)
+	if err := save(txn, makeAuctionDataKey(ad.ID), ad); err != nil {
 		return fmt.Errorf("saving auction data in datastore: %s", err)
 	}
 
@@ -136,9 +141,12 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 		}
 		ads[i].ID = newID
 		ads[i].AuctionDataID = ad.ID // Link with its AuctionData.
-		ads[i].Status = Pending
+		ads[i].Status = PendingDealMaking
 		ads[i].CreatedAt = ad.CreatedAt
-		if err := s.save(txn, makeAuctionDealKey(ads[i].ID), ads[i]); err != nil {
+		ads[i].ReadyAt = time.Unix(0, 0)
+
+		key, _ := makeAuctionDealKey(ads[i].ID, PendingDealMaking)
+		if err := save(txn, key, ads[i]); err != nil {
 			return fmt.Errorf("saving auction deal in datastore: %s", err)
 		}
 	}
@@ -147,134 +155,225 @@ func (s *Store) Create(ad AuctionData, ads []AuctionDeal) error {
 		return fmt.Errorf("committing transaction: %s", err)
 	}
 
-	// Include them in our in-memory cache.
-	s.lock.Lock()
-	s.auctionData[ad.ID] = ad
-	s.auctionDeals = append(s.auctionDeals, ads...)
-	// Re-sorting since the lock wasn't acquired at the start
-	// of the func for performance reasons, so many calls can race
-	// at different times concurrently.
-	sort.Slice(s.auctionDeals, func(i, j int) bool {
-		return s.auctionDeals[i].ID < s.auctionDeals[j].ID
-	})
-	s.lock.Unlock()
-
 	return nil
 }
 
-// SaveAuctionDeal persists a modified auction deal.
-func (s *Store) SaveAuctionDeal(aud AuctionDeal) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	cacheIdx := -1
-	for i := range s.auctionDeals {
-		if s.auctionDeals[i].ID == aud.ID {
-			cacheIdx = i
+// GetNext returns the next auction deal in the provided status. If non exist, it returns
+// false in the second parameter.
+func (s *Store) GetNext(status AuctionDealStatus) (AuctionDeal, bool, error) {
+	dsPrefix, err := getAuctionDealDSPrefix(status)
+	if err != nil {
+		return AuctionDeal{}, false, fmt.Errorf("get auction deal datastore prefix: %s", err)
+	}
+
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return AuctionDeal{}, false, fmt.Errorf("creating txn: %s", err)
+	}
+	defer txn.Discard()
+
+	// 1. Get the first available result for the status.
+	q := query.Query{Prefix: dsPrefix.String()}
+	res, err := txn.Query(q)
+	if err != nil {
+		return AuctionDeal{}, false, fmt.Errorf("creating query: %s", err)
+	}
+	defer func() {
+		if err := res.Close(); err != nil {
+			log.Errorf("closing query result: %s", err)
+		}
+	}()
+
+	now := time.Now()
+	var found bool
+	var ad AuctionDeal
+	var oldKey datastore.Key
+	for item := range res.Next() {
+		if item.Error != nil {
+			return AuctionDeal{}, false, fmt.Errorf("get query item: %s", item.Error)
+		}
+		d := gob.NewDecoder(bytes.NewReader(item.Value))
+		if err := d.Decode(&ad); err != nil {
+			return AuctionDeal{}, false, fmt.Errorf("unmarshaling gob: %s", err)
+		}
+
+		// This must never happen since each status
+		// lives in the queried datastore namespace key.
+		// Do the paranoid check.
+		if ad.Status != status {
+			return AuctionDeal{}, false, fmt.Errorf("status doesn't match got %s expected %s", ad.Status, status)
+		}
+
+		if ad.ReadyAt.Before(now) {
+			oldKey = datastore.NewKey(item.Key)
+			found = true
 			break
 		}
 	}
-	if cacheIdx == -1 {
+	if !found {
+		return AuctionDeal{}, false, nil
+	}
+
+	// 2. To "lock" the item, we move to the next status (PendingXXX -> ExecutingXXX).
+	//    Delete it from the current key, and insert it to the new one.
+	if err := txn.Delete(oldKey); err != nil {
+		return AuctionDeal{}, false, fmt.Errorf("deleting from current key: %s", err)
+	}
+
+	switch ad.Status {
+	case PendingDealMaking:
+		ad.Status = ExecutingDealMaking
+	case PendingConfirmation:
+		ad.Status = ExecutingConfirmation
+	case PendingReportFinalized:
+		ad.Status = ExecutingReportFinalized
+	default:
+		return AuctionDeal{}, false, fmt.Errorf("invalid get-next status %s", ad.Status)
+	}
+	ad.UpdatedAt = time.Now()
+
+	newKey, err := makeAuctionDealKey(ad.ID, ad.Status)
+	if err != nil {
+		return AuctionDeal{}, false, fmt.Errorf("creating new key: %s", err)
+	}
+	if err := save(txn, newKey, ad); err != nil {
+		return AuctionDeal{}, false, fmt.Errorf("save moved auction deal: %s", err)
+	}
+
+	if err := txn.Commit(); err != nil {
+		return AuctionDeal{}, false, fmt.Errorf("committing txn: %s", err)
+	}
+
+	return ad, true, nil
+}
+
+// SaveAndMoveAuctionDeal persists a modified auction deal, and move it to the provided status.
+func (s *Store) SaveAndMoveAuctionDeal(aud AuctionDeal, newStatus AuctionDealStatus) error {
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating txn: %s", err)
+	}
+	defer txn.Discard()
+
+	if err := areAllExpectedFieldsSet(aud); err != nil {
+		return fmt.Errorf("validating that expected fields are set for new status: %s", err)
+	}
+
+	currentKey, err := makeAuctionDealKey(aud.ID, aud.Status)
+	if err != nil {
+		return fmt.Errorf("generating current datastore key %s %s", aud.ID, aud.Status)
+	}
+
+	exists, err := txn.Has(currentKey)
+	if err != nil {
+		return fmt.Errorf("checking key %s: %s", currentKey, err)
+	}
+	if !exists {
 		return ErrNotFound
 	}
-	currentAud := s.auctionDeals[cacheIdx]
 
-	if currentAud.Status != aud.Status {
-		if err := isValidStatusChange(currentAud.Status, aud); err != nil {
-			return fmt.Errorf("invalid status change: %s", err)
-		}
+	// Remove from current datastore namespace.
+	if err := txn.Delete(currentKey); err != nil {
+		return fmt.Errorf("deleting current record: %s", err)
 	}
 
+	aud.Status = newStatus
 	aud.UpdatedAt = time.Now()
-	if err := s.save(s.ds, makeAuctionDealKey(aud.ID), aud); err != nil {
+
+	// Save again in the new datastore namespace.
+	newKey, err := makeAuctionDealKey(aud.ID, aud.Status)
+	if err != nil {
+		return fmt.Errorf("generating new auction deal key %s %s", aud.ID, aud.Status)
+	}
+	if err := save(txn, newKey, aud); err != nil {
 		return fmt.Errorf("saving auction deal status change: %s", err)
 	}
 
-	// After we're sure was updated in the datastore, update it in the cache.
-	s.auctionDeals[cacheIdx] = aud
-
-	return nil
-}
-
-// GetAllAuctionDeals returns all auction deals with a particular status.
-func (s *Store) GetAllAuctionDeals(status AuctionDealStatus) ([]AuctionDeal, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	var res []AuctionDeal
-	for _, aud := range s.auctionDeals {
-		if aud.Status != status {
-			continue
-		}
-		res = append(res, aud)
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
-	return res, nil
+	return nil
 }
 
 // GetAuctionData returns an auction data by id. If not found returns ErrNotFound.
 func (s *Store) GetAuctionData(auctionDataID string) (AuctionData, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	ad, ok := s.auctionData[auctionDataID]
-	if !ok {
-		return AuctionData{}, ErrNotFound
+	var ad AuctionData
+	if err := get(s.ds, makeAuctionDataKey(auctionDataID), &ad); err != nil {
+		return AuctionData{}, err
 	}
+
 	return ad, nil
 }
 
-// RemoveAuctionDeals removes the provided auction deals. If the corresponding auction data isn't linked
-// with any remaining auction deal, then those are also removed.
-func (s *Store) RemoveAuctionDeals(ads []AuctionDeal) error {
-	for _, aud := range ads {
-		if aud.Status != Error && aud.Status != Success {
-			return fmt.Errorf("only auction deals in final status can be removed")
-		}
-		if err := s.ds.Delete(makeAuctionDealKey(aud.ID)); err != nil {
-			return fmt.Errorf("deleting auction deal: %s", err)
-		}
-		s.lock.Lock()
-		for i := range s.auctionDeals {
-			if s.auctionDeals[i].ID == aud.ID {
-				s.auctionDeals = append(s.auctionDeals[:i], s.auctionDeals[i+1:]...)
-				break
-			}
-		}
-		s.lock.Unlock()
+// RemoveAuctionDeal removes the provided auction deal. If the corresponding auction data isn't linked
+// with any remaining auction deals, then is also removed.
+func (s *Store) RemoveAuctionDeal(aud AuctionDeal) error {
+	if aud.Status != ExecutingReportFinalized {
+		return fmt.Errorf("only auction deals in final status can be removed")
 	}
 
-	// Investigate AuctionData that are still alive, so we can GC orpahaned
-	// AuctionData that we can also delete.
-	aliveADs := map[string]struct{}{}
-	s.lock.Lock()
-	for _, aud := range s.auctionDeals {
-		aliveADs[aud.AuctionDataID] = struct{}{}
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating txn: %s", err)
 	}
-	var deletableADs []string
-	for adID := range s.auctionData {
-		if _, ok := aliveADs[adID]; !ok {
-			deletableADs = append(deletableADs, adID)
-		}
-	}
-	s.lock.Unlock()
+	defer txn.Discard()
 
-	for _, id := range deletableADs {
-		if err := s.ds.Delete(makeAuctionDataKey(id)); err != nil {
-			return fmt.Errorf("deleting auction data: %s", err)
+	// 1. Remove the auction deal.
+	key, err := makeAuctionDealKey(aud.ID, aud.Status)
+	if err != nil {
+		return fmt.Errorf("generating auction deal key %s %s", aud.ID, aud.Status)
+	}
+	if err := s.ds.Delete(key); err != nil {
+		return fmt.Errorf("deleting auction deal: %s", err)
+	}
+
+	// 2. Get the related AuctionData. If after decreased the counter of linked AuctionDeals
+	//    we get 0, then proceed to also delete it (since nobody will use it again).
+	var ad AuctionData
+	adKey := makeAuctionDataKey(aud.AuctionDataID)
+	if err := get(txn, adKey, &ad); err != nil {
+		return fmt.Errorf("get linked auction data: %s", err)
+	}
+	ad.LinkedAuctionDeals--
+	if ad.LinkedAuctionDeals == 0 {
+		if err := txn.Delete(adKey); err != nil {
+			return fmt.Errorf("deleting orphaned auction data: %s", err)
 		}
-		s.lock.Lock()
-		delete(s.auctionData, id)
-		s.lock.Unlock()
+	} else {
+		if err := save(txn, adKey, ad); err != nil {
+			return fmt.Errorf("saving updated auction data: %s", err)
+		}
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("committing txn: %s", err)
 	}
 
 	return nil
 }
 
-func (s *Store) save(dsWrite datastore.Write, id datastore.Key, b interface{}) error {
+func get(dsRead datastore.Read, key datastore.Key, b interface{}) error {
+	buf, err := dsRead.Get(key)
+	if err == datastore.ErrNotFound {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get value from datastore: %s", err)
+	}
+	d := gob.NewDecoder(bytes.NewReader(buf))
+	if err := d.Decode(b); err != nil {
+		return fmt.Errorf("unmarshaling gob: %s", err)
+	}
+	return nil
+}
+
+func save(dsWrite datastore.Write, key datastore.Key, b interface{}) error {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(b); err != nil {
 		return fmt.Errorf("gob encoding: %s", err)
 	}
-	if err := dsWrite.Put(id, buf.Bytes()); err != nil {
+	if err := dsWrite.Put(key, buf.Bytes()); err != nil {
 		return fmt.Errorf("put in datastore: %s", err)
 	}
 
@@ -301,67 +400,7 @@ func (s *Store) newID() (string, error) {
 	return strings.ToLower(id.String()), nil
 }
 
-func (s *Store) loadCache() error {
-	// AuctionData
-	log.Debugf("loading auction data")
-	q := query.Query{
-		Prefix: dsPrefixAuctionData.String(),
-		Orders: []query.Order{query.OrderByKey{}},
-	}
-	res, err := s.ds.Query(q)
-	if err != nil {
-		return fmt.Errorf("creating query: %s", err)
-	}
-	defer func() {
-		if err := res.Close(); err != nil {
-			log.Errorf("closing query result: %s", err)
-		}
-	}()
-
-	for item := range res.Next() {
-		if item.Error != nil {
-			return fmt.Errorf("fetching auction data item result: %s", item.Error)
-		}
-		var ad AuctionData
-		d := gob.NewDecoder(bytes.NewReader(item.Value))
-		if err := d.Decode(&ad); err != nil {
-			return fmt.Errorf("unmarshaling gob: %s", err)
-		}
-		s.auctionData[item.Key] = ad
-	}
-
-	// AuctionDeals
-	log.Debugf("loading auction deals")
-	q = query.Query{
-		Prefix: dsPrefixAuctionDeal.String(),
-		Orders: []query.Order{query.OrderByKey{}},
-	}
-	res, err = s.ds.Query(q)
-	if err != nil {
-		return fmt.Errorf("creating query: %s", err)
-	}
-	defer func() {
-		if err := res.Close(); err != nil {
-			log.Errorf("closing query result: %s", err)
-		}
-	}()
-
-	for item := range res.Next() {
-		if item.Error != nil {
-			return fmt.Errorf("fetching auction deal item result: %s", item.Error)
-		}
-		var ad AuctionDeal
-		d := gob.NewDecoder(bytes.NewReader(item.Value))
-		if err := d.Decode(&ad); err != nil {
-			return fmt.Errorf("unmarshaling gob: %s", err)
-		}
-		s.auctionDeals = append(s.auctionDeals, ad)
-	}
-
-	return nil
-}
-
-func validate(ad AuctionData, ads []AuctionDeal) error {
+func validate(ad *AuctionData, ads []*AuctionDeal) error {
 	if ad.Duration <= 0 {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
 	}
@@ -393,32 +432,29 @@ func validate(ad AuctionData, ads []AuctionDeal) error {
 	return nil
 }
 
-func isValidStatusChange(pre AuctionDealStatus, aud AuctionDeal) error {
-	switch pre {
-	case Pending:
-		if aud.Status != WaitingConfirmation {
-			return fmt.Errorf("expecting WaitingConfirmation but found: %s", aud.Status)
-		}
-		if !aud.ProposalCid.Defined() {
+func areAllExpectedFieldsSet(ad AuctionDeal) error {
+	switch ad.Status {
+	case PendingDealMaking, ExecutingDealMaking:
+		// Nothing to validate.
+	case PendingConfirmation, ExecutingConfirmation:
+		if !ad.ProposalCid.Defined() {
 			return errors.New("proposal cid should be set to transition to WaitingConfirmation")
 		}
-	case WaitingConfirmation:
-		if aud.Status != Error && aud.Status != Success {
-			return fmt.Errorf("expecting final status but found: %s", aud.Status)
+	case PendingReportFinalized:
+		if ad.ErrorCause == "" { // Success
+			if ad.DealID == 0 {
+				return errors.New("a success status should have a defined deal-id")
+			}
+			if ad.DealExpiration == 0 {
+				return errors.New("a success status should have a defined deal-expiration")
+			}
+			if ad.ErrorCause != "" {
+				return fmt.Errorf("a success status can't have an error cause: %s", ad.ErrorCause)
+			}
 		}
-		if aud.Status == Error && aud.ErrorCause == "" {
-			return errors.New("an error status should have an error cause")
-		}
-		if aud.Status == Success && aud.ErrorCause != "" {
-			return fmt.Errorf("a success status can't have an error cause: %s", aud.ErrorCause)
-		}
-	case Success:
-	case Error:
-		return fmt.Errorf("error/success status are final, so %s isn't allowed", aud.Status)
 	default:
-		return fmt.Errorf("unknown status: %s", aud.Status)
+		return fmt.Errorf("unknown status: %s", ad.Status)
 	}
-
 	return nil
 }
 
@@ -426,21 +462,83 @@ func makeAuctionDataKey(id string) datastore.Key {
 	return dsPrefixAuctionData.ChildString(id)
 }
 
-func makeAuctionDealKey(id string) datastore.Key {
-	return dsPrefixAuctionDeal.ChildString(id)
+func makeAuctionDealKey(id string, status AuctionDealStatus) (datastore.Key, error) {
+	prefix, err := getAuctionDealDSPrefix(status)
+	if err != nil {
+		return datastore.Key{}, err
+	}
+	return prefix.ChildString(id), nil
+}
+
+func getAuctionDealDSPrefix(status AuctionDealStatus) (datastore.Key, error) {
+	switch status {
+	case PendingDealMaking:
+		return dsPrefixAuctionDealPendingDealMaking, nil
+	case ExecutingDealMaking:
+		return dsPrefixAuctionDealExecutingDealMaking, nil
+	case PendingConfirmation:
+		return dsPrefixAuctionDealPendingConfirmation, nil
+	case ExecutingConfirmation:
+		return dsPrefixAuctionDealExecutingConfirmation, nil
+	case PendingReportFinalized:
+		return dsPrefixAuctionPendingReportFinalized, nil
+	case ExecutingReportFinalized:
+		return dsPrefixAuctionExecutingReportFinalized, nil
+
+	default:
+		return datastore.Key{}, fmt.Errorf("unknown status: %s", status)
+	}
 }
 
 func (ads AuctionDealStatus) String() string {
 	switch ads {
-	case Pending:
-		return "Pending"
-	case WaitingConfirmation:
-		return "WaitingConfirmation"
-	case Success:
-		return "Success"
-	case Error:
-		return "Error"
+	case PendingDealMaking:
+		return "PendingDealMaking"
+	case ExecutingDealMaking:
+		return "ExecutingDealMaking"
+	case PendingConfirmation:
+		return "PendingConfirmation"
+	case ExecutingConfirmation:
+		return "ExecutingConfirmation"
+	case PendingReportFinalized:
+		return "PendingReportFinalized"
+	case ExecutingReportFinalized:
+		return "ExecutingReportFinalied"
 	default:
 		panic("unknown deal status")
 	}
+}
+
+// getAllPending is a method only to be used in tests.
+func (s *Store) getAllPending() ([]AuctionDeal, error) {
+	dsPrefix, err := getAuctionDealDSPrefix(PendingDealMaking)
+	if err != nil {
+		return nil, fmt.Errorf("get auction deal datastore prefix: %s", err)
+	}
+
+	q := query.Query{Prefix: dsPrefix.String()}
+	res, err := s.ds.Query(q)
+	if err != nil {
+		return nil, fmt.Errorf("creating query: %s", err)
+	}
+	defer func() {
+		if err := res.Close(); err != nil {
+			log.Errorf("closing query result: %s", err)
+		}
+	}()
+
+	var ads []AuctionDeal
+	for item := range res.Next() {
+		if item.Error != nil {
+			return nil, fmt.Errorf("get query item: %s", item.Error)
+		}
+		d := gob.NewDecoder(bytes.NewReader(item.Value))
+		var ad AuctionDeal
+		if err := d.Decode(&ad); err != nil {
+			return nil, fmt.Errorf("unmarshaling gob: %s", err)
+		}
+		ads = append(ads, ad)
+	}
+
+	return ads, nil
 }

@@ -56,19 +56,15 @@ message StorageDealPreparedRequest {
 message StorageDealPreparedResponse {
 }
 
-message StorageDealFinalizedDealsRequest {
-  repeated FinalizedDeal finalized_deals = 1;
-
-  message FinalizedDeal {
+message StorageDealFinalizedDealRequest {
     string storage_deal_id = 1;
     int64 deal_id = 2;
     uint64 deal_expiration = 3;
     string miner_id = 4;
     string error_cause = 5;
-  }
 }
 
-message StorageDealFinalizedDealsResponse {
+message StorageDealFinalizedDealResponse {
 }
 
 message BrokerRequest {
@@ -99,7 +95,7 @@ service APIService {
   rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}
   rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
-  rpc StorageDealFinalizedDeals(StorageDealFinalizedDealsRequest) returns (StorageDealFinalizedDealsResponse) {}
+  rpc StorageDealFinalizedDeal(StorageDealFinalizedDealRequest) returns (StorageDealFinalizedDealResponse) {}
   rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
   rpc StorageDealPrepared(StorageDealPreparedRequest) returns (StorageDealPreparedResponse) {}
 }

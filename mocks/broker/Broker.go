@@ -93,12 +93,12 @@ func (_m *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Aucti
 	return r0
 }
 
-// StorageDealFinalizedDeals provides a mock function with given fields: ctx, res
-func (_m *Broker) StorageDealFinalizedDeals(ctx context.Context, res []broker.FinalizedAuctionDeal) error {
+// StorageDealFinalizedDeal provides a mock function with given fields: ctx, res
+func (_m *Broker) StorageDealFinalizedDeal(ctx context.Context, res broker.FinalizedAuctionDeal) error {
 	ret := _m.Called(ctx, res)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []broker.FinalizedAuctionDeal) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, broker.FinalizedAuctionDeal) error); ok {
 		r0 = rf(ctx, res)
 	} else {
 		r0 = ret.Error(0)

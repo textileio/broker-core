@@ -84,18 +84,3 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 		UpdatedAt:     timestamppb.New(br.UpdatedAt),
 	}, nil
 }
-
-// FinalizedDealsToPb casts broker.FinalizedAuctionDeal to its proto representation.
-func FinalizedDealsToPb(fads []broker.FinalizedAuctionDeal) []*pb.StorageDealFinalizedDealsRequest_FinalizedDeal {
-	res := make([]*pb.StorageDealFinalizedDealsRequest_FinalizedDeal, len(fads))
-	for i, fad := range fads {
-		res[i] = &pb.StorageDealFinalizedDealsRequest_FinalizedDeal{
-			StorageDealId:  string(fad.StorageDealID),
-			DealId:         fad.DealID,
-			DealExpiration: fad.DealExpiration,
-			ErrorCause:     fad.ErrorCause,
-		}
-	}
-
-	return res
-}
