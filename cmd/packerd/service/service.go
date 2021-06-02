@@ -37,6 +37,7 @@ type Config struct {
 
 	BatchFrequency   time.Duration
 	TargetSectorSize int64
+	BatchMinSize     uint
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -79,6 +80,7 @@ func New(conf Config) (*Service, error) {
 	opts := []packer.Option{
 		packer.WithFrequency(conf.BatchFrequency),
 		packer.WithSectorSize(conf.TargetSectorSize),
+		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
 	lib, err := packer.New(ds, ipfsClient, brokerClient, opts...)
 	if err != nil {
