@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: near-01
+spec:
+  template:
+    spec:
+      containers:
+        - name: near
+          env:
+            - name: NEAR_CLIENT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: near-client-private-key
