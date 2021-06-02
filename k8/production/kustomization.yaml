@@ -45,3 +45,4 @@ patchesStrategicMerge:
 - dealerd-patch.yaml
 - auctioneerd-patch.yaml
 - neard-patch.yaml
+- piecer-patch.yaml
