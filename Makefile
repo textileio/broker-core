@@ -13,7 +13,7 @@ lint: $(GOLANGCI_LINT)
 .PHONYY: lint
 
 build: $(GOVVV)
-	go build -ldflags="${GOVVV_FLAGS}" ./...
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: build
 
 build-storaged: $(GOVVV)
@@ -49,7 +49,7 @@ build-piecerd: $(GOVVV)
 .PHONY: build-piecerd
 
 build-dealerd: $(GOVVV)
-	go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
 .PHONY: build-dealerd
 
 

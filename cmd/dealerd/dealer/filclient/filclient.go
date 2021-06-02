@@ -18,6 +18,7 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	logger "github.com/ipfs/go-log/v2"
+	"github.com/jsign/go-filsigner/wallet"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -26,7 +27,6 @@ import (
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multibase"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/sigs/secp"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/metrics"
@@ -238,7 +238,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 		return nil, err
 	}
 
-	sig, err := secp.Sign(fc.conf.privKey, cidb)
+	sig, err := wallet.WalletSign(fc.conf.exportedHexKey, cidb)
 	if err != nil {
 		return nil, fmt.Errorf("signing status request failed: %w", err)
 	}
@@ -316,7 +316,7 @@ func (fc *FilClient) createDealProposal(
 	if err != nil {
 		return nil, err
 	}
-	sig, err := secp.Sign(fc.conf.privKey, raw)
+	sig, err := wallet.WalletSign(fc.conf.exportedHexKey, raw)
 	if err != nil {
 		return nil, err
 	}
