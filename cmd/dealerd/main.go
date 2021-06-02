@@ -64,7 +64,7 @@ var rootCmd = &cobra.Command{
 			MongoDBName: v.GetString("mongo-dbname"),
 
 			LotusGatewayURL:         v.GetString("lotus-gateway-url"),
-			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-addr"),
+			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-address"),
 
 			Mock: v.GetBool("mock"),
 		}
