@@ -228,12 +228,6 @@ func ProposalsTopic(pid peer.ID) string {
 	return path.Join(AuctionTopic, pid.String(), "proposals")
 }
 
-// AcksTopic is used to acknowledge publishers that a message was received.
-// "<base_topic>/<publisher_peer_id>/acks".
-func AcksTopic(base string, pid peer.ID) string {
-	return path.Join(base, pid.String(), "acks")
-}
-
 // AuctionID is a unique identifier for an Auction.
 type AuctionID string
 
@@ -249,9 +243,10 @@ type Auction struct {
 	Bids            map[BidID]Bid
 	WinningBids     map[BidID]WinningBid
 	StartedAt       time.Time
+	UpdatedAt       time.Time
 	Duration        time.Duration
 	Attempts        uint32
-	Error           string
+	ErrorCause      string
 }
 
 // AuctionStatus is the status of an auction.

@@ -9,6 +9,7 @@ import (
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
+	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
@@ -182,6 +183,11 @@ func (p *Peer) Host() host.Host {
 func (p *Peer) Bootstrap() {
 	p.peer.Bootstrap(p.bootstrap)
 	log.Info("peer was bootstapped")
+}
+
+// DAGService returns the underlying format.DAGService.
+func (p *Peer) DAGService() format.DAGService {
+	return p.peer
 }
 
 // NewTopic returns a new pubsub.Topic using the peer's host.

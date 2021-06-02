@@ -24,9 +24,10 @@ func AuctionToPb(a broker.Auction) *pb.Auction {
 		Bids:            AuctionBidsToPb(a.Bids),
 		WinningBids:     AuctionWinningBidsToPb(a.WinningBids),
 		StartedAt:       timestamppb.New(a.StartedAt),
+		UpdatedAt:       timestamppb.New(a.UpdatedAt),
 		Duration:        int64(a.Duration),
 		Attempts:        a.Attempts,
-		Error:           a.Error,
+		Error:           a.ErrorCause,
 	}
 	return pba
 }
@@ -106,9 +107,10 @@ func AuctionFromPb(pba *pb.Auction) (broker.Auction, error) {
 		Bids:            bids,
 		WinningBids:     wbids,
 		StartedAt:       pba.StartedAt.AsTime(),
+		UpdatedAt:       pba.UpdatedAt.AsTime(),
 		Duration:        time.Duration(pba.Duration),
 		Attempts:        pba.Attempts,
-		Error:           pba.Error,
+		ErrorCause:      pba.Error,
 	}
 	return a, nil
 }

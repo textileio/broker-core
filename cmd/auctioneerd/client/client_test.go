@@ -109,16 +109,8 @@ func TestClient_RunAuction(t *testing.T) {
 	time.Sleep(time.Second * 15) // Allow to finish
 
 	got, err = c.GetAuction(context.Background(), id)
-	require.NoError(t, err)
-	assert.Equal(t, id, got.ID)
-	assert.Equal(t, core.AuctionStatusEnded, got.Status)
-	require.Len(t, got.WinningBids, 2)
-	for id, wb := range got.WinningBids {
-		assert.NotNil(t, got.Bids[id])
-		assert.True(t, wb.Acknowledged)
-		assert.True(t, wb.ProposalCidAcknowledged)
-		assert.True(t, wb.ProposalCid.Equals(pcid))
-	}
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), auctioneer.ErrAuctionNotFound.Error())
 }
 
 func newClient(t *testing.T, attempts uint32) *client.Client {
@@ -203,7 +195,7 @@ func addMiners(t *testing.T, n int) {
 			},
 		}
 
-		s, err := bidbotsrv.New(config, newFilClientMock())
+		s, err := bidbotsrv.New(config, nil, newFilClientMock())
 		require.NoError(t, err)
 		err = s.Subscribe(false)
 		require.NoError(t, err)

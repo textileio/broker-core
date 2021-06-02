@@ -67,7 +67,6 @@ type Auctioneer struct {
 	peer     *marketpeer.Peer
 	fc       FilClient
 	auctions *pubsub.Topic
-	bids     map[core.AuctionID]chan core.Bid
 
 	broker core.Broker
 
@@ -96,17 +95,13 @@ func New(
 	a := &Auctioneer{
 		peer:        peer,
 		fc:          fc,
-		bids:        make(map[core.AuctionID]chan core.Bid),
 		broker:      broker,
 		auctionConf: auctionConf,
 		finalizer:   finalizer.NewFinalizer(),
 	}
 	a.initMetrics()
 
-	queue, err := q.NewQueue(store, a.runAuction, a.finalizeAuction, auctionConf.Attempts)
-	if err != nil {
-		return nil, a.finalizer.Cleanupf("creating queue: %v", err)
-	}
+	queue := q.NewQueue(store, a.runAuction, a.finalizeAuction, auctionConf.Attempts)
 	a.finalizer.Add(queue)
 	a.queue = queue
 
@@ -220,19 +215,6 @@ func (a *Auctioneer) runAuction(
 	auction core.Auction,
 	addBid func(bid core.Bid) (core.BidID, error),
 ) (map[core.BidID]core.WinningBid, error) {
-	a.lk.Lock()
-	if _, ok := a.bids[auction.ID]; ok {
-		a.lk.Unlock()
-		return nil, fmt.Errorf("auction %s already started", auction.ID)
-	}
-	resCh := make(chan core.Bid)
-	a.bids[auction.ID] = resCh
-	a.lk.Unlock()
-	defer func() {
-		a.lk.Lock()
-		delete(a.bids, auction.ID)
-		a.lk.Unlock()
-	}()
 	log.Debugf("auction %s started", auction.ID)
 
 	// No need to re-auction if we have enough bids; just notify winners.
@@ -262,7 +244,56 @@ func (a *Auctioneer) runAuction(
 	}
 	defer func() { _ = topic.Close() }()
 	topic.SetEventHandler(a.eventHandler)
-	topic.SetMessageHandler(a.bidsHandler)
+
+	bids := make(map[core.BidID]core.Bid)
+	bidsHandler := func(from peer.ID, _ string, msg []byte) ([]byte, error) {
+		if from.Validate() != nil {
+			return nil, fmt.Errorf("invalid bidder: %s", from)
+		}
+
+		pbid := &pb.Bid{}
+		if err := proto.Unmarshal(msg, pbid); err != nil {
+			return nil, fmt.Errorf("unmarshaling message: %v", err)
+		}
+
+		bid := core.Bid{
+			MinerAddr:        pbid.MinerAddr,
+			WalletAddrSig:    pbid.WalletAddrSig,
+			BidderID:         from,
+			AskPrice:         pbid.AskPrice,
+			VerifiedAskPrice: pbid.VerifiedAskPrice,
+			StartEpoch:       pbid.StartEpoch,
+			FastRetrieval:    pbid.FastRetrieval,
+			ReceivedAt:       time.Now(),
+		}
+
+		ok, err := a.fc.VerifyBidder(bid.WalletAddrSig, bid.BidderID, bid.MinerAddr)
+		if err != nil {
+			return nil, fmt.Errorf("verifying miner address: %v", err)
+		}
+		if !ok {
+			return nil, fmt.Errorf("invalid miner address or signature")
+		}
+
+		var price int64
+		if auction.DealVerified {
+			price = bid.VerifiedAskPrice
+		} else {
+			price = bid.AskPrice
+		}
+		log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
+
+		id, err := addBid(bid)
+		if err != nil {
+			log.Errorf("adding bid to auction %s: %v", auction.ID, err)
+		} else {
+			bids[id] = bid
+			a.metricNewBid.Add(ctx, 1)
+		}
+
+		return []byte(id), nil
+	}
+	topic.SetMessageHandler(bidsHandler)
 
 	// Set deadline
 	deadline := auction.StartedAt.Add(auction.Duration)
@@ -277,11 +308,10 @@ func (a *Auctioneer) runAuction(
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message: %v", err)
 	}
-	if err := a.auctions.Publish(ctx, msg, 0); err != nil {
+	if _, err := a.auctions.Publish(ctx, msg, 0); err != nil {
 		return nil, fmt.Errorf("publishing auction: %v", err)
 	}
 
-	bids := make(map[core.BidID]core.Bid)
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	for {
@@ -304,23 +334,23 @@ func (a *Auctioneer) runAuction(
 				return nil, fmt.Errorf("notifying winners: %v", err)
 			}
 			return winners, nil
-		case bid, ok := <-resCh:
-			if ok {
-				var price int64
-				if auction.DealVerified {
-					price = bid.VerifiedAskPrice
-				} else {
-					price = bid.AskPrice
-				}
-				log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
-				id, err := addBid(bid)
-				if err != nil {
-					log.Errorf("adding bid to auction %s: %v", auction.ID, err)
-				} else {
-					bids[id] = bid
-					a.metricNewBid.Add(ctx, 1)
-				}
-			}
+			// case bid, ok := <-resCh:
+			// 	if ok {
+			// 		var price int64
+			// 		if auction.DealVerified {
+			// 			price = bid.VerifiedAskPrice
+			// 		} else {
+			// 			price = bid.AskPrice
+			// 		}
+			// 		log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
+			// 		id, err := addBid(bid)
+			// 		if err != nil {
+			// 			log.Errorf("adding bid to auction %s: %v", auction.ID, err)
+			// 		} else {
+			// 			bids[id] = bid
+			// 			a.metricNewBid.Add(ctx, 1)
+			// 		}
+			// 	}
 		}
 	}
 }
@@ -344,45 +374,6 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
 	if topic == core.AuctionTopic && string(msg) == "JOINED" {
 		a.peer.Host().ConnManager().Protect(from, "auctioneer:<bidder>")
-	}
-}
-
-func (a *Auctioneer) bidsHandler(from peer.ID, _ string, msg []byte) {
-	if from.Validate() != nil {
-		log.Warnf("invalid bidder: %s", from)
-		return
-	}
-
-	bid := &pb.Bid{}
-	if err := proto.Unmarshal(msg, bid); err != nil {
-		log.Errorf("unmarshaling message: %v", err)
-		return
-	}
-
-	ok, err := a.fc.VerifyBidder(bid.WalletAddrSig, from, bid.MinerAddr)
-	if err != nil {
-		log.Errorf("verifying miner address: %v", err)
-		return
-	}
-	if !ok {
-		log.Warn("invalid miner address or signature")
-		return
-	}
-
-	a.lk.Lock()
-	defer a.lk.Unlock()
-	ch, ok := a.bids[core.AuctionID(bid.AuctionId)]
-	if ok {
-		ch <- core.Bid{
-			MinerAddr:        bid.MinerAddr,
-			WalletAddrSig:    bid.WalletAddrSig,
-			BidderID:         from,
-			AskPrice:         bid.AskPrice,
-			VerifiedAskPrice: bid.VerifiedAskPrice,
-			StartEpoch:       bid.StartEpoch,
-			FastRetrieval:    bid.FastRetrieval,
-			ReceivedAt:       time.Now(),
-		}
 	}
 }
 
@@ -555,7 +546,7 @@ func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	if err := topic.Publish(ctx, msg, ackTimeout); err != nil {
+	if _, err := topic.Publish(ctx, msg, ackTimeout); err != nil {
 		return fmt.Errorf("publishing to %s: %v", bidder, err)
 	}
 	return nil
@@ -583,7 +574,7 @@ func (a *Auctioneer) publishProposal(
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	if err := topic.Publish(ctx, msg, ackTimeout); err != nil {
+	if _, err := topic.Publish(ctx, msg, ackTimeout); err != nil {
 		return fmt.Errorf("publishing to %s: %v", bidder, err)
 	}
 	return nil

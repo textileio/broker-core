@@ -115,8 +115,7 @@ func newQueue(t *testing.T) *Queue {
 	require.NoError(t, err)
 	s, err := badger.NewDatastore(dir, &badger.DefaultOptions)
 	require.NoError(t, err)
-	q, err := NewQueue(s, runner, finalizer, 2)
-	require.NoError(t, err)
+	q := NewQueue(s, runner, finalizer, 2)
 	t.Cleanup(func() {
 		require.NoError(t, q.Close())
 		require.NoError(t, s.Close())

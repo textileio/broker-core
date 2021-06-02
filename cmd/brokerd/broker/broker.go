@@ -277,7 +277,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 	// and also signal the store to liberate the underlying broker requests to Pending.
 	// This way they can be signaled to be re-batched.
 	if auction.Status == broker.AuctionStatusError {
-		if err := b.errorStorageDealAndRebatch(ctx, auction.StorageDealID, auction.Error); err != nil {
+		if err := b.errorStorageDealAndRebatch(ctx, auction.StorageDealID, auction.ErrorCause); err != nil {
 			return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 		}
 		return nil

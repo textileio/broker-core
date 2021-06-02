@@ -226,7 +226,10 @@ func TestStorageDealAuctioned(t *testing.T) {
 		DealVerified:    true,
 		Status:          broker.AuctionStatusEnded,
 		Bids:            bids,
-		WinningBids:     []broker.BidID{broker.BidID("Bid1"), broker.BidID("Bid2")},
+		WinningBids: map[broker.BidID]broker.WinningBid{
+			broker.BidID("Bid1"): {},
+			broker.BidID("Bid2"): {},
+		},
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)
@@ -303,7 +306,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 		DealReplication: 1,
 		DealVerified:    true,
 		Status:          broker.AuctionStatusError,
-		Error:           "reached max retries",
+		ErrorCause:      "reached max retries",
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)
@@ -312,7 +315,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.StorageDealError, sd2.Status)
-	require.Equal(t, auction.Error, sd2.Error)
+	require.Equal(t, auction.ErrorCause, sd2.Error)
 
 	// 4- Verify that Dealer was NOT called
 	require.Equal(t, broker.StorageDealID(""), dealerd.calledAuctionDeals.StorageDealID)
@@ -382,7 +385,10 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		DealReplication: 2,
 		Status:          broker.AuctionStatusEnded,
 		Bids:            bids,
-		WinningBids:     []broker.BidID{broker.BidID("Bid1"), broker.BidID("Bid2")},
+		WinningBids: map[broker.BidID]broker.WinningBid{
+			broker.BidID("Bid1"): {},
+			broker.BidID("Bid2"): {},
+		},
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)

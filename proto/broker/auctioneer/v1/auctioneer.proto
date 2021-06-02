@@ -15,9 +15,10 @@ message Auction {
     map<string, Bid> bids = 8;
     map<string, WinningBid> winning_bids = 9;
     google.protobuf.Timestamp started_at = 10;
-    int64 duration = 11;
-    uint32 attempts = 12;
-    string error = 13;
+    google.protobuf.Timestamp updated_at = 11;
+    int64 duration = 12;
+    uint32 attempts = 13;
+    string error = 14;
 
     enum Status {
         STATUS_UNSPECIFIED = 0;

@@ -1,7 +1,5 @@
 package service
 
-// TODO: Store bids (bid history).
-
 import (
 	"context"
 	"encoding/json"
@@ -10,10 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	st "github.com/textileio/broker-core/cmd/bidbot/service/store"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
@@ -89,6 +90,7 @@ func (f *MinMaxFilter) Validate() error {
 type Service struct {
 	peer       *marketpeer.Peer
 	fc         auctioneer.FilClient
+	store      *st.Store
 	subscribed bool
 
 	bidParams      BidParams
@@ -100,7 +102,7 @@ type Service struct {
 }
 
 // New returns a new Service.
-func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
+func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*Service, error) {
 	if err := conf.BidParams.Validate(); err != nil {
 		return nil, fmt.Errorf("validating bid parameters: %v", err)
 	}
@@ -111,6 +113,10 @@ func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
+
+	// Create local datastore
+	// s := st.NewStore(store)
+	// fin.Add(s)
 
 	// Create miner peer
 	p, err := marketpeer.New(conf.Peer)
@@ -131,7 +137,8 @@ func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
 		return nil, fin.Cleanup(fmt.Errorf("invalid miner address or signature"))
 	}
 
-	s := &Service{
+	srv := &Service{
+		// store:          s,
 		peer:           p,
 		fc:             fc,
 		bidParams:      conf.BidParams,
@@ -142,7 +149,7 @@ func New(conf Config, fc auctioneer.FilClient) (*Service, error) {
 
 	log.Info("service started")
 
-	return s, nil
+	return srv, nil
 }
 
 // Close the service.
@@ -213,19 +220,17 @@ func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
 }
 
-func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
+func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) ([]byte, error) {
 	log.Debugf("%s received auction from %s", topic, from)
 
 	auction := &pb.Auction{}
 	if err := proto.Unmarshal(msg, auction); err != nil {
-		log.Errorf("unmarshaling message: %v", err)
-		return
+		return nil, fmt.Errorf("unmarshaling message: %v", err)
 	}
 
 	auctionj, err := json.MarshalIndent(auction, "", "  ")
 	if err != nil {
-		log.Errorf("marshaling json: %v", err)
-		return
+		return nil, fmt.Errorf("marshaling json: %v", err)
 	}
 	log.Infof("received auction %s from %s: \n%s", auction.Id, from, string(auctionj))
 
@@ -234,28 +239,32 @@ func (s *Service) auctionsHandler(from peer.ID, topic string, msg []byte) {
 			log.Errorf("making bid: %v", err)
 		}
 	}()
+	return nil, nil
 }
 
-func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) {
+func (s *Service) winsHandler(from peer.ID, topic string, msg []byte) ([]byte, error) {
 	log.Debugf("%s received win from %s", topic, from)
 
 	win := &pb.WinningBid{}
 	if err := proto.Unmarshal(msg, win); err != nil {
-		log.Errorf("unmarshaling message: %v", err)
-		return
+		return nil, fmt.Errorf("unmarshaling message: %v", err)
 	}
+
 	log.Infof("bid %s won in auction %s", win.BidId, win.AuctionId)
+	return nil, nil
 }
 
-func (s *Service) proposalHandler(from peer.ID, topic string, msg []byte) {
+func (s *Service) proposalHandler(from peer.ID, topic string, msg []byte) ([]byte, error) {
 	log.Debugf("%s received proposal from %s", topic, from)
 
 	prop := &pb.WinningBidProposal{}
 	if err := proto.Unmarshal(msg, prop); err != nil {
-		log.Errorf("unmarshaling message: %v", err)
-		return
+		return nil, fmt.Errorf("unmarshaling message: %v", err)
 	}
 	log.Infof("bid %s received proposal cid %s in auction %s", prop.BidId, prop.ProposalCid, prop.AuctionId)
+
+	// s.store.SetProposalCid()
+	return nil, nil
 }
 
 func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
@@ -298,9 +307,25 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	if err := bids.Publish(s.ctx, msg, bidsAckTimeout); err != nil {
+	id, err := bids.Publish(s.ctx, msg, bidsAckTimeout)
+	if err != nil {
 		return fmt.Errorf("publishing bid: %v", err)
 	}
+	log.Warn(string(id))
+
+	// Save bid locally
+	// if err := s.store.SaveBid(st.Bid{
+	// 	ID:               broker.BidID(id),
+	// 	AuctionID:        broker.AuctionID(bid.AuctionId),
+	// 	AskPrice:         bid.AskPrice,
+	// 	VerifiedAskPrice: bid.VerifiedAskPrice,
+	// 	StartEpoch:       bid.StartEpoch,
+	// 	FastRetrieval:    bid.FastRetrieval,
+	// }); err != nil {
+	// 	return fmt.Errorf("saving bid: %v", err)
+	// }
+
+	log.Debugf("created bid %s in auction %s", id, auction.Id)
 	return nil
 }
 
@@ -323,4 +348,12 @@ func (s *Service) filterAuction(auction *pb.Auction) bool {
 	}
 
 	return true
+}
+
+func (s *Service) downloadDealData(ctx context.Context, proposalCid cid.Cid) error {
+	_, err := s.peer.DAGService().Get(ctx, proposalCid)
+	if err != nil {
+		return fmt.Errorf("getting node %s: %v", proposalCid, err)
+	}
+	return nil
 }
