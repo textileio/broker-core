@@ -30,7 +30,6 @@ var (
 // BrokerRequest into a StorageDeal.
 type Packer struct {
 	batchFrequency time.Duration
-	batchLimit     int64
 
 	store  *store.Store
 	ipfs   *httpapi.HttpApi
@@ -41,9 +40,13 @@ type Packer struct {
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
 
-	statLastBatch     time.Time
-	metricNewBatch    metric.Int64Counter
-	metricLastCreated metric.Int64ValueObserver
+	metricNewBatch         metric.Int64Counter
+	statLastBatch          time.Time
+	metricLastBatchCreated metric.Int64ValueObserver
+	statLastBatchCount     int64
+	metricLastBatchCount   metric.Int64ValueObserver
+	statLastBatchSize      int64
+	metricLastBatchSize    metric.Int64ValueObserver
 }
 
 var _ packeri.Packer = (*Packer)(nil)
@@ -61,7 +64,12 @@ func New(
 		}
 	}
 
-	store, err := store.New(txndswrap.Wrap(ds, "/queue"))
+	if cfg.batchMinSize <= 0 {
+		return nil, fmt.Errorf("batch min size should be positive")
+	}
+
+	batchMaxSize := calcBatchLimit(cfg.sectorSize)
+	store, err := store.New(txndswrap.Wrap(ds, "/store"), batchMaxSize, cfg.batchMinSize)
 	if err != nil {
 		return nil, fmt.Errorf("initializing store: %s", err)
 	}
@@ -69,7 +77,6 @@ func New(
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
 		batchFrequency: cfg.frequency,
-		batchLimit:     calcBatchLimit(cfg.sectorSize),
 
 		store:  store,
 		ipfs:   ipfsClient,
@@ -95,13 +102,24 @@ func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dat
 		return fmt.Errorf("only cidv1 is supported")
 	}
 
+	node, err := p.ipfs.Dag().Get(ctx, dataCid)
+	if err != nil {
+		return fmt.Errorf("get node by cid: %s", err)
+	}
+	stat, err := node.Stat()
+	if err != nil {
+		return fmt.Errorf("getting node stat: %s", err)
+	}
+	size := int64(stat.CumulativeSize)
+
 	br := store.BatchableBrokerRequest{
 		ID:              "", // Will be set by `store`, explicit here to signal that wasn't missed.
 		BrokerRequestID: id,
 		DataCid:         dataCid,
+		Size:            size,
 	}
 	if err := p.store.Enqueue(br); err != nil {
-		return fmt.Errorf("enqueueing broker request: %s", err)
+		return fmt.Errorf("saving broker request: %s", err)
 	}
 
 	return nil
@@ -131,19 +149,23 @@ func (p *Packer) daemon() {
 	}
 }
 
-func (p *Packer) pack(ctx context.Context) (int64, error) {
-	batchCid, includedBBRs, numCidsBatched, err := p.batchQueue(ctx)
+func (p *Packer) pack(ctx context.Context) (int, error) {
+	batch, bbrs, ok, err := p.store.GetNextReadyBatch()
 	if err != nil {
 		return 0, fmt.Errorf("batching cids: %s", err)
 	}
-
-	// Nothing batched.
-	if len(includedBBRs) == 0 {
+	if !ok {
+		log.Debugf("no batches ready to pack")
 		return 0, nil
 	}
 
-	brids := make([]broker.BrokerRequestID, len(includedBBRs))
-	for i, bbr := range includedBBRs {
+	batchCid, numBatchedCids, err := p.createDAGForBatch(ctx, bbrs)
+	if err != nil {
+
+	}
+
+	brids := make([]broker.BrokerRequestID, len(bbrs))
+	for i, bbr := range bbrs {
 		brids[i] = bbr.BrokerRequestID
 	}
 	sdID, err := p.broker.CreateStorageDeal(ctx, batchCid, brids)
@@ -151,62 +173,39 @@ func (p *Packer) pack(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("creating storage deal: %s", err)
 	}
 
-	if err := p.store.Dequeue(includedBBRs); err != nil {
-		return 0, fmt.Errorf("dequeueing batched broker requests: %s", err)
+	if err := p.store.DeleteBatch(batch.ID); err != nil {
+		return 0, fmt.Errorf("delete batch: %s", err)
 	}
 
 	p.metricNewBatch.Add(ctx, 1)
 	p.statLastBatch = time.Now()
-	log.Infof("storage deal created: {id: %s, cid: %s, numCidsBatched: %d}", sdID, batchCid, numCidsBatched)
+	p.statLastBatchCount = int64(len(bbrs))
+	p.statLastBatchSize = batch.Size
+	log.Infof("storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, numCidsBatched: %d, size: %d}", sdID, batchCid, len(bbrs), numBatchedCids, batch.Size)
 
-	return numCidsBatched, nil
+	return numBatchedCids, nil
 }
 
-func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrokerRequest, int64, error) {
-	var bbrs []store.BatchableBrokerRequest
-	var numBatchedCids int64
-
+func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBrokerRequest) (cid.Cid, int, error) {
 	batchRoot := unixfs.EmptyDirNode()
 	batchRoot.SetCidBuilder(merkledag.V1CidPrefix())
 	batchNodes := map[cid.Cid]*merkledag.ProtoNode{}
 
-	it := p.store.NewIterator()
-	for {
-		log.Debugf("getting next batchable cid...")
-		br, ok := it.Next()
-		if !ok {
-			log.Debugf("none available")
-			break
-		}
-
+	var numBatchedCids int
+	for _, br := range bbrs {
 		// 1- See if adding this extra node will go beyond the maximum DAG size.
 		log.Debugf("get datacid %s", br.DataCid)
+		ctx, cls := context.WithTimeout(ctx, time.Millisecond*500)
+		defer cls()
 		targetNode, err := p.ipfs.Dag().Get(ctx, br.DataCid)
 		if err != nil {
-			return cid.Undef, nil, 0, fmt.Errorf("getting node by cid: %s", err)
-		}
-		ns, err := targetNode.Stat()
-		if err != nil {
-			return cid.Undef, nil, 0, fmt.Errorf("getting node stat: %s", err)
-		}
-		rootStat, err := batchRoot.Stat()
-		if err != nil {
-			return cid.Undef, nil, 0, fmt.Errorf("getting batch root stats: %s", err)
-		}
-		currentBatchSize := int64(rootStat.CumulativeSize)
-
-		// If adding this data to the DAG exceeds our limit size for a batch,
-		// we skip it and try with the next. Skipped ones still keep original order,
-		// so they naturally have priority in the next batch to get in.
-		if currentBatchSize+int64(ns.CumulativeSize) > p.batchLimit {
-			log.Infof("skipping cid %s which doesn't fit in sector-limit bounds: %s", br.DataCid)
-			continue
+			return cid.Undef, 0, fmt.Errorf("getting node by cid: %s", err)
 		}
 
 		// 2- We get a base32 Cid.
 		base32Cid, err := br.DataCid.StringOfBase(multibase.Base32)
 		if err != nil {
-			return cid.Undef, nil, 0, fmt.Errorf("transforming to base32 cid: %s", err)
+			return cid.Undef, 0, fmt.Errorf("transforming to base32 cid: %s", err)
 		}
 		base32CidLen := len(base32Cid)
 
@@ -214,29 +213,29 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 		layer0LinkName := "ba.." + base32Cid[base32CidLen-2:base32CidLen]
 		layer1Node, err := getOrCreateLayerNode(batchRoot, layer0LinkName, batchNodes)
 		if err != nil {
-			return cid.Undef, nil, 0, fmt.Errorf("get/create layer0 node: %s", err)
+			return cid.Undef, 0, fmt.Errorf("get/create layer0 node: %s", err)
 		}
 		layer1LinkName := "ba.." + base32Cid[base32CidLen-4:base32CidLen]
 		layer2Node, err := getOrCreateLayerNode(layer1Node, layer1LinkName, batchNodes)
 		if err != nil {
-			return cid.Undef, nil, 0, fmt.Errorf("get/create layer1 node: %s", err)
+			return cid.Undef, 0, fmt.Errorf("get/create layer1 node: %s", err)
 		}
 
 		// 4- Add the target Cid in the layer 3 node, and bubble up parent nodes
 		//    changes up to the updated batchRoot that now includes this cid.
 		_, err = layer2Node.GetNodeLink(base32Cid)
 		if err != nil && err != merkledag.ErrLinkNotFound {
-			return cid.Undef, nil, 0, fmt.Errorf("getting target node: %s", err)
+			return cid.Undef, 0, fmt.Errorf("getting target node: %s", err)
 		}
 		if err == merkledag.ErrLinkNotFound {
 			if err := updateNodeLink(layer2Node, base32Cid, targetNode, batchNodes); err != nil {
-				return cid.Undef, nil, 0, fmt.Errorf("adding target node link: %s", err)
+				return cid.Undef, 0, fmt.Errorf("adding target node link: %s", err)
 			}
 			if err := updateNodeLink(layer1Node, layer1LinkName, layer2Node, batchNodes); err != nil {
-				return cid.Undef, nil, 0, fmt.Errorf("updating layer 2 node: %s", err)
+				return cid.Undef, 0, fmt.Errorf("updating layer 2 node: %s", err)
 			}
 			if err := updateNodeLink(batchRoot, layer0LinkName, layer1Node, batchNodes); err != nil {
-				return cid.Undef, nil, 0, fmt.Errorf("updating layer 1 node: %s", err)
+				return cid.Undef, 0, fmt.Errorf("updating layer 1 node: %s", err)
 			}
 			numBatchedCids++
 		} else {
@@ -259,14 +258,14 @@ func (p *Packer) batchQueue(ctx context.Context) (cid.Cid, []store.BatchableBrok
 		toBeAddedNodes = append(toBeAddedNodes, node)
 	}
 	if err := p.ipfs.Dag().AddMany(ctx, toBeAddedNodes); err != nil {
-		return cid.Undef, nil, 0, fmt.Errorf("adding updated nodes: %s", err)
+		return cid.Undef, 0, fmt.Errorf("adding updated nodes: %s", err)
 	}
 
 	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(batchRoot.Cid()), options.Pin.Recursive(true)); err != nil {
-		return cid.Undef, nil, 0, fmt.Errorf("pinning batch root: %s", err)
+		return cid.Undef, 0, fmt.Errorf("pinning batch root: %s", err)
 	}
 
-	return batchRoot.Cid(), bbrs, numBatchedCids, nil
+	return batchRoot.Cid(), numBatchedCids, nil
 }
 
 func getOrCreateLayerNode(
