@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
@@ -188,6 +189,11 @@ func (p *Peer) Bootstrap() {
 // DAGService returns the underlying format.DAGService.
 func (p *Peer) DAGService() format.DAGService {
 	return p.peer
+}
+
+// BlockStore returns the underlying format.DAGService.
+func (p *Peer) BlockStore() blockstore.Blockstore {
+	return p.peer.BlockStore()
 }
 
 // NewTopic returns a new pubsub.Topic using the peer's host.

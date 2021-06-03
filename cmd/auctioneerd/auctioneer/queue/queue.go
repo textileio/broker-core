@@ -457,7 +457,6 @@ func (q *Queue) worker(num int) {
 						log.Errorf("updating finalizer status (%s): %v", status, err)
 					}
 				} else if allProposalsReady(a) {
-
 					// Nothing left to do; delete the auction
 					if err := q.delete(a); err != nil {
 						log.Errorf("deleting auction: %v", err)
@@ -505,8 +504,8 @@ func (q *Queue) getNext() {
 		return
 	}
 	log.Debugf("enqueueing job: %s", a.ID)
-	if err := q.enqueue(nil, a); err != nil {
-		log.Debugf("error enqueueing: %v", err)
+	if err := q.enqueue(txn, a); err != nil {
+		log.Errorf("enqueueing: %v", err)
 	}
 }
 

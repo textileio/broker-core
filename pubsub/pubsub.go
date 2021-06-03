@@ -235,7 +235,6 @@ func (t *Topic) listen() {
 					t.publishResponse(msg.ReceivedFrom, msgID, data, err)
 				}()
 			}
-
 		}
 		t.lk.Unlock()
 	}

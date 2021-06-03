@@ -44,6 +44,7 @@ func TestNew(t *testing.T) {
 		FastRetrieval:            true,
 		DealStartWindow:          oneDayEpochs,
 		ProposalCidFetchAttempts: 3,
+		ProposalDataDirectory:    t.TempDir(),
 	}
 	auctionFilters := service.AuctionFilters{
 		DealDuration: service.MinMaxFilter{
@@ -70,17 +71,38 @@ func TestNew(t *testing.T) {
 
 	fc := newFilClientMock()
 
-	// Bad bid params
-	config.BidParams = service.BidParams{
-		DealStartWindow: 0,
-	}
 	config.AuctionFilters = auctionFilters
+
+	// Bad DealStartWindow
+	config.BidParams = service.BidParams{
+		DealStartWindow:          0,
+		ProposalCidFetchAttempts: 1,
+		ProposalDataDirectory:    t.TempDir(),
+	}
+	_, err = service.New(config, store, fc)
+	require.Error(t, err)
+
+	// Bad ProposalCidFetchAttempts
+	config.BidParams = service.BidParams{
+		DealStartWindow:          oneDayEpochs,
+		ProposalCidFetchAttempts: 0,
+		ProposalDataDirectory:    t.TempDir(),
+	}
+	_, err = service.New(config, store, fc)
+	require.Error(t, err)
+
+	// Bad ProposalDataDirectory
+	config.BidParams = service.BidParams{
+		DealStartWindow:          oneDayEpochs,
+		ProposalCidFetchAttempts: 1,
+		ProposalDataDirectory:    "",
+	}
 	_, err = service.New(config, store, fc)
 	require.Error(t, err)
 
 	config.BidParams = bidParams
 
-	// Bad auction filters
+	// Bad auction MinMaxFilter
 	config.AuctionFilters = service.AuctionFilters{
 		DealDuration: service.MinMaxFilter{
 			Min: 10, // min greater than max

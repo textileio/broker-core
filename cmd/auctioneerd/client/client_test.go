@@ -3,7 +3,6 @@ package client_test
 import (
 	"context"
 	"crypto/rand"
-	"io/ioutil"
 	"net"
 	"path/filepath"
 	"testing"
@@ -135,13 +134,11 @@ func TestClient_RunAuction(t *testing.T) {
 }
 
 func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService) {
+	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
 		require.NoError(t, fin.Cleanup(nil))
 	})
-
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
 
 	listener := bufconn.Listen(bufConnSize)
 	fin.Add(listener)
@@ -185,6 +182,10 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 
 func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 	bots := make(map[peer.ID]*bidbotsrv.Service)
+	fin := finalizer.NewFinalizer()
+	t.Cleanup(func() {
+		require.NoError(t, fin.Cleanup(nil))
+	})
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
@@ -193,7 +194,7 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 
 		store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "bidstore"))
 		require.NoError(t, err)
-		t.Cleanup(func() { _ = store.Close() })
+		fin.Add(store)
 
 		config := bidbotsrv.Config{
 			Peer: marketpeer.Config{
@@ -224,12 +225,10 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 
 		s, err := bidbotsrv.New(config, store, newFilClientMock())
 		require.NoError(t, err)
+		fin.Add(s)
 		err = s.Subscribe(false)
 		require.NoError(t, err)
 
-		t.Cleanup(func() {
-			require.NoError(t, s.Close())
-		})
 		bots[s.ID()] = s
 	}
 	return bots

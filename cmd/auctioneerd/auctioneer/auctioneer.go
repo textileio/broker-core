@@ -314,45 +314,24 @@ func (a *Auctioneer) runAuction(
 
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	for {
-		select {
-		case <-actx.Done():
-			log.Debugf(
-				"auction %s completed (attempt=%d/%d); total bids: %d/%d",
-				auction.ID,
-				auction.Attempts,
-				a.auctionConf.Attempts,
-				len(bids),
-				auction.DealReplication,
-			)
-			winners, err := a.selectNewWinners(auction, bids)
-			if err != nil {
-				return nil, fmt.Errorf("selecting new winners: %v", err)
-			}
-			winners, err = a.notifyWinners(ctx, auction, winners)
-			if err != nil {
-				return nil, fmt.Errorf("notifying winners: %v", err)
-			}
-			return winners, nil
-			// case bid, ok := <-resCh:
-			// 	if ok {
-			// 		var price int64
-			// 		if auction.DealVerified {
-			// 			price = bid.VerifiedAskPrice
-			// 		} else {
-			// 			price = bid.AskPrice
-			// 		}
-			// 		log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
-			// 		id, err := addBid(bid)
-			// 		if err != nil {
-			// 			log.Errorf("adding bid to auction %s: %v", auction.ID, err)
-			// 		} else {
-			// 			bids[id] = bid
-			// 			a.metricNewBid.Add(ctx, 1)
-			// 		}
-			// 	}
-		}
+	<-actx.Done()
+	log.Debugf(
+		"auction %s completed (attempt=%d/%d); total bids: %d/%d",
+		auction.ID,
+		auction.Attempts,
+		a.auctionConf.Attempts,
+		len(bids),
+		auction.DealReplication,
+	)
+	winners, err := a.selectNewWinners(auction, bids)
+	if err != nil {
+		return nil, fmt.Errorf("selecting new winners: %v", err)
 	}
+	winners, err = a.notifyWinners(ctx, auction, winners)
+	if err != nil {
+		return nil, fmt.Errorf("notifying winners: %v", err)
+	}
+	return winners, nil
 }
 
 func (a *Auctioneer) finalizeAuction(ctx context.Context, auction core.Auction) error {
@@ -447,7 +426,6 @@ func (a *Auctioneer) selectNewWinners(
 	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
 	for i := 0; i < selectCount; i++ {
 		if bh.Len() == 0 {
-
 			break
 		}
 		b := heap.Pop(bh).(rankedBid)

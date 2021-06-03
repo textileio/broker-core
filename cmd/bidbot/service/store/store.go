@@ -18,6 +18,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/ipld/go-car"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -63,6 +64,7 @@ var (
 type Bid struct {
 	ID                       broker.BidID
 	AuctionID                broker.AuctionID
+	AuctioneerID             peer.ID
 	Status                   BidStatus
 	AskPrice                 int64 // attoFIL per GiB per epoch
 	VerifiedAskPrice         int64 // attoFIL per GiB per epoch
@@ -81,7 +83,7 @@ type BidStatus int
 const (
 	// BidStatusUnspecified indicates the initial or invalid status of a bid.
 	BidStatusUnspecified BidStatus = iota
-	// BidStatusSubmitted indicates the bid was succesfully submitted to the auctioneer.
+	// BidStatusSubmitted indicates the bid was successfully submitted to the auctioneer.
 	BidStatusSubmitted
 	// BidStatusAwaitingProposal indicates the bid was accepted and is awaiting proposal cid from auctioneer.
 	BidStatusAwaitingProposal
@@ -158,6 +160,11 @@ func NewStore(
 		go s.fetchWorker(i + 1)
 	}
 
+	// Re-enqueue jobs that may have been orphaned during an forced shutdown
+	if err := s.getOrphaned(); err != nil {
+		return nil, fmt.Errorf("getting orphaned jobs: %v", err)
+	}
+
 	go s.startFetching()
 	return s, nil
 }
@@ -187,6 +194,9 @@ func validate(b Bid) error {
 	}
 	if b.AuctionID == "" {
 		return errors.New("auction id is empty")
+	}
+	if b.AuctioneerID.Validate() != nil {
+		return errors.New("auctioneer id is not a valid peer id")
 	}
 	if b.Status != BidStatusUnspecified {
 		return errors.New("invalid initial bid status")
@@ -251,7 +261,7 @@ func (s *Store) SetAwaitingProposalCid(id broker.BidID) error {
 		return fmt.Errorf("updating bid: %v", err)
 	}
 
-	log.Debugf("awaiting bid %s proposal cid %s", b.ID, b.ProposalCid)
+	log.Debugf("awaiting bid %s proposal cid", b.ID)
 	return nil
 }
 
@@ -490,8 +500,8 @@ func (s *Store) getNext() {
 		return
 	}
 	log.Debugf("enqueueing job: %s", b.ID)
-	if err := s.enqueueProposalCid(nil, b); err != nil {
-		log.Debugf("error enqueueing: %v", err)
+	if err := s.enqueueProposalCid(txn, b); err != nil {
+		log.Errorf("enqueueing: %v", err)
 	}
 }
 
@@ -519,6 +529,55 @@ func (s *Store) getQueued(txn ds.Txn) (*Bid, error) {
 		return nil, fmt.Errorf("getting bid: %v", err)
 	}
 	return b, nil
+}
+
+func (s *Store) getOrphaned() error {
+	txn, err := s.store.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating txn: %v", err)
+	}
+	defer txn.Discard()
+
+	bids, err := s.getFetching(txn)
+	if err != nil {
+		return fmt.Errorf("getting next in queue: %v", err)
+	}
+	if len(bids) == 0 {
+		return nil
+	}
+
+	for _, b := range bids {
+		log.Debugf("enqueueing orphaned job: %s", b.ID)
+		if err := s.enqueueProposalCid(txn, &b); err != nil {
+			return fmt.Errorf("enqueueing: %v", err)
+		}
+	}
+	return nil
+}
+
+func (s *Store) getFetching(txn ds.Txn) ([]Bid, error) {
+	results, err := txn.Query(dsq.Query{
+		Prefix:   dsStartedPrefix.String(),
+		Orders:   []dsq.Order{dsq.OrderByKey{}},
+		KeysOnly: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("querying queue: %v", err)
+	}
+	defer func() { _ = results.Close() }()
+
+	var bids []Bid
+	for res := range results.Next() {
+		if res.Error != nil {
+			return nil, fmt.Errorf("getting next result: %v", res.Error)
+		}
+		b, err := getBid(txn, broker.BidID(path.Base(res.Key)))
+		if err != nil {
+			return nil, fmt.Errorf("getting bid: %v", err)
+		}
+		bids = append(bids, *b)
+	}
+	return bids, nil
 }
 
 // saveAndTransitionStatus saves bid state and transitions to a new status.

@@ -65,6 +65,9 @@ func (p *BidParams) Validate() error {
 	if p.ProposalCidFetchAttempts == 0 {
 		return fmt.Errorf("invalid fetch proposal cid attempts; must be greater than zero")
 	}
+	if p.ProposalDataDirectory == "" {
+		return fmt.Errorf("invalid proposal data directory; must not be empty")
+	}
 	return nil
 }
 
@@ -360,6 +363,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if err := s.store.SaveBid(bidstore.Bid{
 		ID:               broker.BidID(id),
 		AuctionID:        broker.AuctionID(bid.AuctionId),
+		AuctioneerID:     from,
 		AskPrice:         bid.AskPrice,
 		VerifiedAskPrice: bid.VerifiedAskPrice,
 		StartEpoch:       bid.StartEpoch,

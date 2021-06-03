@@ -2,7 +2,6 @@ package queue
 
 import (
 	"context"
-	"io/ioutil"
 	"testing"
 	"time"
 
@@ -40,7 +39,7 @@ func TestQueue_newID(t *testing.T) {
 	}
 }
 
-func TestQueue_ListRequests(t *testing.T) {
+func TestQueue_ListAuctions(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
@@ -111,9 +110,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 }
 
 func newQueue(t *testing.T) *Queue {
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	s, err := badger.NewDatastore(dir, &badger.DefaultOptions)
+	s, err := badger.NewDatastore(t.TempDir(), &badger.DefaultOptions)
 	require.NoError(t, err)
 	q := NewQueue(s, runner, finalizer, 2)
 	t.Cleanup(func() {
