@@ -87,7 +87,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	ad store.AuctionData,
 	aud store.AuctionDeal) (propCid cid.Cid, ok bool, err error) {
 	log.Debugf(
-		"executing auction deal for data-cid %d, piece-cid %s and size %s...",
+		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
 		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal)

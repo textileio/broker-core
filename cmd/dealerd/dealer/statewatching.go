@@ -40,6 +40,7 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 	if err != nil {
 		return fmt.Errorf("get chain height: %s", err)
 	}
+	log.Debugf("chain height: %d", chainHeight)
 
 	for {
 		if d.daemonCtx.Err() != nil {

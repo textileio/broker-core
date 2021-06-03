@@ -15,5 +15,9 @@ FROM busybox:1-glibc
 
 COPY --from=builder /app/dealerd /app/dealerd
 
+COPY --from=builder /etc/ssl/certs /etc/ssl/certs
+COPY --from=builder /usr/lib/*-linux-gnu*/libssl.so* /usr/lib/
+COPY --from=builder /usr/lib/*-linux-gnu*/libcrypto.so* /usr/lib/
+
 WORKDIR /app 
 ENTRYPOINT ["./dealerd"]
