@@ -134,6 +134,7 @@ func New(conf Config) (*Peer, error) {
 	if err != nil {
 		return nil, fin.Cleanupf("creating ipfslite peer", err)
 	}
+	fin.Add(lpeer)
 
 	// Setup pubsub
 	gps, err := ps.NewGossipSub(

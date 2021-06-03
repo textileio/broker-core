@@ -232,9 +232,7 @@ func (s *Service) Subscribe(bootstrap bool) error {
 	props.SetEventHandler(s.eventHandler)
 	props.SetMessageHandler(s.proposalHandler)
 
-	s.finalizer.Add(auctions)
-	s.finalizer.Add(wins)
-	s.finalizer.Add(props)
+	s.finalizer.Add(auctions, wins, props)
 
 	log.Info("subscribed to the deal auction feed")
 
@@ -340,7 +338,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		MinerAddr:        s.bidParams.MinerAddr,
 		WalletAddrSig:    s.bidParams.WalletAddrSig,
 		AskPrice:         s.bidParams.AskPrice,
-		VerifiedAskPrice: s.bidParams.AskPrice,
+		VerifiedAskPrice: s.bidParams.VerifiedAskPrice,
 		StartEpoch:       s.bidParams.DealStartWindow + currentEpoch,
 		FastRetrieval:    s.bidParams.FastRetrieval,
 	}

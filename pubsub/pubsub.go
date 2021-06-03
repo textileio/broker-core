@@ -121,6 +121,7 @@ func newTopic(ctx context.Context, ps *pubsub.PubSub, host peer.ID, topic string
 func (t *Topic) Close() error {
 	t.lk.Lock()
 	defer t.lk.Unlock()
+	t.cancel()
 	t.h.Cancel()
 	if t.s != nil {
 		t.s.Cancel()
@@ -128,7 +129,6 @@ func (t *Topic) Close() error {
 	if err := t.t.Close(); err != nil {
 		return err
 	}
-	t.cancel()
 	if t.resTopic != nil {
 		return t.resTopic.Close()
 	}
