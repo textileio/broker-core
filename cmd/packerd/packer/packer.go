@@ -40,13 +40,15 @@ type Packer struct {
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
 
-	metricNewBatch         metric.Int64Counter
-	statLastBatch          time.Time
-	metricLastBatchCreated metric.Int64ValueObserver
-	statLastBatchCount     int64
-	metricLastBatchCount   metric.Int64ValueObserver
-	statLastBatchSize      int64
-	metricLastBatchSize    metric.Int64ValueObserver
+	metricNewBatch          metric.Int64Counter
+	statLastBatch           time.Time
+	metricLastBatchCreated  metric.Int64ValueObserver
+	statLastBatchCount      int64
+	metricLastBatchCount    metric.Int64ValueObserver
+	statLastBatchSize       int64
+	metricLastBatchSize     metric.Int64ValueObserver
+	statLastBatchDuration   int64
+	metricLastBatchDuration metric.Int64ValueObserver
 }
 
 var _ packeri.Packer = (*Packer)(nil)
@@ -159,6 +161,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
+	start := time.Now()
 	batchCid, numBatchedCids, err := p.createDAGForBatch(ctx, bbrs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
@@ -179,8 +182,9 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 
 	p.metricNewBatch.Add(ctx, 1)
 	p.statLastBatch = time.Now()
-	p.statLastBatchCount = int64(len(bbrs))
+	p.statLastBatchCount = int64(numBatchedCids)
 	p.statLastBatchSize = batch.Size
+	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
 		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, numCidsBatched: %d, size: %d}",
 		sdID, batchCid, len(bbrs), numBatchedCids, batch.Size)

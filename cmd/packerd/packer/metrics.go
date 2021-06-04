@@ -21,6 +21,10 @@ func (fc *Packer) initMetrics() {
 		metrics.Prefix+".last_batch_size",
 		fc.lastSizeCb,
 	)
+	fc.metricLastBatchDuration = metrics.Meter.NewInt64ValueObserver(
+		metrics.Prefix+".last_batch_duration",
+		fc.lastDurationCb,
+	)
 }
 
 func (fc *Packer) lastCreatedCb(ctx context.Context, r metric.Int64ObserverResult) {
@@ -28,8 +32,13 @@ func (fc *Packer) lastCreatedCb(ctx context.Context, r metric.Int64ObserverResul
 }
 
 func (fc *Packer) lastCountCb(ctx context.Context, r metric.Int64ObserverResult) {
-	r.Observe(fc.statLastBatch.Unix())
+	r.Observe(fc.statLastBatchCount)
 }
+
 func (fc *Packer) lastSizeCb(ctx context.Context, r metric.Int64ObserverResult) {
-	r.Observe(fc.statLastBatch.Unix())
+	r.Observe(fc.statLastBatchSize)
+}
+
+func (fc *Packer) lastDurationCb(ctx context.Context, r metric.Int64ObserverResult) {
+	r.Observe(fc.statLastBatchDuration)
 }
