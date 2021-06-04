@@ -2,8 +2,6 @@ module github.com/textileio/broker-core
 
 go 1.16
 
-replace github.com/hsanjuan/ipfs-lite => github.com/sanderpick/ipfs-lite v1.1.20-0.20210603231246-4c7bb79224a9
-
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
@@ -72,3 +70,5 @@ require (
 replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
+
+replace github.com/hsanjuan/ipfs-lite => github.com/sanderpick/ipfs-lite v1.1.20-0.20210603231246-4c7bb79224a9

@@ -217,6 +217,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 			FastRetrieval:    false,
 		},
 	}
+
 	auction := broker.Auction{
 		ID:              broker.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
@@ -248,17 +249,22 @@ func TestStorageDealAuctioned(t *testing.T) {
 	require.Equal(t, broker.MaxDealEpochs, calledADS.Duration)
 	require.Len(t, calledADS.Targets, 2)
 
-	require.Equal(t, bids[broker.BidID("Bid1")].MinerAddr, calledADS.Targets[0].Miner)
-	require.Equal(t, bids[broker.BidID("Bid1")].AskPrice, calledADS.Targets[0].PricePerGiBPerEpoch)
-	require.Equal(t, bids[broker.BidID("Bid1")].StartEpoch, calledADS.Targets[0].StartEpoch)
-	require.True(t, calledADS.Targets[0].Verified)
-	require.Equal(t, bids[broker.BidID("Bid1")].FastRetrieval, calledADS.Targets[0].FastRetrieval)
-
-	require.Equal(t, bids[broker.BidID("Bid2")].MinerAddr, calledADS.Targets[1].Miner)
-	require.Equal(t, bids[broker.BidID("Bid2")].AskPrice, calledADS.Targets[1].PricePerGiBPerEpoch)
-	require.Equal(t, bids[broker.BidID("Bid2")].StartEpoch, calledADS.Targets[1].StartEpoch)
-	require.True(t, calledADS.Targets[1].Verified)
-	require.Equal(t, bids[broker.BidID("Bid2")].FastRetrieval, calledADS.Targets[1].FastRetrieval)
+	for _, tr := range calledADS.Targets {
+		var bid broker.Bid
+		for _, b := range bids {
+			if tr.Miner == b.MinerAddr {
+				bid = b
+				break
+			}
+		}
+		if bid.MinerAddr == "" {
+			t.Errorf("AuctionDealsTarget has no corresponding Bid")
+		}
+		require.Equal(t, bid.AskPrice, tr.PricePerGiBPerEpoch)
+		require.Equal(t, bid.StartEpoch, tr.StartEpoch)
+		require.True(t, tr.Verified)
+		require.Equal(t, bid.FastRetrieval, tr.FastRetrieval)
+	}
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
