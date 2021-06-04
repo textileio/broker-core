@@ -161,7 +161,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 
 	batchCid, numBatchedCids, err := p.createDAGForBatch(ctx, bbrs)
 	if err != nil {
-
+		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
 
 	brids := make([]broker.BrokerRequestID, len(bbrs))
@@ -181,7 +181,9 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	p.statLastBatch = time.Now()
 	p.statLastBatchCount = int64(len(bbrs))
 	p.statLastBatchSize = batch.Size
-	log.Infof("storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, numCidsBatched: %d, size: %d}", sdID, batchCid, len(bbrs), numBatchedCids, batch.Size)
+	log.Infof(
+		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, numCidsBatched: %d, size: %d}",
+		sdID, batchCid, len(bbrs), numBatchedCids, batch.Size)
 
 	return numBatchedCids, nil
 }
@@ -248,9 +250,6 @@ func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBr
 			// something firing often.
 			log.Warnf("lucky! cid %s is already in the batch", base32Cid)
 		}
-
-		// We include the BrokerRequest as part of this batch.
-		bbrs = append(bbrs, br)
 	}
 
 	toBeAddedNodes := make([]ipld.Node, 0, len(batchNodes))

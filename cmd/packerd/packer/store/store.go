@@ -23,14 +23,14 @@ var (
 	// ErrNotFound is returned when dequeuing an element that doesn't exist.
 	ErrNotFound = fmt.Errorf("batchable broker request not found")
 
-	// /batch/pending/<batch-id> (an open batch that will keep aggregating broker-requests until is closed)
+	// /batch/pending/<batch-id> (an open batch that will keep aggregating broker-requests until is closed).
 	dsPrefixPendingBatch = datastore.NewKey("/batch/pending")
-	// /batch/ready/<batch-id> (a batch ready to be prepared and signaled to the broker)
+	// /batch/ready/<batch-id> (a batch ready to be prepared and signaled to the broker).
 	dsPrefixReadyBatch = datastore.NewKey("/batch/ready")
-	// /batch/executing/<batch-id> (a batch being processed)
+	// /batch/executing/<batch-id> (a batch being processed).
 	dsPrefixExecutingBatch = datastore.NewKey("/batch/executing")
 
-	// /batch-br/<batch-id>/<batchable-broker-request-id> (a broker-request present in a batch)
+	// /batch-br/<batch-id>/<batchable-broker-request-id> (a broker-request present in a batch).
 	dsPrefixBatchBrokerRequest = datastore.NewKey("/batch-br")
 
 	log = logger.Logger("packer/store")
@@ -360,7 +360,6 @@ func getOpenBatch(w datastore.Txn, candidateSize, maxAllowedSize int64) (Batch, 
 			found = true
 			break
 		}
-
 	}
 	if !found {
 		return Batch{}, false, nil
