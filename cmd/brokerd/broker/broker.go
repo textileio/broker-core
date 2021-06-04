@@ -43,9 +43,10 @@ type Broker struct {
 	dealer     dealer.Dealer
 	chainAPI   chainapi.ChainAPI
 
-	dealDuration  uint64
-	verifiedDeals bool
-	skipReporting bool
+	dealDuration    uint64
+	dealReplication uint32
+	verifiedDeals   bool
+	skipReporting   bool
 }
 
 // New creates a Broker backed by the provided `ds`.
@@ -57,31 +58,26 @@ func New(
 	dealer dealer.Dealer,
 	chainAPI chainapi.ChainAPI,
 	dealDuration uint64,
+	dealReplication uint32,
 	verifiedDeals bool,
 	skipReporting bool,
 ) (*Broker, error) {
-	if dealDuration < broker.MinDealEpochs {
-		return nil, fmt.Errorf("deal duration is less than minimum allowed: %d", broker.MinDealEpochs)
-	}
-	if dealDuration > broker.MaxDealEpochs {
-		return nil, fmt.Errorf("deal duration is greater than maximum allowed: %d", broker.MaxDealEpochs)
-	}
-
-	store, err := store.New(txndswrap.Wrap(ds, "/broker-store"))
+	s, err := store.New(txndswrap.Wrap(ds, "/broker-store"))
 	if err != nil {
 		return nil, fmt.Errorf("initializing broker request store: %s", err)
 	}
 
 	b := &Broker{
-		store:         store,
-		packer:        packer,
-		piecer:        piecer,
-		dealer:        dealer,
-		auctioneer:    auctioneer,
-		chainAPI:      chainAPI,
-		dealDuration:  dealDuration,
-		verifiedDeals: verifiedDeals,
-		skipReporting: skipReporting,
+		store:           s,
+		packer:          packer,
+		piecer:          piecer,
+		dealer:          dealer,
+		auctioneer:      auctioneer,
+		chainAPI:        chainAPI,
+		dealDuration:    dealDuration,
+		dealReplication: dealReplication,
+		verifiedDeals:   verifiedDeals,
+		skipReporting:   skipReporting,
 	}
 	return b, nil
 }
@@ -206,16 +202,21 @@ func (b *Broker) StorageDealPrepared(
 		return fmt.Errorf("the data preparation result is invalid: %s", err)
 	}
 
+	sd, err := b.store.GetStorageDeal(ctx, id)
+	if err != nil {
+		return fmt.Errorf("storage deal not found: %s", err)
+	}
+
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
 	// us about who won things.
-	// TODO: Parameterize deal replication from end user
 	auctionID, err := b.auctioneer.ReadyToAuction(
 		ctx,
 		id,
+		sd.PayloadCid,
 		int(dpr.PieceSize),
 		int(b.dealDuration),
-		1,
+		int(b.dealReplication),
 		b.verifiedDeals,
 	)
 	if err != nil {

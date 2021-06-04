@@ -135,6 +135,9 @@ func validate(a broker.Auction) error {
 	if a.StorageDealID == "" {
 		return errors.New("storage deal id is empty")
 	}
+	if !a.DataCid.Defined() {
+		return errors.New("data cid is empty")
+	}
 	if a.DealSize == 0 {
 		return errors.New("deal size must be greater than zero")
 	}
@@ -231,6 +234,9 @@ func (q *Queue) SetWinningBidProposalCid(id broker.AuctionID, bid broker.BidID, 
 	}
 	if a.Status != broker.AuctionStatusEnded {
 		return errors.New("auction has not ended")
+	}
+	if a.ErrorCause != "" {
+		return fmt.Errorf("auction ended with error: %s", a.ErrorCause)
 	}
 
 	wb, ok := a.WinningBids[bid]
@@ -471,8 +477,9 @@ func (q *Queue) worker(num int) {
 				status = fail(a, err)
 			} else {
 				status = broker.AuctionStatusEnded
-				// Reset error
+				// Reset error and attempts
 				a.ErrorCause = ""
+				a.Attempts = 0
 			}
 
 			// Save and update status to "ended" or "error"

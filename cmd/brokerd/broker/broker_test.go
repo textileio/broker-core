@@ -163,7 +163,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.AuctionID("AUCTION1"), sd2.Auction.ID)
 
 	// 4- Verify that Auctioneer was called to prepare the data.
-	require.Equal(t, broker.MaxDealEpochs, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 
@@ -222,7 +222,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 		ID:              broker.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
 		DealSize:        dpr.PieceSize,
-		DealDuration:    broker.MaxDealEpochs,
+		DealDuration:    broker.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
 		Status:          broker.AuctionStatusEnded,
@@ -246,7 +246,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 	require.Equal(t, brgCid, calledADS.PayloadCid)
 	require.Equal(t, dpr.PieceCid, calledADS.PieceCid)
 	require.Equal(t, dpr.PieceSize, calledADS.PieceSize)
-	require.Equal(t, broker.MaxDealEpochs, calledADS.Duration)
+	require.Equal(t, broker.MaxDealDuration, calledADS.Duration)
 	require.Len(t, calledADS.Targets, 2)
 
 	for _, tr := range calledADS.Targets {
@@ -308,7 +308,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 		ID:              broker.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
 		DealSize:        dpr.PieceSize,
-		DealDuration:    broker.MaxDealEpochs,
+		DealDuration:    broker.MaxDealDuration,
 		DealReplication: 1,
 		DealVerified:    true,
 		Status:          broker.AuctionStatusError,
@@ -387,7 +387,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		ID:              broker.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
 		DealSize:        dpr.PieceSize,
-		DealDuration:    broker.MaxDealEpochs,
+		DealDuration:    broker.MaxDealDuration,
 		DealReplication: 2,
 		Status:          broker.AuctionStatusEnded,
 		Bids:            bids,
@@ -473,7 +473,18 @@ func createBroker(t *testing.T) (
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
 	chainAPI := &dumbChainAPI{}
-	b, err := New(ds, packer, piecer, auctioneer, dealer, chainAPI, broker.MaxDealEpochs, true, false)
+	b, err := New(
+		ds,
+		packer,
+		piecer,
+		auctioneer,
+		dealer,
+		chainAPI,
+		broker.MaxDealDuration,
+		broker.MinDealReplication,
+		true,
+		false,
+	)
 	require.NoError(t, err)
 
 	return b, packer, piecer, auctioneer, dealer, chainAPI
@@ -512,10 +523,27 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 
 type dumbAuctioneer struct {
 	calledStorageDealID   broker.StorageDealID
+	calledDataCid         cid.Cid
 	calledPieceSize       int
 	calledDealDuration    int
 	calledDealReplication int
 	calledDealVerified    bool
+}
+
+func (dp *dumbAuctioneer) ReadyToAuction(
+	ctx context.Context,
+	id broker.StorageDealID,
+	dataCid cid.Cid,
+	dealSize, dealDuration, dealReplication int,
+	dealVerified bool,
+) (broker.AuctionID, error) {
+	dp.calledStorageDealID = id
+	dp.calledDataCid = dataCid
+	dp.calledPieceSize = dealSize
+	dp.calledDealDuration = dealDuration
+	dp.calledDealReplication = dealReplication
+	dp.calledDealVerified = dealVerified
+	return broker.AuctionID("AUCTION1"), nil
 }
 
 func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error) {
@@ -524,20 +552,6 @@ func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (
 
 func (dp *dumbAuctioneer) ProposalAccepted(context.Context, broker.AuctionID, broker.BidID, cid.Cid) error {
 	panic("shouldn't be called")
-}
-
-func (dp *dumbAuctioneer) ReadyToAuction(
-	ctx context.Context,
-	id broker.StorageDealID,
-	dealSize, dealDuration, dealReplication int,
-	dealVerified bool,
-) (broker.AuctionID, error) {
-	dp.calledStorageDealID = id
-	dp.calledPieceSize = dealSize
-	dp.calledDealDuration = dealDuration
-	dp.calledDealReplication = dealReplication
-	dp.calledDealVerified = dealVerified
-	return broker.AuctionID("AUCTION1"), nil
 }
 
 type dumbDealer struct {

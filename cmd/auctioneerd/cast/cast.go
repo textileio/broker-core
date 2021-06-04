@@ -13,9 +13,14 @@ import (
 
 // AuctionToPb returns pb.Auction from broker.Auction.
 func AuctionToPb(a broker.Auction) *pb.Auction {
+	var dcid string
+	if a.DataCid.Defined() {
+		dcid = a.DataCid.String()
+	}
 	pba := &pb.Auction{
 		Id:              string(a.ID),
 		StorageDealId:   string(a.StorageDealID),
+		DataCid:         dcid,
 		DealSize:        a.DealSize,
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
@@ -88,6 +93,14 @@ func AuctionWinningBidsToPb(bids map[broker.BidID]broker.WinningBid) map[string]
 
 // AuctionFromPb returns broker.Auction from pb.Auction.
 func AuctionFromPb(pba *pb.Auction) (broker.Auction, error) {
+	dcid := cid.Undef
+	if pba.DataCid != "" {
+		var err error
+		dcid, err = cid.Decode(pba.DataCid)
+		if err != nil {
+			return broker.Auction{}, fmt.Errorf("decoding data cid: %v", err)
+		}
+	}
 	bids, err := AuctionBidsFromPb(pba.Bids)
 	if err != nil {
 		return broker.Auction{}, fmt.Errorf("decoding bids: %v", err)
@@ -99,6 +112,7 @@ func AuctionFromPb(pba *pb.Auction) (broker.Auction, error) {
 	a := broker.Auction{
 		ID:              broker.AuctionID(pba.Id),
 		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
+		DataCid:         dcid,
 		DealSize:        pba.DealSize,
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,

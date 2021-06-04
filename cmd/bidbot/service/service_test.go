@@ -38,18 +38,18 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	bidParams := service.BidParams{
-		WalletAddrSig:            []byte("bar"),
-		AskPrice:                 100000000000,
-		VerifiedAskPrice:         100000000000,
-		FastRetrieval:            true,
-		DealStartWindow:          oneDayEpochs,
-		ProposalCidFetchAttempts: 3,
-		ProposalDataDirectory:    t.TempDir(),
+		WalletAddrSig:         []byte("bar"),
+		AskPrice:              100000000000,
+		VerifiedAskPrice:      100000000000,
+		FastRetrieval:         true,
+		DealStartWindow:       oneDayEpochs,
+		DealDataFetchAttempts: 3,
+		DealDataDirectory:     t.TempDir(),
 	}
 	auctionFilters := service.AuctionFilters{
 		DealDuration: service.MinMaxFilter{
-			Min: core.MinDealEpochs,
-			Max: core.MaxDealEpochs,
+			Min: core.MinDealDuration,
+			Max: core.MaxDealDuration,
 		},
 		DealSize: service.MinMaxFilter{
 			Min: 56 * 1024,
@@ -75,27 +75,27 @@ func TestNew(t *testing.T) {
 
 	// Bad DealStartWindow
 	config.BidParams = service.BidParams{
-		DealStartWindow:          0,
-		ProposalCidFetchAttempts: 1,
-		ProposalDataDirectory:    t.TempDir(),
+		DealStartWindow:       0,
+		DealDataFetchAttempts: 1,
+		DealDataDirectory:     t.TempDir(),
 	}
 	_, err = service.New(config, store, fc)
 	require.Error(t, err)
 
-	// Bad ProposalCidFetchAttempts
+	// Bad DealDataFetchAttempts
 	config.BidParams = service.BidParams{
-		DealStartWindow:          oneDayEpochs,
-		ProposalCidFetchAttempts: 0,
-		ProposalDataDirectory:    t.TempDir(),
+		DealStartWindow:       oneDayEpochs,
+		DealDataFetchAttempts: 0,
+		DealDataDirectory:     t.TempDir(),
 	}
 	_, err = service.New(config, store, fc)
 	require.Error(t, err)
 
-	// Bad ProposalDataDirectory
+	// Bad DealDataDirectory
 	config.BidParams = service.BidParams{
-		DealStartWindow:          oneDayEpochs,
-		ProposalCidFetchAttempts: 1,
-		ProposalDataDirectory:    "",
+		DealStartWindow:       oneDayEpochs,
+		DealDataFetchAttempts: 1,
+		DealDataDirectory:     "",
 	}
 	_, err = service.New(config, store, fc)
 	require.Error(t, err)

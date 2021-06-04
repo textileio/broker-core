@@ -34,7 +34,7 @@ type MessageHandler func(from peer.ID, topic string, msg []byte) ([]byte, error)
 type Response struct {
 	ID   string // The cid of the received message
 	Data []byte
-	Err  error
+	Err  string
 }
 
 func init() {
@@ -186,7 +186,11 @@ func (t *Topic) Publish(
 			return nil, ErrResponseNotReceived
 		case res := <-resCh:
 			timer.Stop()
-			return res.Data, res.Err
+			var e error
+			if res.Err != "" {
+				e = errors.New(res.Err)
+			}
+			return res.Data, e
 		}
 	}
 	return nil, nil
@@ -256,7 +260,9 @@ func (t *Topic) publishResponse(from peer.ID, id cid.Cid, data []byte, e error) 
 	res := Response{
 		ID:   id.String(),
 		Data: data,
-		Err:  e,
+	}
+	if e != nil {
+		res.Err = e.Error()
 	}
 	msg, err := cbor.DumpObject(&res)
 	if err != nil {

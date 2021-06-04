@@ -7,18 +7,19 @@ import "google/protobuf/timestamp.proto";
 message Auction {
     string id = 1;
     string storage_deal_id = 2;
-    uint64 deal_size = 3;
-    uint64 deal_duration = 4;
-    uint32 deal_replication = 5;
-    bool deal_verified = 6;
-    Status status = 7;
-    map<string, Bid> bids = 8;
-    map<string, WinningBid> winning_bids = 9;
-    google.protobuf.Timestamp started_at = 10;
-    google.protobuf.Timestamp updated_at = 11;
-    int64 duration = 12;
-    uint32 attempts = 13;
-    string error = 14;
+    string data_cid = 3;
+    uint64 deal_size = 4;
+    uint64 deal_duration = 5;
+    uint32 deal_replication = 6;
+    bool deal_verified = 7;
+    Status status = 8;
+    map<string, Bid> bids = 9;
+    map<string, WinningBid> winning_bids = 10;
+    google.protobuf.Timestamp started_at = 11;
+    google.protobuf.Timestamp updated_at = 12;
+    int64 duration = 13;
+    uint32 attempts = 14;
+    string error = 15;
 
     enum Status {
         STATUS_UNSPECIFIED = 0;
@@ -49,10 +50,11 @@ message Auction {
 
 message ReadyToAuctionRequest {
     string storage_deal_id = 1;
-    uint64 deal_size = 2;
-    uint64 deal_duration = 3;
-    uint32 deal_replication = 4;
-    bool deal_verified = 5;
+    string data_cid = 2;
+    uint64 deal_size = 3;
+    uint64 deal_duration = 4;
+    uint32 deal_replication = 5;
+    bool deal_verified = 6;
 }
 
 message ReadyToAuctionResponse {

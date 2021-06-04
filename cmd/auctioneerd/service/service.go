@@ -106,6 +106,10 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	if req.StorageDealId == "" {
 		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
 	}
+	dataCid, err := cid.Decode(req.DataCid)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid data cid")
+	}
 	if req.DealSize == 0 {
 		return nil, status.Error(codes.InvalidArgument, "deal size must be greater than zero")
 	}
@@ -118,6 +122,7 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 
 	id, err := s.lib.CreateAuction(
 		broker.StorageDealID(req.StorageDealId),
+		dataCid,
 		req.DealSize,
 		req.DealDuration,
 		req.DealReplication,
@@ -153,11 +158,11 @@ func (s *Service) ProposalAccepted(
 	if req.BidId == "" {
 		return nil, status.Error(codes.InvalidArgument, "bid id is required")
 	}
-	pcid, err := cid.Decode(req.ProposalCid)
+	proposalCid, err := cid.Decode(req.ProposalCid)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid proposal cid")
 	}
-	if err := s.lib.DeliverProposal(broker.AuctionID(req.AuctionId), broker.BidID(req.BidId), pcid); err != nil {
+	if err := s.lib.DeliverProposal(broker.AuctionID(req.AuctionId), broker.BidID(req.BidId), proposalCid); err != nil {
 		return nil, status.Errorf(codes.Internal, "delivering proposal: %v", err)
 	}
 	return &pb.ProposalAcceptedResponse{}, nil

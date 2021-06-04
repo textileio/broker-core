@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -55,10 +56,10 @@ type BidParams struct {
 	// DealStartWindow is the number of epochs after which won deals must start be on-chain.
 	DealStartWindow uint64
 
-	// ProposalDataDirectory is the directory to which proposal data will be written.
-	ProposalDataDirectory string
-	// ProposalCidFetchAttempts is the number of times fetching proposal cids will be attempted.
-	ProposalCidFetchAttempts uint32
+	// DealDataDirectory is the directory to which deal data will be written.
+	DealDataDirectory string
+	// DealDataFetchAttempts is the number of times fetching deal data cid will be attempted.
+	DealDataFetchAttempts uint32
 }
 
 // Validate ensures BidParams are valid.
@@ -66,17 +67,17 @@ func (p *BidParams) Validate() error {
 	if p.DealStartWindow == 0 {
 		return fmt.Errorf("invalid deal start window; must be greater than zero")
 	}
-	if p.ProposalCidFetchAttempts == 0 {
-		return fmt.Errorf("invalid fetch data cid attempts; must be greater than zero")
+	if p.DealDataFetchAttempts == 0 {
+		return fmt.Errorf("invalid deal data fetch attempts; must be greater than zero")
 	}
-	if p.ProposalDataDirectory == "" {
-		return fmt.Errorf("invalid data directory; must not be empty")
+	if p.DealDataDirectory == "" {
+		return fmt.Errorf("invalid deal data directory; must not be empty")
 	}
-	if err := os.MkdirAll(p.ProposalDataDirectory, os.ModePerm); err != nil {
+	if err := os.MkdirAll(p.DealDataDirectory, os.ModePerm); err != nil {
 		return fmt.Errorf("initializing data directory: %v", err)
 	}
-	testFile := filepath.Join(p.ProposalDataDirectory, ulid.MustNew(ulid.Now(), rand.Reader).String())
-	if err := os.WriteFile(testFile, []byte("testing"), 0644); err != nil {
+	testFile := filepath.Join(p.DealDataDirectory, ulid.MustNew(ulid.Now(), rand.Reader).String())
+	if err := ioutil.WriteFile(testFile, []byte("testing"), 0644); err != nil {
 		return fmt.Errorf("checking write access to data directory: %v", err)
 	}
 	if err := os.Remove(testFile); err != nil {
@@ -157,8 +158,8 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	s, err := bidstore.NewStore(
 		store,
 		p.DAGService(),
-		conf.BidParams.ProposalDataDirectory,
-		conf.BidParams.ProposalCidFetchAttempts,
+		conf.BidParams.DealDataDirectory,
+		conf.BidParams.DealDataFetchAttempts,
 	)
 	if err != nil {
 		return nil, fin.Cleanupf("creating bid store: %v", err)
@@ -332,6 +333,11 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return nil
 	}
 
+	dataCid, err := cid.Decode(auction.DataCid)
+	if err != nil {
+		return fmt.Errorf("decoding data cid: %v", err)
+	}
+
 	// Get current chain height
 	currentEpoch, err := s.fc.GetChainHeight()
 	if err != nil {
@@ -378,8 +384,11 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	// Save bid locally
 	if err := s.store.SaveBid(bidstore.Bid{
 		ID:               broker.BidID(id),
-		AuctionID:        broker.AuctionID(bid.AuctionId),
+		AuctionID:        broker.AuctionID(auction.Id),
 		AuctioneerID:     from,
+		DataCid:          dataCid,
+		DealSize:         auction.DealSize,
+		DealDuration:     auction.DealDuration,
 		AskPrice:         bid.AskPrice,
 		VerifiedAskPrice: bid.VerifiedAskPrice,
 		StartEpoch:       bid.StartEpoch,

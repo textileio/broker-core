@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	util "github.com/ipfs/go-ipfs-util"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
@@ -33,7 +35,7 @@ func init() {
 		panic(err)
 	}
 
-	ProposalFetchTimeout = time.Second * 5
+	DataCidFetchTimeout = time.Second * 5
 }
 
 func TestStore_ListBids(t *testing.T) {
@@ -57,6 +59,9 @@ func TestStore_ListBids(t *testing.T) {
 				ID:               id,
 				AuctionID:        aid,
 				AuctioneerID:     auctioneerID,
+				DataCid:          cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
+				DealSize:         1024,
+				DealDuration:     1000,
 				AskPrice:         100,
 				VerifiedAskPrice: 100,
 				StartEpoch:       2000,
@@ -102,10 +107,20 @@ func TestStore_StatusProgression(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
+
+		// Create data node and add to ipfs
+		dnode, err := cbor.WrapObject([]byte("foo"), multihash.SHA2_256, -1)
+		require.NoError(t, err)
+		err = dag.Add(context.Background(), dnode)
+		require.NoError(t, err)
+
 		err = s.SaveBid(Bid{
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
+			DataCid:          dnode.Cid(),
+			DealSize:         1024,
+			DealDuration:     1000,
 			AskPrice:         100,
 			VerifiedAskPrice: 100,
 			StartEpoch:       2000,
@@ -122,17 +137,11 @@ func TestStore_StatusProgression(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, BidStatusAwaitingProposal, got.Status)
 
-		// Create node and add to ipfs
-		pnode, err := cbor.WrapObject([]byte("foo"), multihash.SHA2_256, -1)
-		require.NoError(t, err)
-		err = dag.Add(context.Background(), pnode)
-		require.NoError(t, err)
-
-		err = s.SetProposalCid(id, pnode.Cid())
+		err = s.SetProposalCid(id, cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))))
 		require.NoError(t, err)
 		got, err = s.GetBid(id)
 		require.NoError(t, err)
-		assert.Equal(t, BidStatusFetchingProposal, got.Status)
+		assert.Equal(t, BidStatusFetchingData, got.Status)
 
 		// Allow to finish
 		time.Sleep(time.Second * 5)
@@ -143,22 +152,25 @@ func TestStore_StatusProgression(t *testing.T) {
 		assert.Empty(t, got.ErrorCause)
 
 		// Check if car file was written to proposal data directory
-		f, err := os.Open(filepath.Join(s.proposalDataDirectory, pnode.Cid().String()))
+		f, err := os.Open(filepath.Join(s.dealDataDirectory, dnode.Cid().String()))
 		require.NoError(t, err)
 		defer func() { _ = f.Close() }()
 		h, err := car.LoadCar(bs, f)
 		require.NoError(t, err)
 		require.Len(t, h.Roots, 1)
-		require.True(t, h.Roots[0].Equals(pnode.Cid()))
+		require.True(t, h.Roots[0].Equals(dnode.Cid()))
 	})
 
-	t.Run("unreachable proposal cid", func(t *testing.T) {
+	t.Run("unreachable data cid", func(t *testing.T) {
 		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 		err = s.SaveBid(Bid{
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
+			DataCid:          cid.NewCidV1(cid.Raw, util.Hash([]byte("unreachable"))),
+			DealSize:         1024,
+			DealDuration:     1000,
 			AskPrice:         100,
 			VerifiedAskPrice: 100,
 			StartEpoch:       2000,
@@ -175,15 +187,11 @@ func TestStore_StatusProgression(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, BidStatusAwaitingProposal, got.Status)
 
-		// Create node but don't add to ipfs
-		pnode, err := cbor.WrapObject([]byte("bar"), multihash.SHA2_256, -1)
-		require.NoError(t, err)
-
-		err = s.SetProposalCid(id, pnode.Cid())
+		err = s.SetProposalCid(id, cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))))
 		require.NoError(t, err)
 		got, err = s.GetBid(id)
 		require.NoError(t, err)
-		assert.Equal(t, BidStatusFetchingProposal, got.Status)
+		assert.Equal(t, BidStatusFetchingData, got.Status)
 
 		// Allow to finish
 		time.Sleep(time.Second * 12)
@@ -192,7 +200,7 @@ func TestStore_StatusProgression(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, BidStatusFinalized, got.Status)
 		assert.NotEmpty(t, got.ErrorCause)
-		assert.Equal(t, 2, int(got.ProposalCidFetchAttempts))
+		assert.Equal(t, 2, int(got.DataCidFetchAttempts))
 	})
 }
 

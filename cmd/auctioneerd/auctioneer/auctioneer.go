@@ -162,12 +162,14 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 // New auctions are queud if the auctioneer is busy.
 func (a *Auctioneer) CreateAuction(
 	storageDealID core.StorageDealID,
+	dataCid cid.Cid,
 	dealSize, dealDuration uint64,
 	dealReplication uint32,
 	dealVerified bool,
 ) (core.AuctionID, error) {
 	auction := core.Auction{
 		StorageDealID:   storageDealID,
+		DataCid:         dataCid,
 		DealSize:        dealSize,
 		DealDuration:    dealDuration,
 		DealReplication: dealReplication,
@@ -188,6 +190,7 @@ func (a *Auctioneer) CreateAuction(
 }
 
 // GetAuction returns an auction by id.
+// If an auction is not found for id, ErrAuctionNotFound is returned.
 func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
 	auction, err := a.queue.GetAuction(id)
 	if errors.Is(q.ErrAuctionNotFound, err) {
@@ -199,6 +202,8 @@ func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
 }
 
 // DeliverProposal delivers the proposal Cid for an accepted deal to the winning bidder.
+// If an auction is not found for id, ErrAuctionNotFound is returned.
+// If a bid is not found for id, ErrBidNotFound is returned.
 func (a *Auctioneer) DeliverProposal(id broker.AuctionID, bid broker.BidID, pcid cid.Cid) error {
 	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid); errors.Is(q.ErrAuctionNotFound, err) {
 		return ErrAuctionNotFound
@@ -260,8 +265,8 @@ func (a *Auctioneer) processAuction(
 		bidders[b.BidderID] = struct{}{}
 	}
 	bidsHandler := func(from peer.ID, _ string, msg []byte) ([]byte, error) {
-		if from.Validate() != nil {
-			return nil, fmt.Errorf("invalid bidder: %s", from)
+		if err := from.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid bidder: %v", err)
 		}
 		if _, ok := bidders[from]; ok {
 			return nil, fmt.Errorf("bid was already received")
@@ -297,11 +302,11 @@ func (a *Auctioneer) processAuction(
 		id, err := addBid(bid)
 		if err != nil {
 			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
-		} else {
-			bidders[bid.BidderID] = struct{}{}
-			bids[id] = bid
-			a.metricNewBid.Add(ctx, 1)
 		}
+
+		bidders[bid.BidderID] = struct{}{}
+		bids[id] = bid
+		a.metricNewBid.Add(ctx, 1)
 
 		return []byte(id), nil
 	}
@@ -313,6 +318,7 @@ func (a *Auctioneer) processAuction(
 	// Publish the auction
 	msg, err := proto.Marshal(&pb.Auction{
 		Id:           string(auction.ID),
+		DataCid:      auction.DataCid.String(),
 		DealSize:     auction.DealSize,
 		DealDuration: auction.DealDuration,
 		EndsAt:       timestamppb.New(deadline),
@@ -364,9 +370,6 @@ func (a *Auctioneer) validateBid(b core.Bid) error {
 	}
 	if b.StartEpoch <= 0 {
 		return errors.New("start epoch must be greater than zero")
-	}
-	if !b.ReceivedAt.IsZero() {
-		return errors.New("initial received at must be zero")
 	}
 
 	ok, err := a.fc.VerifyBidder(b.WalletAddrSig, b.BidderID, b.MinerAddr)

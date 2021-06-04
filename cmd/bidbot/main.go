@@ -66,12 +66,12 @@ func init() {
 		},
 		{
 			Name:        "deal-duration-min",
-			DefValue:    broker.MinDealEpochs,
+			DefValue:    broker.MinDealDuration,
 			Description: "Minimum deal duration to bid on in epochs; default is ~6 months",
 		},
 		{
 			Name:        "deal-duration-max",
-			DefValue:    broker.MaxDealEpochs,
+			DefValue:    broker.MaxDealDuration,
 			Description: "Maximum deal duration to bid on in epochs; default is ~1 year",
 		},
 		{
@@ -85,9 +85,9 @@ func init() {
 			Description: "Maximum deal size to bid on in bytes",
 		},
 		{
-			Name:        "proposal-cid-fetch-attempts",
+			Name:        "deal-data-fetch-attempts",
 			DefValue:    3,
-			Description: "Number of times fetching proposal Cids will be attempted before failing",
+			Description: "Number of times fetching deal data will be attempted before failing",
 		},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -131,11 +131,11 @@ environment variable:
 
     export BIDBOT_PATH=/path/to/bidbotrepo
 
-bidbot will fetch and write proposal data to a local directory. This directory should be
-accessible to Lotus. By default, the directory is located at ~/.bidbot/proposal_data.
-The change the proposal data directory, set the $BIDBOT_PROPOSAL_DATA_DIRECTORY environment variable:
+bidbot will fetch and write deal data to a local directory. This directory should be
+accessible to Lotus. By default, the directory is located at ~/.bidbot/deal_data.
+The change the deal data directory, set the $BIDBOT_DEAL_DATA_DIRECTORY environment variable:
 
-    export BIDBOT_PROPOSAL_DATA_DIRECTORY=/path/to/lotus/accessible/directory
+    export BIDBOT_DEAL_DATA_DIRECTORY=/path/to/lotus/accessible/directory
 `,
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
@@ -219,22 +219,22 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
 
-		proposalDataDirectory := os.Getenv("BIDBOT_PROPOSAL_DATA_DIRECTORY")
-		if proposalDataDirectory == "" {
-			proposalDataDirectory = filepath.Join(defaultConfigPath, "proposal_data")
+		dealDataDirectory := os.Getenv("BIDBOT_DEAL_DATA_DIRECTORY")
+		if dealDataDirectory == "" {
+			dealDataDirectory = filepath.Join(defaultConfigPath, "deal_data")
 		}
 
 		config := service.Config{
 			Peer: pconfig,
 			BidParams: service.BidParams{
-				MinerAddr:                v.GetString("miner-addr"),
-				WalletAddrSig:            walletAddrSig,
-				AskPrice:                 v.GetInt64("ask-price"),
-				VerifiedAskPrice:         v.GetInt64("verified-ask-price"),
-				FastRetrieval:            v.GetBool("fast-retrieval"),
-				DealStartWindow:          v.GetUint64("deal-start-window"),
-				ProposalCidFetchAttempts: v.GetUint32("proposal-cid-fetch-attempts"),
-				ProposalDataDirectory:    proposalDataDirectory,
+				MinerAddr:             v.GetString("miner-addr"),
+				WalletAddrSig:         walletAddrSig,
+				AskPrice:              v.GetInt64("ask-price"),
+				VerifiedAskPrice:      v.GetInt64("verified-ask-price"),
+				FastRetrieval:         v.GetBool("fast-retrieval"),
+				DealStartWindow:       v.GetUint64("deal-start-window"),
+				DealDataFetchAttempts: v.GetUint32("deal-data-fetch-attempts"),
+				DealDataDirectory:     dealDataDirectory,
 			},
 			AuctionFilters: service.AuctionFilters{
 				DealDuration: service.MinMaxFilter{

@@ -44,9 +44,10 @@ type Config struct {
 	MongoDBName string
 	MongoURI    string
 
-	DealDuration  uint64
-	VerifiedDeals bool
-	SkipReporting bool
+	DealDuration    uint64
+	DealReplication uint32
+	VerifiedDeals   bool
+	SkipReporting   bool
 }
 
 // Service provides an implementation of the broker API.
@@ -111,6 +112,7 @@ func New(config Config) (*Service, error) {
 		dealer,
 		reporter,
 		config.DealDuration,
+		config.DealReplication,
 		config.VerifiedDeals,
 		config.SkipReporting,
 	)
@@ -334,6 +336,9 @@ func (s *Service) Close() error {
 }
 
 func validateConfig(conf Config) error {
+	if conf.ListenAddr == "" {
+		return fmt.Errorf("service listen addr is empty")
+	}
 	if conf.PiecerAddr == "" {
 		return fmt.Errorf("piecer api addr is empty")
 	}
@@ -349,18 +354,23 @@ func validateConfig(conf Config) error {
 	if conf.ReporterAddr == "" {
 		return fmt.Errorf("reporter api addr is empty")
 	}
-	if conf.DealDuration <= 0 {
-		return fmt.Errorf("deal duration should be positive")
-	}
-	if conf.ListenAddr == "" {
-		return fmt.Errorf("service listen addr is empty")
-	}
 	if conf.MongoDBName == "" {
 		return fmt.Errorf("mongo db name is empty")
 	}
 	if conf.MongoURI == "" {
 		return fmt.Errorf("mongo uri is empty")
 	}
-
+	if conf.DealDuration < broker.MinDealDuration {
+		return fmt.Errorf("deal duration is less than minimum allowed: %d", broker.MinDealDuration)
+	}
+	if conf.DealDuration > broker.MaxDealDuration {
+		return fmt.Errorf("deal duration is greater than maximum allowed: %d", broker.MaxDealDuration)
+	}
+	if conf.DealReplication < broker.MinDealReplication {
+		return fmt.Errorf("deal replication is less than minimum allowed: %d", broker.MinDealDuration)
+	}
+	if conf.DealReplication > broker.MaxDealReplication {
+		return fmt.Errorf("deal replication is greater than maximum allowed: %d", broker.MaxDealDuration)
+	}
 	return nil
 }

@@ -35,46 +35,49 @@ const (
 var (
 	log = golog.Logger("bidbot/store")
 
-	// ProposalFetchStartDelay is the time delay before the store will process queued proposal cids on start.
-	ProposalFetchStartDelay = time.Second * 10
+	// DataCidFetchStartDelay is the time delay before the store will process queued data cid fetches on start.
+	DataCidFetchStartDelay = time.Second * 10
 
-	// ProposalFetchTimeout is the timeout used when fetching proposal cids.
-	ProposalFetchTimeout = time.Hour
+	// DataCidFetchTimeout is the timeout used when fetching data cids.
+	DataCidFetchTimeout = time.Hour
 
-	// MaxProposalFetchConcurrency is the maximum number of auctions that will be handled concurrently.
-	MaxProposalFetchConcurrency = 100
+	// MaxDataCidFetchConcurrency is the maximum number of data cid fetches that will be handled concurrently.
+	MaxDataCidFetchConcurrency = 10
 
 	// ErrBidNotFound indicates the requested bid was not found.
 	ErrBidNotFound = errors.New("bid not found")
 
-	// dsPrefix is the prefix for auctions.
-	// Structure: /auctions/<auction_id> -> Auction.
+	// dsPrefix is the prefix for bids.
+	// Structure: /bids/<bid_id> -> Bid.
 	dsPrefix = ds.NewKey("/bids")
 
-	// dsQueuePrefix is the prefix for queued auctions.
-	// Structure: /queue/<auction_id> -> nil.
-	dsQueuePrefix = ds.NewKey("/queue")
+	// dsQueuedPrefix is the prefix for queued data cid fetches.
+	// Structure: /data_queued/<bid_id> -> nil.
+	dsQueuedPrefix = ds.NewKey("/data_queued")
 
-	// dsStartedPrefix is the prefix for started auctions that are accepting bids.
-	// Structure: /started/<auction_id> -> nil.
-	dsStartedPrefix = ds.NewKey("/started")
+	// dsFetchingPrefix is the prefix for fetching data cid fetches.
+	// Structure: /data_fetching/<bid_id> -> nil.
+	dsFetchingPrefix = ds.NewKey("/data_fetching")
 )
 
 // Bid defines the core bid model from a miner's perspective.
 type Bid struct {
-	ID                       broker.BidID
-	AuctionID                broker.AuctionID
-	AuctioneerID             peer.ID
-	Status                   BidStatus
-	AskPrice                 int64 // attoFIL per GiB per epoch
-	VerifiedAskPrice         int64 // attoFIL per GiB per epoch
-	StartEpoch               uint64
-	FastRetrieval            bool
-	ProposalCid              cid.Cid
-	ProposalCidFetchAttempts uint32
-	CreatedAt                time.Time
-	UpdatedAt                time.Time
-	ErrorCause               string
+	ID                   broker.BidID
+	AuctionID            broker.AuctionID
+	AuctioneerID         peer.ID
+	DataCid              cid.Cid
+	DealSize             uint64
+	DealDuration         uint64
+	Status               BidStatus
+	AskPrice             int64 // attoFIL per GiB per epoch
+	VerifiedAskPrice     int64 // attoFIL per GiB per epoch
+	StartEpoch           uint64
+	FastRetrieval        bool
+	ProposalCid          cid.Cid
+	DataCidFetchAttempts uint32
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	ErrorCause           string
 }
 
 // BidStatus is the status of a Bid.
@@ -87,12 +90,12 @@ const (
 	BidStatusSubmitted
 	// BidStatusAwaitingProposal indicates the bid was accepted and is awaiting proposal cid from auctioneer.
 	BidStatusAwaitingProposal
-	// BidStatusQueuedProposal indicates the bid proposal cid was received but downloading is queued.
-	BidStatusQueuedProposal
-	// BidStatusFetchingProposal indicates the bid proposal cid is being fetched.
-	BidStatusFetchingProposal
+	// BidStatusQueuedData indicates the bid proposal cid was received but data downloading is queued.
+	BidStatusQueuedData
+	// BidStatusFetchingData indicates the bid data cid is being fetched.
+	BidStatusFetchingData
 	// BidStatusFinalized indicates the bid has reached a final state.
-	// If ErrorCause is empty, the bid has been accepted and the proposal cid downloaded.
+	// If ErrorCause is empty, the bid has been accepted and the data cid downloaded.
 	// If ErrorCause is not empty, a fatal error has occurred and the bid should be considered abandoned.
 	BidStatusFinalized
 )
@@ -106,10 +109,10 @@ func (as BidStatus) String() string {
 		return "submitted"
 	case BidStatusAwaitingProposal:
 		return "awaiting_proposal"
-	case BidStatusQueuedProposal:
-		return "queued_proposal"
-	case BidStatusFetchingProposal:
-		return "fetching_proposal"
+	case BidStatusQueuedData:
+		return "queued_data"
+	case BidStatusFetchingData:
+		return "fetching_data"
 	case BidStatusFinalized:
 		return "finalized"
 	default:
@@ -125,34 +128,34 @@ type Store struct {
 	jobCh  chan *Bid
 	tickCh chan struct{}
 
-	proposalDataDirectory string
-	proposalFetchAttempts uint32
+	dealDataDirectory     string
+	dealDataFetchAttempts uint32
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-// NewStore returns a new Store using handler to process auctions.
+// NewStore returns a new Store.
 func NewStore(
 	store txndswrap.TxnDatastore,
 	nodeGetter format.NodeGetter,
-	proposalDataDirectory string,
-	proposalFetchAttempts uint32,
+	dealDataDirectory string,
+	dealDataFetchAttempts uint32,
 ) (*Store, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Store{
 		store:                 store,
 		nodeGetter:            nodeGetter,
-		jobCh:                 make(chan *Bid, MaxProposalFetchConcurrency),
-		tickCh:                make(chan struct{}, MaxProposalFetchConcurrency),
-		proposalDataDirectory: proposalDataDirectory,
-		proposalFetchAttempts: proposalFetchAttempts,
+		jobCh:                 make(chan *Bid, MaxDataCidFetchConcurrency),
+		tickCh:                make(chan struct{}, MaxDataCidFetchConcurrency),
+		dealDataDirectory:     dealDataDirectory,
+		dealDataFetchAttempts: dealDataFetchAttempts,
 		ctx:                   ctx,
 		cancel:                cancel,
 	}
 
-	// Create proposal fetch workers
-	for i := 0; i < MaxProposalFetchConcurrency; i++ {
+	// Create data fetch workers
+	for i := 0; i < MaxDataCidFetchConcurrency; i++ {
 		go s.fetchWorker(i + 1)
 	}
 
@@ -165,7 +168,7 @@ func NewStore(
 	return s, nil
 }
 
-// Close the store. This will wait for "started" auctions.
+// Close the store. This will wait for "fetching" data cid fetches.
 func (s *Store) Close() error {
 	s.cancel()
 	return nil
@@ -191,8 +194,17 @@ func validate(b Bid) error {
 	if b.AuctionID == "" {
 		return errors.New("auction id is empty")
 	}
-	if b.AuctioneerID.Validate() != nil {
-		return errors.New("auctioneer id is not a valid peer id")
+	if err := b.AuctioneerID.Validate(); err != nil {
+		return fmt.Errorf("auctioneer id is not a valid peer id: %v", err)
+	}
+	if !b.DataCid.Defined() {
+		return errors.New("data cid is not defined")
+	}
+	if b.DealSize == 0 {
+		return errors.New("deal size must be greater than zero")
+	}
+	if b.DealDuration == 0 {
+		return errors.New("deal duration must be greater than zero")
 	}
 	if b.Status != BidStatusUnspecified {
 		return errors.New("invalid initial bid status")
@@ -209,8 +221,8 @@ func validate(b Bid) error {
 	if b.ProposalCid.Defined() {
 		return errors.New("initial proposal cid cannot be defined")
 	}
-	if b.ProposalCidFetchAttempts != 0 {
-		return errors.New("initial proposal cid download attempts must be zero")
+	if b.DataCidFetchAttempts != 0 {
+		return errors.New("initial data cid download attempts must be zero")
 	}
 	if !b.CreatedAt.IsZero() {
 		return errors.New("initial created at must be zero")
@@ -249,6 +261,7 @@ func getBid(reader ds.Read, id broker.BidID) (*Bid, error) {
 }
 
 // SetAwaitingProposalCid updates bid status to BidStatusAwaitingProposal.
+// If a bid is not found for id, ErrBidNotFound is returned.
 func (s *Store) SetAwaitingProposalCid(id broker.BidID) error {
 	txn, err := s.store.NewTransaction(false)
 	if err != nil {
@@ -274,7 +287,8 @@ func (s *Store) SetAwaitingProposalCid(id broker.BidID) error {
 	return nil
 }
 
-// SetProposalCid sets the bid proposal cid and updates status to BidStatusQueuedProposalCid.
+// SetProposalCid sets the bid proposal cid and updates status to BidStatusQueuedData.
+// If a bid is not found for id, ErrBidNotFound is returned.
 func (s *Store) SetProposalCid(id broker.BidID, pcid cid.Cid) error {
 	if !pcid.Defined() {
 		return errors.New("proposal cid must be defined")
@@ -295,11 +309,11 @@ func (s *Store) SetProposalCid(id broker.BidID, pcid cid.Cid) error {
 	}
 
 	b.ProposalCid = pcid
-	if err := s.enqueueProposalCid(txn, b); err != nil {
-		return fmt.Errorf("enqueueing proposal cid: %v", err)
+	if err := s.enqueueDataCid(txn, b); err != nil {
+		return fmt.Errorf("enqueueing data cid: %v", err)
 	}
 
-	log.Debugf("enqueued bid %s proposal cid %s", b.ID, b.ProposalCid)
+	log.Debugf("enqueued bid %s data cid %s", b.ID, b.DataCid)
 	return nil
 }
 
@@ -396,12 +410,12 @@ func (s *Store) ListBids(query Query) ([]Bid, error) {
 	return list, nil
 }
 
-// enqueueProposalCid queues a proposal cid delivery.
+// enqueueDataCid queues a data cid fetch.
 // commitTxn will be committed internally!
-func (s *Store) enqueueProposalCid(commitTxn ds.Txn, b *Bid) error {
-	// Set the bid to "fetching_proposal"
-	if err := s.saveAndTransitionStatus(commitTxn, b, BidStatusFetchingProposal); err != nil {
-		return fmt.Errorf("updating status (fetching_proposal): %v", err)
+func (s *Store) enqueueDataCid(commitTxn ds.Txn, b *Bid) error {
+	// Set the bid to "fetching_data"
+	if err := s.saveAndTransitionStatus(commitTxn, b, BidStatusFetchingData); err != nil {
+		return fmt.Errorf("updating status (fetching_data): %v", err)
 	}
 	if commitTxn != nil {
 		if err := commitTxn.Commit(); err != nil {
@@ -415,9 +429,9 @@ func (s *Store) enqueueProposalCid(commitTxn ds.Txn, b *Bid) error {
 		case s.jobCh <- b:
 		default:
 			log.Debugf("workers are busy; queueing %s", b.ID)
-			// Workers are busy, set back to "queued"
-			if err := s.saveAndTransitionStatus(nil, b, BidStatusQueuedProposal); err != nil {
-				log.Errorf("updating status (queued_proposal): %v", err)
+			// Workers are busy, set back to "queued_data"
+			if err := s.saveAndTransitionStatus(nil, b, BidStatusQueuedData); err != nil {
+				log.Errorf("updating status (queued_data): %v", err)
 			}
 		}
 	}()
@@ -427,11 +441,11 @@ func (s *Store) enqueueProposalCid(commitTxn ds.Txn, b *Bid) error {
 func (s *Store) fetchWorker(num int) {
 	fail := func(b *Bid, err error) (status BidStatus) {
 		b.ErrorCause = err.Error()
-		if b.ProposalCidFetchAttempts >= s.proposalFetchAttempts {
+		if b.DataCidFetchAttempts >= s.dealDataFetchAttempts {
 			status = BidStatusFinalized
-			log.Warnf("job %s exhausted all %d attempts with error: %v", b.ID, s.proposalFetchAttempts, err)
+			log.Warnf("job %s exhausted all %d attempts with error: %v", b.ID, s.dealDataFetchAttempts, err)
 		} else {
-			status = BidStatusQueuedProposal
+			status = BidStatusQueuedData
 			log.Debugf("retrying job %s with error: %v", b.ID, err)
 		}
 		return status
@@ -446,14 +460,14 @@ func (s *Store) fetchWorker(num int) {
 			if s.ctx.Err() != nil {
 				return
 			}
-			b.ProposalCidFetchAttempts++
+			b.DataCidFetchAttempts++
 			log.Debugf(
-				"worker %d got job %s (attempt=%d/%d)", num, b.ID, b.ProposalCidFetchAttempts, s.proposalFetchAttempts)
+				"worker %d got job %s (attempt=%d/%d)", num, b.ID, b.DataCidFetchAttempts, s.dealDataFetchAttempts)
 
-			// Handle the auction with the runner func
+			// Fetch the data cid
 			var status BidStatus
-			ctx, cancel := context.WithTimeout(s.ctx, ProposalFetchTimeout)
-			if err := s.writeProposalData(ctx, b.ProposalCid); err != nil {
+			ctx, cancel := context.WithTimeout(s.ctx, DataCidFetchTimeout)
+			if err := s.writeDataCid(ctx, b.DataCid); err != nil {
 				status = fail(b, err)
 			} else {
 				status = BidStatusFinalized
@@ -461,7 +475,7 @@ func (s *Store) fetchWorker(num int) {
 				b.ErrorCause = ""
 			}
 
-			// Save and update status to "ended" or "error"
+			// Save and update status to "finalized"
 			if err := s.saveAndTransitionStatus(nil, b, status); err != nil {
 				log.Errorf("updating status (%s): %v", status, err)
 			}
@@ -476,10 +490,10 @@ func (s *Store) fetchWorker(num int) {
 	}
 }
 
-func (s *Store) writeProposalData(ctx context.Context, pcid cid.Cid) error {
-	f, err := os.Create(filepath.Join(s.proposalDataDirectory, pcid.String()))
+func (s *Store) writeDataCid(ctx context.Context, pcid cid.Cid) error {
+	f, err := os.Create(filepath.Join(s.dealDataDirectory, pcid.String()))
 	if err != nil {
-		return fmt.Errorf("opening file for proposal data: %v", err)
+		return fmt.Errorf("opening file for deal data: %v", err)
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
@@ -488,13 +502,13 @@ func (s *Store) writeProposalData(ctx context.Context, pcid cid.Cid) error {
 	}()
 
 	if err := car.WriteCar(ctx, s.nodeGetter, []cid.Cid{pcid}, f); err != nil {
-		return fmt.Errorf("fetching proposal cid %s: %v", pcid, err)
+		return fmt.Errorf("fetching data cid %s: %v", pcid, err)
 	}
 	return nil
 }
 
 func (s *Store) startFetching() {
-	t := time.NewTimer(ProposalFetchStartDelay)
+	t := time.NewTimer(DataCidFetchStartDelay)
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -518,27 +532,27 @@ func (s *Store) getNext() {
 
 	b, err := s.getQueued(txn)
 	if err != nil {
-		log.Errorf("getting next in queue: %v", err)
+		log.Errorf("getting next in queued: %v", err)
 		return
 	}
 	if b == nil {
 		return
 	}
 	log.Debugf("enqueueing job: %s", b.ID)
-	if err := s.enqueueProposalCid(txn, b); err != nil {
+	if err := s.enqueueDataCid(txn, b); err != nil {
 		log.Errorf("enqueueing: %v", err)
 	}
 }
 
 func (s *Store) getQueued(txn ds.Txn) (*Bid, error) {
 	results, err := txn.Query(dsq.Query{
-		Prefix:   dsQueuePrefix.String(),
+		Prefix:   dsQueuedPrefix.String(),
 		Orders:   []dsq.Order{dsq.OrderByKey{}},
 		Limit:    1,
 		KeysOnly: true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("querying queue: %v", err)
+		return nil, fmt.Errorf("querying queued: %v", err)
 	}
 	defer func() {
 		if err := results.Close(); err != nil {
@@ -567,9 +581,9 @@ func (s *Store) getOrphaned() error {
 	}
 	defer txn.Discard()
 
-	bids, err := s.getStarted(txn)
+	bids, err := s.getFetching(txn)
 	if err != nil {
-		return fmt.Errorf("getting next in queue: %v", err)
+		return fmt.Errorf("getting next in queued: %v", err)
 	}
 	if len(bids) == 0 {
 		return nil
@@ -577,21 +591,21 @@ func (s *Store) getOrphaned() error {
 
 	for _, b := range bids {
 		log.Debugf("enqueueing orphaned job: %s", b.ID)
-		if err := s.enqueueProposalCid(txn, &b); err != nil {
+		if err := s.enqueueDataCid(txn, &b); err != nil {
 			return fmt.Errorf("enqueueing: %v", err)
 		}
 	}
 	return nil
 }
 
-func (s *Store) getStarted(txn ds.Txn) ([]Bid, error) {
+func (s *Store) getFetching(txn ds.Txn) ([]Bid, error) {
 	results, err := txn.Query(dsq.Query{
-		Prefix:   dsStartedPrefix.String(),
+		Prefix:   dsFetchingPrefix.String(),
 		Orders:   []dsq.Order{dsq.OrderByKey{}},
 		KeysOnly: true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("querying queue: %v", err)
+		return nil, fmt.Errorf("querying queued: %v", err)
 	}
 	defer func() {
 		if err := results.Close(); err != nil {
@@ -628,23 +642,23 @@ func (s *Store) saveAndTransitionStatus(txn ds.Txn, b *Bid, newStatus BidStatus)
 	}
 
 	if b.Status != newStatus {
-		// Handle currently "queued_proposal" and "fetching_proposal" status
-		if b.Status == BidStatusQueuedProposal {
-			if err := txn.Delete(dsQueuePrefix.ChildString(string(b.ID))); err != nil {
-				return fmt.Errorf("deleting from queue: %v", err)
+		// Handle currently "queued_data" and "fetching_data" status
+		if b.Status == BidStatusQueuedData {
+			if err := txn.Delete(dsQueuedPrefix.ChildString(string(b.ID))); err != nil {
+				return fmt.Errorf("deleting from queued: %v", err)
 			}
-		} else if b.Status == BidStatusFetchingProposal {
-			if err := txn.Delete(dsStartedPrefix.ChildString(string(b.ID))); err != nil {
-				return fmt.Errorf("deleting from started: %v", err)
+		} else if b.Status == BidStatusFetchingData {
+			if err := txn.Delete(dsFetchingPrefix.ChildString(string(b.ID))); err != nil {
+				return fmt.Errorf("deleting from fetching: %v", err)
 			}
 		}
-		if newStatus == BidStatusQueuedProposal {
-			if err := txn.Put(dsQueuePrefix.ChildString(string(b.ID)), nil); err != nil {
-				return fmt.Errorf("putting to queue: %v", err)
+		if newStatus == BidStatusQueuedData {
+			if err := txn.Put(dsQueuedPrefix.ChildString(string(b.ID)), nil); err != nil {
+				return fmt.Errorf("putting to queued: %v", err)
 			}
-		} else if newStatus == BidStatusFetchingProposal {
-			if err := txn.Put(dsStartedPrefix.ChildString(string(b.ID)), nil); err != nil {
-				return fmt.Errorf("putting to started: %v", err)
+		} else if newStatus == BidStatusFetchingData {
+			if err := txn.Put(dsFetchingPrefix.ChildString(string(b.ID)), nil); err != nil {
+				return fmt.Errorf("putting to fetching: %v", err)
 			}
 		}
 		// Update status

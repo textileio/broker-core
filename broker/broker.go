@@ -14,10 +14,14 @@ const (
 	invalidStatus        = "invalid"
 	epochsPerDay  uint64 = 60 * 24 * 2 // 1 epoch = ~30s
 
-	// MinDealEpochs is the minimum allowed deal duration requested of miners.
-	MinDealEpochs = epochsPerDay * 365 / 2 // ~6 months
-	// MaxDealEpochs is the maximum allowed deal duration requested of miners.
-	MaxDealEpochs = epochsPerDay * 365 // ~1 year
+	// MinDealDuration is the minimum allowed deal duration in epochs requested of miners.
+	MinDealDuration = epochsPerDay * 365 / 2 // ~6 months
+	// MaxDealDuration is the maximum allowed deal duration in epochs requested of miners.
+	MaxDealDuration = epochsPerDay * 365 // ~1 year
+	// MinDealReplication is the minimum allowed deal replication requested of miners.
+	MinDealReplication = 1
+	// MaxDealReplication is the maximum allowed deal replication requested of miners.
+	MaxDealReplication = 10
 )
 
 // Broker provides full set of functionalities for Filecoin brokering.
@@ -37,7 +41,7 @@ type Broker interface {
 	// StorageDealFinalizedDeal signals to the broker results about deal making.
 	StorageDealFinalizedDeal(ctx context.Context, res FinalizedAuctionDeal) error
 
-	// StorageDealProposalAcceted signals the broker that a miner has accepted a deal proposal.
+	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
 	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
 }
 
@@ -235,6 +239,7 @@ type AuctionID string
 type Auction struct {
 	ID              AuctionID
 	StorageDealID   StorageDealID
+	DataCid         cid.Cid
 	DealSize        uint64
 	DealDuration    uint64
 	DealReplication uint32

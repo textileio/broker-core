@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
+	util "github.com/ipfs/go-ipfs-util"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
@@ -59,7 +61,8 @@ func init() {
 func TestClient_ReadyToAuction(t *testing.T) {
 	c, _ := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 1, true)
+	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
@@ -67,7 +70,8 @@ func TestClient_ReadyToAuction(t *testing.T) {
 func TestClient_GetAuction(t *testing.T) {
 	c, _ := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 1, true)
+	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -89,7 +93,12 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 2, true)
+	dnode, err := cbor.WrapObject([]byte("lets make a deal"), multihash.SHA2_256, -1)
+	require.NoError(t, err)
+	err = dag.Add(context.Background(), dnode)
+	require.NoError(t, err)
+
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dnode.Cid(), oneGiB, sixMonthsEpochs, 2, true)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -100,23 +109,19 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 	require.Len(t, got.WinningBids, 2)
 
-	pnode, err := cbor.WrapObject([]byte("lets make a deal"), multihash.SHA2_256, -1)
-	require.NoError(t, err)
-	err = dag.Add(context.Background(), pnode)
-	require.NoError(t, err)
-
 	for id, wb := range got.WinningBids {
 		assert.NotNil(t, got.Bids[id])
 		assert.True(t, wb.Acknowledged)
 
 		// Set the proposal as accepted
-		err = c.ProposalAccepted(context.Background(), got.ID, id, pnode.Cid())
+		pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
+		err = c.ProposalAccepted(context.Background(), got.ID, id, pcid)
 		require.NoError(t, err)
 	}
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
-	// Check if the winning bids were able to fetch the proposal cid.
+	// Check if the winning bids were able to fetch the data cid
 	for _, wb := range got.WinningBids {
 		bot := bots[wb.BidderID]
 		require.NotNil(t, bot)
@@ -203,18 +208,19 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				WalletAddrSig:            []byte("bar"),
-				AskPrice:                 100000000000,
-				VerifiedAskPrice:         100000000000,
-				FastRetrieval:            true,
-				DealStartWindow:          oneDayEpochs,
-				ProposalCidFetchAttempts: 3,
-				ProposalDataDirectory:    t.TempDir(),
+				MinerAddr:             "foo",
+				WalletAddrSig:         []byte("bar"),
+				AskPrice:              100000000000,
+				VerifiedAskPrice:      100000000000,
+				FastRetrieval:         true,
+				DealStartWindow:       oneDayEpochs,
+				DealDataDirectory:     t.TempDir(),
+				DealDataFetchAttempts: 3,
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{
-					Min: core.MinDealEpochs,
-					Max: core.MaxDealEpochs,
+					Min: core.MinDealDuration,
+					Max: core.MaxDealDuration,
 				},
 				DealSize: bidbotsrv.MinMaxFilter{
 					Min: 56 * 1024,
