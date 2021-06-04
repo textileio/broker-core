@@ -196,7 +196,7 @@ func newDealer(t *testing.T, broker broker.Broker) *Dealer {
 	rdfmCall := fc.On("ResolveDealIDFromMessage", mock.Anything, fakeProposalCid, fakePublishDealMessage)
 	rdfmCall.Return(fakeDealID, nil)
 
-	fc.On("CheckChainDeal", mock.Anything, fakeDealID).Return(true, fakeExpiration, nil)
+	fc.On("CheckChainDeal", mock.Anything, fakeDealID).Return(true, fakeExpiration, false, nil)
 
 	fc.On("GetChainHeight", mock.Anything).Return(uint64(1111111), nil)
 
@@ -241,9 +241,9 @@ func (fc *fcMock) ResolveDealIDFromMessage(
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, error) {
+func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, bool, error) {
 	args := fc.Called(ctx, dealID)
-	return args.Bool(0), args.Get(1).(uint64), args.Error(2)
+	return args.Bool(0), args.Get(1).(uint64), args.Bool(2), args.Error(3)
 }
 func (fc *fcMock) CheckDealStatusWithMiner(
 	ctx context.Context,

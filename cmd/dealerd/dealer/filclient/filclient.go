@@ -202,7 +202,9 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 
 // CheckChainDeal checks if a deal is active on-chain. If that's the case, it also returns the
 // deal expiration as a second parameter.
-func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (active bool, expiration uint64, err error) {
+func (fc *FilClient) CheckChainDeal(
+	ctx context.Context,
+	dealid int64) (active bool, expiration uint64, slashed bool, err error) {
 	log.Debugf("checking deal %d on-chain...", dealid)
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricCheckChainDeal)
@@ -212,18 +214,22 @@ func (fc *FilClient) CheckChainDeal(ctx context.Context, dealid int64) (active b
 		nfs := fmt.Sprintf("deal %d not found", dealid)
 		if strings.Contains(err.Error(), nfs) {
 			log.Debugf("deal %d still isn't on-chain", dealid)
-			return false, 0, nil
+			return false, 0, false, nil
 		}
 
-		return false, 0, fmt.Errorf("calling state market storage deal: %s", err)
+		return false, 0, false, fmt.Errorf("calling state market storage deal: %s", err)
 	}
 
 	if deal.State.SlashEpoch > 0 {
 		log.Warnf("deal %d is on-chain but slashed", dealid)
-		return false, 0, fmt.Errorf("is active on chain but slashed: %d", deal.State.SlashEpoch)
+		return false, 0, true, fmt.Errorf("is active on chain but slashed: %d", deal.State.SlashEpoch)
 	}
 
-	return true, uint64(deal.Proposal.EndEpoch), nil
+	if deal.State.SectorStartEpoch > 0 {
+		return true, uint64(deal.Proposal.EndEpoch), false, nil
+	}
+
+	return false, 0, false, nil
 }
 
 // CheckDealStatusWithMiner checks a deal proposal status with a miner. The caller should be aware that

@@ -104,7 +104,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 	// We can ask the chain now for final confirmation.
 	// Now we can stop asking/trusting the miner for confirmation, and start asking
 	// the chain.
-	isActiveOnchain, expiration, err := d.filclient.CheckChainDeal(d.daemonCtx, aud.DealID)
+	isActiveOnchain, expiration, slashed, err := d.filclient.CheckChainDeal(d.daemonCtx, aud.DealID)
 	if err != nil {
 		log.Errorf("checking if deal %d is active on-chain: %s", aud.DealID, err)
 
@@ -113,6 +113,14 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 			return fmt.Errorf("saving auction deal: %s", err)
 		}
 		return nil
+	}
+
+	if slashed {
+		aud.ReadyAt = time.Unix(0, 0)
+		aud.ErrorCause = fmt.Sprintf("the deal %d was slashed", aud.DealID)
+		if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
+			return fmt.Errorf("saving auction deal: %s", err)
+		}
 	}
 
 	if !isActiveOnchain {

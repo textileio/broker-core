@@ -64,7 +64,7 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(1919949), dealID)
 
-	active, expiration, err := client.CheckChainDeal(ctx, dealID)
+	active, expiration, _, err := client.CheckChainDeal(ctx, dealID)
 	require.NoError(t, err)
 	require.True(t, active)
 	require.Equal(t, uint64(1279995), expiration)
