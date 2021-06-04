@@ -243,7 +243,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 	}
 	cidb, err := cborutil.Dump(propCid)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
 	}
 
 	sig, err := wallet.WalletSign(fc.conf.exportedHexKey, cidb)
@@ -258,7 +258,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 
 	s, err := fc.streamToMiner(ctx, miner, dealStatusProtocol)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("opening stream with %s: %s", minerAddr, err)
 	}
 
 	if err := cborutil.WriteCborRPC(s, req); err != nil {
@@ -323,11 +323,11 @@ func (fc *FilClient) createDealProposal(
 
 	raw, err := cborutil.Dump(proposal)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
 	}
 	sig, err := wallet.WalletSign(fc.conf.exportedHexKey, raw)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("signing proposal: %s", err)
 	}
 
 	sigprop := &market.ClientDealProposal{
@@ -352,7 +352,7 @@ func (fc *FilClient) streamToMiner(
 	protocol protocol.ID) (inet.Stream, error) {
 	mpid, err := fc.connectToMiner(ctx, maddr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connecting with miner: %s", err)
 	}
 
 	s, err := fc.host.NewStream(ctx, mpid, protocol)
