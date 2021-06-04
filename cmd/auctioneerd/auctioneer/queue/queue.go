@@ -192,6 +192,7 @@ func (q *Queue) newID(t time.Time) (broker.AuctionID, error) {
 }
 
 // GetAuction returns an auction by id.
+// If an auction is not found for id, ErrAuctionNotFound is returned.
 func (q *Queue) GetAuction(id broker.AuctionID) (*broker.Auction, error) {
 	a, err := getAuction(q.store, id)
 	if err != nil {
@@ -215,6 +216,8 @@ func getAuction(reader ds.Read, id broker.AuctionID) (*broker.Auction, error) {
 }
 
 // SetWinningBidProposalCid sets the proposal cid.Cid for a broker.WinningBid, and re-queues the auction.
+// If an auction is not found for id, ErrAuctionNotFound is returned.
+// If a bid is not found for id, ErrBidNotFound is returned.
 func (q *Queue) SetWinningBidProposalCid(id broker.AuctionID, bid broker.BidID, pcid cid.Cid) error {
 	txn, err := q.store.NewTransaction(false)
 	if err != nil {
@@ -235,7 +238,7 @@ func (q *Queue) SetWinningBidProposalCid(id broker.AuctionID, bid broker.BidID, 
 		return ErrBidNotFound
 	}
 	if wb.ProposalCid.Defined() {
-		return errors.New("proposal cid has already been set")
+		return nil
 	}
 	wb.ProposalCid = pcid
 	a.WinningBids[bid] = wb
@@ -248,6 +251,9 @@ func (q *Queue) SetWinningBidProposalCid(id broker.AuctionID, bid broker.BidID, 
 		// Save auction state
 		if err := q.saveAndTransitionStatus(txn, a, a.Status); err != nil {
 			return fmt.Errorf("saving proposal cid: %v", err)
+		}
+		if err := txn.Commit(); err != nil {
+			return fmt.Errorf("committing txn: %v", err)
 		}
 	}
 	return nil
@@ -265,6 +271,20 @@ func allProposalsReady(a *broker.Auction) bool {
 		}
 	}
 	return ready
+}
+
+func allProposalsDelivered(a *broker.Auction) bool {
+	if len(a.WinningBids) != int(a.DealReplication) {
+		return false
+	}
+	delivered := true
+	for _, wb := range a.WinningBids {
+		if !(wb.ProposalCid.Defined() && wb.ProposalCidAcknowledged) {
+			delivered = false
+			break
+		}
+	}
+	return delivered
 }
 
 // Query is used to query for auctions.
@@ -334,7 +354,11 @@ func (q *Queue) ListAuctions(query Query) ([]broker.Auction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying requests: %v", err)
 	}
-	defer func() { _ = results.Close() }()
+	defer func() {
+		if err := results.Close(); err != nil {
+			log.Errorf("closing results: %v", err)
+		}
+	}()
 
 	var list []broker.Auction
 	for res := range results.Next() {
@@ -356,10 +380,17 @@ func (q *Queue) ListAuctions(query Query) ([]broker.Auction, error) {
 	return list, nil
 }
 
-func (q *Queue) enqueue(txn ds.Txn, a *broker.Auction) error {
+// enqueue an auction.
+// commitTxn will be committed internally!
+func (q *Queue) enqueue(commitTxn ds.Txn, a *broker.Auction) error {
 	// Set the auction to "started"
-	if err := q.saveAndTransitionStatus(txn, a, broker.AuctionStatusStarted); err != nil {
+	if err := q.saveAndTransitionStatus(commitTxn, a, broker.AuctionStatusStarted); err != nil {
 		return fmt.Errorf("updating status (started): %v", err)
+	}
+	if commitTxn != nil {
+		if err := commitTxn.Commit(); err != nil {
+			return fmt.Errorf("committing txn: %v", err)
+		}
 	}
 
 	// Unblock the caller by letting the rest happen in the background
@@ -456,7 +487,7 @@ func (q *Queue) worker(num int) {
 					if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
 						log.Errorf("updating finalizer status (%s): %v", status, err)
 					}
-				} else if allProposalsReady(a) {
+				} else if allProposalsDelivered(a) {
 					// Nothing left to do; delete the auction
 					if err := q.delete(a); err != nil {
 						log.Errorf("deleting auction: %v", err)
@@ -465,9 +496,10 @@ func (q *Queue) worker(num int) {
 			}
 
 			log.Debugf("worker %d finished job %s", num, a.ID)
-			go func() {
-				q.tickCh <- struct{}{}
-			}()
+			select {
+			case q.tickCh <- struct{}{}:
+			default:
+			}
 		}
 	}
 }
@@ -519,7 +551,11 @@ func (q *Queue) getQueued(txn ds.Txn) (*broker.Auction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying queue: %v", err)
 	}
-	defer func() { _ = results.Close() }()
+	defer func() {
+		if err := results.Close(); err != nil {
+			log.Errorf("closing results: %v", err)
+		}
+	}()
 
 	res, ok := <-results.Next()
 	if !ok {
@@ -539,7 +575,8 @@ func (q *Queue) getQueued(txn ds.Txn) (*broker.Auction, error) {
 // Do not directly edit the auction status because it is needed to determine the correct status transition.
 // Pass the desired new status with newStatus.
 func (q *Queue) saveAndTransitionStatus(txn ds.Txn, a *broker.Auction, newStatus broker.AuctionStatus) error {
-	if txn == nil {
+	commitTxn := txn == nil
+	if commitTxn {
 		var err error
 		txn, err = q.store.NewTransaction(false)
 		if err != nil {
@@ -582,8 +619,10 @@ func (q *Queue) saveAndTransitionStatus(txn ds.Txn, a *broker.Auction, newStatus
 	if err := txn.Put(dsPrefix.ChildString(string(a.ID)), val); err != nil {
 		return fmt.Errorf("putting value: %v", err)
 	}
-	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing txn: %v", err)
+	if commitTxn {
+		if err := txn.Commit(); err != nil {
+			return fmt.Errorf("committing txn: %v", err)
+		}
 	}
 	return nil
 }
@@ -624,11 +663,7 @@ func encode(v interface{}) ([]byte, error) {
 }
 
 func decode(v []byte) (a broker.Auction, err error) {
-	var buf bytes.Buffer
-	if _, err := buf.Write(v); err != nil {
-		return a, err
-	}
-	dec := gob.NewDecoder(&buf)
+	dec := gob.NewDecoder(bytes.NewReader(v))
 	if err := dec.Decode(&a); err != nil {
 		return a, err
 	}

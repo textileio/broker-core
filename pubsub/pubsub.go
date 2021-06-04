@@ -246,7 +246,11 @@ func (t *Topic) publishResponse(from peer.ID, id cid.Cid, data []byte, e error) 
 		log.Errorf("creating response topic: %v", err)
 		return
 	}
-	defer func() { _ = topic.Close() }()
+	defer func() {
+		if err := topic.Close(); err != nil {
+			log.Errorf("closing response topic: %v", err)
+		}
+	}()
 	topic.SetEventHandler(t.resEventHandler)
 
 	res := Response{

@@ -2,15 +2,19 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/ipfs/go-cid"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
@@ -63,10 +67,20 @@ func (p *BidParams) Validate() error {
 		return fmt.Errorf("invalid deal start window; must be greater than zero")
 	}
 	if p.ProposalCidFetchAttempts == 0 {
-		return fmt.Errorf("invalid fetch proposal cid attempts; must be greater than zero")
+		return fmt.Errorf("invalid fetch data cid attempts; must be greater than zero")
 	}
 	if p.ProposalDataDirectory == "" {
-		return fmt.Errorf("invalid proposal data directory; must not be empty")
+		return fmt.Errorf("invalid data directory; must not be empty")
+	}
+	if err := os.MkdirAll(p.ProposalDataDirectory, os.ModePerm); err != nil {
+		return fmt.Errorf("initializing data directory: %v", err)
+	}
+	testFile := filepath.Join(p.ProposalDataDirectory, ulid.MustNew(ulid.Now(), rand.Reader).String())
+	if err := os.WriteFile(testFile, []byte("testing"), 0644); err != nil {
+		return fmt.Errorf("checking write access to data directory: %v", err)
+	}
+	if err := os.Remove(testFile); err != nil {
+		return fmt.Errorf("removing data directory write test file: %v", err)
 	}
 	return nil
 }
@@ -329,7 +343,11 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
 	}
-	defer func() { _ = bids.Close() }()
+	defer func() {
+		if err := bids.Close(); err != nil {
+			log.Errorf("closing bids topic: %v", err)
+		}
+	}()
 	bids.SetEventHandler(s.eventHandler)
 
 	// Submit bid to auctioneer

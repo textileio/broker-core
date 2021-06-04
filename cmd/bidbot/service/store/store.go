@@ -139,10 +139,6 @@ func NewStore(
 	proposalDataDirectory string,
 	proposalFetchAttempts uint32,
 ) (*Store, error) {
-	if err := os.MkdirAll(proposalDataDirectory, os.ModePerm); err != nil {
-		return nil, fmt.Errorf("initializing proposal data directory: %v", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Store{
 		store:                 store,
@@ -201,6 +197,15 @@ func validate(b Bid) error {
 	if b.Status != BidStatusUnspecified {
 		return errors.New("invalid initial bid status")
 	}
+	if b.AskPrice < 0 {
+		return errors.New("ask price must be greater than or equal to zero")
+	}
+	if b.VerifiedAskPrice < 0 {
+		return errors.New("verified ask price must be greater than or equal to zero")
+	}
+	if b.StartEpoch <= 0 {
+		return errors.New("start epoch must be greater than zero")
+	}
 	if b.ProposalCid.Defined() {
 		return errors.New("initial proposal cid cannot be defined")
 	}
@@ -220,6 +225,7 @@ func validate(b Bid) error {
 }
 
 // GetBid returns a bid by id.
+// If a bid is not found for id, ErrBidNotFound is returned.
 func (s *Store) GetBid(id broker.BidID) (*Bid, error) {
 	b, err := getBid(s.store, id)
 	if err != nil {
@@ -259,6 +265,9 @@ func (s *Store) SetAwaitingProposalCid(id broker.BidID) error {
 	}
 	if err := s.saveAndTransitionStatus(txn, b, BidStatusAwaitingProposal); err != nil {
 		return fmt.Errorf("updating bid: %v", err)
+	}
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("committing txn: %v", err)
 	}
 
 	log.Debugf("awaiting bid %s proposal cid", b.ID)
@@ -361,7 +370,11 @@ func (s *Store) ListBids(query Query) ([]Bid, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying requests: %v", err)
 	}
-	defer func() { _ = results.Close() }()
+	defer func() {
+		if err := results.Close(); err != nil {
+			log.Errorf("closing results: %v", err)
+		}
+	}()
 
 	var list []Bid
 	for res := range results.Next() {
@@ -383,10 +396,17 @@ func (s *Store) ListBids(query Query) ([]Bid, error) {
 	return list, nil
 }
 
-func (s *Store) enqueueProposalCid(txn ds.Txn, b *Bid) error {
+// enqueueProposalCid queues a proposal cid delivery.
+// commitTxn will be committed internally!
+func (s *Store) enqueueProposalCid(commitTxn ds.Txn, b *Bid) error {
 	// Set the bid to "fetching_proposal"
-	if err := s.saveAndTransitionStatus(txn, b, BidStatusFetchingProposal); err != nil {
+	if err := s.saveAndTransitionStatus(commitTxn, b, BidStatusFetchingProposal); err != nil {
 		return fmt.Errorf("updating status (fetching_proposal): %v", err)
+	}
+	if commitTxn != nil {
+		if err := commitTxn.Commit(); err != nil {
+			return fmt.Errorf("committing txn: %v", err)
+		}
 	}
 
 	// Unblock the caller by letting the rest happen in the background
@@ -447,10 +467,11 @@ func (s *Store) fetchWorker(num int) {
 			}
 
 			log.Debugf("worker %d finished job %s", num, b.ID)
-			go func() {
-				s.tickCh <- struct{}{}
-			}()
 			cancel()
+			select {
+			case s.tickCh <- struct{}{}:
+			default:
+			}
 		}
 	}
 }
@@ -460,7 +481,11 @@ func (s *Store) writeProposalData(ctx context.Context, pcid cid.Cid) error {
 	if err != nil {
 		return fmt.Errorf("opening file for proposal data: %v", err)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("closing data file: %v", err)
+		}
+	}()
 
 	if err := car.WriteCar(ctx, s.nodeGetter, []cid.Cid{pcid}, f); err != nil {
 		return fmt.Errorf("fetching proposal cid %s: %v", pcid, err)
@@ -515,7 +540,11 @@ func (s *Store) getQueued(txn ds.Txn) (*Bid, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying queue: %v", err)
 	}
-	defer func() { _ = results.Close() }()
+	defer func() {
+		if err := results.Close(); err != nil {
+			log.Errorf("closing results: %v", err)
+		}
+	}()
 
 	res, ok := <-results.Next()
 	if !ok {
@@ -538,7 +567,7 @@ func (s *Store) getOrphaned() error {
 	}
 	defer txn.Discard()
 
-	bids, err := s.getFetching(txn)
+	bids, err := s.getStarted(txn)
 	if err != nil {
 		return fmt.Errorf("getting next in queue: %v", err)
 	}
@@ -555,7 +584,7 @@ func (s *Store) getOrphaned() error {
 	return nil
 }
 
-func (s *Store) getFetching(txn ds.Txn) ([]Bid, error) {
+func (s *Store) getStarted(txn ds.Txn) ([]Bid, error) {
 	results, err := txn.Query(dsq.Query{
 		Prefix:   dsStartedPrefix.String(),
 		Orders:   []dsq.Order{dsq.OrderByKey{}},
@@ -564,7 +593,11 @@ func (s *Store) getFetching(txn ds.Txn) ([]Bid, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying queue: %v", err)
 	}
-	defer func() { _ = results.Close() }()
+	defer func() {
+		if err := results.Close(); err != nil {
+			log.Errorf("closing results: %v", err)
+		}
+	}()
 
 	var bids []Bid
 	for res := range results.Next() {
@@ -584,7 +617,8 @@ func (s *Store) getFetching(txn ds.Txn) ([]Bid, error) {
 // Do not directly edit the bids status because it is needed to determine the correct status transition.
 // Pass the desired new status with newStatus.
 func (s *Store) saveAndTransitionStatus(txn ds.Txn, b *Bid, newStatus BidStatus) error {
-	if txn == nil {
+	commitTxn := txn == nil
+	if commitTxn {
 		var err error
 		txn, err = s.store.NewTransaction(false)
 		if err != nil {
@@ -629,8 +663,10 @@ func (s *Store) saveAndTransitionStatus(txn ds.Txn, b *Bid, newStatus BidStatus)
 	if err := txn.Put(dsPrefix.ChildString(string(b.ID)), val); err != nil {
 		return fmt.Errorf("putting value: %v", err)
 	}
-	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing txn: %v", err)
+	if commitTxn {
+		if err := txn.Commit(); err != nil {
+			return fmt.Errorf("committing txn: %v", err)
+		}
 	}
 	return nil
 }
@@ -644,11 +680,7 @@ func encode(v interface{}) ([]byte, error) {
 }
 
 func decode(v []byte) (b Bid, err error) {
-	var buf bytes.Buffer
-	if _, err := buf.Write(v); err != nil {
-		return b, err
-	}
-	dec := gob.NewDecoder(&buf)
+	dec := gob.NewDecoder(bytes.NewReader(v))
 	if err := dec.Decode(&b); err != nil {
 		return b, err
 	}
