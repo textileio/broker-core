@@ -72,7 +72,7 @@ func TestFull(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ok)
 
-	// Remove br2 in the middle.
+	// Test deleting a prepared batch.
 	err = s.DeleteBatch(batch.ID)
 	require.NoError(t, err)
 }
