@@ -25,7 +25,7 @@ func init() {
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "batch-frequency", DefValue: "20s", Description: "Frequency in which a new batch gets created"},
-		{Name: "batch-min-size", DefValue: "10MiB", Description: "Minimum batch size"},
+		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
