@@ -3,15 +3,20 @@ package client_test
 import (
 	"context"
 	"crypto/rand"
-	"io/ioutil"
 	"net"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
+	util "github.com/ipfs/go-ipfs-util"
+	cbor "github.com/ipfs/go-ipld-cbor"
+	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -20,6 +25,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
+	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/logging"
@@ -44,6 +50,7 @@ func init() {
 		"auctioneer/queue":   golog.LevelDebug,
 		"auctioneer/service": golog.LevelDebug,
 		"bidbot/service":     golog.LevelDebug,
+		"bidbot/store":       golog.LevelDebug,
 		"mpeer":              golog.LevelDebug,
 		"mpeer/pubsub":       golog.LevelDebug,
 	}); err != nil {
@@ -52,17 +59,19 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c := newClient(t, 1)
+	c, _ := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 1, true)
+	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	c := newClient(t, 1)
+	c, _ := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 1, true)
+	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -79,12 +88,17 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	c := newClient(t, 2)
-	addMiners(t, 10)
+	c, dag := newClient(t, 2)
+	bots := addBidbots(t, 10)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), oneGiB, sixMonthsEpochs, 2, true)
+	dnode, err := cbor.WrapObject([]byte("lets make a deal"), multihash.SHA2_256, -1)
+	require.NoError(t, err)
+	err = dag.Add(context.Background(), dnode)
+	require.NoError(t, err)
+
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dnode.Cid(), oneGiB, sixMonthsEpochs, 2, true)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -94,18 +108,42 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, core.AuctionStatusEnded, got.Status)
 	require.Len(t, got.WinningBids, 2)
-	assert.NotNil(t, got.Bids[got.WinningBids[0]])
-	assert.NotNil(t, got.Bids[got.WinningBids[1]])
+
+	for id, wb := range got.WinningBids {
+		assert.NotNil(t, got.Bids[id])
+		assert.True(t, wb.Acknowledged)
+
+		// Set the proposal as accepted
+		pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
+		err = c.ProposalAccepted(context.Background(), got.ID, id, pcid)
+		require.NoError(t, err)
+	}
+
+	time.Sleep(time.Second * 15) // Allow to finish
+
+	// Check if the winning bids were able to fetch the data cid
+	for _, wb := range got.WinningBids {
+		bot := bots[wb.BidderID]
+		require.NotNil(t, bot)
+
+		bids, err := bot.ListBids(bidstore.Query{})
+		require.NoError(t, err)
+		require.Len(t, bids, 1)
+		assert.Equal(t, bidstore.BidStatusFinalized, bids[0].Status)
+		assert.Empty(t, bids[0].ErrorCause)
+	}
+
+	got, err = c.GetAuction(context.Background(), id)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), auctioneer.ErrAuctionNotFound.Error())
 }
 
-func newClient(t *testing.T, attempts uint32) *client.Client {
+func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService) {
+	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
 		require.NoError(t, fin.Cleanup(nil))
 	})
-
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
 
 	listener := bufconn.Listen(bufConnSize)
 	fin.Add(listener)
@@ -144,34 +182,45 @@ func newClient(t *testing.T, attempts uint32) *client.Client {
 	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
 	fin.Add(conn)
-	return client.New(conn)
+	return client.New(conn), s.DAGService()
 }
 
-func addMiners(t *testing.T, n int) {
+func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
+	bots := make(map[peer.ID]*bidbotsrv.Service)
+	fin := finalizer.NewFinalizer()
+	t.Cleanup(func() {
+		require.NoError(t, fin.Cleanup(nil))
+	})
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
 		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		require.NoError(t, err)
 
+		store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "bidstore"))
+		require.NoError(t, err)
+		fin.Add(store)
+
 		config := bidbotsrv.Config{
-			RepoPath: dir,
 			Peer: marketpeer.Config{
 				PrivKey:    priv,
 				RepoPath:   dir,
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				WalletAddrSig:    []byte("bar"),
-				AskPrice:         100000000000,
-				VerifiedAskPrice: 100000000000,
-				FastRetrieval:    true,
-				DealStartWindow:  oneDayEpochs,
+				MinerAddr:             "foo",
+				WalletAddrSig:         []byte("bar"),
+				AskPrice:              100000000000,
+				VerifiedAskPrice:      100000000000,
+				FastRetrieval:         true,
+				DealStartWindow:       oneDayEpochs,
+				DealDataDirectory:     t.TempDir(),
+				DealDataFetchAttempts: 3,
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{
-					Min: core.MinDealEpochs,
-					Max: core.MaxDealEpochs,
+					Min: core.MinDealDuration,
+					Max: core.MaxDealDuration,
 				},
 				DealSize: bidbotsrv.MinMaxFilter{
 					Min: 56 * 1024,
@@ -180,15 +229,15 @@ func addMiners(t *testing.T, n int) {
 			},
 		}
 
-		s, err := bidbotsrv.New(config, newFilClientMock())
+		s, err := bidbotsrv.New(config, store, newFilClientMock())
 		require.NoError(t, err)
+		fin.Add(s)
 		err = s.Subscribe(false)
 		require.NoError(t, err)
 
-		t.Cleanup(func() {
-			require.NoError(t, s.Close())
-		})
+		bots[s.ID()] = s
 	}
+	return bots
 }
 
 func newDealID() core.StorageDealID {

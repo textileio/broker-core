@@ -60,7 +60,7 @@ services:
       dockerfile: ./cmd/auctioneerd/Dockerfile
     platform: linux/amd64
     volumes:
-      - "${REPO_PATH}/auctioneerd:/data/auctioneerd"
+      - auctioneerd_data:/data/auctioneerd
     environment:
       - AUCTIONEER_LOG_DEBUG=true
       - AUCTIONEER_LOG_JSON=true
@@ -85,7 +85,7 @@ services:
       dockerfile: ./cmd/bidbot/Dockerfile
     platform: linux/amd64
     volumes:
-      - "${REPO_PATH}/bidbot:/data/bidbot"
+      - bidbot_data:/data/bidbot
     environment:
       - BIDBOT_LOG_DEBUG=true
       - BIDBOT_LOG_JSON=true
@@ -99,6 +99,7 @@ services:
       - BIDBOT_DEAL_DURATION_MAX=1051200
       - BIDBOT_DEAL_SIZE_MIN=57344
       - BIDBOT_DEAL_SIZE_MAX=32000000000
+      - BIDBOT_PROPOSAL_CID_FETCH_ATTEMPTS=3
       - BIDBOT_PRIVATE_KEY=mCAESQMTvC9vrfZGa8g9q5oSJM1VbcU5OnYa/PdXuzte77jsft8HAmDRgV6Gw1QVWGSOG8v/LmhO0b2kEVgnux1Y8Hgk
       - BIDBOT_MDNS=true
     security_opt:
@@ -122,6 +123,7 @@ services:
       - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
       - BROKER_DEALER_ADDR=dealerd:5000
       - BROKER_REPORTER_ADDR=neard:5000
+      - BROKER_DEAL_REPLICATION=1
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
     security_opt:
@@ -218,3 +220,6 @@ services:
       - "4001:4001/udp"
       - "127.0.0.1:5001:5001"
       - "127.0.0.1:8080:8080"
+volumes:
+  auctioneer_data:
+  bidbot_data:

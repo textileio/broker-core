@@ -6,6 +6,8 @@ import (
 	"net"
 
 	"github.com/gogo/status"
+	"github.com/ipfs/go-cid"
+	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -33,6 +35,7 @@ type Service struct {
 	pb.UnimplementedAPIServiceServer
 
 	server *grpc.Server
+	peer   *marketpeer.Peer
 	lib    *auctioneer.Auctioneer
 
 	finalizer *finalizer.Finalizer
@@ -60,6 +63,7 @@ func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc auc
 
 	s := &Service{
 		server:    grpc.NewServer(),
+		peer:      p,
 		lib:       lib,
 		finalizer: fin,
 	}
@@ -89,6 +93,11 @@ func (s *Service) Start(bootstrap bool) error {
 	return s.lib.Start(bootstrap)
 }
 
+// DAGService returns the underlying peer's format.DAGService.
+func (s *Service) DAGService() format.DAGService {
+	return s.peer.DAGService()
+}
+
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	if req == nil {
@@ -96,6 +105,10 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	}
 	if req.StorageDealId == "" {
 		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
+	}
+	dataCid, err := cid.Decode(req.DataCid)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid data cid")
 	}
 	if req.DealSize == 0 {
 		return nil, status.Error(codes.InvalidArgument, "deal size must be greater than zero")
@@ -109,13 +122,14 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 
 	id, err := s.lib.CreateAuction(
 		broker.StorageDealID(req.StorageDealId),
+		dataCid,
 		req.DealSize,
 		req.DealDuration,
 		req.DealReplication,
 		req.DealVerified,
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "creating auction: %s", err)
+		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	return &pb.ReadyToAuctionResponse{
 		Id: string(id),
@@ -135,8 +149,21 @@ func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.
 
 // ProposalAccepted receives an accepted deal proposal from a miner.
 func (s *Service) ProposalAccepted(
-	ctx context.Context,
-	req *pb.ProposalAcceptedRequest) (*pb.ProposalAcceptedResponse, error) {
-	// TODO
-	return nil, status.Errorf(codes.Unimplemented, "method ProposalAccepted not implemented")
+	_ context.Context,
+	req *pb.ProposalAcceptedRequest,
+) (*pb.ProposalAcceptedResponse, error) {
+	if req.AuctionId == "" {
+		return nil, status.Error(codes.InvalidArgument, "auction id is required")
+	}
+	if req.BidId == "" {
+		return nil, status.Error(codes.InvalidArgument, "bid id is required")
+	}
+	proposalCid, err := cid.Decode(req.ProposalCid)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid proposal cid")
+	}
+	if err := s.lib.DeliverProposal(broker.AuctionID(req.AuctionId), broker.BidID(req.BidId), proposalCid); err != nil {
+		return nil, status.Errorf(codes.Internal, "delivering proposal: %v", err)
+	}
+	return &pb.ProposalAcceptedResponse{}, nil
 }

@@ -14,6 +14,7 @@ type Auctioneer interface {
 	ReadyToAuction(
 		ctx context.Context,
 		id broker.StorageDealID,
+		dataCid cid.Cid,
 		dealSize, dealDuration, dealReplication int,
 		dealVerified bool,
 	) (broker.AuctionID, error)
@@ -22,5 +23,5 @@ type Auctioneer interface {
 	GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error)
 
 	// ProposalAccepted notifies about an accepted deal proposal by a miner.
-	ProposalAccepted(ctx context.Context, auID broker.AuctionID, bidID broker.BidID, proposal cid.Cid) error
+	ProposalAccepted(ctx context.Context, auID broker.AuctionID, bidID broker.BidID, proposalCid cid.Cid) error
 }

@@ -28,7 +28,8 @@ func init() {
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
-		{Name: "deal-duration", DefValue: broker.MaxDealEpochs, Description: "Deal duration in Filecoin epochs"},
+		{Name: "deal-duration", DefValue: broker.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
+		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "skip-reporting", DefValue: false, Description: "Skips reporting successful deals"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -69,9 +70,10 @@ var rootCmd = &cobra.Command{
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),
 
-			DealDuration:  v.GetUint64("deal-duration"),
-			VerifiedDeals: v.GetBool("verified-deals"),
-			SkipReporting: v.GetBool("skip-reporting"),
+			DealDuration:    v.GetUint64("deal-duration"),
+			DealReplication: v.GetUint32("deal-replication"),
+			VerifiedDeals:   v.GetBool("verified-deals"),
+			SkipReporting:   v.GetBool("skip-reporting"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

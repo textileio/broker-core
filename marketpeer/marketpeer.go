@@ -8,7 +8,9 @@ import (
 	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
+	format "github.com/ipfs/go-ipld-format"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
@@ -132,6 +134,7 @@ func New(conf Config) (*Peer, error) {
 	if err != nil {
 		return nil, fin.Cleanupf("creating ipfslite peer", err)
 	}
+	fin.Add(lpeer)
 
 	// Setup pubsub
 	gps, err := ps.NewGossipSub(
@@ -182,6 +185,16 @@ func (p *Peer) Host() host.Host {
 func (p *Peer) Bootstrap() {
 	p.peer.Bootstrap(p.bootstrap)
 	log.Info("peer was bootstapped")
+}
+
+// DAGService returns the underlying format.DAGService.
+func (p *Peer) DAGService() format.DAGService {
+	return p.peer
+}
+
+// BlockStore returns the underlying format.DAGService.
+func (p *Peer) BlockStore() blockstore.Blockstore {
+	return p.peer.BlockStore()
 }
 
 // NewTopic returns a new pubsub.Topic using the peer's host.

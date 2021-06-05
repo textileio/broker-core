@@ -2,12 +2,15 @@ package queue
 
 import (
 	"context"
-	"io/ioutil"
+	"crypto/rand"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
+	util "github.com/ipfs/go-ipfs-util"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
@@ -40,7 +43,7 @@ func TestQueue_newID(t *testing.T) {
 	}
 }
 
-func TestQueue_ListRequests(t *testing.T) {
+func TestQueue_ListAuctions(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
@@ -51,7 +54,8 @@ func TestQueue_ListRequests(t *testing.T) {
 		for i := 0; i < limit; i++ {
 			now = now.Add(time.Millisecond)
 			id, err := q.CreateAuction(broker.Auction{
-				StorageDealID:   broker.StorageDealID(uuid.NewString()),
+				StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+				DataCid:         cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
 				DealSize:        1024,
 				DealDuration:    1,
 				DealReplication: 1,
@@ -94,7 +98,8 @@ func TestQueue_CreateAuction(t *testing.T) {
 	q := newQueue(t)
 
 	id, err := q.CreateAuction(broker.Auction{
-		StorageDealID:   broker.StorageDealID(uuid.NewString()),
+		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+		DataCid:         cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
 		DealSize:        1024,
 		DealDuration:    1,
 		DealReplication: 1,
@@ -107,16 +112,26 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
+	assert.NotEmpty(t, got.ID)
+	assert.NotEmpty(t, got.StorageDealID)
 	assert.Equal(t, broker.AuctionStatusEnded, got.Status)
+	assert.True(t, got.DataCid.Defined())
+	assert.Equal(t, 1024, int(got.DealSize))
+	assert.Equal(t, 1, int(got.DealDuration))
+	assert.Equal(t, 1, int(got.DealReplication))
+	assert.False(t, got.DealVerified)
+	assert.Empty(t, got.Bids)
+	assert.Empty(t, got.WinningBids)
+	assert.Equal(t, 0, int(got.Attempts))
+	assert.Empty(t, got.ErrorCause)
+	assert.False(t, got.StartedAt.IsZero())
+	assert.False(t, got.UpdatedAt.IsZero())
 }
 
 func newQueue(t *testing.T) *Queue {
-	dir, err := ioutil.TempDir("", "")
+	s, err := badger.NewDatastore(t.TempDir(), &badger.DefaultOptions)
 	require.NoError(t, err)
-	s, err := badger.NewDatastore(dir, &badger.DefaultOptions)
-	require.NoError(t, err)
-	q, err := NewQueue(s, runner, finalizer, 2)
-	require.NoError(t, err)
+	q := NewQueue(s, runner, finalizer, 2)
 	t.Cleanup(func() {
 		require.NoError(t, q.Close())
 		require.NoError(t, s.Close())
@@ -124,9 +139,13 @@ func newQueue(t *testing.T) *Queue {
 	return q
 }
 
-func runner(_ context.Context, _ *broker.Auction, _ func(bid broker.Bid) error) error {
+func runner(
+	_ context.Context,
+	_ broker.Auction,
+	_ func(bid broker.Bid) (broker.BidID, error),
+) (map[broker.BidID]broker.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)
-	return nil
+	return nil, nil
 }
 
 func finalizer(_ context.Context, _ broker.Auction) error {

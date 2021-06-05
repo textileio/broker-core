@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"crypto/rand"
+	"path/filepath"
 	"testing"
 
 	golog "github.com/ipfs/go-log/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	core "github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 )
@@ -22,6 +24,7 @@ const (
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
 		"bidbot/service": golog.LevelDebug,
+		"bidbot/store":   golog.LevelDebug,
 		"mpeer":          golog.LevelDebug,
 	}); err != nil {
 		panic(err)
@@ -35,16 +38,18 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	bidParams := service.BidParams{
-		WalletAddrSig:    []byte("bar"),
-		AskPrice:         100000000000,
-		VerifiedAskPrice: 100000000000,
-		FastRetrieval:    true,
-		DealStartWindow:  oneDayEpochs,
+		WalletAddrSig:         []byte("bar"),
+		AskPrice:              100000000000,
+		VerifiedAskPrice:      100000000000,
+		FastRetrieval:         true,
+		DealStartWindow:       oneDayEpochs,
+		DealDataFetchAttempts: 3,
+		DealDataDirectory:     t.TempDir(),
 	}
 	auctionFilters := service.AuctionFilters{
 		DealDuration: service.MinMaxFilter{
-			Min: core.MinDealEpochs,
-			Max: core.MaxDealEpochs,
+			Min: core.MinDealDuration,
+			Max: core.MaxDealDuration,
 		},
 		DealSize: service.MinMaxFilter{
 			Min: 56 * 1024,
@@ -53,7 +58,6 @@ func TestNew(t *testing.T) {
 	}
 
 	config := service.Config{
-		RepoPath: dir,
 		Peer: marketpeer.Config{
 			PrivKey:    priv,
 			RepoPath:   dir,
@@ -61,19 +65,44 @@ func TestNew(t *testing.T) {
 		},
 	}
 
+	store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "bidstore"))
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
 	fc := newFilClientMock()
 
-	// Bad bid params
-	config.BidParams = service.BidParams{
-		DealStartWindow: 0,
-	}
 	config.AuctionFilters = auctionFilters
-	_, err = service.New(config, fc)
+
+	// Bad DealStartWindow
+	config.BidParams = service.BidParams{
+		DealStartWindow:       0,
+		DealDataFetchAttempts: 1,
+		DealDataDirectory:     t.TempDir(),
+	}
+	_, err = service.New(config, store, fc)
+	require.Error(t, err)
+
+	// Bad DealDataFetchAttempts
+	config.BidParams = service.BidParams{
+		DealStartWindow:       oneDayEpochs,
+		DealDataFetchAttempts: 0,
+		DealDataDirectory:     t.TempDir(),
+	}
+	_, err = service.New(config, store, fc)
+	require.Error(t, err)
+
+	// Bad DealDataDirectory
+	config.BidParams = service.BidParams{
+		DealStartWindow:       oneDayEpochs,
+		DealDataFetchAttempts: 1,
+		DealDataDirectory:     "",
+	}
+	_, err = service.New(config, store, fc)
 	require.Error(t, err)
 
 	config.BidParams = bidParams
 
-	// Bad auction filters
+	// Bad auction MinMaxFilter
 	config.AuctionFilters = service.AuctionFilters{
 		DealDuration: service.MinMaxFilter{
 			Min: 10, // min greater than max
@@ -84,13 +113,13 @@ func TestNew(t *testing.T) {
 			Max: 20,
 		},
 	}
-	_, err = service.New(config, fc)
+	_, err = service.New(config, store, fc)
 	require.Error(t, err)
 
 	config.AuctionFilters = auctionFilters
 
 	// Good config
-	s, err := service.New(config, fc)
+	s, err := service.New(config, store, fc)
 	require.NoError(t, err)
 	err = s.Subscribe(false)
 	require.NoError(t, err)
@@ -104,7 +133,7 @@ func TestNew(t *testing.T) {
 		mock.Anything,
 		mock.Anything,
 	).Return(false, nil)
-	_, err = service.New(config, fc2)
+	_, err = service.New(config, store, fc2)
 	require.Error(t, err)
 }
 

@@ -21,24 +21,27 @@ require (
 	github.com/hsanjuan/ipfs-lite v1.1.19
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
-	github.com/ipfs/go-ipfs-config v0.12.0
+	github.com/ipfs/go-ipfs-blockstore v1.0.3
+	github.com/ipfs/go-ipfs-config v0.14.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
+	github.com/ipfs/go-ipfs-util v0.0.2
+	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-log/v2 v2.1.3
 	github.com/ipfs/go-merkledag v0.3.2
-	github.com/ipfs/go-unixfs v0.2.4
+	github.com/ipfs/go-unixfs v0.2.6
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/ipld/go-car v0.1.1-0.20201119040415-11b6074b6d4d
 	github.com/jsign/go-filsigner v0.2.0
-	github.com/libp2p/go-libp2p v0.13.0
+	github.com/libp2p/go-libp2p v0.14.1
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5
-	github.com/libp2p/go-libp2p-peerstore v0.2.6
-	github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210212194758-6c1addf493eb
-	github.com/libp2p/go-libp2p-quic-transport v0.10.0
+	github.com/libp2p/go-libp2p-peerstore v0.2.7
+	github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210517161200-e6ad80cf4782
+	github.com/libp2p/go-libp2p-quic-transport v0.11.0
 	github.com/mr-tron/base58 v1.2.0
-	github.com/multiformats/go-multiaddr v0.3.1
+	github.com/multiformats/go-multiaddr v0.3.2
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/multiformats/go-varint v0.0.6
@@ -67,3 +70,5 @@ require (
 replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
+
+replace github.com/hsanjuan/ipfs-lite => github.com/sanderpick/ipfs-lite v1.1.20-0.20210603231246-4c7bb79224a9

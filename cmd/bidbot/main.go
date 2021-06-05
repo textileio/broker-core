@@ -18,6 +18,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer"
 )
@@ -65,12 +66,12 @@ func init() {
 		},
 		{
 			Name:        "deal-duration-min",
-			DefValue:    broker.MinDealEpochs,
+			DefValue:    broker.MinDealDuration,
 			Description: "Minimum deal duration to bid on in epochs; default is ~6 months",
 		},
 		{
 			Name:        "deal-duration-max",
-			DefValue:    broker.MaxDealEpochs,
+			DefValue:    broker.MaxDealDuration,
 			Description: "Maximum deal duration to bid on in epochs; default is ~1 year",
 		},
 		{
@@ -82,6 +83,11 @@ func init() {
 			Name:        "deal-size-max",
 			DefValue:    32 * 1000 * 1000 * 1000,
 			Description: "Maximum deal size to bid on in bytes",
+		},
+		{
+			Name:        "deal-data-fetch-attempts",
+			DefValue:    3,
+			Description: "Number of times fetching deal data will be attempted before failing",
 		},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -124,6 +130,12 @@ located at ~/.bidbot. To change the repo location, set the $BIDBOT_PATH
 environment variable:
 
     export BIDBOT_PATH=/path/to/bidbotrepo
+
+bidbot will fetch and write deal data to a local directory. This directory should be
+accessible to Lotus. By default, the directory is located at ~/.bidbot/deal_data.
+The change the deal data directory, set the $BIDBOT_DEAL_DATA_DIRECTORY environment variable:
+
+    export BIDBOT_DEAL_DATA_DIRECTORY=/path/to/lotus/accessible/directory
 `,
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
@@ -167,6 +179,7 @@ var daemonCmd = &cobra.Command{
 		err := common.ConfigureLogging(v, []string{
 			cliName,
 			"bidbot/service",
+			"bidbot/store",
 			"mpeer",
 			"mpeer/pubsub",
 		})
@@ -187,27 +200,41 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
+		fin := finalizer.NewFinalizer()
+		repoPath := os.Getenv("BIDBOT_PATH")
+		if repoPath == "" {
+			repoPath = defaultConfigPath
+		}
+		store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(repoPath, "bidstore"))
+		common.CheckErrf("creating datastore: %v", err)
+		fin.Add(store)
+
 		err = common.SetupInstrumentation(v.GetString("metrics.addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
 		walletAddrSig, err := hex.DecodeString(v.GetString("wallet-addr-sig"))
 		common.CheckErrf("decoding wallet address signature: %v", err)
 
-		fin := finalizer.NewFinalizer()
 		fc, err := filclient.New(v.GetString("lotus-gateway-url"), v.GetBool("fake-mode"))
 		common.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
 
+		dealDataDirectory := os.Getenv("BIDBOT_DEAL_DATA_DIRECTORY")
+		if dealDataDirectory == "" {
+			dealDataDirectory = filepath.Join(defaultConfigPath, "deal_data")
+		}
+
 		config := service.Config{
-			RepoPath: pconfig.RepoPath,
-			Peer:     pconfig,
+			Peer: pconfig,
 			BidParams: service.BidParams{
-				MinerAddr:        v.GetString("miner-addr"),
-				WalletAddrSig:    walletAddrSig,
-				AskPrice:         v.GetInt64("ask-price"),
-				VerifiedAskPrice: v.GetInt64("verified-ask-price"),
-				FastRetrieval:    v.GetBool("fast-retrieval"),
-				DealStartWindow:  v.GetUint64("deal-start-window"),
+				MinerAddr:             v.GetString("miner-addr"),
+				WalletAddrSig:         walletAddrSig,
+				AskPrice:              v.GetInt64("ask-price"),
+				VerifiedAskPrice:      v.GetInt64("verified-ask-price"),
+				FastRetrieval:         v.GetBool("fast-retrieval"),
+				DealStartWindow:       v.GetUint64("deal-start-window"),
+				DealDataFetchAttempts: v.GetUint32("deal-data-fetch-attempts"),
+				DealDataDirectory:     dealDataDirectory,
 			},
 			AuctionFilters: service.AuctionFilters{
 				DealDuration: service.MinMaxFilter{
@@ -220,7 +247,7 @@ var daemonCmd = &cobra.Command{
 				},
 			},
 		}
-		serv, err := service.New(config, fc)
+		serv, err := service.New(config, store, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 

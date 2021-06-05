@@ -14,10 +14,14 @@ const (
 	invalidStatus        = "invalid"
 	epochsPerDay  uint64 = 60 * 24 * 2 // 1 epoch = ~30s
 
-	// MinDealEpochs is the minimum allowed deal duration requested of miners.
-	MinDealEpochs = epochsPerDay * 365 / 2 // ~6 months
-	// MaxDealEpochs is the maximum allowed deal duration requested of miners.
-	MaxDealEpochs = epochsPerDay * 365 // ~1 year
+	// MinDealDuration is the minimum allowed deal duration in epochs requested of miners.
+	MinDealDuration = epochsPerDay * 365 / 2 // ~6 months
+	// MaxDealDuration is the maximum allowed deal duration in epochs requested of miners.
+	MaxDealDuration = epochsPerDay * 365 // ~1 year
+	// MinDealReplication is the minimum allowed deal replication requested of miners.
+	MinDealReplication = 1
+	// MaxDealReplication is the maximum allowed deal replication requested of miners.
+	MaxDealReplication = 10
 )
 
 // Broker provides full set of functionalities for Filecoin brokering.
@@ -37,7 +41,7 @@ type Broker interface {
 	// StorageDealFinalizedDeal signals to the broker results about deal making.
 	StorageDealFinalizedDeal(ctx context.Context, res FinalizedAuctionDeal) error
 
-	// StorageDealProposalAcceted signals the broker that a miner has accepted a deal proposal.
+	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
 	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
 }
 
@@ -222,10 +226,10 @@ func WinsTopic(pid peer.ID) string {
 	return path.Join(AuctionTopic, pid.String(), "wins")
 }
 
-// AcksTopic is used to acknowledge publishers that a message was received.
-// "<base_topic>/<publisher_peer_id>/acks".
-func AcksTopic(base string, pid peer.ID) string {
-	return path.Join(base, pid.String(), "acks")
+// ProposalsTopic is used by brokers to notify a bidbot of the proposal cid.Cid for an accepted deal auction.
+// "/textile/auction/0.0.1/<peer_id>/proposals".
+func ProposalsTopic(pid peer.ID) string {
+	return path.Join(AuctionTopic, pid.String(), "proposals")
 }
 
 // AuctionID is a unique identifier for an Auction.
@@ -235,17 +239,19 @@ type AuctionID string
 type Auction struct {
 	ID              AuctionID
 	StorageDealID   StorageDealID
+	DataCid         cid.Cid
 	DealSize        uint64
 	DealDuration    uint64
 	DealReplication uint32
 	DealVerified    bool
 	Status          AuctionStatus
 	Bids            map[BidID]Bid
-	WinningBids     []BidID
+	WinningBids     map[BidID]WinningBid
 	StartedAt       time.Time
+	UpdatedAt       time.Time
 	Duration        time.Duration
 	Attempts        uint32
-	Error           string
+	ErrorCause      string
 }
 
 // AuctionStatus is the status of an auction.
@@ -290,12 +296,19 @@ type Bid struct {
 	MinerAddr        string
 	WalletAddrSig    []byte
 	BidderID         peer.ID
-	BrokerID         peer.ID
 	AskPrice         int64 // attoFIL per GiB per epoch
 	VerifiedAskPrice int64 // attoFIL per GiB per epoch
 	StartEpoch       uint64
 	FastRetrieval    bool
 	ReceivedAt       time.Time
+}
+
+// WinningBid contains details about a winning bid.
+type WinningBid struct {
+	BidderID                peer.ID
+	Acknowledged            bool // Whether or not the bidder acknowledged receipt of the win
+	ProposalCid             cid.Cid
+	ProposalCidAcknowledged bool // Whether or not the bidder acknowledged receipt of the proposal Cid
 }
 
 // FinalizedAuctionDeal contains information about final status of an executed
