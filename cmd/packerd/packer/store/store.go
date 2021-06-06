@@ -20,9 +20,6 @@ import (
 )
 
 var (
-	// ErrNotFound is returned when dequeuing an element that doesn't exist.
-	ErrNotFound = fmt.Errorf("batchable broker request not found")
-
 	// /batch/pending/<batch-id> (an open batch that will keep aggregating broker-requests until is closed).
 	dsPrefixPendingBatch = datastore.NewKey("/batch/pending")
 	// /batch/ready/<batch-id> (a batch ready to be prepared and signaled to the broker).
@@ -70,6 +67,9 @@ type Store struct {
 
 // New returns a *Store.
 func New(ds datastore.TxnDatastore, batchMaxSize int64, batchReadyMinSize uint) (*Store, error) {
+	if batchMaxSize < int64(batchReadyMinSize) {
+		return nil, fmt.Errorf("batch max size can't be smaller than the minimum batch size")
+	}
 	s := &Store{
 		ds:                ds,
 		batchMaxSize:      batchMaxSize,

@@ -199,7 +199,6 @@ func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBr
 
 	var numBatchedCids int
 	for _, br := range bbrs {
-		// 1- See if adding this extra node will go beyond the maximum DAG size.
 		log.Debugf("get datacid %s", br.DataCid)
 		ctx, cls := context.WithTimeout(ctx, time.Millisecond*500)
 		defer cls()
@@ -208,14 +207,14 @@ func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBr
 			return cid.Undef, 0, fmt.Errorf("getting node by cid: %s", err)
 		}
 
-		// 2- We get a base32 Cid.
+		// 1- We get a base32 Cid.
 		base32Cid, err := br.DataCid.StringOfBase(multibase.Base32)
 		if err != nil {
 			return cid.Undef, 0, fmt.Errorf("transforming to base32 cid: %s", err)
 		}
 		base32CidLen := len(base32Cid)
 
-		// 3- Build path through 3 layers.
+		// 2- Build path through 3 layers.
 		layer0LinkName := "ba.." + base32Cid[base32CidLen-2:base32CidLen]
 		layer1Node, err := getOrCreateLayerNode(batchRoot, layer0LinkName, batchNodes)
 		if err != nil {
@@ -227,7 +226,7 @@ func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBr
 			return cid.Undef, 0, fmt.Errorf("get/create layer1 node: %s", err)
 		}
 
-		// 4- Add the target Cid in the layer 3 node, and bubble up parent nodes
+		// 3- Add the target Cid in the layer 3 node, and bubble up parent nodes
 		//    changes up to the updated batchRoot that now includes this cid.
 		_, err = layer2Node.GetNodeLink(base32Cid)
 		if err != nil && err != merkledag.ErrLinkNotFound {

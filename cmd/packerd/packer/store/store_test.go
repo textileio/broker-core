@@ -124,7 +124,7 @@ func TestTriggerNewBatch(t *testing.T) {
 
 	// At this point, we should have two open batches:
 	// - Batch A (size 3): with the first two enqueued broker requests.
-	// - Batch B (size 4): with the third one.
+	// - Batch B (size 3): with the third one.
 
 	// Adding b4 should close the first one. Let's check that.
 	br4 := BatchableBrokerRequest{
