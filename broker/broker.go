@@ -264,10 +264,10 @@ const (
 	AuctionStatusQueued
 	// AuctionStatusStarted indicates the auction has started.
 	AuctionStatusStarted
-	// AuctionStatusEnded indicates the auction has ended.
-	AuctionStatusEnded
-	// AuctionStatusError indicates the auction resulted in an error.
-	AuctionStatusError
+	// AuctionStatusFinalized indicates the auction has reached a final state.
+	// If ErrorCause is empty, the auction has received a sufficient number of bids.
+	// If ErrorCause is not empty, a fatal error has occurred and the auction should be considered abandoned.
+	AuctionStatusFinalized
 )
 
 // String returns a string-encoded status.
@@ -279,10 +279,8 @@ func (as AuctionStatus) String() string {
 		return "queued"
 	case AuctionStatusStarted:
 		return "started"
-	case AuctionStatusEnded:
-		return "ended"
-	case AuctionStatusError:
-		return "error"
+	case AuctionStatusFinalized:
+		return "finalized"
 	default:
 		return invalidStatus
 	}

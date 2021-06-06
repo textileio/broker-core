@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -133,6 +134,8 @@ type Store struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	wg sync.WaitGroup
 }
 
 // NewStore returns a new Store.
@@ -155,6 +158,7 @@ func NewStore(
 	}
 
 	// Create data fetch workers
+	s.wg.Add(MaxDataCidFetchConcurrency)
 	for i := 0; i < MaxDataCidFetchConcurrency; i++ {
 		go s.fetchWorker(i + 1)
 	}
@@ -171,6 +175,7 @@ func NewStore(
 // Close the store. This will wait for "fetching" data cid fetches.
 func (s *Store) Close() error {
 	s.cancel()
+	s.wg.Wait()
 	return nil
 }
 
@@ -440,6 +445,8 @@ func (s *Store) enqueueDataCid(commitTxn ds.Txn, b *Bid) error {
 }
 
 func (s *Store) fetchWorker(num int) {
+	defer func() { s.wg.Done() }()
+
 	fail := func(b *Bid, err error) (status BidStatus) {
 		b.ErrorCause = err.Error()
 		if b.DataCidFetchAttempts >= s.dealDataFetchAttempts {

@@ -25,8 +25,7 @@ message Auction {
         STATUS_UNSPECIFIED = 0;
         STATUS_QUEUED = 1;
         STATUS_STARTED = 2;
-        STATUS_ENDED = 3;
-        STATUS_ERROR = 4;
+        STATUS_FINALIZED = 3;
     }
 
     message Bid {

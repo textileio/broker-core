@@ -384,10 +384,12 @@ func (a *Auctioneer) validateBid(b core.Bid) error {
 
 func (a *Auctioneer) finalizeAuction(ctx context.Context, auction core.Auction) error {
 	switch auction.Status {
-	case broker.AuctionStatusEnded:
-		a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrOK)
-	case broker.AuctionStatusError:
-		a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrError)
+	case broker.AuctionStatusFinalized:
+		if auction.ErrorCause != "" {
+			a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrError)
+		} else {
+			a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrOK)
+		}
 	default:
 		return fmt.Errorf("invalid final status: %s", auction.Status)
 	}

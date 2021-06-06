@@ -108,13 +108,13 @@ func TestQueue_CreateAuction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Allow to finish
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Second)
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
 	assert.NotEmpty(t, got.ID)
 	assert.NotEmpty(t, got.StorageDealID)
-	assert.Equal(t, broker.AuctionStatusEnded, got.Status)
+	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.True(t, got.DataCid.Defined())
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1, int(got.DealDuration))
@@ -122,7 +122,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	assert.False(t, got.DealVerified)
 	assert.Len(t, got.Bids, 3)
 	assert.Len(t, got.WinningBids, 1)
-	assert.Equal(t, 0, int(got.Attempts))
+	assert.Equal(t, 1, int(got.Attempts))
 	assert.Empty(t, got.ErrorCause)
 	assert.False(t, got.StartedAt.IsZero())
 	assert.False(t, got.UpdatedAt.IsZero())
@@ -137,16 +137,20 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 		DataCid:         cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
 		DealSize:        1024,
 		DealDuration:    1,
-		DealReplication: 1,
+		DealReplication: 2,
 		Duration:        time.Millisecond,
 	})
 	require.NoError(t, err)
 
 	// Allow to finish
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Second)
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
+	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
+	assert.Empty(t, got.ErrorCause)
+	assert.Len(t, got.Bids, 3)
+	assert.Len(t, got.WinningBids, int(got.DealReplication))
 
 	pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("proposal")))
 
@@ -168,9 +172,9 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	}
 
 	// Allow to finish
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Second)
 
-	got, err = q.GetAuction(id)
+	_, err = q.GetAuction(id)
 	require.ErrorIs(t, err, ErrAuctionNotFound)
 }
 
@@ -192,7 +196,6 @@ func runner(
 ) (map[broker.BidID]broker.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)
 
-	bids := make(map[broker.BidID]broker.Bid)
 	result := make(map[broker.BidID]broker.WinningBid)
 	receivedBids := []broker.Bid{
 		{
@@ -229,20 +232,17 @@ func runner(
 
 	if len(a.WinningBids) == 0 {
 		// First run... select winners
-		var winner broker.BidID
 		for i, bid := range receivedBids {
 			id, err := addBid(bid)
 			if err != nil {
 				return nil, err
 			}
-			bids[id] = bid
-			if i == 0 {
-				winner = id
+			if i < int(a.DealReplication) {
+				result[id] = broker.WinningBid{
+					BidderID:     receivedBids[0].BidderID,
+					Acknowledged: true,
+				}
 			}
-		}
-		result[winner] = broker.WinningBid{
-			BidderID:     receivedBids[0].BidderID,
-			Acknowledged: true,
 		}
 	} else {
 		// Second run from setting proposal cid
