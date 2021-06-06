@@ -70,10 +70,7 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainHeight uint64) error {
 	if aud.DealID == 0 {
 		log.Debugf("deal without deal-id, trying resolving with miner %s", aud.Miner)
-		dealID, stillHaveTime, err := d.tryResolvingDealID(aud, currentChainHeight)
-		if err != nil {
-			return fmt.Errorf("trying to resolve deal id: %s", err)
-		}
+		dealID, stillHaveTime := d.tryResolvingDealID(aud, currentChainHeight)
 		if dealID == 0 {
 			if stillHaveTime {
 				// No problem, we'll try later on a new iteration.
@@ -107,7 +104,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 	// We can ask the chain now for final confirmation.
 	// Now we can stop asking/trusting the miner for confirmation, and start asking
 	// the chain.
-	isActiveOnchain, expiration, err := d.filclient.CheckChainDeal(d.daemonCtx, aud.DealID)
+	isActiveOnchain, expiration, slashed, err := d.filclient.CheckChainDeal(d.daemonCtx, aud.DealID)
 	if err != nil {
 		log.Errorf("checking if deal %d is active on-chain: %s", aud.DealID, err)
 
@@ -116,6 +113,14 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 			return fmt.Errorf("saving auction deal: %s", err)
 		}
 		return nil
+	}
+
+	if slashed {
+		aud.ReadyAt = time.Unix(0, 0)
+		aud.ErrorCause = fmt.Sprintf("the deal %d was slashed", aud.DealID)
+		if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
+			return fmt.Errorf("saving auction deal: %s", err)
+		}
 	}
 
 	if !isActiveOnchain {
@@ -156,12 +161,13 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 // It asks the miner for the message Cid that published the deal. If a DealID is returned,
 // we can be sure is the correct one for AuctionDeal, since this method checks that the miner
 // isn't playing tricks reporting a DealID from other data.
-func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uint64) (int64, bool, error) {
+func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uint64) (int64, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	pds, err := d.filclient.CheckDealStatusWithMiner(ctx, aud.Miner, aud.ProposalCid)
 	if err != nil {
-		return 0, false, fmt.Errorf("checking deal status with miner: %s", err)
+		log.Errorf("checking deal status with miner: %s", err)
+		return 0, true
 	}
 	log.Debugf("check-deal-status: %s", logging.MustJSONIndent(pds))
 
@@ -171,15 +177,16 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uin
 		defer cancel()
 		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, aud.ProposalCid, *pds.PublishCid)
 		if err != nil {
-			return 0, false, fmt.Errorf("trying to resolve deal-id from message %s: %s", pds.PublishCid, err)
+			log.Errorf("trying to resolve deal-id from message %s: %s", pds.PublishCid, err)
+			return 0, true
 		}
 		// Could we resolve by looking to the chain?, if yes, save it.
 		// If no, no problem... we'll try again later when it might get confirmed.
 		if dealID > 0 {
-			return dealID, true, nil
+			return dealID, true
 		}
 	}
 
 	// Try our best but still can't know about the deal-id, return if there's still time to find out.
-	return 0, aud.StartEpoch > currentChainEpoch, nil
+	return 0, aud.StartEpoch > currentChainEpoch
 }

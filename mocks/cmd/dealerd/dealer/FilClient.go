@@ -20,7 +20,7 @@ type FilClient struct {
 }
 
 // CheckChainDeal provides a mock function with given fields: ctx, dealID
-func (_m *FilClient) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, error) {
+func (_m *FilClient) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, bool, error) {
 	ret := _m.Called(ctx, dealID)
 
 	var r0 bool
@@ -37,14 +37,21 @@ func (_m *FilClient) CheckChainDeal(ctx context.Context, dealID int64) (bool, ui
 		r1 = ret.Get(1).(uint64)
 	}
 
-	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, int64) error); ok {
+	var r2 bool
+	if rf, ok := ret.Get(2).(func(context.Context, int64) bool); ok {
 		r2 = rf(ctx, dealID)
 	} else {
-		r2 = ret.Error(2)
+		r2 = ret.Get(2).(bool)
 	}
 
-	return r0, r1, r2
+	var r3 error
+	if rf, ok := ret.Get(3).(func(context.Context, int64) error); ok {
+		r3 = rf(ctx, dealID)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // CheckDealStatusWithMiner provides a mock function with given fields: ctx, minerAddr, propCid
