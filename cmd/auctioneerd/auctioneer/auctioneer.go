@@ -53,7 +53,7 @@ type AuctionConfig struct {
 	// Attempts that an auction will run before signaling to the broker that it failed.
 	// Auctions will continue to run under the following conditions:
 	// 1. While deal replication is greater than the number of winning bids.
-	// 2. While at least one owner of a winning bid is unreachable.
+	// 2. While at least one owner of a winning bid is unreachable when notifying they won or delivery proposal cid.
 	// 3. While signaling the broker results in an error.
 	Attempts uint32
 }

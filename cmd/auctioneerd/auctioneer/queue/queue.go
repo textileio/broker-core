@@ -57,8 +57,8 @@ var (
 	dsStartedPrefix = ds.NewKey("/started")
 )
 
-// Runner is called when an auction moves from "queued" to "started".
-type Runner func(
+// Handler is called when an auction moves from "queued" to "started".
+type Handler func(
 	ctx context.Context,
 	auction broker.Auction,
 	addBid func(bid broker.Bid) (broker.BidID, error),
@@ -71,13 +71,13 @@ type Finalizer func(ctx context.Context, auction broker.Auction) error
 type Queue struct {
 	store txndswrap.TxnDatastore
 
-	runner    Runner
+	handler   Handler
 	finalizer Finalizer
 	jobCh     chan *broker.Auction
 	tickCh    chan struct{}
 	entropy   *ulid.MonotonicEntropy
 
-	runAttempts uint32
+	handleAttempts uint32
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -85,18 +85,18 @@ type Queue struct {
 	lk sync.Mutex
 }
 
-// NewQueue returns a new Queue using runner to process auctions.
-func NewQueue(store txndswrap.TxnDatastore, runner Runner, finalizer Finalizer, runAttempts uint32) *Queue {
+// NewQueue returns a new Queue using handler to process auctions.
+func NewQueue(store txndswrap.TxnDatastore, handler Handler, finalizer Finalizer, handleAttempts uint32) *Queue {
 	ctx, cancel := context.WithCancel(context.Background())
 	q := &Queue{
-		store:       store,
-		runner:      runner,
-		finalizer:   finalizer,
-		jobCh:       make(chan *broker.Auction, MaxConcurrency),
-		tickCh:      make(chan struct{}, MaxConcurrency),
-		runAttempts: runAttempts,
-		ctx:         ctx,
-		cancel:      cancel,
+		store:          store,
+		handler:        handler,
+		finalizer:      finalizer,
+		jobCh:          make(chan *broker.Auction, MaxConcurrency),
+		tickCh:         make(chan struct{}, MaxConcurrency),
+		handleAttempts: handleAttempts,
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 
 	// Create queue workers
@@ -128,6 +128,8 @@ func (q *Queue) CreateAuction(auction broker.Auction) (broker.AuctionID, error) 
 	if err := q.enqueue(nil, &auction); err != nil {
 		return "", fmt.Errorf("enqueueing: %v", err)
 	}
+
+	log.Infof("created auction %s", id)
 	return id, nil
 }
 
@@ -222,6 +224,10 @@ func getAuction(reader ds.Read, id broker.AuctionID) (*broker.Auction, error) {
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
 func (q *Queue) SetWinningBidProposalCid(id broker.AuctionID, bid broker.BidID, pcid cid.Cid) error {
+	if !pcid.Defined() {
+		return errors.New("proposal cid is not defined")
+	}
+
 	txn, err := q.store.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("creating txn: %v", err)
@@ -235,9 +241,6 @@ func (q *Queue) SetWinningBidProposalCid(id broker.AuctionID, bid broker.BidID, 
 	if a.Status != broker.AuctionStatusEnded {
 		return errors.New("auction has not ended")
 	}
-	if a.ErrorCause != "" {
-		return fmt.Errorf("auction ended with error: %s", a.ErrorCause)
-	}
 
 	wb, ok := a.WinningBids[bid]
 	if !ok {
@@ -249,48 +252,12 @@ func (q *Queue) SetWinningBidProposalCid(id broker.AuctionID, bid broker.BidID, 
 	wb.ProposalCid = pcid
 	a.WinningBids[bid] = wb
 
-	if allProposalsReady(a) {
-		if err := q.enqueue(txn, a); err != nil {
-			return fmt.Errorf("enqueueing: %v", err)
-		}
-	} else {
-		// Save auction state
-		if err := q.saveAndTransitionStatus(txn, a, a.Status); err != nil {
-			return fmt.Errorf("saving proposal cid: %v", err)
-		}
-		if err := txn.Commit(); err != nil {
-			return fmt.Errorf("committing txn: %v", err)
-		}
+	if err := q.enqueue(txn, a); err != nil {
+		return fmt.Errorf("enqueueing: %v", err)
 	}
+
+	log.Infof("set proposal cid for bid %s in auction %s", bid, id)
 	return nil
-}
-
-func allProposalsReady(a *broker.Auction) bool {
-	if len(a.WinningBids) != int(a.DealReplication) {
-		return false
-	}
-	ready := true
-	for _, wb := range a.WinningBids {
-		if !wb.ProposalCid.Defined() {
-			ready = false
-			break
-		}
-	}
-	return ready
-}
-
-func allProposalsDelivered(a *broker.Auction) bool {
-	if len(a.WinningBids) != int(a.DealReplication) {
-		return false
-	}
-	delivered := true
-	for _, wb := range a.WinningBids {
-		if !(wb.ProposalCid.Defined() && wb.ProposalCidAcknowledged) {
-			delivered = false
-			break
-		}
-	}
-	return delivered
 }
 
 // Query is used to query for auctions.
@@ -437,9 +404,9 @@ func (q *Queue) worker(num int) {
 
 	fail := func(a *broker.Auction, err error) (status broker.AuctionStatus) {
 		a.ErrorCause = err.Error()
-		if a.Attempts >= q.runAttempts {
+		if a.Attempts >= q.handleAttempts {
 			status = broker.AuctionStatusError
-			log.Warnf("job %s exhausted all %d attempts with error: %v", a.ID, q.runAttempts, err)
+			log.Warnf("job %s exhausted all %d attempts with error: %v", a.ID, q.handleAttempts, err)
 		} else {
 			status = broker.AuctionStatusQueued
 			log.Debugf("retrying job %s with error: %v", a.ID, err)
@@ -456,12 +423,13 @@ func (q *Queue) worker(num int) {
 			if q.ctx.Err() != nil {
 				return
 			}
+			log.Infof("handling auction %s", a.ID)
 			a.Attempts++
-			log.Debugf("worker %d got job %s (attempt=%d/%d)", num, a.ID, a.Attempts, q.runAttempts)
+			log.Debugf("worker %d got job %s (attempt=%d/%d)", num, a.ID, a.Attempts, q.handleAttempts)
 
-			// Handle the auction with the runner func
+			// Handle the auction with the handler func
 			var status broker.AuctionStatus
-			wbs, err := q.runner(q.ctx, *a, func(bid broker.Bid) (broker.BidID, error) {
+			wbs, err := q.handler(q.ctx, *a, func(bid broker.Bid) (broker.BidID, error) {
 				return addBid(a, bid)
 			})
 			// Update winning bid state; some bids may have been processed even if there was an error
@@ -481,10 +449,11 @@ func (q *Queue) worker(num int) {
 				a.ErrorCause = ""
 				a.Attempts = 0
 			}
+			log.Infof("handled auction %s (status=%s)", a.ID, status)
 
 			// Save and update status to "ended" or "error"
 			if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
-				log.Errorf("updating runner status (%s): %v", status, err)
+				log.Errorf("updating handler status (%s): %v", status, err)
 			} else if status != broker.AuctionStatusQueued {
 				// Finish auction with the finalizer func
 				if err := q.finalizer(q.ctx, *a); err != nil {
@@ -499,6 +468,7 @@ func (q *Queue) worker(num int) {
 					if err := q.delete(a); err != nil {
 						log.Errorf("deleting auction: %v", err)
 					}
+					log.Infof("deleting auction %s", a.ID)
 				}
 			}
 
@@ -509,6 +479,20 @@ func (q *Queue) worker(num int) {
 			}
 		}
 	}
+}
+
+func allProposalsDelivered(a *broker.Auction) bool {
+	if len(a.WinningBids) != int(a.DealReplication) {
+		return false
+	}
+	delivered := true
+	for _, wb := range a.WinningBids {
+		if !(wb.ProposalCid.Defined() && wb.ProposalCidAcknowledged) {
+			delivered = false
+			break
+		}
+	}
+	return delivered
 }
 
 func (q *Queue) start() {
