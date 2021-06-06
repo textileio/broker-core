@@ -34,7 +34,7 @@ var (
 )
 
 type (
-	// BatchID is an identified for a Batch.
+	// BatchID is an identifier for a Batch.
 	BatchID                  string
 	batchableBrokerRequestID string
 )
