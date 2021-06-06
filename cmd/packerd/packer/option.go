@@ -6,13 +6,15 @@ import (
 )
 
 type config struct {
-	frequency  time.Duration
-	sectorSize int64
+	frequency    time.Duration
+	sectorSize   int64
+	batchMinSize uint
 }
 
 var defaultConfig = config{
-	frequency:  time.Second * 20,
-	sectorSize: 32 << 30,
+	frequency:    time.Second * 20,
+	sectorSize:   32 << 30,
+	batchMinSize: 10 << 20,
 }
 
 // Option applies a configuration change.
@@ -39,6 +41,18 @@ func WithSectorSize(sectorSize int64) Option {
 			return fmt.Errorf("sector size should be positive")
 		}
 		c.sectorSize = sectorSize
+		return nil
+	}
+}
+
+// WithBatchMinSize configures the minimum batch size that can be considered
+// for preparation.
+func WithBatchMinSize(minSize uint) Option {
+	return func(c *config) error {
+		if minSize <= 0 {
+			return fmt.Errorf("batch min size should be positive")
+		}
+		c.batchMinSize = minSize
 		return nil
 	}
 }

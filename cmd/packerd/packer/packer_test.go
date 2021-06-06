@@ -12,14 +12,25 @@ import (
 	"github.com/ipfs/go-cid"
 	ipfsfiles "github.com/ipfs/go-ipfs-files"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	golog "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/tests"
 )
+
+func init() {
+	if err := logging.SetLogLevels(map[string]golog.LogLevel{
+		"packer":       golog.LevelDebug,
+		"packer/store": golog.LevelDebug,
+	}); err != nil {
+		panic(err)
+	}
+}
 
 func TestPack(t *testing.T) {
 	t.Parallel()
@@ -52,7 +63,7 @@ func TestPack(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, brokerMock.srids, numFiles)
-	require.Equal(t, int64(numFiles), numBatchedCids)
+	require.Equal(t, numFiles, numBatchedCids)
 	require.True(t, brokerMock.batchCid.Defined())
 
 	// Check that the batch cid was pinned in ipfs.
@@ -94,73 +105,17 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	// We fullfiled numRepeatedBrokerRequest, not only 1!
 	require.Len(t, brokerMock.srids, numRepeatedBrokerRequest)
 	// Despite we fulfilled multiple broker request, the batch only has one cid!
-	require.Equal(t, int64(1), numCidsBatched)
+	require.Equal(t, 1, numCidsBatched)
 
 	// Check that the batch cid was pinned in ipfs.
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
 	require.NoError(t, err)
 	require.True(t, pinned)
-}
-
-func TestSizeLimit(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-
-	ipfsDocker := launchIPFSContainer(t)
-	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
-
-	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
-	require.NoError(t, err)
-	ipfs, err := httpapi.NewApi(ma)
-	require.NoError(t, err)
-
-	brokerMock := &brokerMock{allowMultipleCalls: true}
-	ds := tests.NewTxMapDatastore()
-	// Configure max DAG size of 5KB
-	packer, err := New(ds, ipfs, brokerMock, WithFrequency(time.Hour), WithSectorSize(50*100))
-	require.NoError(t, err)
-
-	// 2- Add 100 random files ready to batch, which is 10KiB. They can't fit all in a single dag.
-	numFiles := 100
-	dataCids := addRandomData(t, ipfs, numFiles)
-
-	// 3- Signal that all of them are ready to pack.
-	for i, dataCid := range dataCids {
-		err = packer.ReadyToPack(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
-		require.NoError(t, err)
-	}
-	numCidsBatched, err := packer.pack(ctx)
-	require.NoError(t, err)
-
-	require.True(t, brokerMock.batchCid.Defined())
-	// The first batch should definitely considered less than 100 broker requests.
-	require.Less(t, len(brokerMock.srids), numFiles)
-	// There were no repetitions, so that means also 50 cids.
-	require.Less(t, numCidsBatched, int64(numFiles))
-
-	// Check that the batch cid was pinned in ipfs.
-	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
-	require.NoError(t, err)
-	require.True(t, pinned)
-
-	// Keep packing and counting...
-	// If something is working wrong, this will be and endless loop.
-	for numCidsBatched < int64(numFiles) {
-		countBatched, err := packer.pack(ctx)
-		require.NoError(t, err)
-		numCidsBatched += countBatched
-	}
-	// Check that we got exactly numFiles batched in total, not a single extra one.
-	require.Equal(t, int64(numFiles), numCidsBatched)
-}
-
-func TestSelectorRetrieval(t *testing.T) {
-	t.Skipf("Not implemented yet, needs to wait a bit for some things to land in ipfs world")
 }
 
 func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi, broker *brokerMock) *Packer {
 	ds := tests.NewTxMapDatastore()
-	packer, err := New(ds, ipfsClient, broker, WithFrequency(time.Hour))
+	packer, err := New(ds, ipfsClient, broker, WithFrequency(time.Hour), WithBatchMinSize(100*100))
 	require.NoError(t, err)
 
 	return packer

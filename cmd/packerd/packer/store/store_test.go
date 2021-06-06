@@ -6,158 +6,180 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/tests"
+
+	golog "github.com/ipfs/go-log/v2"
 )
+
+func init() {
+	if err := logging.SetLogLevels(map[string]golog.LogLevel{
+		"packer/store": golog.LevelDebug,
+	}); err != nil {
+		panic(err)
+	}
+}
 
 func TestFull(t *testing.T) {
 	t.Parallel()
 
 	ds := tests.NewTxMapDatastore()
-	s, err := New(ds)
+	s, err := New(ds, 100, 4)
 	require.NoError(t, err)
 
 	br1 := BatchableBrokerRequest{
 		BrokerRequestID: broker.BrokerRequestID("1"),
 		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHA"),
+		Size:            1,
 	}
 	br2 := BatchableBrokerRequest{
 		BrokerRequestID: broker.BrokerRequestID("2"),
 		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHB"),
+		Size:            2,
 	}
 	br3 := BatchableBrokerRequest{
 		BrokerRequestID: broker.BrokerRequestID("3"),
 		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHC"),
+		Size:            3,
 	}
 
 	// Enqueue three batchable broker requests.
 	err = s.Enqueue(br1)
 	require.NoError(t, err)
+	_, _, ok, err := s.GetNextReadyBatch()
+	require.NoError(t, err)
+	require.False(t, ok)
+
 	err = s.Enqueue(br2)
 	require.NoError(t, err)
+	_, _, ok, err = s.GetNextReadyBatch()
+	require.NoError(t, err)
+	require.False(t, ok)
+
 	err = s.Enqueue(br3)
 	require.NoError(t, err)
-	require.Len(t, s.queue, 3)
-
-	// Override br1, br2, br3 IDs with what was generated internally.
-	// We don't have explicit "GET" APIs in this store.
-	br1.ID = s.queue[0].ID
-	br2.ID = s.queue[1].ID
-	br3.ID = s.queue[2].ID
-
-	// Now test Iterator, and dequeuing and verifying things work as expected.
-
-	// Iterate and check that we see all three in order
-	brs := []BatchableBrokerRequest{br1, br2, br3}
-	assertIterator(t, s, brs)
-
-	// Remove br2 in the middle.
-	err = s.Dequeue([]BatchableBrokerRequest{br2})
+	batch, bbrs, ok, err := s.GetNextReadyBatch()
 	require.NoError(t, err)
-	brs = []BatchableBrokerRequest{br1, br3}
-	assertIterator(t, s, brs)
+	require.True(t, ok)
+	require.Len(t, bbrs, 3)
+	require.NotEmpty(t, batch.ID)
+	require.Equal(t, int64(len(bbrs)), batch.Count)
+	require.Equal(t, int64(6), batch.Size)
 
-	// Remove br1 in the front.
-	err = s.Dequeue([]BatchableBrokerRequest{br1})
+	// The only batch that exists is Executing now.
+	// Check that getting a next one shouldn't return a result.
+	_, _, ok, err = s.GetNextReadyBatch()
 	require.NoError(t, err)
-	brs = []BatchableBrokerRequest{br3}
-	assertIterator(t, s, brs)
+	require.False(t, ok)
 
-	// Remove last one.
-	err = s.Dequeue([]BatchableBrokerRequest{br3})
+	// Test deleting a prepared batch.
+	err = s.DeleteBatch(batch.ID)
 	require.NoError(t, err)
-	assertIterator(t, s, nil)
-
-	// Try to remove something that isn't there.
-	err = s.Dequeue([]BatchableBrokerRequest{br3})
-	require.Equal(t, ErrNotFound, err)
 }
 
-func TestPartialWrongDequeueing(t *testing.T) {
+func TestTriggerNewBatch(t *testing.T) {
 	t.Parallel()
 
 	ds := tests.NewTxMapDatastore()
-	s, err := New(ds)
+
+	// Ask for a minimum size of 4, but maximum of 5.
+	s, err := New(ds, 5, 4)
 	require.NoError(t, err)
 
 	br1 := BatchableBrokerRequest{
 		BrokerRequestID: broker.BrokerRequestID("1"),
 		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHA"),
+		Size:            1,
 	}
 	br2 := BatchableBrokerRequest{
 		BrokerRequestID: broker.BrokerRequestID("2"),
 		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHB"),
+		Size:            2,
 	}
 	br3 := BatchableBrokerRequest{
 		BrokerRequestID: broker.BrokerRequestID("3"),
 		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHC"),
+		Size:            3,
 	}
 
-	// Enqueue only the first two.
+	// With the first and second  isn't enough...
 	err = s.Enqueue(br1)
 	require.NoError(t, err)
+	_, _, ok, err := s.GetNextReadyBatch()
+	require.NoError(t, err)
+	require.False(t, ok)
 	err = s.Enqueue(br2)
 	require.NoError(t, err)
-
-	// But try to dequeue br2 and br3. This is wrong and should error.
-	// Note that we can remove br2, but not br3 (doesn't exist).
-	err = s.Dequeue([]BatchableBrokerRequest{br2, br3})
-	require.Equal(t, ErrNotFound, err)
-	// This should error without removing br2 since we should do removals transactionally. All or nothing.
-	// So let's check that.
-	brs := []BatchableBrokerRequest{br1, br2}
-	assertIterator(t, s, brs)
-}
-
-func TestRehydration(t *testing.T) {
-	ds := tests.NewTxMapDatastore()
-	s, err := New(ds)
+	_, _, ok, err = s.GetNextReadyBatch()
 	require.NoError(t, err)
+	require.False(t, ok)
 
-	br1 := BatchableBrokerRequest{
-		BrokerRequestID: broker.BrokerRequestID("1"),
-		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHA"),
-	}
-	br2 := BatchableBrokerRequest{
-		BrokerRequestID: broker.BrokerRequestID("2"),
-		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHB"),
-	}
-	br3 := BatchableBrokerRequest{
-		BrokerRequestID: broker.BrokerRequestID("3"),
-		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHC"),
-	}
-	err = s.Enqueue(br1)
-	require.NoError(t, err)
-	err = s.Enqueue(br2)
-	require.NoError(t, err)
+	// The third one shouldn't fit in the open batch. It should trigger
+	// a new open batch.
 	err = s.Enqueue(br3)
 	require.NoError(t, err)
-	// Check that things are all as expected.
-	brs := []BatchableBrokerRequest{br1, br2, br3}
-	assertIterator(t, s, brs)
-
-	// Create new *Store, but with same `ds`. Cache should be populated.
-	s, err = New(ds)
+	_, _, ok, err = s.GetNextReadyBatch()
 	require.NoError(t, err)
-	// Check things again in this new *Store. Since the Iterator pulls things from
-	// its internal in-memory cache, if the following works then it was re-populated correctly.
-	assertIterator(t, s, brs)
+	require.False(t, ok)
+
+	// At this point, we should have two open batches:
+	// - Batch A (size 3): with the first two enqueued broker requests.
+	// - Batch B (size 3): with the third one.
+
+	// Adding b4 should close the first one. Let's check that.
+	br4 := BatchableBrokerRequest{
+		BrokerRequestID: broker.BrokerRequestID("4"),
+		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHD"),
+		Size:            1,
+	}
+	err = s.Enqueue(br4)
+	require.NoError(t, err)
+	batch, bbrs, ok, err := s.GetNextReadyBatch()
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, bbrs, 3)
+	require.NotEmpty(t, batch.ID)
+	require.Equal(t, int64(len(bbrs)), batch.Count)
+	require.Equal(t, int64(4), batch.Size)
+
+	// Adding b4 should close the second one. Let's check that.
+	br5 := BatchableBrokerRequest{
+		BrokerRequestID: broker.BrokerRequestID("4"),
+		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHE"),
+		Size:            2,
+	}
+	err = s.Enqueue(br5)
+	require.NoError(t, err)
+	batch, bbrs, ok, err = s.GetNextReadyBatch()
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, bbrs, 2)
+	require.NotEmpty(t, batch.ID)
+	require.Equal(t, int64(len(bbrs)), batch.Count)
+	require.Equal(t, int64(5), batch.Size)
+
+	// There should be no remaining open batches.
+	_, _, ok, err = s.GetNextReadyBatch()
+	require.NoError(t, err)
+	require.False(t, ok)
 }
 
-func assertIterator(t *testing.T, s *Store, expectedResult []BatchableBrokerRequest) {
-	t.Helper()
-	var count int
-	it := s.NewIterator()
-	for {
-		br, ok := it.Next()
-		if !ok {
-			break
-		}
-		// Check that we receive them in right order of enqueued.
-		require.Equal(t, expectedResult[count].BrokerRequestID, br.BrokerRequestID)
-		require.Equal(t, expectedResult[count].DataCid, br.DataCid)
-		count++
+func TestViolateMaxSize(t *testing.T) {
+	t.Parallel()
+
+	ds := tests.NewTxMapDatastore()
+
+	s, err := New(ds, 1, 1)
+	require.NoError(t, err)
+
+	br1 := BatchableBrokerRequest{
+		BrokerRequestID: broker.BrokerRequestID("1"),
+		DataCid:         castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHA"),
+		Size:            10,
 	}
-	require.Len(t, expectedResult, count) // Check we walked exactly all of them.
+
+	err = s.Enqueue(br1)
+	require.Error(t, err)
 }
 
 func castCid(cidStr string) cid.Cid {
