@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -133,6 +134,8 @@ type Store struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	wg sync.WaitGroup
 }
 
 // NewStore returns a new Store.
@@ -155,6 +158,7 @@ func NewStore(
 	}
 
 	// Create data fetch workers
+	s.wg.Add(MaxDataCidFetchConcurrency)
 	for i := 0; i < MaxDataCidFetchConcurrency; i++ {
 		go s.fetchWorker(i + 1)
 	}
@@ -171,6 +175,7 @@ func NewStore(
 // Close the store. This will wait for "fetching" data cid fetches.
 func (s *Store) Close() error {
 	s.cancel()
+	s.wg.Wait()
 	return nil
 }
 
@@ -184,6 +189,7 @@ func (s *Store) SaveBid(bid Bid) error {
 	if err := s.saveAndTransitionStatus(nil, &bid, BidStatusSubmitted); err != nil {
 		return fmt.Errorf("saving bid: %v", err)
 	}
+	log.Infof("saved bid %s", bid.ID)
 	return nil
 }
 
@@ -283,7 +289,7 @@ func (s *Store) SetAwaitingProposalCid(id broker.BidID) error {
 		return fmt.Errorf("committing txn: %v", err)
 	}
 
-	log.Debugf("awaiting bid %s proposal cid", b.ID)
+	log.Infof("set awaiting proposal cid for bid %s", b.ID)
 	return nil
 }
 
@@ -313,7 +319,7 @@ func (s *Store) SetProposalCid(id broker.BidID, pcid cid.Cid) error {
 		return fmt.Errorf("enqueueing data cid: %v", err)
 	}
 
-	log.Debugf("enqueued bid %s data cid %s", b.ID, b.DataCid)
+	log.Infof("set proposal cid for bid %s; enqueued data cid %s for download", b.ID, b.DataCid)
 	return nil
 }
 
@@ -439,6 +445,8 @@ func (s *Store) enqueueDataCid(commitTxn ds.Txn, b *Bid) error {
 }
 
 func (s *Store) fetchWorker(num int) {
+	defer s.wg.Done()
+
 	fail := func(b *Bid, err error) (status BidStatus) {
 		b.ErrorCause = err.Error()
 		if b.DataCidFetchAttempts >= s.dealDataFetchAttempts {
@@ -460,20 +468,25 @@ func (s *Store) fetchWorker(num int) {
 			if s.ctx.Err() != nil {
 				return
 			}
+			log.Infof("downloading data cid %s", b.DataCid)
 			b.DataCidFetchAttempts++
 			log.Debugf(
 				"worker %d got job %s (attempt=%d/%d)", num, b.ID, b.DataCidFetchAttempts, s.dealDataFetchAttempts)
 
 			// Fetch the data cid
 			var status BidStatus
+			var logMsg string
 			ctx, cancel := context.WithTimeout(s.ctx, DataCidFetchTimeout)
 			if err := s.writeDataCid(ctx, b.DataCid); err != nil {
 				status = fail(b, err)
+				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
 			} else {
 				status = BidStatusFinalized
 				// Reset error
 				b.ErrorCause = ""
+				logMsg = fmt.Sprintf("status=%s", status)
 			}
+			log.Infof("finished downloading data cid %s (%s)", b.ID, logMsg)
 
 			// Save and update status to "finalized"
 			if err := s.saveAndTransitionStatus(nil, b, status); err != nil {

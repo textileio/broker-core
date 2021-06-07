@@ -270,14 +270,14 @@ func (b *Broker) StorageDealProposalAccepted(
 func (b *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
 	log.Debugf("storage deal %s was auctioned", auction.StorageDealID)
 
-	if auction.Status != broker.AuctionStatusEnded && auction.Status != broker.AuctionStatusError {
+	if auction.Status != broker.AuctionStatusFinalized {
 		return errors.New("auction status should be final")
 	}
 
 	// If the auction returned status is error, we switch the storage deal to error status,
 	// and also signal the store to liberate the underlying broker requests to Pending.
 	// This way they can be signaled to be re-batched.
-	if auction.Status == broker.AuctionStatusError {
+	if auction.ErrorCause != "" {
 		if err := b.errorStorageDealAndRebatch(ctx, auction.StorageDealID, auction.ErrorCause); err != nil {
 			return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 		}

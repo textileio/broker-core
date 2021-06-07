@@ -46,10 +46,8 @@ func AuctionStatusToPb(s broker.AuctionStatus) pb.Auction_Status {
 		return pb.Auction_STATUS_QUEUED
 	case broker.AuctionStatusStarted:
 		return pb.Auction_STATUS_STARTED
-	case broker.AuctionStatusEnded:
-		return pb.Auction_STATUS_ENDED
-	case broker.AuctionStatusError:
-		return pb.Auction_STATUS_ERROR
+	case broker.AuctionStatusFinalized:
+		return pb.Auction_STATUS_FINALIZED
 	default:
 		return pb.Auction_STATUS_UNSPECIFIED
 	}
@@ -138,10 +136,8 @@ func AuctionStatusFromPb(pbs pb.Auction_Status) broker.AuctionStatus {
 		return broker.AuctionStatusQueued
 	case pb.Auction_STATUS_STARTED:
 		return broker.AuctionStatusStarted
-	case pb.Auction_STATUS_ENDED:
-		return broker.AuctionStatusEnded
-	case pb.Auction_STATUS_ERROR:
-		return broker.AuctionStatusError
+	case pb.Auction_STATUS_FINALIZED:
+		return broker.AuctionStatusFinalized
 	default:
 		return broker.AuctionStatusUnspecified
 	}

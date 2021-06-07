@@ -84,7 +84,8 @@ func TestClient_GetAuction(t *testing.T) {
 	got, err = c.GetAuction(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, 1, int(got.Attempts))
-	assert.Equal(t, core.AuctionStatusError, got.Status) // no miners making bids
+	assert.Equal(t, core.AuctionStatusFinalized, got.Status) // no miners making bids
+	assert.NotEmpty(t, got.ErrorCause)
 }
 
 func TestClient_RunAuction(t *testing.T) {
@@ -106,7 +107,8 @@ func TestClient_RunAuction(t *testing.T) {
 	got, err := c.GetAuction(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
-	assert.Equal(t, core.AuctionStatusEnded, got.Status)
+	assert.Equal(t, core.AuctionStatusFinalized, got.Status)
+	assert.Empty(t, got.ErrorCause)
 	require.Len(t, got.WinningBids, 2)
 
 	for id, wb := range got.WinningBids {

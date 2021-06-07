@@ -47,52 +47,95 @@ func TestStore_ListBids(t *testing.T) {
 	auctioneerID, err := peer.IDFromPrivateKey(sk)
 	require.NoError(t, err)
 
-	t.Run("pagination", func(t *testing.T) {
-		limit := 100
-		now := time.Now()
-		ids := make([]broker.BidID, limit)
-		for i := 0; i < limit; i++ {
-			now = now.Add(time.Millisecond)
-			id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Timestamp(now), rand.Reader).String()))
-			aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-			err := s.SaveBid(Bid{
-				ID:               id,
-				AuctionID:        aid,
-				AuctioneerID:     auctioneerID,
-				DataCid:          cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
-				DealSize:         1024,
-				DealDuration:     1000,
-				AskPrice:         100,
-				VerifiedAskPrice: 100,
-				StartEpoch:       2000,
-			})
-			require.NoError(t, err)
-			ids[i] = id
-		}
-
-		// Empty query, should return newest 10 records
-		l, err := s.ListBids(Query{})
+	limit := 100
+	now := time.Now()
+	ids := make([]broker.BidID, limit)
+	for i := 0; i < limit; i++ {
+		now = now.Add(time.Millisecond)
+		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Timestamp(now), rand.Reader).String()))
+		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
+		err := s.SaveBid(Bid{
+			ID:               id,
+			AuctionID:        aid,
+			AuctioneerID:     auctioneerID,
+			DataCid:          cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
+			DealSize:         1024,
+			DealDuration:     1000,
+			AskPrice:         100,
+			VerifiedAskPrice: 100,
+			StartEpoch:       2000,
+		})
 		require.NoError(t, err)
-		assert.Len(t, l, 10)
-		assert.Equal(t, ids[limit-1], l[0].ID)
-		assert.Equal(t, ids[limit-10], l[9].ID)
+		ids[i] = id
+	}
 
-		// Get next page, should return next 10 records
-		offset := l[len(l)-1].ID
-		l, err = s.ListBids(Query{Offset: string(offset)})
-		require.NoError(t, err)
-		assert.Len(t, l, 10)
-		assert.Equal(t, ids[limit-11], l[0].ID)
-		assert.Equal(t, ids[limit-20], l[9].ID)
+	// Empty query, should return newest 10 records
+	l, err := s.ListBids(Query{})
+	require.NoError(t, err)
+	assert.Len(t, l, 10)
+	assert.Equal(t, ids[limit-1], l[0].ID)
+	assert.Equal(t, ids[limit-10], l[9].ID)
 
-		// Get previous page, should return the first page in reverse order
-		offset = l[0].ID
-		l, err = s.ListBids(Query{Offset: string(offset), Order: OrderAscending})
-		require.NoError(t, err)
-		assert.Len(t, l, 10)
-		assert.Equal(t, ids[limit-10], l[0].ID)
-		assert.Equal(t, ids[limit-1], l[9].ID)
+	// Get next page, should return next 10 records
+	offset := l[len(l)-1].ID
+	l, err = s.ListBids(Query{Offset: string(offset)})
+	require.NoError(t, err)
+	assert.Len(t, l, 10)
+	assert.Equal(t, ids[limit-11], l[0].ID)
+	assert.Equal(t, ids[limit-20], l[9].ID)
+
+	// Get previous page, should return the first page in reverse order
+	offset = l[0].ID
+	l, err = s.ListBids(Query{Offset: string(offset), Order: OrderAscending})
+	require.NoError(t, err)
+	assert.Len(t, l, 10)
+	assert.Equal(t, ids[limit-10], l[0].ID)
+	assert.Equal(t, ids[limit-1], l[9].ID)
+}
+
+func TestStore_SaveBid(t *testing.T) {
+	t.Parallel()
+	s, _, _ := newStore(t)
+
+	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	require.NoError(t, err)
+	auctioneerID, err := peer.IDFromPrivateKey(sk)
+	require.NoError(t, err)
+
+	id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
+	aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
+	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("data")))
+	err = s.SaveBid(Bid{
+		ID:               id,
+		AuctionID:        aid,
+		AuctioneerID:     auctioneerID,
+		DataCid:          dataCid,
+		DealSize:         1024,
+		DealDuration:     1000,
+		AskPrice:         100,
+		VerifiedAskPrice: 100,
+		StartEpoch:       2000,
 	})
+	require.NoError(t, err)
+
+	got, err := s.GetBid(id)
+	require.NoError(t, err)
+	assert.Equal(t, id, got.ID)
+	assert.Equal(t, aid, got.AuctionID)
+	assert.True(t, got.AuctioneerID.MatchesPrivateKey(sk))
+	assert.True(t, got.DataCid.Equals(dataCid))
+	assert.Equal(t, 1024, int(got.DealSize))
+	assert.Equal(t, 1000, int(got.DealDuration))
+	assert.Equal(t, BidStatusSubmitted, got.Status)
+	assert.Equal(t, 100, int(got.AskPrice))
+	assert.Equal(t, 100, int(got.VerifiedAskPrice))
+	assert.Equal(t, 2000, int(got.StartEpoch))
+	assert.False(t, got.FastRetrieval)
+	assert.False(t, got.ProposalCid.Defined())
+	assert.Equal(t, 0, int(got.DataCidFetchAttempts))
+	assert.False(t, got.CreatedAt.IsZero())
+	assert.False(t, got.UpdatedAt.IsZero())
+	assert.Empty(t, got.ErrorCause)
 }
 
 func TestStore_StatusProgression(t *testing.T) {

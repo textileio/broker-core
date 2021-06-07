@@ -138,6 +138,12 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 
 // GetAuction gets an auction by id.
 func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.GetAuctionResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "auction id is empty")
+	}
 	a, err := s.lib.GetAuction(broker.AuctionID(req.Id))
 	if err != nil {
 		return nil, err
@@ -152,6 +158,9 @@ func (s *Service) ProposalAccepted(
 	_ context.Context,
 	req *pb.ProposalAcceptedRequest,
 ) (*pb.ProposalAcceptedResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
 	if req.AuctionId == "" {
 		return nil, status.Error(codes.InvalidArgument, "auction id is required")
 	}

@@ -225,7 +225,7 @@ func TestStorageDealAuctioned(t *testing.T) {
 		DealDuration:    broker.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
-		Status:          broker.AuctionStatusEnded,
+		Status:          broker.AuctionStatusFinalized,
 		Bids:            bids,
 		WinningBids: map[broker.BidID]broker.WinningBid{
 			broker.BidID("Bid1"): {},
@@ -311,7 +311,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 		DealDuration:    broker.MaxDealDuration,
 		DealReplication: 1,
 		DealVerified:    true,
-		Status:          broker.AuctionStatusError,
+		Status:          broker.AuctionStatusFinalized,
 		ErrorCause:      "reached max retries",
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
@@ -389,7 +389,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		DealSize:        dpr.PieceSize,
 		DealDuration:    broker.MaxDealDuration,
 		DealReplication: 2,
-		Status:          broker.AuctionStatusEnded,
+		Status:          broker.AuctionStatusFinalized,
 		Bids:            bids,
 		WinningBids: map[broker.BidID]broker.WinningBid{
 			broker.BidID("Bid1"): {},
