@@ -345,16 +345,16 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	}
 
 	// Create bids topic
-	bids, err := s.peer.NewTopic(s.ctx, broker.BidsTopic(broker.AuctionID(auction.Id)), false)
+	topic, err := s.peer.NewTopic(s.ctx, broker.BidsTopic(broker.AuctionID(auction.Id)), false)
 	if err != nil {
 		return fmt.Errorf("creating bids topic: %v", err)
 	}
 	defer func() {
-		if err := bids.Close(); err != nil {
+		if err := topic.Close(); err != nil {
 			log.Errorf("closing bids topic: %v", err)
 		}
 	}()
-	bids.SetEventHandler(s.eventHandler)
+	topic.SetEventHandler(s.eventHandler)
 
 	// Submit bid to auctioneer
 	bid := &pb.Bid{
@@ -376,10 +376,18 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	id, err := bids.Publish(s.ctx, msg, bidsAckTimeout)
+
+	ctx, cancel := context.WithTimeout(s.ctx, bidsAckTimeout)
+	defer cancel()
+	res, err := topic.Publish(ctx, msg)
 	if err != nil {
 		return fmt.Errorf("publishing bid: %v", err)
 	}
+	r := <-res
+	if r.Err != nil {
+		return fmt.Errorf("publishing bid; auctioneer %s returned error: %v", from, r.Err)
+	}
+	id := r.Data
 
 	// Save bid locally
 	if err := s.store.SaveBid(bidstore.Bid{
