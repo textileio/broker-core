@@ -402,7 +402,7 @@ func (q *Queue) enqueue(commitTxn ds.Txn, a *broker.Auction) error {
 }
 
 func (q *Queue) worker(num int) {
-	defer func() { q.wg.Done() }()
+	defer q.wg.Done()
 
 	addBid := func(a *broker.Auction, bid broker.Bid) (broker.BidID, error) {
 		if a.Status != broker.AuctionStatusStarted {

@@ -445,7 +445,7 @@ func (s *Store) enqueueDataCid(commitTxn ds.Txn, b *Bid) error {
 }
 
 func (s *Store) fetchWorker(num int) {
-	defer func() { s.wg.Done() }()
+	defer s.wg.Done()
 
 	fail := func(b *Bid, err error) (status BidStatus) {
 		b.ErrorCause = err.Error()
