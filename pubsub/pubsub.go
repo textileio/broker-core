@@ -7,7 +7,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
@@ -32,13 +31,25 @@ type MessageHandler func(from peer.ID, topic string, msg []byte) ([]byte, error)
 
 // Response wraps a message response.
 type Response struct {
-	ID   string // The cid of the received message
+	// ID is the cid.Cid of the received message.
+	ID string
+	// From is the peer.ID of the sender.
+	From peer.ID
+	// Data is the message data.
+	Data []byte
+	// Err is an error from the sender.
+	Err error
+}
+
+type internalResponse struct {
+	ID   string
+	From []byte
 	Data []byte
 	Err  string
 }
 
 func init() {
-	cbor.RegisterCborType(Response{})
+	cbor.RegisterCborType(internalResponse{})
 }
 
 func responseTopic(base string, pid peer.ID) string {
@@ -52,7 +63,7 @@ type Topic struct {
 	eventHandler   EventHandler
 	messageHandler MessageHandler
 
-	resChs   map[cid.Cid]chan Response
+	resChs   map[cid.Cid]chan internalResponse
 	resTopic *Topic
 
 	t *pubsub.Topic
@@ -77,7 +88,7 @@ func NewTopic(ctx context.Context, ps *pubsub.PubSub, host peer.ID, topic string
 	}
 	t.resTopic.eventHandler = t.resEventHandler
 	t.resTopic.messageHandler = t.resMessageHandler
-	t.resChs = make(map[cid.Cid]chan Response)
+	t.resChs = make(map[cid.Cid]chan internalResponse)
 	return t, nil
 }
 
@@ -150,50 +161,70 @@ func (t *Topic) SetMessageHandler(handler MessageHandler) {
 	t.messageHandler = handler
 }
 
-// Publish data.
-// resTimeout indicates how long Publish will wait for a response.
-// A zero or negative resTimeout will cause Publish to not wait for a response.
-// A positive resTimeout will cause Publish to block until a single response is received or resTimout is reached.
+// Publish data. See PublishOptions for option details.
 func (t *Topic) Publish(
 	ctx context.Context,
 	data []byte,
-	resTimeout time.Duration,
-	opts ...pubsub.PubOpt,
-) ([]byte, error) {
-	var resCh chan Response
-	if resTimeout > 0 && t.resTopic != nil {
-		msgID := cid.NewCidV1(cid.Raw, util.Hash(data))
-		resCh = make(chan Response)
-		t.lk.Lock()
-		t.resChs[msgID] = resCh
-		t.lk.Unlock()
-
-		defer func() {
-			t.lk.Lock()
-			delete(t.resChs, msgID)
-			t.lk.Unlock()
-		}()
+	opts ...PublishOption,
+) (<-chan Response, error) {
+	args := defaultOptions
+	for _, op := range opts {
+		if err := op(&args); err != nil {
+			return nil, fmt.Errorf("applying option: %v", err)
+		}
 	}
 
-	if err := t.t.Publish(ctx, data, opts...); err != nil {
+	var respCh chan internalResponse
+	var msgID cid.Cid
+	if !args.ignoreResponse {
+		msgID = cid.NewCidV1(cid.Raw, util.Hash(data))
+		respCh = make(chan internalResponse)
+		t.lk.Lock()
+		t.resChs[msgID] = respCh
+		t.lk.Unlock()
+	}
+
+	if err := t.t.Publish(ctx, data, args.pubOpts...); err != nil {
 		return nil, fmt.Errorf("publishing to main topic: %v", err)
 	}
 
-	if resCh != nil {
-		timer := time.NewTimer(resTimeout)
-		select {
-		case <-timer.C:
-			return nil, ErrResponseNotReceived
-		case res := <-resCh:
-			timer.Stop()
-			var e error
-			if res.Err != "" {
-				e = errors.New(res.Err)
+	resultCh := make(chan Response)
+	if respCh != nil {
+		go func() {
+			defer func() {
+				t.lk.Lock()
+				delete(t.resChs, msgID)
+				t.lk.Unlock()
+				close(resultCh)
+			}()
+			select {
+			case <-ctx.Done():
+				if !args.multiResponse {
+					resultCh <- Response{
+						Err: ErrResponseNotReceived,
+					}
+				}
+				return
+			case r := <-respCh:
+				res := Response{
+					ID:   r.ID,
+					From: peer.ID(r.From),
+					Data: r.Data,
+				}
+				if r.Err != "" {
+					res.Err = errors.New(r.Err)
+				}
+				resultCh <- res
+				if !args.multiResponse {
+					return
+				}
 			}
-			return res.Data, e
-		}
+		}()
+	} else {
+		close(resultCh)
 	}
-	return nil, nil
+
+	return resultCh, nil
 }
 
 func (t *Topic) watch() {
@@ -238,6 +269,8 @@ func (t *Topic) listen() {
 					msgID := cid.NewCidV1(cid.Raw, util.Hash(msg.Data))
 					t.publishResponse(msg.ReceivedFrom, msgID, data, err)
 				}()
+			} else if err != nil {
+				log.Errorf("response message handler: %v", err)
 			}
 		}
 		t.lk.Unlock()
@@ -257,8 +290,9 @@ func (t *Topic) publishResponse(from peer.ID, id cid.Cid, data []byte, e error) 
 	}()
 	topic.SetEventHandler(t.resEventHandler)
 
-	res := Response{
-		ID:   id.String(),
+	res := internalResponse{
+		ID: id.String(),
+		// From: Set on the receiver end using validated data from the received pubsub message
 		Data: data,
 	}
 	if e != nil {
@@ -280,7 +314,7 @@ func (t *Topic) resEventHandler(from peer.ID, topic string, msg []byte) {
 }
 
 func (t *Topic) resMessageHandler(from peer.ID, topic string, msg []byte) ([]byte, error) {
-	var res Response
+	var res internalResponse
 	if err := cbor.DecodeInto(msg, &res); err != nil {
 		return nil, fmt.Errorf("decoding response: %v", err)
 	}
@@ -288,6 +322,7 @@ func (t *Topic) resMessageHandler(from peer.ID, topic string, msg []byte) ([]byt
 	if err != nil {
 		return nil, fmt.Errorf("decoding response id: %v", err)
 	}
+	res.From = []byte(from)
 
 	log.Debugf("%s response from %s: %s", topic, from, res.ID)
 	t.lk.Lock()

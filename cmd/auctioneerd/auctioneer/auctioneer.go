@@ -32,8 +32,8 @@ var (
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
 
-	// ackTimeout is the max duration the auctioneer will wait for an ack after notifying bidders.
-	ackTimeout = time.Second * 10
+	// notifyTimeout is the max duration the auctioneer will wait for a response from bidders.
+	notifyTimeout = time.Second * 10
 
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
@@ -326,7 +326,7 @@ func (a *Auctioneer) processAuction(
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message: %v", err)
 	}
-	if _, err := a.auctions.Publish(ctx, msg, 0); err != nil {
+	if _, err := a.auctions.Publish(ctx, msg, pubsub.WithIgnoreResponse(true)); err != nil {
 		return nil, fmt.Errorf("publishing auction: %v", err)
 	}
 
@@ -573,8 +573,17 @@ func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	if _, err := topic.Publish(ctx, msg, ackTimeout); err != nil {
-		return fmt.Errorf("publishing to %s: %v", bidder, err)
+	tctx, cancel := context.WithTimeout(ctx, notifyTimeout)
+	defer cancel()
+	res, err := topic.Publish(tctx, msg)
+	if err != nil {
+		return fmt.Errorf("publishing win to %s: %v", bidder, err)
+	}
+	r := <-res
+	if errors.Is(r.Err, pubsub.ErrResponseNotReceived) {
+		return fmt.Errorf("publishing win to %s: %v", bidder, r.Err)
+	} else if r.Err != nil {
+		return fmt.Errorf("publishing win; bidder %s returned error: %v", bidder, r.Err)
 	}
 	return nil
 }
@@ -605,8 +614,17 @@ func (a *Auctioneer) publishProposal(
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	if _, err := topic.Publish(ctx, msg, ackTimeout); err != nil {
-		return fmt.Errorf("publishing to %s: %v", bidder, err)
+	tctx, cancel := context.WithTimeout(ctx, notifyTimeout)
+	defer cancel()
+	res, err := topic.Publish(tctx, msg)
+	if err != nil {
+		return fmt.Errorf("publishing proposal to %s: %v", bidder, err)
+	}
+	r := <-res
+	if errors.Is(r.Err, pubsub.ErrResponseNotReceived) {
+		return fmt.Errorf("publishing proposal to %s: %v", bidder, r.Err)
+	} else if r.Err != nil {
+		return fmt.Errorf("publishing proposal; bidder %s returned error: %v", bidder, r.Err)
 	}
 	return nil
 }
