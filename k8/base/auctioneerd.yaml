@@ -47,7 +47,7 @@ metadata:
     app: auctioneer
 spec:
   serviceName: auctioneer
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: auctioneer-v1

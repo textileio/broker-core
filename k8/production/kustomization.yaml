@@ -43,6 +43,5 @@ patchesStrategicMerge:
 - ingress-patch.yaml
 - mongo-patch.yaml
 - dealerd-patch.yaml
-- auctioneerd-patch.yaml
 - neard-patch.yaml
 - piecer-patch.yaml
