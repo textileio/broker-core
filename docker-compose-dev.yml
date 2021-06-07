@@ -7,7 +7,7 @@ services:
     platform: linux/amd64
     environment:
       - AUTH_LOG_DEBUG=true
-      - AUTH_LOG_JSON=true
+      - AUTH_LOG_JSON=false
       - AUTH_RPC_ADDR=:5000
       - AUTH_NEAR_ADDR=neard:5000
     security_opt:
@@ -24,7 +24,7 @@ services:
     platform: linux/amd64
     environment:
       - NEAR_LOG_DEBUG=true
-      - NEAR_LOG_JSON=true
+      - NEAR_LOG_JSON=false
       - NEAR_RPC_ADDR=:5000
     security_opt:
       - "seccomp:unconfined"
@@ -38,7 +38,7 @@ services:
     platform: linux/amd64
     environment:
       - STORAGE_LOG_DEBUG=true
-      - STORAGE_LOG_JSON=true
+      - STORAGE_LOG_JSON=false
       - STORAGE_HTTP_ADDR=:8888
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - STORAGE_BROKER_ADDR=brokerd:5000
@@ -63,15 +63,15 @@ services:
       - auctioneerd_data:/data/auctioneerd
     environment:
       - AUCTIONEER_LOG_DEBUG=true
-      - AUCTIONEER_LOG_JSON=true
+      - AUCTIONEER_LOG_JSON=false
       - AUCTIONEER_RPC_ADDR=:5000
       - AUCTIONEER_MONGO_URI=mongodb://mongo:27017
       - AUCTIONEER_MONGO_DBNAME=auctioneerd
       - AUCTIONEER_BROKER_ADDR=brokerd:5000
       - AUCTIONEER_AUCTION_DURATION=10000000000
       - AUCTIONEER_AUCTION_ATTEMPTS=10
-      - AUCTIONEER_PRIVATE_KEY=mCAESQIBDTKg1bP0wk8H59cK+TgnN9ZzncDw3XWZFbWciALxrUOpAO/2xCE7cCgXzQLB7tncMoWbBW3UytRkDEWg0bYw
       - AUCTIONEER_MDNS=true
+      - AUCTIONEER_FAKE_MODE=true
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -88,20 +88,20 @@ services:
       - bidbot_data:/data/bidbot
     environment:
       - BIDBOT_LOG_DEBUG=true
-      - BIDBOT_LOG_JSON=true
-      - BIDBOT_WALLET_ADDR=f1u44svaac2dzqbgbbizwutibq6lsud2qzcnedxuq
-      - BIDBOT_WALLET_ADDR_SIG=018a51c263a12985ae176f9bde1460f32f72a8fb5ed004497dc0a5424a9f4dbc917ea80e0b4dd4f138027a07117ecf6cf26389be102521adf719090d69c4b6a54f01
+      - BIDBOT_LOG_JSON=false
+      - BIDBOT_MINER_ADDR=f02222
+      - BIDBOT_WALLET_ADDR_SIG=66616B655F7369676E6174757265
       - BIDBOT_ASK_PRICE=100000000000
       - BIDBOT_VERIFIED_ASK_PRICE=100000000000
-      - BIDBOT_FAST_RETRIEVAL=false
+      - BIDBOT_FAST_RETRIEVAL=true
       - BIDBOT_DEAL_START_WINDOW=2880
       - BIDBOT_DEAL_DURATION_MIN=525600
       - BIDBOT_DEAL_DURATION_MAX=1051200
       - BIDBOT_DEAL_SIZE_MIN=57344
       - BIDBOT_DEAL_SIZE_MAX=32000000000
       - BIDBOT_PROPOSAL_CID_FETCH_ATTEMPTS=3
-      - BIDBOT_PRIVATE_KEY=mCAESQMTvC9vrfZGa8g9q5oSJM1VbcU5OnYa/PdXuzte77jsft8HAmDRgV6Gw1QVWGSOG8v/LmhO0b2kEVgnux1Y8Hgk
       - BIDBOT_MDNS=true
+      - BIDBOT_FAKE_MODE=true
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -114,7 +114,7 @@ services:
     platform: linux/amd64
     environment:
       - BROKER_LOG_DEBUG=true
-      - BROKER_LOG_JSON=true
+      - BROKER_LOG_JSON=false
       - BROKER_RPC_ADDR=:5000
       - BROKER_MONGO_URI=mongodb://mongo:27017
       - BROKER_MONGO_DBNAME=brokerd
@@ -142,7 +142,7 @@ services:
     platform: linux/amd64
     environment:
       - PACKER_LOG_DEBUG=true
-      - PACKER_LOG_JSON=true
+      - PACKER_LOG_JSON=false
       - PACKER_RPC_ADDR=:5000
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
@@ -163,7 +163,7 @@ services:
     platform: linux/amd64
     environment:
       - PIECER_LOG_DEBUG=true
-      - PIECER_LOG_JSON=true
+      - PIECER_LOG_JSON=false
       - PIECER_RPC_ADDR=:5000
       - PIECER_MONGO_URI=mongodb://mongo:27017
       - PIECER_MONGO_DBNAME=piecerd
@@ -183,7 +183,7 @@ services:
     platform: linux/amd64
     environment:
       - DEALER_LOG_DEBUG=true
-      - DEALER_LOG_JSON=true
+      - DEALER_LOG_JSON=false
       - DEALER_RPC_ADDR=:5000
       - DEALER_MONGO_URI=mongodb://mongo:27017
       - DEALER_MONGO_DBNAME=dealerd
@@ -221,5 +221,5 @@ services:
       - "127.0.0.1:5001:5001"
       - "127.0.0.1:8080:8080"
 volumes:
-  auctioneer_data:
+  auctioneerd_data:
   bidbot_data:

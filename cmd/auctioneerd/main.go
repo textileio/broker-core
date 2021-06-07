@@ -106,7 +106,7 @@ var daemonCmd = &cobra.Command{
 		pconfig, err := marketpeer.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
 		common.CheckErrf("getting peer config: %v", err)
 
-		settings, err := marketpeer.MarshalConfig(v)
+		settings, err := marketpeer.MarshalConfig(v, !v.GetBool("log-json"))
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
