@@ -7,7 +7,7 @@ spec:
     - metadata:
         name: cluster-storage
       spec:
-        storageClassName: balanced-rwo
+        storageClassName: standard-rwo
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
