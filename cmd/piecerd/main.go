@@ -69,7 +69,7 @@ var rootCmd = &cobra.Command{
 		daemonFrequency := v.GetDuration("daemon-frequency")
 		retryDelay := v.GetDuration("retry-delay")
 
-		ipfsMultiaddrsStr := v.GetStringSlice("ipfs-multiaddrs")
+		ipfsMultiaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
 		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
 		for i, maStr := range ipfsMultiaddrsStr {
 			ma, err := multiaddr.NewMultiaddr(maStr)
