@@ -65,3 +65,10 @@ spec:
             httpGet:
               port: api
               path: "/health"
+          livenessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+
