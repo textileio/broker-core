@@ -67,7 +67,6 @@ func New(
 	b broker.Broker,
 	daemonFrequency time.Duration,
 	retryDelay time.Duration) (*Piecer, error) {
-
 	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
