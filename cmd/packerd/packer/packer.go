@@ -144,8 +144,15 @@ func (p *Packer) daemon() {
 			log.Infof("packer closed")
 			return
 		case <-time.After(p.batchFrequency):
-			if _, err := p.pack(p.daemonCtx); err != nil {
-				log.Errorf("packing: %s", err)
+			for {
+				count, err := p.pack(p.daemonCtx)
+				if err != nil {
+					log.Errorf("packing: %s", err)
+					break
+				}
+				if count == 0 {
+					break
+				}
 			}
 		}
 	}
