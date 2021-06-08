@@ -1,3 +1,13 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: ipfs-cluster-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ipfs-cluster
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
