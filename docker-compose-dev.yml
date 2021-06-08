@@ -168,7 +168,7 @@ services:
       - PIECER_MONGO_URI=mongodb://mongo:27017
       - PIECER_MONGO_DBNAME=piecerd
       - PIECER_BROKER_ADDR=brokerd:5000
-      - PIECER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
+      - PIECER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
     security_opt:
       - "seccomp:unconfined"
     cap_add:

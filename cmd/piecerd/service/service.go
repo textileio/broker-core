@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	httpapi "github.com/ipfs/go-ipfs-http-client"
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -26,9 +26,9 @@ var log = golog.Logger("piecer/service")
 type Config struct {
 	Listener net.Listener
 
-	IpfsClient *httpapi.HttpApi
-	Broker     broker.Broker
-	Datastore  txndswrap.TxnDatastore
+	IpfsMultiaddrs []multiaddr.Multiaddr
+	Broker         broker.Broker
+	Datastore      txndswrap.TxnDatastore
 
 	DaemonFrequency time.Duration
 	RetryDelay      time.Duration
@@ -49,7 +49,7 @@ var _ pb.APIServiceServer = (*Service)(nil)
 func New(conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
-	lib, err := piecer.New(conf.Datastore, conf.IpfsClient, conf.Broker, conf.DaemonFrequency, conf.RetryDelay)
+	lib, err := piecer.New(conf.Datastore, conf.IpfsMultiaddrs, conf.Broker, conf.DaemonFrequency, conf.RetryDelay)
 	if err != nil {
 		return nil, fin.Cleanupf("creating piecer: %v", err)
 	}

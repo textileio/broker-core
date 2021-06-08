@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -12,8 +13,13 @@ import (
 	commP "github.com/filecoin-project/go-fil-commp-hashhash"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	format "github.com/ipfs/go-ipld-format"
 	logger "github.com/ipfs/go-log/v2"
+	iface "github.com/ipfs/interface-go-ipfs-core"
+	"github.com/ipfs/interface-go-ipfs-core/options"
+	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -25,8 +31,8 @@ var log = logger.Logger("piecer")
 
 // Piecer provides a data-preparation pipeline for StorageDeals.
 type Piecer struct {
-	broker broker.Broker
-	ipfs   *httpapi.HttpApi
+	broker   broker.Broker
+	ipfsApis []ipfsAPI
 
 	store           *store.Store
 	daemonFrequency time.Duration
@@ -47,20 +53,38 @@ type Piecer struct {
 	metricLastPrepared        metric.Int64ValueObserver
 }
 
+type ipfsAPI struct {
+	address multiaddr.Multiaddr
+	api     iface.CoreAPI
+}
+
 var _ pieceri.Piecer = (*Piecer)(nil)
 
 // New returns a new Piecer.
 func New(
 	ds txndswrap.TxnDatastore,
-	ipfs *httpapi.HttpApi,
+	ipfsEndpoints []multiaddr.Multiaddr,
 	b broker.Broker,
 	daemonFrequency time.Duration,
 	retryDelay time.Duration) (*Piecer, error) {
+	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
+	for i, endpoint := range ipfsEndpoints {
+		api, err := httpapi.NewApi(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("creating ipfs api: %s", err)
+		}
+		coreapi, err := api.WithOptions(options.Api.Offline(true))
+		if err != nil {
+			return nil, fmt.Errorf("creating offline core api: %s", err)
+		}
+		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
+	}
+
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
-		store:  store.New(txndswrap.Wrap(ds, "/store")),
-		ipfs:   ipfs,
-		broker: b,
+		store:    store.New(txndswrap.Wrap(ds, "/store")),
+		ipfsApis: ipfsApis,
+		broker:   b,
 
 		daemonFrequency: daemonFrequency,
 		retryDelay:      retryDelay,
@@ -153,6 +177,11 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	start := time.Now()
 	log.Debugf("preparing storage deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
 
+	nodeGetter, err := p.getNodeGetterForCid(usd.DataCid)
+	if err != nil {
+		return fmt.Errorf("get node getter for cid %s: %s", usd.DataCid, err)
+	}
+
 	prCAR, pwCAR := io.Pipe()
 	var errCarGen error
 	go func() {
@@ -161,7 +190,7 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 				errCarGen = err
 			}
 		}()
-		if err := car.WriteCar(ctx, p.ipfs.Dag(), []cid.Cid{usd.DataCid}, pwCAR); err != nil {
+		if err := car.WriteCar(ctx, nodeGetter, []cid.Cid{usd.DataCid}, pwCAR); err != nil {
 			errCarGen = err
 			return
 		}
@@ -218,4 +247,35 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	p.statLastDurationSeconds = int64(duration)
 
 	return nil
+}
+
+func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
+	var ng format.NodeGetter
+
+	rand.Shuffle(len(p.ipfsApis), func(i, j int) {
+		p.ipfsApis[i], p.ipfsApis[j] = p.ipfsApis[j], p.ipfsApis[i]
+	})
+
+	log.Debug("core-api lookup for cid")
+	for _, coreapi := range p.ipfsApis {
+		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
+		defer cls()
+		_, ok, err := coreapi.api.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
+		if err != nil {
+			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.address, err)
+			continue
+		}
+		if !ok {
+			continue
+		}
+		log.Debugf("found core-api for cid: %s", coreapi.address)
+		ng = coreapi.api.Dag()
+		break
+	}
+
+	if ng == nil {
+		return nil, fmt.Errorf("node getter for cid not found")
+	}
+
+	return ng, nil
 }
