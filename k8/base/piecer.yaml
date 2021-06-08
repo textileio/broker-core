@@ -1,3 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: piecer-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: piecer
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -34,7 +44,7 @@ metadata:
   labels:
     app: piecer
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: piecer-v1

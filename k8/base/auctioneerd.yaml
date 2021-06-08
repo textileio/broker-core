@@ -1,3 +1,13 @@
+piVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auctioneer-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auctioneer
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
