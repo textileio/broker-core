@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -251,6 +252,10 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 
 func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
 	var ng format.NodeGetter
+
+	rand.Shuffle(len(p.ipfsApis), func(i, j int) {
+		p.ipfsApis[i], p.ipfsApis[j] = p.ipfsApis[j], p.ipfsApis[i]
+	})
 
 	log.Debug("core-api lookup for cid")
 	for _, coreapi := range p.ipfsApis {
