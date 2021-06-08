@@ -77,6 +77,24 @@ spec:
         runAsGroup: 2000
         fsGroup: 2000
       terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: configure-auctioneer
+          image: ubuntu:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              ls /env
+              [[ `hostname` =~ -([0-9]+)$ ]] || exit 1
+              ordinal=${BASH_REMATCH[1]}
+              cp /env/configAuctioneer$ordinal.env /data/auctioneerd/.env
+          volumeMounts:
+            - name: auctioneer-store
+              mountPath: /data/auctioneerd
+            - name: configure-env
+              mountPath: /env
       containers:
         - name: auctioneer
           image: textile/auctioneer
@@ -86,9 +104,6 @@ spec:
               containerPort: 5000
             - name: metrics
               containerPort: 9090
-          envFrom:
-            - configMapRef:
-                name: configmap-auctioneer
           volumeMounts:
             - name: auctioneer-store
               mountPath: /data/auctioneerd
@@ -98,6 +113,10 @@ spec:
               cpu: "2"
             limits:
               memory: 6Gi
+      volumes:
+        - name: configure-env
+          configMap:
+            name: configmap-auctioneer
   volumeClaimTemplates:
     - metadata:
         name: auctioneer-store

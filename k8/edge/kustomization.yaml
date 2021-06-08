@@ -9,8 +9,9 @@ resources:
 - mongo-cluster-rolebinding.yaml
 
 configMapGenerator:
-- envs:
-  - configAuctioneer.env
+- files:
+  - configAuctioneer0.env
+  - configAuctioneer1.env
   name: configmap-auctioneer
 - envs:
   - configAuth.env
