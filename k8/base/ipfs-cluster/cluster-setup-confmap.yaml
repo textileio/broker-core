@@ -51,6 +51,7 @@ data:
     ipfs config --json Bootstrap "[]"
     ipfs config --json Discovery.MDNS.Enabled "true"
     ipfs config --json Addresses.NoAnnounce "[]"
+    ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
 
     chown -R ipfs /data/ipfs
 
