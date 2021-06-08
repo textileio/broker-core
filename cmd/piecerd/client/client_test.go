@@ -63,7 +63,7 @@ func newClient(t *testing.T) (*client.Client, *brokerMock, *httpapi.HttpApi) {
 
 	config := service.Config{
 		Listener:        listener,
-		IpfsClient:      ipfs,
+		IpfsMultiaddrs:  []multiaddr.Multiaddr{ma},
 		Broker:          bm,
 		Datastore:       tests.NewTxMapDatastore(),
 		DaemonFrequency: time.Millisecond * 200,

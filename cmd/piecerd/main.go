@@ -6,7 +6,6 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	httpapi "github.com/ipfs/go-ipfs-http-client"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
@@ -29,7 +28,7 @@ func init() {
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "daemon-frequency", DefValue: time.Second * 30, Description: "Daemon frequency to process pending data"},
 		{Name: "retry-delay", DefValue: time.Second * 20, Description: "Delay for reprocessing items"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -61,11 +60,6 @@ var rootCmd = &cobra.Command{
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
 		common.CheckErrf("creating listener: %v", err)
 
-		ma, err := multiaddr.NewMultiaddr(v.GetString("ipfs-multiaddr"))
-		common.CheckErrf("parsing ipfs multiaddr: %v", err)
-		ipfsClient, err := httpapi.NewApi(ma)
-		common.CheckErrf("creating ipfs http api client: %v", err)
-
 		broker, err := client.New(v.GetString("broker-addr"))
 		common.CheckErrf("creating broker client: %v", err)
 
@@ -75,9 +69,17 @@ var rootCmd = &cobra.Command{
 		daemonFrequency := v.GetDuration("daemon-frequency")
 		retryDelay := v.GetDuration("retry-delay")
 
+		ipfsMultiaddrsStr := v.GetStringSlice("ipfs-multiaddrs")
+		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
+		for i, maStr := range ipfsMultiaddrsStr {
+			ma, err := multiaddr.NewMultiaddr(maStr)
+			common.CheckErrf("parsing multiaddress %s: %s", err)
+			ipfsMultiaddrs[i] = ma
+		}
+
 		config := service.Config{
 			Listener:        listener,
-			IpfsClient:      ipfsClient,
+			IpfsMultiaddrs:  ipfsMultiaddrs,
 			Broker:          broker,
 			Datastore:       ds,
 			DaemonFrequency: daemonFrequency,
