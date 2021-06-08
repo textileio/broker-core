@@ -168,8 +168,11 @@ func WriteConfig(v *viper.Viper, repoPathEnv, defaultRepoPath string) (string, e
 }
 
 // MarshalConfig marshals a *viper.Viper config to JSON.
-func MarshalConfig(v *viper.Viper) ([]byte, error) {
+func MarshalConfig(v *viper.Viper, pretty bool) ([]byte, error) {
 	all := v.AllSettings()
 	all["private-key"] = "***"
-	return json.MarshalIndent(all, "", "  ")
+	if pretty {
+		return json.MarshalIndent(all, "", "  ")
+	}
+	return json.Marshal(all)
 }

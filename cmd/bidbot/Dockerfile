@@ -13,6 +13,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM alpine
 COPY --from=builder /app/bidbot /app/bidbot
+COPY --from=builder /app/cmd/bidbot/bin/container_daemon /app/start_bidbot
 WORKDIR /app
 
 ENV BIDBOT_PATH /data/bidbot
@@ -22,5 +23,5 @@ RUN mkdir -p $BIDBOT_PATH \
 USER bidbot
 VOLUME $BIDBOT_PATH
 
-ENTRYPOINT ["./bidbot"]
+ENTRYPOINT ["./start_bidbot"]
 CMD ["daemon"]

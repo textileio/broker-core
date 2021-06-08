@@ -1,6 +1,5 @@
 include ../.bingo/Variables.mk
 
-
 .DEFAULT_GOAL=deploy
 
 HEAD_SHORT ?= $(shell git rev-parse --short HEAD)

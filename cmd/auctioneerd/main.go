@@ -9,6 +9,7 @@ import (
 	"time"
 
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -30,6 +31,12 @@ var (
 )
 
 func init() {
+	configPath := os.Getenv("AUCTIONEER_PATH")
+	if configPath == "" {
+		configPath = defaultConfigPath
+	}
+	_ = godotenv.Load(filepath.Join(configPath, ".env"), ".env")
+
 	rootCmd.AddCommand(initCmd, daemonCmd)
 
 	flags := []common.Flag{
@@ -106,7 +113,7 @@ var daemonCmd = &cobra.Command{
 		pconfig, err := marketpeer.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
 		common.CheckErrf("getting peer config: %v", err)
 
-		settings, err := marketpeer.MarshalConfig(v)
+		settings, err := marketpeer.MarshalConfig(v, !v.GetBool("log-json"))
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 

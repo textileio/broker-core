@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	golog "github.com/ipfs/go-log/v2"
+	"github.com/joho/godotenv"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	mbase "github.com/multiformats/go-multibase"
@@ -31,6 +32,12 @@ var (
 )
 
 func init() {
+	configPath := os.Getenv("BIDBOT_PATH")
+	if configPath == "" {
+		configPath = defaultConfigPath
+	}
+	_ = godotenv.Load(filepath.Join(configPath, ".env"), ".env")
+
 	rootCmd.AddCommand(initCmd, daemonCmd)
 
 	flags := []common.Flag{
@@ -196,7 +203,7 @@ var daemonCmd = &cobra.Command{
 		pconfig, err := marketpeer.GetConfig(v, "BIDBOT_PATH", defaultConfigPath, false)
 		common.CheckErrf("getting peer config: %v", err)
 
-		settings, err := marketpeer.MarshalConfig(v)
+		settings, err := marketpeer.MarshalConfig(v, !v.GetBool("log-json"))
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 

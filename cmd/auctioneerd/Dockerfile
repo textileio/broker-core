@@ -13,6 +13,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM alpine
 COPY --from=builder /app/auctioneerd /app/auctioneerd
+COPY --from=builder /app/cmd/auctioneerd/bin/container_daemon /app/start_auctioneer
 WORKDIR /app
 
 ENV AUCTIONEER_PATH /data/auctioneerd
@@ -22,5 +23,5 @@ RUN mkdir -p $AUCTIONEER_PATH \
 USER auctioneerd
 VOLUME $AUCTIONEER_PATH
 
-ENTRYPOINT ["./auctioneerd"]
+ENTRYPOINT ["./start_auctioneer"]
 CMD ["daemon"]

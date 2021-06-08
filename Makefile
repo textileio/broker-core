@@ -52,7 +52,6 @@ build-dealerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
 .PHONY: build-dealerd
 
-
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install

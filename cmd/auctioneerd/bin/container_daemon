@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+repo="$AUCTIONEER_PATH"
+
+if [ -e "$repo/config" ]; then
+  echo "Found config at $repo"
+else
+  ./auctioneerd init
+fi
+
+exec ./auctioneerd "$@"
