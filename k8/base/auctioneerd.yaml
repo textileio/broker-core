@@ -17,10 +17,26 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: auctioneer-swarm
+  name: auctioneer-swarm-0
 spec:
+  externalTrafficPolicy: Local
   selector:
     app: auctioneer-v1
+    statefulset.kubernetes.io/pod-name: auctioneer-01-0
+  ports:
+    - port: 4001
+      name: swarm
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auctioneer-swarm-1
+spec:
+  externalTrafficPolicy: Local
+  selector:
+    app: auctioneer-v1
+    statefulset.kubernetes.io/pod-name: auctioneer-01-1
   ports:
     - port: 4001
       name: swarm
