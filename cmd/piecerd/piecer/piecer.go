@@ -31,10 +31,7 @@ var log = logger.Logger("piecer")
 // Piecer provides a data-preparation pipeline for StorageDeals.
 type Piecer struct {
 	broker   broker.Broker
-	ipfsApis []struct {
-		address multiaddr.Multiaddr
-		coreapi iface.CoreAPI
-	}
+	ipfsApis []ipfsAPI
 
 	store           *store.Store
 	daemonFrequency time.Duration
@@ -55,6 +52,11 @@ type Piecer struct {
 	metricLastPrepared        metric.Int64ValueObserver
 }
 
+type ipfsAPI struct {
+	address multiaddr.Multiaddr
+	api     iface.CoreAPI
+}
+
 var _ pieceri.Piecer = (*Piecer)(nil)
 
 // New returns a new Piecer.
@@ -65,10 +67,7 @@ func New(
 	daemonFrequency time.Duration,
 	retryDelay time.Duration) (*Piecer, error) {
 
-	ipfsApis := make([]struct {
-		address multiaddr.Multiaddr
-		coreapi iface.CoreAPI
-	}, len(ipfsEndpoints))
+	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
 		if err != nil {
@@ -78,10 +77,7 @@ func New(
 		if err != nil {
 			return nil, fmt.Errorf("creating offline core api: %s", err)
 		}
-		ipfsApis[i] = struct {
-			address multiaddr.Multiaddr
-			coreapi iface.CoreAPI
-		}{address: endpoint, coreapi: coreapi}
+		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
 	}
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -260,7 +256,7 @@ func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
 	for _, coreapi := range p.ipfsApis {
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
 		defer cls()
-		_, ok, err := coreapi.coreapi.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
+		_, ok, err := coreapi.api.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
 		if err != nil {
 			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.address, err)
 			continue
@@ -269,7 +265,7 @@ func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
 			continue
 		}
 		log.Debugf("found core-api for cid: %s", coreapi.address)
-		ng = coreapi.coreapi.Dag()
+		ng = coreapi.api.Dag()
 		break
 	}
 
