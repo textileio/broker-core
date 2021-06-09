@@ -1,3 +1,13 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: storage-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: storage
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -34,7 +44,7 @@ metadata:
   labels:
     app: storage
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: storage-v1
@@ -58,10 +68,17 @@ spec:
           resources:
             requests:
               memory: 100Mi
-              cpu: "0.6"
+              cpu: "0.3"
             limits:
               memory: 1Gi
           readinessProbe:
             httpGet:
               port: api
               path: "/health"
+          livenessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+

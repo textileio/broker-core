@@ -46,3 +46,4 @@ patchesStrategicMerge:
 - dealerd-patch.yaml
 - neard-patch.yaml
 - piecer-patch.yaml
+- storaged-patch.yaml

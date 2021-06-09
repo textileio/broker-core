@@ -1,3 +1,13 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auth
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -34,7 +44,7 @@ metadata:
   labels:
     app: auth
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: auth-v1
@@ -58,6 +68,20 @@ spec:
           resources:
             requests:
               memory: 100Mi
-              cpu: "0.6"
+              cpu: "0.3"
             limits:
               memory: 1Gi
+          readinessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+
+

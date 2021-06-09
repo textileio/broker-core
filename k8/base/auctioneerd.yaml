@@ -1,3 +1,13 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: auctioneer-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auctioneer
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -56,6 +66,19 @@ spec:
               cpu: "2"
             limits:
               memory: 6Gi
+          readinessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+
       volumes:
         - name: configure-env
           configMap:

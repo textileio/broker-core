@@ -1,3 +1,13 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: mongo-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      name: mongo
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
