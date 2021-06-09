@@ -57,7 +57,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
-		if err := common.SetupInstrumentation(v.GetString("metrics.addr")); err != nil {
+		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
