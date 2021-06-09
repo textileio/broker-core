@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
@@ -59,7 +57,6 @@ type Service struct {
 	server *grpc.Server
 
 	broker *brokeri.Broker
-	packer *packeri.Packer
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
@@ -125,7 +122,6 @@ func New(config Config) (*Service, error) {
 		config: config,
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		broker: broker,
-		packer: packer,
 	}
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -309,29 +305,13 @@ func (s *Service) StorageDealFinalizedDeal(
 
 // Close gracefully closes the service.
 func (s *Service) Close() error {
+	defer log.Infof("service closed")
+
 	var errors []string
 	defer log.Info("service was shutdown with %d errors", len(errors))
 
-	stopped := make(chan struct{})
-	go func() {
-		s.server.GracefulStop()
-		close(stopped)
-	}()
-	timer := time.NewTimer(10 * time.Second)
-	select {
-	case <-timer.C:
-		s.server.Stop()
-	case <-stopped:
-		timer.Stop()
-	}
-
-	if err := s.packer.Close(); err != nil {
-		errors = append(errors, err.Error())
-	}
-
-	if errors != nil {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
+	log.Infof("closing gRPC server")
+	s.server.GracefulStop()
 
 	return nil
 }
