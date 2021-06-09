@@ -25,7 +25,7 @@ spec:
             - name: ENDPOINT
               value: "http://storage:8888"
             - name: SLEEP
-              value: "3"
+              value: "2"
             - name: SEED_PHRASE
               value: "height unusual narrow dream follow grow rebel panda because then equip basic"
           command:

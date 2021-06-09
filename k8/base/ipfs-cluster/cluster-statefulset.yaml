@@ -69,7 +69,7 @@ spec:
           resources:
             {}
         - name: ipfs-cluster
-          image: "ipfs/ipfs-cluster:latest"
+          image: "ipfs/ipfs-cluster:leveldb"
           command: ["sh", "/custom/cluster-entrypoint.sh"]
           envFrom:
             - configMapRef:
