@@ -10,6 +10,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
@@ -56,7 +57,7 @@ func New(conf Config) (*Service, error) {
 	fin.Add(lib)
 
 	s := &Service{
-		server:    grpc.NewServer(),
+		server:    grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		piecer:    lib,
 		finalizer: fin,
 	}

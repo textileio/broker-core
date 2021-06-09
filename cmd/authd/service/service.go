@@ -15,6 +15,7 @@ import (
 	varint "github.com/multiformats/go-varint"
 	"github.com/ockam-network/did"
 	"github.com/textileio/broker-core/chainapi"
+	"github.com/textileio/broker-core/cmd/common"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/rpc"
 
@@ -50,7 +51,7 @@ var _ pb.AuthAPIServiceServer = (*Service)(nil)
 // New returns a new service.
 func New(config Config, deps Deps) (*Service, error) {
 	s := &Service{
-		server: grpc.NewServer(),
+		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		Config: config,
 		Deps:   deps,
 	}

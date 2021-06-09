@@ -13,6 +13,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -89,7 +90,7 @@ func New(conf Config) (*Service, error) {
 	fin.Add(lib)
 
 	s := &Service{
-		server:    grpc.NewServer(),
+		server:    grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		packer:    lib,
 		finalizer: fin,
 	}

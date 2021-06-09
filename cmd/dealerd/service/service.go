@@ -13,6 +13,7 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
@@ -104,7 +105,7 @@ func New(conf Config) (*Service, error) {
 	}
 
 	s := &Service{
-		server:    grpc.NewServer(),
+		server:    grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		dealer:    lib,
 		finalizer: fin,
 	}
