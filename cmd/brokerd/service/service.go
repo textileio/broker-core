@@ -305,12 +305,12 @@ func (s *Service) StorageDealFinalizedDeal(
 
 // Close gracefully closes the service.
 func (s *Service) Close() error {
-	defer log.Infof("service closed")
+	defer log.Info("service closed")
 
 	var errors []string
 	defer log.Info("service was shutdown with %d errors", len(errors))
 
-	log.Infof("closing gRPC server")
+	log.Info("closing gRPC server")
 	s.server.GracefulStop()
 
 	return nil
@@ -318,28 +318,28 @@ func (s *Service) Close() error {
 
 func validateConfig(conf Config) error {
 	if conf.ListenAddr == "" {
-		return fmt.Errorf("service listen addr is empty")
+		return errors.New("service listen addr is empty")
 	}
 	if conf.PiecerAddr == "" {
-		return fmt.Errorf("piecer api addr is empty")
+		return errors.New("piecer api addr is empty")
 	}
 	if conf.PackerAddr == "" {
-		return fmt.Errorf("packer api addr is empty")
+		return errors.New("packer api addr is empty")
 	}
 	if conf.AuctioneerAddr == "" {
-		return fmt.Errorf("auctioneer api addr is empty")
+		return errors.New("auctioneer api addr is empty")
 	}
 	if conf.DealerAddr == "" {
-		return fmt.Errorf("dealer api addr is empty")
+		return errors.New("dealer api addr is empty")
 	}
 	if conf.ReporterAddr == "" {
-		return fmt.Errorf("reporter api addr is empty")
+		return errors.New("reporter api addr is empty")
 	}
 	if conf.MongoDBName == "" {
-		return fmt.Errorf("mongo db name is empty")
+		return errors.New("mongo db name is empty")
 	}
 	if conf.MongoURI == "" {
-		return fmt.Errorf("mongo uri is empty")
+		return errors.New("mongo uri is empty")
 	}
 	if conf.DealDuration < broker.MinDealDuration {
 		return fmt.Errorf("deal duration is less than minimum allowed: %d", broker.MinDealDuration)

@@ -82,8 +82,11 @@ func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc auc
 
 // Close the service.
 func (s *Service) Close() error {
+	defer log.Info("service was shutdown")
+
+	log.Info("closing gRPC server...")
 	rpc.StopServer(s.server)
-	log.Info("service was shutdown")
+
 	return s.finalizer.Cleanup(nil)
 }
 

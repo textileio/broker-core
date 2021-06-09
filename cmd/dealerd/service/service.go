@@ -182,8 +182,11 @@ func (s *Service) ReadyToCreateDeals(
 
 // Close the service.
 func (s *Service) Close() error {
+	defer log.Info("service was shutdown")
+
+	log.Info("closing gRPC server...")
 	rpc.StopServer(s.server)
-	log.Info("service was shutdown")
+
 	return s.finalizer.Cleanup(nil)
 }
 

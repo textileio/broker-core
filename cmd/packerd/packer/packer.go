@@ -129,6 +129,7 @@ func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dat
 
 // Close closes the packer.
 func (p *Packer) Close() error {
+	log.Info("closing packer...")
 	p.onceClose.Do(func() {
 		p.daemonCancelCtx()
 		<-p.daemonClosed
@@ -141,7 +142,7 @@ func (p *Packer) daemon() {
 	for {
 		select {
 		case <-p.daemonCtx.Done():
-			log.Infof("packer closed")
+			log.Info("packer closed")
 			return
 		case <-time.After(p.batchFrequency):
 			for {

@@ -94,6 +94,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 
 // Close closes the dealer.
 func (d *Dealer) Close() error {
+	log.Info("closing dealer...")
 	d.onceClose.Do(func() {
 		d.daemonCancelCtx()
 		<-d.daemonClosed
@@ -117,7 +118,7 @@ func (d *Dealer) daemon() {
 	go d.daemonDealReporter()
 
 	<-d.daemonCtx.Done()
-	log.Infof("closing dealer daemons")
+	log.Info("closing dealer daemons")
 	d.daemonWg.Wait() // Wait for all sub-daemons to finish.
-	log.Infof("closing dealer daemons")
+	log.Info("closing dealer daemons")
 }

@@ -32,7 +32,7 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester) (*http.Ser
 		Handler:           createMux(s, skipAuth),
 	}
 
-	log.Infof("running HTTP API...")
+	log.Info("running HTTP API...")
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Errorf("stopping http server: %s", err)

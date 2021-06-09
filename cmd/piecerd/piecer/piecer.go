@@ -124,6 +124,7 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, da
 
 // Close closes the piecer.
 func (p *Piecer) Close() error {
+	log.Info("closing piecer...")
 	p.onceClose.Do(func() {
 		p.daemonCancelCtx()
 		<-p.daemonClosed
@@ -138,7 +139,7 @@ func (p *Piecer) daemon() {
 	for {
 		select {
 		case <-p.daemonCtx.Done():
-			log.Infof("piecer closed")
+			log.Info("piecer closed")
 			return
 		case <-p.newRequest:
 		case <-time.After(p.daemonFrequency):
