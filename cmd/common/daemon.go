@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,12 +10,15 @@ import (
 	"strings"
 	"time"
 
-	logger "github.com/ipfs/go-log/v2"
+	"github.com/gogo/status"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/logging"
+	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 // Flag describes a configuration flag.
@@ -165,4 +169,28 @@ func HandleInterrupt(cleanup func()) {
 	fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 	cleanup()
 	os.Exit(1)
+}
+
+// GrpcLoggerInterceptor logs any error produced by processing requests, and catches/recovers
+// from panics.
+func GrpcLoggerInterceptor(log *logger.ZapEventLogger) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context, req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler) (res interface{}, err error) {
+		// Recover from any panic caused by this request processing.
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("panic: %s", r)
+				err = status.Errorf(codes.Internal, "panic: %s", r)
+			}
+		}()
+
+		res, err = handler(ctx, req)
+		grpcErrCode := status.Code(err)
+		if grpcErrCode != codes.OK {
+			log.Error(err)
+		}
+		return
+	}
 }

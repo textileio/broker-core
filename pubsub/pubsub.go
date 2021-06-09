@@ -11,9 +11,9 @@ import (
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	golog "github.com/textileio/go-log/v2"
 )
 
 var (

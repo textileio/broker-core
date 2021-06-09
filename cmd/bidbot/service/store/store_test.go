@@ -14,7 +14,6 @@ import (
 	util "github.com/ipfs/go-ipfs-util"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/ipld/go-car"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -26,6 +25,7 @@ import (
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 	badger "github.com/textileio/go-ds-badger3"
+	golog "github.com/textileio/go-log/v2"
 )
 
 func init() {

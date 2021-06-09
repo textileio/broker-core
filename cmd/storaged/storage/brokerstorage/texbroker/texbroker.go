@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
+	logger "github.com/textileio/go-log/v2"
 )
 
 var (

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/joho/godotenv"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -22,6 +21,7 @@ import (
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer"
+	golog "github.com/textileio/go-log/v2"
 )
 
 var (

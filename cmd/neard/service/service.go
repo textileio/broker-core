@@ -5,10 +5,11 @@ import (
 	"net"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
 	"github.com/textileio/broker-core/cmd/neard/statecache"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
+	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
@@ -32,7 +33,7 @@ func NewService(listener net.Listener, stateCache *statecache.StateCache, lc *lo
 	s := &Service{
 		sc:     stateCache,
 		lc:     lc,
-		server: grpc.NewServer(),
+		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 	}
 	go func() {
 		log.Infof("Starting service in here %v...", listener.Addr().String())

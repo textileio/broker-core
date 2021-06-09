@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/account"
+	logging "github.com/textileio/go-log/v2"
 )
 
 const (

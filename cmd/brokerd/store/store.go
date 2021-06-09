@@ -13,9 +13,9 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
+	logger "github.com/textileio/go-log/v2"
 )
 
 var (

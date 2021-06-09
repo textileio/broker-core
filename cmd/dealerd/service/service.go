@@ -10,9 +10,9 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/ipfs/go-cid"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
+	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
@@ -21,6 +21,7 @@ import (
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/dealer/v1"
 	"github.com/textileio/broker-core/rpc"
+	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -104,7 +105,7 @@ func New(conf Config) (*Service, error) {
 	}
 
 	s := &Service{
-		server:    grpc.NewServer(),
+		server:    grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		dealer:    lib,
 		finalizer: fin,
 	}

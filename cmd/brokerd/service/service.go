@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	auctioneercast "github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
@@ -19,6 +18,8 @@ import (
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
+	"github.com/textileio/broker-core/cmd/common"
+	logging "github.com/textileio/go-log/v2"
 
 	"github.com/textileio/broker-core/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -122,7 +123,7 @@ func New(config Config) (*Service, error) {
 
 	s := &Service{
 		config: config,
-		server: grpc.NewServer(),
+		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		broker: broker,
 		packer: packer,
 	}

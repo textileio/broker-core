@@ -3,8 +3,8 @@ package statecache
 import (
 	"sync"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
+	logging "github.com/textileio/go-log/v2"
 )
 
 var (

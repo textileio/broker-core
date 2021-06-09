@@ -13,7 +13,6 @@ import (
 	util "github.com/ipfs/go-ipfs-util"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multihash"
@@ -32,6 +31,7 @@ import (
 	"github.com/textileio/broker-core/marketpeer"
 	brokermocks "github.com/textileio/broker-core/mocks/broker"
 	auctioneermocks "github.com/textileio/broker-core/mocks/cmd/auctioneerd/auctioneer"
+	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )

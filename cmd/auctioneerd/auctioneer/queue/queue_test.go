@@ -9,7 +9,6 @@ import (
 
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
@@ -18,6 +17,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/logging"
 	badger "github.com/textileio/go-ds-badger3"
+	golog "github.com/textileio/go-log/v2"
 )
 
 func init() {

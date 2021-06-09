@@ -5,9 +5,9 @@ import (
 	"math/rand"
 	"time"
 
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	dealeri "github.com/textileio/broker-core/dealer"
+	logger "github.com/textileio/go-log/v2"
 )
 
 var log = logger.Logger("dealermock")

@@ -6,7 +6,6 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -14,6 +13,7 @@ import (
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
 	"github.com/textileio/broker-core/dshelper"
+	logging "github.com/textileio/go-log/v2"
 )
 
 var (

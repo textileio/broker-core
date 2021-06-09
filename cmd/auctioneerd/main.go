@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,6 +19,7 @@ import (
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/marketpeer"
+	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 )
 

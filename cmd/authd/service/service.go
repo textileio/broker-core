@@ -9,14 +9,15 @@ import (
 	"strings"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	golog "github.com/ipfs/go-log/v2"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
 	varint "github.com/multiformats/go-varint"
 	"github.com/ockam-network/did"
 	"github.com/textileio/broker-core/chainapi"
+	"github.com/textileio/broker-core/cmd/common"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/rpc"
+	golog "github.com/textileio/go-log/v2"
 
 	// This import runs the init, which registers the algo with jwt-go.
 	_ "github.com/textileio/jwt-go-eddsa"
@@ -50,7 +51,7 @@ var _ pb.AuthAPIServiceServer = (*Service)(nil)
 // New returns a new service.
 func New(config Config, deps Deps) (*Service, error) {
 	s := &Service{
-		server: grpc.NewServer(),
+		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		Config: config,
 		Deps:   deps,
 	}

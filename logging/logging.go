@@ -3,7 +3,7 @@ package logging
 import (
 	"encoding/json"
 
-	logging "github.com/ipfs/go-log/v2"
+	logging "github.com/textileio/go-log/v2"
 	"go.uber.org/zap/zapcore"
 )
 

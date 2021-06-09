@@ -13,10 +13,10 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
+	logger "github.com/textileio/go-log/v2"
 )
 
 type (
