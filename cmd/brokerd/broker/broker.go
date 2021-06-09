@@ -115,11 +115,6 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	// this BrokerRequest, and continue with the bidding process..
 	log.Debugf("signaling packer")
 	if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
-		// TODO: there's room for improvement here. We can mark this broker-request
-		// to be retried in signaling the packer, to avoid be orphaned.
-		// Under normal circumstances this shouldn't happen.
-		// We can simply save BrokerRequest with a "ReadyToBatch", and have some daemon
-		// making sure of notifying and then switching to "Batching"; shoudn't be a big deal.
 		return broker.BrokerRequest{}, fmt.Errorf("notifying packer of ready broker request: %s", err)
 	}
 
@@ -180,8 +175,6 @@ func (b *Broker) CreateStorageDeal(
 	// Signal Piecer that there's work to do. It will eventually call us
 	// through PreparedStorageDeal(...).
 	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.PayloadCid); err != nil {
-		// TODO: same possible improvement as described in `ReadyToPack`
-		// applies here.
 		return "", fmt.Errorf("signaling piecer: %s", err)
 	}
 
@@ -252,6 +245,7 @@ func (b *Broker) StorageDealProposalAccepted(
 		}
 		if bid.MinerAddr == miner {
 			winningBid = wbid
+			break
 		}
 	}
 
