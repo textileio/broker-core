@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/gogo/status"
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/logging"
+	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
 	"google.golang.org/grpc"

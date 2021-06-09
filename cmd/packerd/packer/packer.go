@@ -9,7 +9,6 @@ import (
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	ipld "github.com/ipfs/go-ipld-format"
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
 	"github.com/ipfs/interface-go-ipfs-core/options"
@@ -19,6 +18,7 @@ import (
 	"github.com/textileio/broker-core/cmd/packerd/packer/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	packeri "github.com/textileio/broker-core/packer"
+	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 )
 

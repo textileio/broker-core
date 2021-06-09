@@ -11,7 +11,6 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	format "github.com/ipfs/go-ipld-format"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	cconnmgr "github.com/libp2p/go-libp2p-core/connmgr"
@@ -26,6 +25,7 @@ import (
 	"github.com/textileio/broker-core/marketpeer/mdns"
 	"github.com/textileio/broker-core/pubsub"
 	badger "github.com/textileio/go-ds-badger3"
+	golog "github.com/textileio/go-log/v2"
 )
 
 var log = golog.Logger("mpeer")

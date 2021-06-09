@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
+	logger "github.com/textileio/go-log/v2"
 )
 
 var log = logger.Logger("dealer")

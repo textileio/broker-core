@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/ipfs/go-cid"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
@@ -21,6 +20,7 @@ import (
 	"github.com/textileio/broker-core/marketpeer"
 	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/broker-core/pubsub"
+	golog "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"

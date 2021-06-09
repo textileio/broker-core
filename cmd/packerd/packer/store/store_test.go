@@ -9,7 +9,7 @@ import (
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/tests"
 
-	golog "github.com/ipfs/go-log/v2"
+	golog "github.com/textileio/go-log/v2"
 )
 
 func init() {

@@ -14,7 +14,6 @@ import (
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	format "github.com/ipfs/go-ipld-format"
-	logger "github.com/ipfs/go-log/v2"
 	iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
@@ -24,6 +23,7 @@ import (
 	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	pieceri "github.com/textileio/broker-core/piecer"
+	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 )
 

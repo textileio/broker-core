@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	_ "net/http/pprof"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/service"
 	"github.com/textileio/broker-core/cmd/common"
+	logging "github.com/textileio/go-log/v2"
 )
 
 var (

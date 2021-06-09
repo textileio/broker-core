@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
@@ -23,6 +22,7 @@ import (
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
+	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/protobuf/proto"
 )
 

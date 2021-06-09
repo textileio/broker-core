@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
+	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

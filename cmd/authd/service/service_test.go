@@ -5,12 +5,12 @@ import (
 	"net"
 	"testing"
 
-	golog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/logging"
 	mocks "github.com/textileio/broker-core/mocks/chainapi"
+	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 

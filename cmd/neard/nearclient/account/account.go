@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/near/borsh-go"
 	itypes "github.com/textileio/broker-core/cmd/neard/nearclient/internal/types"
@@ -17,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/cmd/neard/nearclient/transaction"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/util"
+	logging "github.com/textileio/go-log/v2"
 )
 
 const (

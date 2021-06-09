@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
-	logger "github.com/ipfs/go-log/v2"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
@@ -17,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
+	logger "github.com/textileio/go-log/v2"
 )
 
 var (

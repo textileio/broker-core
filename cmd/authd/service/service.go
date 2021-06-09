@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	golog "github.com/ipfs/go-log/v2"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
 	varint "github.com/multiformats/go-varint"
@@ -18,6 +17,7 @@ import (
 	"github.com/textileio/broker-core/cmd/common"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/rpc"
+	golog "github.com/textileio/go-log/v2"
 
 	// This import runs the init, which registers the algo with jwt-go.
 	_ "github.com/textileio/jwt-go-eddsa"
