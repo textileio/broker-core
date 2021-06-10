@@ -38,10 +38,18 @@ var Flags = []common.Flag{
 	{
 		Name: "bootstrap-multiaddr",
 		DefValue: []string{
+			// staging auctioneer 0
 			"/ip4/34.83.3.108/tcp/4001/p2p/12D3KooWDfrwmm798fDM2wSthRbMLMiT1smrpNUn22zFQii1qYoX",
 			"/ip4/34.83.3.108/udp/4001/quic/p2p/12D3KooWDfrwmm798fDM2wSthRbMLMiT1smrpNUn22zFQii1qYoX",
+			// staging auctioneer 1
 			"/ip4/34.105.101.67/tcp/4001/p2p/12D3KooWAVW2PQjBFHUMtixBUYRcUeAV71kjwnPxcPwa21fcV4Fj",
 			"/ip4/34.105.101.67/udp/4001/quic/p2p/12D3KooWAVW2PQjBFHUMtixBUYRcUeAV71kjwnPxcPwa21fcV4Fj",
+			// staging ipfs node 0
+			"/ip4/34.83.36.118/tcp/4001/p2p/12D3KooWKHosviDKxPeXoyZjgomBXYoNKgjh8R7B2LrGVtwh222w",
+			// staging ipfs node 1
+			"/ip4/34.82.221.249/tcp/4001/p2p/12D3KooWJdCEUxrjS1uQZQFtzCcSSFMc9F8tZJCHCuRc1TVazgrR",
+			// staging ipfs node 2
+			"/ip4/34.83.88.62/tcp/4001/p2p/12D3KooWJtXyjyk5kAZibvYEpsnmDUY9SwofhtjUJMMVVA6MuSwr",
 		},
 		Description: "Libp2p bootstrap peer multiaddr",
 	},
