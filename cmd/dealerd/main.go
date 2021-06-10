@@ -30,8 +30,16 @@ func init() {
 			Description: "Exported wallet address for deal making",
 		},
 		{Name: "allow-unverified-deals", DefValue: false, Description: "Allow unverified deals"},
-		{Name: "max-verified-price-per-gib-per-epoch", DefValue: int64(0), Description: "Maximum price accepted for verified deals"},
-		{Name: "max-unverified-price-per-gib-per-epoch", DefValue: int64(0), Description: "Maximum price accepted for unverified deals"},
+		{
+			Name:        "max-verified-price-per-gib-per-epoch",
+			DefValue:    int64(0),
+			Description: "Maximum price accepted for verified deals",
+		},
+		{
+			Name:        "max-unverified-price-per-gib-per-epoch",
+			DefValue:    int64(0),
+			Description: "Maximum price accepted for unverified deals",
+		},
 		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
