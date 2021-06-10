@@ -91,10 +91,6 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 		return broker.BrokerRequest{}, ErrInvalidCid
 	}
 
-	if err := meta.Validate(); err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("invalid metadata: %s", err)
-	}
-
 	now := time.Now()
 	br := broker.BrokerRequest{
 		ID:        broker.BrokerRequestID(uuid.New().String()),

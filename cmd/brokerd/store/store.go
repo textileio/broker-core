@@ -53,12 +53,17 @@ func New(ds datastore.TxnDatastore) (*Store, error) {
 
 // SaveBrokerRequest saves the provided BrokerRequest.
 func (s *Store) SaveBrokerRequest(_ context.Context, br broker.BrokerRequest) error {
-	return saveBrokerRequest(s.ds, br)
+	ibr := castToInternalBrokerRequest(br)
+	return saveBrokerRequest(s.ds, ibr)
 }
 
 // GetBrokerRequest gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
 func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	return getBrokerRequest(s.ds, id)
+	ibr, err := getBrokerRequest(s.ds, id)
+	if err != nil {
+		return broker.BrokerRequest{}, err
+	}
+	return castToBrokerRequest(ibr), nil
 }
 
 // CreateStorageDeal persists a storage deal. It populates the sd.ID field with the corresponding id.
@@ -88,7 +93,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 
 	// 1- Get all involved BrokerRequests and validate that their in the correct
 	// statuses, and nothing unexpected/invalid is going on.
-	brs := make([]broker.BrokerRequest, len(sd.BrokerRequestIDs))
+	brs := make([]brokerRequest, len(sd.BrokerRequestIDs))
 	for i, brID := range sd.BrokerRequestIDs {
 		br, err := getBrokerRequest(txn, brID)
 		if err == ErrNotFound {
@@ -400,27 +405,27 @@ func (s *Store) StorageDealFinalizedDeal(fad broker.FinalizedAuctionDeal) error 
 	return nil
 }
 
-func getBrokerRequest(r datastore.Read, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
+func getBrokerRequest(r datastore.Read, id broker.BrokerRequestID) (brokerRequest, error) {
 	key := keyBrokerRequest(id)
 	buf, err := r.Get(key)
 	if err == datastore.ErrNotFound {
-		return broker.BrokerRequest{}, ErrNotFound
+		return brokerRequest{}, ErrNotFound
 	}
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("get broker request from datstore: %s", err)
+		return brokerRequest{}, fmt.Errorf("get broker request from datstore: %s", err)
 	}
 
-	var sr broker.BrokerRequest
+	var sr brokerRequest
 	dec := gob.NewDecoder(bytes.NewReader(buf))
 	if err := dec.Decode(&sr); err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("gob decoding: %s", err)
+		return brokerRequest{}, fmt.Errorf("gob decoding: %s", err)
 	}
 
 	return sr, nil
 }
 
-func saveBrokerRequest(w datastore.Write, br broker.BrokerRequest) error {
-	if err := br.Validate(); err != nil {
+func saveBrokerRequest(w datastore.Write, br brokerRequest) error {
+	if err := br.validate(); err != nil {
 		return fmt.Errorf("broker request is invalid: %s", err)
 	}
 

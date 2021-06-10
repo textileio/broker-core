@@ -153,9 +153,6 @@ func (s *Service) CreateBrokerRequest(
 	if r.Meta != nil {
 		meta.Region = r.Meta.Region
 	}
-	if err := meta.Validate(); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid metadata: %s", err)
-	}
 
 	br, err := s.broker.Create(ctx, c, meta)
 	if err != nil {

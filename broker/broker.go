@@ -68,27 +68,9 @@ type BrokerRequest struct {
 	UpdatedAt     time.Time           `json:"updated_at"`
 }
 
-// Validate returns an error if the fields are invalid.
-func (br BrokerRequest) Validate() error {
-	if br.ID == "" {
-		return errors.New("id is empty")
-	}
-	if !br.DataCid.Defined() {
-		return errors.New("datacid is undefined")
-	}
-	return nil
-}
-
 // Metadata provides storage and bidding configuration.
 type Metadata struct {
 	Region string `json:"region"`
-}
-
-// Validate validates if the instance is valid.
-func (m Metadata) Validate() error {
-	// TODO: we can validate regions, or any other
-	// fields that might exist.
-	return nil
 }
 
 // BrokerRequestStatus describe the current status of a
