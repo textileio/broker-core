@@ -29,6 +29,9 @@ func init() {
 			DefValue:    "",
 			Description: "Exported wallet address for deal making",
 		},
+		{Name: "allow-unverified-deals", DefValue: false, Description: "Allow unverified deals"},
+		{Name: "max-verified-price-per-gib-per-epoch", DefValue: int64(0), Description: "Maximum price accepted for verified deals"},
+		{Name: "max-unverified-price-per-gib-per-epoch", DefValue: int64(0), Description: "Maximum price accepted for verified deals"},
 		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
@@ -70,6 +73,10 @@ var rootCmd = &cobra.Command{
 
 			LotusGatewayURL:         v.GetString("lotus-gateway-url"),
 			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-address"),
+
+			AllowUnverifiedDeals:             v.GetBool("allow-unverified-deals"),
+			MaxVerifiedPricePerGiBPerEpoch:   v.GetInt64("max-verified-price-per-gib-per-epoch"),
+			MaxUnverifiedPricePerGiBPerEpoch: v.GetInt64("max-unverified-price-per-gib-per-epoch"),
 
 			Mock: v.GetBool("mock"),
 		}

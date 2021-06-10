@@ -332,7 +332,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		return fmt.Errorf("get storage deal: %s", err)
 	}
 
-	// Do we got the last finalized transaction?
+	// Do we got the last finalized deal?
 	if len(sd.Deals) == len(sd.Auction.WinningBids) {
 		// If we have at least one successful deal, then we succeed.
 		finalStatus := broker.StorageDealError

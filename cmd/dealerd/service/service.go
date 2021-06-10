@@ -39,6 +39,10 @@ type Config struct {
 	LotusGatewayURL         string
 	LotusExportedWalletAddr string
 
+	AllowUnverifiedDeals             bool
+	MaxVerifiedPricePerGiBPerEpoch   int64
+	MaxUnverifiedPricePerGiBPerEpoch int64
+
 	BrokerAPIAddr string
 
 	Mock bool
@@ -92,7 +96,12 @@ func New(conf Config) (*Service, error) {
 		}
 		fin.Add(&nopCloser{closer})
 
-		filclient, err := filclient.New(&lotusAPI, filclient.WithExportedKey(conf.LotusExportedWalletAddr))
+		filclient, err := filclient.New(
+			&lotusAPI,
+			filclient.WithExportedKey(conf.LotusExportedWalletAddr),
+			filclient.WithAllowUnverifiedDeals(conf.AllowUnverifiedDeals),
+			filclient.WithMaxPriceLimits(conf.MaxVerifiedPricePerGiBPerEpoch, conf.MaxUnverifiedPricePerGiBPerEpoch),
+		)
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}
