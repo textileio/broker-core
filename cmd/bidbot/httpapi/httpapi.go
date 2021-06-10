@@ -77,9 +77,11 @@ func writeCarRequestHandler(service Service) func(w http.ResponseWriter, r *http
 			return
 		}
 
-		dest, err := service.WriteCar(r.Context(), id)
+		ctx, cancel := context.WithTimeout(r.Context(), bidstore.DataCidFetchTimeout)
+		defer cancel()
+		dest, err := service.WriteCar(ctx, id)
 		if err != nil {
-			httpError(w, fmt.Sprintf("writing service: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("writing car: %s", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -92,6 +94,6 @@ func writeCarRequestHandler(service Service) func(w http.ResponseWriter, r *http
 }
 
 func httpError(w http.ResponseWriter, err string, status int) {
-	log.Errorf("request error: %s", err)
+	log.Debugf("request error: %s", err)
 	http.Error(w, err, status)
 }

@@ -161,7 +161,9 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	// Create bid store
 	s, err := bidstore.NewStore(
 		store,
+		p.Host(),
 		p.DAGService(),
+		conf.Peer.BootstrapAddrs,
 		conf.BidParams.DealDataDirectory,
 		conf.BidParams.DealDataFetchAttempts,
 	)

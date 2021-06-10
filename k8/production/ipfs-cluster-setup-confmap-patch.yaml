@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: ipfs-cluster-set-bootstrap-conf
 data:
-  addresses-announce-0: '["/ip4//tcp/4001","/ip4//udp/4002/quic"]'
-  addresses-announce-1: '["/ip4//tcp/4001","/ip4//udp/4002/quic"]'
-  addresses-announce-2: '["/ip4//tcp/4001","/ip4//udp/4002/quic"]'
-  addresses-announce-3: '["/ip4//tcp/4001","/ip4//udp/4002/quic"]'
+  addresses-announce-0: '["/ip4/FIXME/tcp/4001"]'
+  addresses-announce-1: '["/ip4/FIXME/tcp/4001"]'
+  addresses-announce-2: '["/ip4/FIXME/tcp/4001"]'
+  addresses-announce-3: '["/ip4/FIXME/tcp/4001"]'

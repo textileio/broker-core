@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ipfs-cluster-swarm-tcp-0
+  name: ipfs-cluster-swarm-0
 spec:
   externalTrafficPolicy: Local
   selector:
@@ -9,7 +9,6 @@ spec:
     statefulset.kubernetes.io/pod-name: ipfs-cluster-0
   ports:
     - name: swarm
-      protocol: TCP
       targetPort: swarm
       port: 4001
   type: LoadBalancer
@@ -17,23 +16,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ipfs-cluster-swarm-udp-0
-spec:
-  externalTrafficPolicy: Local
-  selector:
-    app: ipfs-cluster
-    statefulset.kubernetes.io/pod-name: ipfs-cluster-0
-  ports:
-    - name: swarm-udp
-      protocol: UDP
-      targetPort: swarm-udp
-      port: 4002
-  type: LoadBalancer
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ipfs-cluster-swarm-tcp-1
+  name: ipfs-cluster-swarm-1
 spec:
   externalTrafficPolicy: Local
   selector:
@@ -41,23 +24,6 @@ spec:
     statefulset.kubernetes.io/pod-name: ipfs-cluster-1
   ports:
     - name: swarm
-      protocol: TCP
       targetPort: swarm
       port: 4001
-  type: LoadBalancer
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ipfs-cluster-swarm-udp-1
-spec:
-  externalTrafficPolicy: Local
-  selector:
-    app: ipfs-cluster
-    statefulset.kubernetes.io/pod-name: ipfs-cluster-1
-  ports:
-    - name: swarm-udp
-      protocol: UDP
-      targetPort: swarm-udp
-      port: 4002
   type: LoadBalancer
