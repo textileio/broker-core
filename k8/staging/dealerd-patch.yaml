@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dealer-01
+spec:
+  template:
+    spec:
+      containers:
+        - name: dealer
+          env:
+            - name: DEALER_LOTUS_EXPORTED_WALLET_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: dealer-lotus-exported-wallet-address
