@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
@@ -38,6 +40,7 @@ type Config struct {
 	Peer           marketpeer.Config
 	BidParams      BidParams
 	AuctionFilters AuctionFilters
+	HTTPListenAddr string
 }
 
 // BidParams defines how bids are made.
@@ -124,6 +127,7 @@ type Service struct {
 	peer       *marketpeer.Peer
 	fc         auctioneer.FilClient
 	store      *bidstore.Store
+	server     *http.Server
 	subscribed bool
 
 	bidParams      BidParams
@@ -157,7 +161,9 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	// Create bid store
 	s, err := bidstore.NewStore(
 		store,
+		p.Host(),
 		p.DAGService(),
+		conf.Peer.BootstrapAddrs,
 		conf.BidParams.DealDataDirectory,
 		conf.BidParams.DealDataFetchAttempts,
 	)
@@ -179,14 +185,21 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	}
 
 	srv := &Service{
-		store:          s,
 		peer:           p,
 		fc:             fc,
+		store:          s,
 		bidParams:      conf.BidParams,
 		auctionFilters: conf.AuctionFilters,
 		ctx:            ctx,
 		finalizer:      fin,
 	}
+
+	// Bootstrap HTTP API server
+	srv.server, err = httpapi.NewServer(conf.HTTPListenAddr, srv)
+	if err != nil {
+		return nil, fmt.Errorf("creating http server: %s", err)
+	}
+	srv.finalizer.Add(srv.server)
 
 	log.Info("service started")
 
@@ -263,6 +276,11 @@ func (s *Service) ID() peer.ID {
 // ListBids lists bids by applying a store.Query.
 func (s *Service) ListBids(query bidstore.Query) ([]bidstore.Bid, error) {
 	return s.store.ListBids(query)
+}
+
+// WriteCar writes a car file to the configured deal data directory.
+func (s *Service) WriteCar(ctx context.Context, cid cid.Cid) (string, error) {
+	return s.store.WriteCar(ctx, cid)
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {

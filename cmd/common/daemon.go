@@ -119,10 +119,14 @@ func ConfigureLogging(v *viper.Viper, logLevels []string) error {
 // This is used to enable repeated flags as well as env vars that can't be repeated.
 // In either case, Viper understands how to write the config entry as a list.
 func ParseStringSlice(v *viper.Viper, key string) []string {
-	var vals []string
+	vals := make([]string, 0)
 	for _, val := range v.GetStringSlice(key) {
 		parts := strings.Split(val, ",")
-		vals = append(vals, parts...)
+		for _, p := range parts {
+			if p != "" {
+				vals = append(vals, p)
+			}
+		}
 	}
 	return vals
 }

@@ -16,8 +16,10 @@ import (
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
@@ -124,7 +126,9 @@ func (as BidStatus) String() string {
 // Store stores miner auction deal bids.
 type Store struct {
 	store      txndswrap.TxnDatastore
+	host       host.Host
 	nodeGetter format.NodeGetter
+	bootstrap  []peer.AddrInfo
 
 	jobCh  chan *Bid
 	tickCh chan struct{}
@@ -141,14 +145,23 @@ type Store struct {
 // NewStore returns a new Store.
 func NewStore(
 	store txndswrap.TxnDatastore,
+	host host.Host,
 	nodeGetter format.NodeGetter,
+	bootstrap []string,
 	dealDataDirectory string,
 	dealDataFetchAttempts uint32,
 ) (*Store, error) {
+	baddrs, err := ipfsconfig.ParseBootstrapPeers(bootstrap)
+	if err != nil {
+		return nil, fmt.Errorf("parsing bootstrap addrs: %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Store{
 		store:                 store,
+		host:                  host,
 		nodeGetter:            nodeGetter,
+		bootstrap:             baddrs,
 		jobCh:                 make(chan *Bid, MaxDataCidFetchConcurrency),
 		tickCh:                make(chan struct{}, MaxDataCidFetchConcurrency),
 		dealDataDirectory:     dealDataDirectory,
@@ -416,6 +429,32 @@ func (s *Store) ListBids(query Query) ([]Bid, error) {
 	return list, nil
 }
 
+// WriteCar writes a car file to the configured deal data directory.
+func (s *Store) WriteCar(ctx context.Context, pcid cid.Cid) (string, error) {
+	f, err := os.Create(filepath.Join(s.dealDataDirectory, pcid.String()))
+	if err != nil {
+		return "", fmt.Errorf("opening file for deal data: %v", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("closing data file: %v", err)
+		}
+	}()
+
+	for _, dial := range s.bootstrap {
+		go func(dial peer.AddrInfo) {
+			if err := s.host.Connect(ctx, dial); err != nil {
+				log.Errorf("dialing %s: %v", dial.ID, err)
+			}
+		}(dial)
+	}
+
+	if err := car.WriteCar(ctx, s.nodeGetter, []cid.Cid{pcid}, f); err != nil {
+		return "", fmt.Errorf("fetching data cid %s: %v", pcid, err)
+	}
+	return f.Name(), nil
+}
+
 // enqueueDataCid queues a data cid fetch.
 // commitTxn will be committed internally!
 func (s *Store) enqueueDataCid(commitTxn ds.Txn, b *Bid) error {
@@ -477,7 +516,7 @@ func (s *Store) fetchWorker(num int) {
 			var status BidStatus
 			var logMsg string
 			ctx, cancel := context.WithTimeout(s.ctx, DataCidFetchTimeout)
-			if err := s.writeDataCid(ctx, b.DataCid); err != nil {
+			if _, err := s.WriteCar(ctx, b.DataCid); err != nil {
 				status = fail(b, err)
 				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
 			} else {
@@ -501,23 +540,6 @@ func (s *Store) fetchWorker(num int) {
 			}
 		}
 	}
-}
-
-func (s *Store) writeDataCid(ctx context.Context, pcid cid.Cid) error {
-	f, err := os.Create(filepath.Join(s.dealDataDirectory, pcid.String()))
-	if err != nil {
-		return fmt.Errorf("opening file for deal data: %v", err)
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Errorf("closing data file: %v", err)
-		}
-	}()
-
-	if err := car.WriteCar(ctx, s.nodeGetter, []cid.Cid{pcid}, f); err != nil {
-		return fmt.Errorf("fetching data cid %s: %v", pcid, err)
-	}
-	return nil
 }
 
 func (s *Store) startFetching() {

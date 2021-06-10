@@ -4,8 +4,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/joho/godotenv"
@@ -32,15 +35,22 @@ var (
 )
 
 func init() {
+	_ = godotenv.Load(".env")
 	configPath := os.Getenv("BIDBOT_PATH")
 	if configPath == "" {
 		configPath = defaultConfigPath
 	}
-	_ = godotenv.Load(filepath.Join(configPath, ".env"), ".env")
+	_ = godotenv.Load(filepath.Join(configPath, ".env"))
 
-	rootCmd.AddCommand(initCmd, daemonCmd)
+	rootCmd.AddCommand(initCmd, daemonCmd, dealsCmd)
+	dealsCmd.AddCommand(downloadCmd)
 
 	flags := []common.Flag{
+		{
+			Name:        "http-addr",
+			DefValue:    ":8888",
+			Description: "HTTP API listen address",
+		},
 		{
 			Name:        "miner-addr",
 			DefValue:    "",
@@ -187,8 +197,10 @@ var daemonCmd = &cobra.Command{
 			cliName,
 			"bidbot/service",
 			"bidbot/store",
+			"bidbot/api",
 			"mpeer",
 			"mpeer/pubsub",
+			"mpeer/mdns",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},
@@ -253,6 +265,7 @@ var daemonCmd = &cobra.Command{
 					Max: v.GetUint64("deal-size-max"),
 				},
 			},
+			HTTPListenAddr: v.GetString("http-addr"),
 		}
 		serv, err := service.New(config, store, fc)
 		common.CheckErrf("starting service: %v", err)
@@ -264,6 +277,39 @@ var daemonCmd = &cobra.Command{
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))
 		})
+	},
+}
+
+var dealsCmd = &cobra.Command{
+	Use: "deals",
+	Aliases: []string{
+		"deal",
+	},
+	Short: "Interact with storage deals",
+	Long:  "Interact with storage deals.",
+	Args:  cobra.ExactArgs(0),
+}
+
+var downloadCmd = &cobra.Command{
+	Use:   "download",
+	Short: "Download and write to disk storage deal data",
+	Long: `Downloads and writes to disk storage deal data by cid.
+
+Deal data is written to BIDBOT_DEAL_DATA_DIRECTORY in CAR format.
+`,
+	Args: cobra.ExactArgs(1),
+	Run: func(c *cobra.Command, args []string) {
+		host := "http://127.0.0.1" + v.GetString("http-addr") + "/"
+		pth := path.Join("cid", args[0])
+		res, err := http.Get(host + pth)
+		common.CheckErr(err)
+		defer func() {
+			err := res.Body.Close()
+			common.CheckErr(err)
+		}()
+		if _, err = io.Copy(os.Stdout, res.Body); err != io.EOF {
+			common.CheckErr(err)
+		}
 	},
 }
 
