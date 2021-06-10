@@ -31,11 +31,12 @@ var (
 )
 
 func init() {
+	_ = godotenv.Load(".env")
 	configPath := os.Getenv("AUCTIONEER_PATH")
 	if configPath == "" {
 		configPath = defaultConfigPath
 	}
-	_ = godotenv.Load(filepath.Join(configPath, ".env"), ".env")
+	_ = godotenv.Load(filepath.Join(configPath, ".env"))
 
 	rootCmd.AddCommand(initCmd, daemonCmd)
 
@@ -106,6 +107,7 @@ var daemonCmd = &cobra.Command{
 			"auctioneer/service",
 			"mpeer",
 			"mpeer/pubsub",
+			"mpeer/mdns",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},

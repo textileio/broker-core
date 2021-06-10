@@ -38,8 +38,10 @@ var Flags = []common.Flag{
 	{
 		Name: "bootstrap-multiaddr",
 		DefValue: []string{
-			"/ip4/34.83.24.156/tcp/4001/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ",
-			"/ip4/34.83.24.156/udp/4001/quic/p2p/12D3KooWLeNAFPGB1Yc2J52BwVvsZiUaeRdQ4SgnfBk1fDibSyoJ",
+			"/ip4/34.83.3.108/tcp/4001/p2p/12D3KooWDfrwmm798fDM2wSthRbMLMiT1smrpNUn22zFQii1qYoX",
+			"/ip4/34.83.3.108/udp/4001/quic/p2p/12D3KooWDfrwmm798fDM2wSthRbMLMiT1smrpNUn22zFQii1qYoX",
+			"/ip4/34.105.101.67/tcp/4001/p2p/12D3KooWAVW2PQjBFHUMtixBUYRcUeAV71kjwnPxcPwa21fcV4Fj",
+			"/ip4/34.105.101.67/udp/4001/quic/p2p/12D3KooWAVW2PQjBFHUMtixBUYRcUeAV71kjwnPxcPwa21fcV4Fj",
 		},
 		Description: "Libp2p bootstrap peer multiaddr",
 	},
@@ -156,6 +158,10 @@ func WriteConfig(v *viper.Viper, repoPathEnv, defaultRepoPath string) (string, e
 		}
 		v.Set("private-key", keystr)
 	}
+
+	v.Set("listen-multiaddr", common.ParseStringSlice(v, "listen-multiaddr"))
+	v.Set("bootstrap-multiaddr", common.ParseStringSlice(v, "bootstrap-multiaddr"))
+	v.Set("announce-multiaddr", common.ParseStringSlice(v, "announce-multiaddr"))
 
 	if err := v.WriteConfigAs(cf); err != nil {
 		return "", fmt.Errorf("error writing config: %v", err)

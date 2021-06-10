@@ -8,10 +8,7 @@ spec:
   type: ClusterIP
   clusterIP: None
   ports:
-    # IPFS ports
-    - name: swarm
-      targetPort: swarm
-      port: 4001
+    # IPFS ports; expose via overlay config
     # Cluster ports
     - name: cluster-swarm
       targetPort: cluster-swarm

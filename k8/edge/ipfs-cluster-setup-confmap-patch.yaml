@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipfs-cluster-set-bootstrap-conf
+data:
+  addresses-announce-0: '["/ip4/34.83.24.156/tcp/4001","/ip4/34.82.75.171/udp/4002/quic"]'
+  addresses-announce-1: '["/ip4/34.145.93.74/tcp/4001","/ip4/34.82.136.109/udp/4002/quic"]'
