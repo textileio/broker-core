@@ -11,7 +11,7 @@ var (
 	log = logging.Logger("neard/statecache")
 )
 
-// StateCache holds and controls access to the lock box state.
+// StateCache holds and controls access to the state.
 type StateCache struct {
 	state lockboxclient.State
 	lock  sync.Mutex

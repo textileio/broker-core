@@ -46,7 +46,6 @@ type Broker struct {
 	dealDuration    uint64
 	dealReplication uint32
 	verifiedDeals   bool
-	skipReporting   bool
 }
 
 // New creates a Broker backed by the provided `ds`.
@@ -60,7 +59,6 @@ func New(
 	dealDuration uint64,
 	dealReplication uint32,
 	verifiedDeals bool,
-	skipReporting bool,
 ) (*Broker, error) {
 	s, err := store.New(txndswrap.Wrap(ds, "/broker-store"))
 	if err != nil {
@@ -77,7 +75,6 @@ func New(
 		dealDuration:    dealDuration,
 		dealReplication: dealReplication,
 		verifiedDeals:   verifiedDeals,
-		skipReporting:   skipReporting,
 	}
 	return b, nil
 }
@@ -364,13 +361,6 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 			}
 		}
 	}
-
-	// Only report the deal to the chain if it was successful.
-	if !b.skipReporting && fad.ErrorCause == "" {
-		if err := b.reportFinalizedAuctionDeal(ctx, sd); err != nil {
-			return fmt.Errorf("reporting finalized auction deal to the chain: %s", err)
-		}
-	}
 	return nil
 }
 
@@ -386,43 +376,6 @@ func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (b
 	}
 
 	return sd, nil
-}
-
-func (b *Broker) reportFinalizedAuctionDeal(ctx context.Context, sd broker.StorageDeal) error {
-	log.Debugf("reporting finalized auction deal %s", sd.ID)
-	deals := make([]chainapi.DealInfo, 0, len(sd.Deals))
-	for i := range sd.Deals {
-		if sd.Deals[i].ErrorCause != "" {
-			// Skip errored deals.
-			continue
-		}
-		d := chainapi.DealInfo{
-			DealID:     uint64(sd.Deals[i].DealID),
-			MinerID:    sd.Deals[i].Miner,
-			Expiration: sd.Deals[i].DealExpiration,
-		}
-		deals = append(deals, d)
-	}
-	dataCids := make([]cid.Cid, len(sd.BrokerRequestIDs))
-	for i := range sd.BrokerRequestIDs {
-		br, err := b.store.GetBrokerRequest(ctx, sd.BrokerRequestIDs[i])
-		if err != nil {
-			return fmt.Errorf("get broker request: %s", err)
-		}
-		dataCids[i] = br.DataCid
-	}
-	if err := b.chainAPI.UpdatePayload(
-		ctx,
-		sd.PayloadCid,
-		chainapi.UpdatePayloadWithDataCids(dataCids),
-		chainapi.UpdatePayloadWithPieceCid(sd.PieceCid),
-		chainapi.UpdatePayloadWithDeals(deals),
-	); err != nil {
-		return fmt.Errorf("reporting storage info: %s", err)
-	}
-	log.Debugf("update payload for payloadcid %s confirmed", sd.PayloadCid)
-
-	return nil
 }
 
 func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.StorageDealID, errCause string) error {

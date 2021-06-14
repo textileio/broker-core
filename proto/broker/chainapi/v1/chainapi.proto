@@ -2,18 +2,6 @@ syntax = "proto3";
 package chainapi.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/chainapi/v1;chainapi";
 
-message DealInfo {
-	uint64 deal_id = 1;
-	string miner_id = 2;
-	uint64 expiration = 3;
-}
-
-message PayloadOptions {
-	string piece_cid = 1;
-	repeated DealInfo deals = 2;
-  repeated string data_cids = 3;
-}
-
 message HasDepositRequest {
   string broker_id = 1;
   string account_id = 2;
@@ -23,14 +11,6 @@ message HasDepositResponse {
   bool has_deposit = 1;
 }
 
-message UpdatePayloadRequest {
-  string payload_cid = 1;
-  PayloadOptions options = 2;
-}
-
-message UpdatePayloadResponse {}
-
 service ChainApiService {
   rpc HasDeposit(HasDepositRequest) returns (HasDepositResponse) {}
-  rpc UpdatePayload(UpdatePayloadRequest) returns (UpdatePayloadResponse) {};
 }
