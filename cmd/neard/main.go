@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/common"
-	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
+	"github.com/textileio/broker-core/cmd/neard/contractclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
@@ -98,7 +98,7 @@ var rootCmd = &cobra.Command{
 		})
 		common.CheckErr(err)
 
-		lc, err := lockboxclient.NewClient(nc, contractAccountID, clientAccountID)
+		lc, err := contractclient.NewClient(nc, contractAccountID, clientAccountID)
 		common.CheckErr(err)
 
 		sc, err := statecache.NewStateCache()
