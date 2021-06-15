@@ -365,6 +365,9 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		for _, deal := range sd.Deals {
 			excludedMiners = append(excludedMiners, deal.Miner)
 		}
+		for _, deal := range ads.Targets {
+			excludedMiners = append(excludedMiners, deal.Miner)
+		}
 		log.Infof("creating new auction for %d/%d missing bids", deltaRepFactor, len(au.WinningBids))
 		_, err := b.auctioneer.ReadyToAuction(
 			ctx,

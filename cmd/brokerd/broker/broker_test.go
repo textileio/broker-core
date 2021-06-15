@@ -383,7 +383,8 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, 1, auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
-
+	require.Contains(t, auctioneer.calledExcludedMiners, "f01111")
+	require.Contains(t, auctioneer.calledExcludedMiners, "f02222")
 }
 
 func TestStorageDealFailedAuction(t *testing.T) {
