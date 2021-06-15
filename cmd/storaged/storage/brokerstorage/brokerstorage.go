@@ -124,6 +124,7 @@ func (bs *BrokerStorage) Get(ctx context.Context, id string) (storage.Request, e
 	return sr, nil
 }
 
+// GetCAR generates a CAR file from the provided Cid and writes it a io.Writer.
 func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error {
 	ng, err := bs.getNodeGetterForCid(c)
 	if err != nil {

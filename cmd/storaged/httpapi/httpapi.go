@@ -60,7 +60,7 @@ func createMux(s storage.Requester, skipAuth bool) *http.ServeMux {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		httpError(w, "only GET method is allowed", http.StatusBadRequest)
 		return
 	}
@@ -152,7 +152,7 @@ func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Requ
 
 func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			httpError(w, "only GET method is allowed", http.StatusBadRequest)
 			return
 		}
@@ -222,7 +222,7 @@ func httpError(w http.ResponseWriter, err string, status int) {
 
 func carDownloadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			httpError(w, "only GET method is allowed", http.StatusBadRequest)
 			return
 		}

@@ -181,5 +181,4 @@ func (um *uploaderMock) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) erro
 	args := um.Called(ctx, c, w)
 
 	return args.Error(0)
-
 }
