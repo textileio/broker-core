@@ -326,6 +326,35 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 		if err := saveBrokerRequest(txn, br); err != nil {
 			return fmt.Errorf("saving broker request: %s", err)
 		}
+		unpinID, err := s.newID()
+		if err != nil {
+			return fmt.Errorf("generating id for unpin job: %s", err)
+		}
+		unpin := UnpinJob{
+			ID:        UnpinJobID(unpinID),
+			Cid:       br.DataCid,
+			Type:      UnpinTypeData,
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+		if err := saveUnpinJob(txn, unpin); err != nil {
+			return fmt.Errorf("saving unpin job: %s", err)
+		}
+	}
+
+	unpinID, err := s.newID()
+	if err != nil {
+		return fmt.Errorf("generating id for unpin job: %s", err)
+	}
+	unpin := UnpinJob{
+		ID:        UnpinJobID(unpinID),
+		Cid:       sd.PayloadCid,
+		Type:      UnpinTypeBatch,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := saveUnpinJob(txn, unpin); err != nil {
+		return fmt.Errorf("saving unpin job: %s", err)
 	}
 
 	if err := txn.Commit(); err != nil {
