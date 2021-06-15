@@ -34,6 +34,6 @@ spec:
             - |
               set -x
               npm install -g near-cli
-              wget -O bench.sh https://gist.githubusercontent.com/jsign/4333ac2cfa3a1f34ce5f11d215b96a43/raw/1a5e6cf786c6ead153dd446271f8acf7d2e742d9/bench.sh
+              wget -O bench.sh https://gist.githubusercontent.com/jsign/d32bc62d14c0069a924a9afc99337ba4/raw/aa59603917f4252cf2c73a0f063bab3d6a4cde1c/bench.sh
               chmod 755 bench.sh
               ./bench.sh $ENDPOINT $MIN_SIZE $MAX_SIZE $COUNT $SLEEP
