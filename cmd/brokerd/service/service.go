@@ -7,6 +7,8 @@ import (
 	"net"
 
 	"github.com/ipfs/go-cid"
+	httpapi "github.com/ipfs/go-ipfs-http-client"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	auctioneercast "github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
@@ -42,6 +44,8 @@ type Config struct {
 
 	MongoDBName string
 	MongoURI    string
+
+	IPFSAPIMultiaddr string
 
 	DealDuration    uint64
 	DealReplication uint32
@@ -101,6 +105,15 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating reporter implementation: %s", err)
 	}
 
+	ma, err := multiaddr.NewMultiaddr(config.IPFSAPIMultiaddr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
+	}
+	ipfsClient, err := httpapi.NewApi(ma)
+	if err != nil {
+		return nil, fmt.Errorf("creating ipfs client: %s", err)
+	}
+
 	broker, err := brokeri.New(
 		ds,
 		packer,
@@ -108,9 +121,10 @@ func New(config Config) (*Service, error) {
 		auctioneer,
 		dealer,
 		reporter,
-		config.DealDuration,
-		config.DealReplication,
-		config.VerifiedDeals,
+		ipfsClient,
+		brokeri.WithDealDuration(config.DealDuration),
+		brokeri.WithDealReplication(config.DealReplication),
+		brokeri.WithVerifiedDeals(config.VerifiedDeals),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
@@ -335,6 +349,9 @@ func validateConfig(conf Config) error {
 	}
 	if conf.MongoURI == "" {
 		return errors.New("mongo uri is empty")
+	}
+	if conf.IPFSAPIMultiaddr == "" {
+		return errors.New("ipfs api multiaddress is empty")
 	}
 	if conf.DealDuration < broker.MinDealDuration {
 		return fmt.Errorf("deal duration is less than minimum allowed: %d", broker.MinDealDuration)

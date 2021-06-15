@@ -39,7 +39,7 @@ type Broker interface {
 	StorageDealAuctioned(ctx context.Context, auction Auction) error
 
 	// StorageDealFinalizedDeal signals to the broker results about deal making.
-	StorageDealFinalizedDeal(ctx context.Context, res FinalizedAuctionDeal) error
+	StorageDealFinalizedDeal(ctx context.Context, fad FinalizedAuctionDeal) error
 
 	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
 	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
@@ -158,6 +158,8 @@ type StorageDeal struct {
 	ID               StorageDealID
 	Status           StorageDealStatus
 	BrokerRequestIDs []BrokerRequestID
+	RepFactor        int // TODO(jsign): fill and tests
+	DealDuration     int // TODO(jsign): fill and tests
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Error            string
@@ -169,11 +171,26 @@ type StorageDeal struct {
 	PieceCid  cid.Cid
 	PieceSize uint64
 
-	// Auctioner populates this field with the winning auction.
-	Auction Auction
-
 	// Dealer populates this field
-	Deals []FinalizedAuctionDeal
+	Deals []MinerDeal
+}
+
+// MinerDeal contains information about a miner deal resulted from
+// winned auctions:
+// If ErrCause is not empty, is a failed deal.
+// If ErrCause is empty, and DealID is zero then the deal is in progress.
+// IF ErrCause is empty, and DealID is not zero then is final.
+type MinerDeal struct {
+	StorageDealID StorageDealID
+	AuctionID     AuctionID
+	BidID         BidID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+
+	Miner          string
+	DealID         int64
+	DealExpiration uint64
+	ErrorCause     string
 }
 
 // DataPreparationResult is the result of preparing a StorageDeal.
@@ -291,12 +308,11 @@ type WinningBid struct {
 	ProposalCidAcknowledged bool // Whether or not the bidder acknowledged receipt of the proposal Cid
 }
 
-// FinalizedAuctionDeal contains information about final status of an executed
-// winning bid.
+// FinalizedAuctionDeal contains information about a finalized deal
 type FinalizedAuctionDeal struct {
 	StorageDealID  StorageDealID
+	Miner          string
 	DealID         int64
 	DealExpiration uint64
-	Miner          string
 	ErrorCause     string
 }
