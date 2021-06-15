@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
+	"github.com/textileio/broker-core/cmd/neard/contractclient"
 )
 
 // UpdateDelegate describes an object that can be called back with a state update.
 type UpdateDelegate interface {
-	HandleIntialStateUpdate(*lockboxclient.State)
-	HandleStateChanges([]lockboxclient.Change, string, int)
+	HandleIntialStateUpdate(*contractclient.State)
+	HandleStateChanges([]contractclient.Change, string, int)
 	HandleError(error)
 }
 
@@ -25,7 +25,7 @@ type Updater struct {
 
 // Config holds the configuration for creating a new Updater.
 type Config struct {
-	Lbc             *lockboxclient.Client
+	Lbc             *contractclient.Client
 	UpdateFrequency time.Duration
 	RequestTimeout  time.Duration
 	Delegate        UpdateDelegate

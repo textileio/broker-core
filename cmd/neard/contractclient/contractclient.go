@@ -1,4 +1,4 @@
-package lockboxclient
+package contractclient
 
 import (
 	"context"
@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	log = logging.Logger("lockboxclient")
+	log = logging.Logger("contractclient")
 
 	// ErrorNotFound is returned when an item isn't found.
 	ErrorNotFound = errors.New("not found")

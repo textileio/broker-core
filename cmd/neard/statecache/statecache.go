@@ -3,7 +3,7 @@ package statecache
 import (
 	"sync"
 
-	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
+	"github.com/textileio/broker-core/cmd/neard/contractclient"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -13,21 +13,21 @@ var (
 
 // StateCache holds and controls access to the state.
 type StateCache struct {
-	state lockboxclient.State
+	state contractclient.State
 	lock  sync.Mutex
 }
 
 // NewStateCache creates a new StateCache.
 func NewStateCache() (*StateCache, error) {
 	return &StateCache{
-		state: lockboxclient.State{
-			LockedFunds: make(map[string]lockboxclient.DepositInfo),
+		state: contractclient.State{
+			LockedFunds: make(map[string]contractclient.DepositInfo),
 		},
 	}, nil
 }
 
 // HandleIntialStateUpdate receives a new state.
-func (sc *StateCache) HandleIntialStateUpdate(state *lockboxclient.State) {
+func (sc *StateCache) HandleIntialStateUpdate(state *contractclient.State) {
 	log.Info("handling initial state update")
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
@@ -35,7 +35,7 @@ func (sc *StateCache) HandleIntialStateUpdate(state *lockboxclient.State) {
 }
 
 // HandleStateChanges handles state changes.
-func (sc *StateCache) HandleStateChanges(changes []lockboxclient.Change, blockHash string, blockHeight int) {
+func (sc *StateCache) HandleStateChanges(changes []contractclient.Change, blockHash string, blockHeight int) {
 	log.Info("handling state changes")
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
@@ -43,9 +43,9 @@ func (sc *StateCache) HandleStateChanges(changes []lockboxclient.Change, blockHa
 	sc.state.BlockHeight = blockHeight
 	for _, change := range changes {
 		switch change.Type {
-		case lockboxclient.Update:
+		case contractclient.Update:
 			sc.state.LockedFunds[change.Key] = *change.LockInfo
-		case lockboxclient.Delete:
+		case contractclient.Delete:
 			delete(sc.state.LockedFunds, change.Key)
 		}
 	}
@@ -57,7 +57,7 @@ func (sc *StateCache) HandleError(err error) {
 }
 
 // GetState returns the current state.
-func (sc *StateCache) GetState() lockboxclient.State {
+func (sc *StateCache) GetState() contractclient.State {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	return sc.state

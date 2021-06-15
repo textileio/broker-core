@@ -1,4 +1,4 @@
-package lockboxclient
+package contractclient
 
 import (
 	"context"

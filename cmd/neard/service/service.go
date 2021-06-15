@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/textileio/broker-core/cmd/common"
-	"github.com/textileio/broker-core/cmd/neard/lockboxclient"
+	"github.com/textileio/broker-core/cmd/neard/contractclient"
 	"github.com/textileio/broker-core/cmd/neard/statecache"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	logging "github.com/textileio/go-log/v2"
@@ -24,12 +24,12 @@ var (
 type Service struct {
 	chainapi.UnimplementedChainApiServiceServer
 	sc     *statecache.StateCache
-	lc     *lockboxclient.Client
+	lc     *contractclient.Client
 	server *grpc.Server
 }
 
 // NewService creates a new Service.
-func NewService(listener net.Listener, stateCache *statecache.StateCache, lc *lockboxclient.Client) (*Service, error) {
+func NewService(listener net.Listener, stateCache *statecache.StateCache, lc *contractclient.Client) (*Service, error) {
 	s := &Service{
 		sc:     stateCache,
 		lc:     lc,
