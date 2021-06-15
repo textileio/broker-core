@@ -122,6 +122,7 @@ func validateConfig(c AuctionConfig) error {
 
 // Close the auctioneer.
 func (a *Auctioneer) Close() error {
+	log.Info("closing auctioneer...")
 	return a.finalizer.Cleanup(nil)
 }
 

@@ -22,6 +22,9 @@ spec:
     - name: metrics
       targetPort: metrics
       port: 8888
+    - name: ipfs-metrics
+      targetPort: api
+      port: 5001
   selector:
     app: ipfs-cluster
 ---
@@ -53,6 +56,8 @@ metadata:
 spec:
   endpoints:
     - port: metrics
+    - port: ipfs-metrics
+      path: '/debug/metrics/prometheus'
   selector:
     matchLabels:
       app: ipfs-cluster

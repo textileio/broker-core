@@ -4,12 +4,17 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-state-types/big"
 	"github.com/jsign/go-filsigner/wallet"
 )
 
 type config struct {
 	exportedHexKey string
 	pubKey         address.Address
+
+	allowUnverifiedDeals             bool
+	maxVerifiedPricePerGiBPerEpoch   big.Int
+	maxUnverifiedPricePerGiBPerEpoch big.Int
 }
 
 var defaultConfig = config{}
@@ -30,6 +35,23 @@ func WithExportedKey(exportedHexKey string) Option {
 			return fmt.Errorf("parsing public key: %s", err)
 		}
 
+		return nil
+	}
+}
+
+// WithAllowUnverifiedDeals indicates if unverified deals are allowed.
+func WithAllowUnverifiedDeals(allow bool) Option {
+	return func(c *config) error {
+		c.allowUnverifiedDeals = allow
+		return nil
+	}
+}
+
+// WithMaxPriceLimits indicates maximum attoFIL per GiB per epoch in proosals.
+func WithMaxPriceLimits(maxVerifiedPricePerGiBPerEpoch, maxUnverifiedPricePerGiBPerEpoch int64) Option {
+	return func(c *config) error {
+		c.maxVerifiedPricePerGiBPerEpoch = big.NewInt(maxVerifiedPricePerGiBPerEpoch)
+		c.maxUnverifiedPricePerGiBPerEpoch = big.NewInt(maxUnverifiedPricePerGiBPerEpoch)
 		return nil
 	}
 }

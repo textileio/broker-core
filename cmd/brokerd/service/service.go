@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
@@ -59,7 +57,6 @@ type Service struct {
 	server *grpc.Server
 
 	broker *brokeri.Broker
-	packer *packeri.Packer
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
@@ -125,7 +122,6 @@ func New(config Config) (*Service, error) {
 		config: config,
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		broker: broker,
-		packer: packer,
 	}
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -156,9 +152,6 @@ func (s *Service) CreateBrokerRequest(
 	meta := broker.Metadata{}
 	if r.Meta != nil {
 		meta.Region = r.Meta.Region
-	}
-	if err := meta.Validate(); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid metadata: %s", err)
 	}
 
 	br, err := s.broker.Create(ctx, c, meta)
@@ -309,57 +302,41 @@ func (s *Service) StorageDealFinalizedDeal(
 
 // Close gracefully closes the service.
 func (s *Service) Close() error {
+	defer log.Info("service closed")
+
 	var errors []string
 	defer log.Info("service was shutdown with %d errors", len(errors))
 
-	stopped := make(chan struct{})
-	go func() {
-		s.server.GracefulStop()
-		close(stopped)
-	}()
-	timer := time.NewTimer(10 * time.Second)
-	select {
-	case <-timer.C:
-		s.server.Stop()
-	case <-stopped:
-		timer.Stop()
-	}
-
-	if err := s.packer.Close(); err != nil {
-		errors = append(errors, err.Error())
-	}
-
-	if errors != nil {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
+	log.Info("closing gRPC server")
+	s.server.GracefulStop()
 
 	return nil
 }
 
 func validateConfig(conf Config) error {
 	if conf.ListenAddr == "" {
-		return fmt.Errorf("service listen addr is empty")
+		return errors.New("service listen addr is empty")
 	}
 	if conf.PiecerAddr == "" {
-		return fmt.Errorf("piecer api addr is empty")
+		return errors.New("piecer api addr is empty")
 	}
 	if conf.PackerAddr == "" {
-		return fmt.Errorf("packer api addr is empty")
+		return errors.New("packer api addr is empty")
 	}
 	if conf.AuctioneerAddr == "" {
-		return fmt.Errorf("auctioneer api addr is empty")
+		return errors.New("auctioneer api addr is empty")
 	}
 	if conf.DealerAddr == "" {
-		return fmt.Errorf("dealer api addr is empty")
+		return errors.New("dealer api addr is empty")
 	}
 	if conf.ReporterAddr == "" {
-		return fmt.Errorf("reporter api addr is empty")
+		return errors.New("reporter api addr is empty")
 	}
 	if conf.MongoDBName == "" {
-		return fmt.Errorf("mongo db name is empty")
+		return errors.New("mongo db name is empty")
 	}
 	if conf.MongoURI == "" {
-		return fmt.Errorf("mongo uri is empty")
+		return errors.New("mongo uri is empty")
 	}
 	if conf.DealDuration < broker.MinDealDuration {
 		return fmt.Errorf("deal duration is less than minimum allowed: %d", broker.MinDealDuration)

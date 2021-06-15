@@ -327,6 +327,10 @@ func (fc *FilClient) createDealProposal(
 		ClientCollateral:     big.Zero(),
 	}
 
+	if err := fc.validateProposal(proposal); err != nil {
+		return nil, fmt.Errorf("proposal validation: %s", err)
+	}
+
 	raw, err := cborutil.Dump(proposal)
 	if err != nil {
 		return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
@@ -444,6 +448,31 @@ func (fc *FilClient) sendProposal(
 	}
 
 	return &resp, nil
+}
+
+func (fc *FilClient) validateProposal(p *market.DealProposal) error {
+	switch p.VerifiedDeal {
+	case true:
+		if big.Cmp(p.StoragePricePerEpoch, fc.conf.maxVerifiedPricePerGiBPerEpoch) == 1 {
+			return fmt.Errorf(
+				"the verified proposal has %d price per epoch and max is %d",
+				p.StoragePricePerEpoch,
+				fc.conf.maxVerifiedPricePerGiBPerEpoch.Int64())
+		}
+	case false:
+		if !fc.conf.allowUnverifiedDeals {
+			return fmt.Errorf("only verified deals are allowed")
+		}
+
+		if big.Cmp(p.StoragePricePerEpoch, fc.conf.maxUnverifiedPricePerGiBPerEpoch) == 1 {
+			return fmt.Errorf(
+				"the unverified proposal has %d price per epoch and max is %d",
+				p.StoragePricePerEpoch,
+				fc.conf.maxUnverifiedPricePerGiBPerEpoch.Int64())
+		}
+	}
+
+	return nil
 }
 
 func labelField(c cid.Cid) (string, error) {

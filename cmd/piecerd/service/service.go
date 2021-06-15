@@ -97,7 +97,10 @@ func (s *Service) ReadyToPrepare(ctx context.Context, r *pb.ReadyToPrepareReques
 
 // Close the service.
 func (s *Service) Close() error {
+	defer log.Info("service was shutdown")
+
+	log.Info("closing gRPC server...")
 	rpc.StopServer(s.server)
-	log.Info("service was shutdown")
+
 	return s.finalizer.Cleanup(nil)
 }
