@@ -26,7 +26,7 @@ TARGET="${1}/upload"
 MIN_SIZE=$2
 MAX_SIZE=${3:-$MIN_SIZE}
 COUNT=${4:-1}
-# TODO: new token or rewrite all this as a node program and use the js client.
+# TODO: rewrite all this as a node program and use the js client.
 TOKEN="Bearer eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6Iko5ZHRFeFpnOUhlWlNyRFlqZ2JSWXNNQnZKYjZHTEVHaF9nUU5PZi0zY289IiwidXNlIjoic2lnIn19.eyJhdWQiOiJmaWxlY29pbi1icmlkZ2UudGVzdG5ldCIsImlzcyI6ImxvY2stYm94LnRlc3RuZXQiLCJzdWIiOiJkaWQ6a2V5Ono2TWtoOG5VQnpudHdodEF6SEFtcGtSQkw5TEd1Zzd2blQ3UGZZalhxRVprMW9MTSIsIm5iZiI6MTYyMzc5NjY2MiwiaWF0IjoxNjIzNzk2NjYyLCJleHAiOjE5MzkxNTY2NjJ9.F47Ogmwkr3k9cafbSRb_tLD25KmnJrOhxSNQ6bKGua9zbwo0TnT0R9VNUpVfDqqdGhzzA7gKCAWuj78tr50oAQ=="
 SLEEP=${5:-0}
 
