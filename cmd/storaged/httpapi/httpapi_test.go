@@ -176,3 +176,10 @@ func (um *uploaderMock) Get(ctx context.Context, id string) (storage.Request, er
 
 	return args.Get(0).(storage.Request), args.Error(1)
 }
+
+func (um *uploaderMock) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error {
+	args := um.Called(ctx, c, w)
+
+	return args.Error(0)
+
+}

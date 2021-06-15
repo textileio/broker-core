@@ -12,6 +12,7 @@ import (
 type Requester interface {
 	IsAuthorized(ctx context.Context, identity string) (bool, string, error)
 	CreateFromReader(ctx context.Context, r io.Reader, meta Metadata) (Request, error)
+	GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error
 	Get(ctx context.Context, id string) (Request, error)
 }
 

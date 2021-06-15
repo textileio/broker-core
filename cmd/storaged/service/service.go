@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/storaged/httpapi"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
@@ -27,6 +28,8 @@ type Config struct {
 	AuthAddr string
 	// SkipAuth disables authorizations checks.
 	SkipAuth bool
+	// IpfsMultiaddrs provides a complete set of ipfs nodes APIs to make retrievals of pinned data.
+	IpfsMultiaddrs []multiaddr.Multiaddr
 }
 
 // Service provides an implementation of the Storage API.
@@ -79,7 +82,7 @@ func createStorage(config Config) (storage.Requester, error) {
 		return nil, fmt.Errorf("creating broker service: %s", err)
 	}
 
-	bs, err := brokerstorage.New(auth, up, brok)
+	bs, err := brokerstorage.New(auth, up, brok, config.IpfsMultiaddrs)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker storage: %s", err)
 	}
