@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
+	"github.com/textileio/broker-core/metrics"
 )
 
 func (b *Broker) daemonUnpinner() {
@@ -50,7 +51,10 @@ func (b *Broker) daemonUnpinner() {
 	}
 }
 
-func (b *Broker) unpinCid(ctx context.Context, uj store.UnpinJob) error {
+func (b *Broker) unpinCid(ctx context.Context, uj store.UnpinJob) (err error) {
+	defer func() {
+		metrics.MetricIncrCounter(ctx, err, b.metricUnpinTotal)
+	}()
 	log.Debugf("unpinning %s", uj.Cid)
 	if err := b.ipfsClient.Pin().Rm(ctx, path.IpfsPath(uj.Cid), options.Pin.RmRecursive(true)); err != nil {
 		return fmt.Errorf("unpinning %s: %s", uj.Cid, err)

@@ -19,6 +19,7 @@ import (
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
 	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
@@ -52,6 +53,8 @@ type Broker struct {
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
+
+	metricUnpinTotal metric.Int64Counter
 }
 
 // New creates a Broker backed by the provided `ds`.
