@@ -11,7 +11,7 @@ checkEnv SEED_PHRASE
 
 lockFunds() {
   echo "Locking funds on NEAR..."
-  near call lock-box.testnet addDeposit '{ "brokerId": "lock-box.testnet", "accountId": "lock-box.testnet" }' \
+  near call filecoin-bridge.testnet addDeposit '{ "brokerId": "filecoin-bridge.testnet", "accountId": "lock-box.testnet" }' \
   --account-id "lock-box.testnet" \
   --amount 1 \
   --seedPhrase "$SEED_PHRASE"
@@ -26,6 +26,7 @@ TARGET="${1}/upload"
 MIN_SIZE=$2
 MAX_SIZE=${3:-$MIN_SIZE}
 COUNT=${4:-1}
+# TODO: new token or rewrite all this as a node program and use the js client.
 TOKEN="Bearer eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IlYyZmNCUTJudHE3VDJ4UFpjVkVMVTFhUEstaGhHVTZzOENrZ2M1R3lSSVU9IiwidXNlIjoic2lnIn19.eyJhdWQiOiJsb2NrLWJveC50ZXN0bmV0IiwiaXNzIjoibG9jay1ib3gudGVzdG5ldCIsInN1YiI6ImRpZDprZXk6ejZNa2tMVE5NYzRoRVN1UlR5QVVRelBjajNIRnRZNjZkNjJWNjNMNW1ZN0pFdDRMIiwibmJmIjoxNjIwMzIwNzM2LCJpYXQiOjE2MjAzMjA3MzYsImV4cCI6MTAwMDAwMDAxNjIwMzIwNzQwfQ==.E4eLnR7sXvne-r3aV4XwjVhThmu85HSEoE83IpTF1vDp71zgO_DAbhOT4o0PGpfTo-P6kXLKX1ixdZ6fgmMEBA=="
 SLEEP=${5:-0}
 

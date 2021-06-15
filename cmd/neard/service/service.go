@@ -60,30 +60,6 @@ func (s *Service) HasDeposit(
 	}, nil
 }
 
-// UpdatePayload reports storage info back to the smart contract.
-func (s *Service) UpdatePayload(
-	ctx context.Context,
-	req *chainapi.UpdatePayloadRequest,
-) (*chainapi.UpdatePayloadResponse, error) {
-	var dealInfos []lockboxclient.DealInfo
-	for _, info := range req.Options.Deals {
-		dealInfos = append(dealInfos, lockboxclient.DealInfo{
-			DealID:     info.DealId,
-			MinerID:    info.MinerId,
-			Expiration: info.Expiration,
-		})
-	}
-	opts := lockboxclient.PayloadOptions{
-		PieceCid: req.Options.PieceCid,
-		Deals:    dealInfos,
-		DataCids: req.Options.DataCids,
-	}
-	if err := s.lc.UpdatePayload(ctx, req.PayloadCid, opts); err != nil {
-		return nil, status.Errorf(codes.Internal, "calling update payload: %v", err)
-	}
-	return &chainapi.UpdatePayloadResponse{}, nil
-}
-
 // Close stops the server and cleans up all internally created resources.
 func (s *Service) Close() error {
 	stopped := make(chan struct{})

@@ -422,19 +422,8 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
 
-	// 4- Verify that the chainAPI was called to report results on-chain.
-	require.Equal(t, brgCid, chainAPI.callPayloadCid)
-	require.Equal(t, dpr.PieceCid, chainAPI.callPieceCid)
-	require.Len(t, chainAPI.callDeals, 1)
-	require.Equal(t, uint64(fad.DealID), chainAPI.callDeals[0].DealID)
-	require.Equal(t, fad.Miner, chainAPI.callDeals[0].MinerID)
-	require.Equal(t, fad.DealExpiration, chainAPI.callDeals[0].Expiration)
-	require.Len(t, chainAPI.callDataCids, 2)
-	require.Equal(t, c1, chainAPI.callDataCids[0])
-	require.Equal(t, c2, chainAPI.callDataCids[1])
-
 	chainAPI.clean() // clean the previous call stack
-	// 5- Let's finalize the other one but with error. This results in a storage deal
+	// 4- Let's finalize the other one but with error. This results in a storage deal
 	//    that had two winning bids, one of them succeeded and othe other failed deal making.
 	fad = broker.FinalizedAuctionDeal{
 		StorageDealID: auction.StorageDealID,
@@ -444,7 +433,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	err = b.StorageDealFinalizedDeal(ctx, fad)
 	require.NoError(t, err)
 
-	// 6- Verify that the storage deal switched to Success, since at least one of the winning bids
+	// 5- Verify that the storage deal switched to Success, since at least one of the winning bids
 	//    succeeded.
 	sd2, err = b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
@@ -455,9 +444,6 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	mbr2, err = b.Get(ctx, br2.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestSuccess, mbr2.Status)
-
-	// 4- Verify that the chainAPI was NOT called to report results on-chain.
-	require.Equal(t, cid.Undef, chainAPI.callPayloadCid)
 }
 
 func createBroker(t *testing.T) (
@@ -483,7 +469,6 @@ func createBroker(t *testing.T) (
 		broker.MaxDealDuration,
 		broker.MinDealReplication,
 		true,
-		false,
 	)
 	require.NoError(t, err)
 
@@ -571,37 +556,13 @@ func createCidFromString(s string) cid.Cid {
 }
 
 type dumbChainAPI struct {
-	callPayloadCid cid.Cid
-	callPieceCid   cid.Cid
-	callDeals      []chainapi.DealInfo
-	callDataCids   []cid.Cid
 }
 
 var _ chainapi.ChainAPI = (*dumbChainAPI)(nil)
-
-func (dr *dumbChainAPI) UpdatePayload(
-	ctx context.Context,
-	payloadCid cid.Cid,
-	opts ...chainapi.UpdatePayloadOption,
-) error {
-	options := &chainapi.UpdatePayloadOptions{}
-	for _, opt := range opts {
-		opt(options)
-	}
-	dr.callPayloadCid = payloadCid
-	dr.callPieceCid = *options.PieceCid
-	dr.callDeals = options.Deals
-	dr.callDataCids = options.DataCids
-	return nil
-}
 
 func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
 	return true, nil
 }
 
 func (dr *dumbChainAPI) clean() {
-	dr.callPayloadCid = cid.Undef
-	dr.callPieceCid = cid.Undef
-	dr.callDeals = nil
-	dr.callDataCids = nil
 }

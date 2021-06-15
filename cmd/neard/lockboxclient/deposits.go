@@ -26,11 +26,11 @@ type DepositInfo struct {
 	Deposit   Deposit
 }
 
-// HasDeposit calls the lock box hasLocked function.
+// HasDeposit calls the contract hasLocked function.
 func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.lockboxAccountID,
+		c.contractAccountID,
 		"hasDeposit",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{
@@ -48,7 +48,7 @@ func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string) (bo
 	return b, nil
 }
 
-// AddDeposit locks funds with the lock box contract.
+// AddDeposit locks funds with the contract.
 func (c *Client) AddDeposit(ctx context.Context, brokerID string) (*DepositInfo, error) {
 	deposit, ok := (&big.Int{}).SetString("1000000000000000000000000", 10)
 	if !ok {
@@ -56,7 +56,7 @@ func (c *Client) AddDeposit(ctx context.Context, brokerID string) (*DepositInfo,
 	}
 	res, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
-		c.lockboxAccountID,
+		c.contractAccountID,
 		"addDeposit",
 		transaction.FunctionCallWithArgs(map[string]interface{}{"brokerId": brokerID, "accountId": c.clientAccountID}),
 		transaction.FunctionCallWithDeposit(*deposit),
@@ -82,7 +82,7 @@ func (c *Client) AddDeposit(ctx context.Context, brokerID string) (*DepositInfo,
 
 // ReleaseDeposits unlocks all funds from expired sessions in the contract.
 func (c *Client) ReleaseDeposits(ctx context.Context) error {
-	_, err := c.nc.Account(c.clientAccountID).FunctionCall(ctx, c.lockboxAccountID, "releaseDeposits")
+	_, err := c.nc.Account(c.clientAccountID).FunctionCall(ctx, c.contractAccountID, "releaseDeposits")
 	if err != nil {
 		return fmt.Errorf("calling rpc unlock funds: %v", err)
 	}

@@ -29,8 +29,16 @@ var flags = []common.Flag{
 	{Name: "rpc-addr", DefValue: "", Description: "gRPC listen address"},
 	{Name: "endpoint-url", DefValue: "https://rpc.testnet.near.org", Description: "The NEAR enpoint URL to use"},
 	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url"},
-	{Name: "lockbox-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the Lock Box contract"},
-	{Name: "client-account", DefValue: "lock-box.testnet", Description: "The NEAR account id of the user of this client"},
+	{
+		Name:        "contract-account",
+		DefValue:    "filecoin-bridge.testnet",
+		Description: "The NEAR account id of the governance contract",
+	},
+	{
+		Name:        "client-account",
+		DefValue:    "filecoin-bridge.testnet",
+		Description: "The NEAR account id of the user of this client",
+	},
 	{Name: "client-private-key", DefValue: "", Description: "The NEAR private key string of the client account"},
 	{Name: "update-frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state"},
 	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls"},
@@ -61,7 +69,7 @@ var rootCmd = &cobra.Command{
 		metricsAddr := v.GetString("metrics-addr")
 		endpointURL := v.GetString("endpoint-url")
 		endpointTimeout := v.GetDuration("endpoint-timeout")
-		lockboxAccountID := v.GetString("lockbox-account")
+		contractAccountID := v.GetString("contract-account")
 		clientAccountID := v.GetString("client-account")
 		clientPrivateKey := v.GetString("client-private-key")
 		// updateFrequency := v.GetDuration("update-frequency")
@@ -90,7 +98,7 @@ var rootCmd = &cobra.Command{
 		})
 		common.CheckErr(err)
 
-		lc, err := lockboxclient.NewClient(nc, lockboxAccountID, clientAccountID)
+		lc, err := lockboxclient.NewClient(nc, contractAccountID, clientAccountID)
 		common.CheckErr(err)
 
 		sc, err := statecache.NewStateCache()
@@ -116,6 +124,7 @@ var rootCmd = &cobra.Command{
 			log.Info("Gracefully stopping... (press Ctrl+C again to force)")
 			common.CheckErr(service.Close())
 			common.CheckErr(listener.Close())
+			// common.CheckErr(u.Close())
 			log.Info("Closed.")
 		})
 

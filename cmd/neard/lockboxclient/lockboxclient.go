@@ -23,7 +23,7 @@ var (
 	ErrorNotFound = errors.New("not found")
 )
 
-// State models the lock box contract state.
+// State models the contract state.
 type State struct {
 	LockedFunds map[string]DepositInfo
 	BlockHash   string
@@ -47,30 +47,30 @@ type Change struct {
 	LockInfo *DepositInfo
 }
 
-// Client communicates with the lock box contract API.
+// Client communicates with the contract API.
 type Client struct {
-	nc               *nearclient.Client
-	lockboxAccountID string
-	clientAccountID  string
+	nc                *nearclient.Client
+	contractAccountID string
+	clientAccountID   string
 }
 
 // NewClient creates a new Client.
-func NewClient(nc *nearclient.Client, lockboxAccountID, clientAccountID string) (*Client, error) {
+func NewClient(nc *nearclient.Client, contractAccountID, clientAccountID string) (*Client, error) {
 	return &Client{
-		nc:               nc,
-		lockboxAccountID: lockboxAccountID,
-		clientAccountID:  clientAccountID,
+		nc:                nc,
+		contractAccountID: contractAccountID,
+		clientAccountID:   clientAccountID,
 	}, nil
 }
 
-// GetAccount gets information about the lock box account.
+// GetAccount gets information about the account.
 func (c *Client) GetAccount(ctx context.Context) (*account.AccountView, error) {
-	return c.nc.Account(c.lockboxAccountID).State(ctx, account.StateWithFinality("final"))
+	return c.nc.Account(c.contractAccountID).State(ctx, account.StateWithFinality("final"))
 }
 
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.nc.Account(c.lockboxAccountID).ViewState(
+	res, err := c.nc.Account(c.contractAccountID).ViewState(
 		ctx,
 		account.ViewStateWithFinality("final"),
 		account.ViewStateWithPrefix("u"),
@@ -104,9 +104,9 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 	}, nil
 }
 
-// GetChanges gets the lock box state changes for a block height.
+// GetChanges gets the state changes for a block height.
 func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
-	res, err := c.nc.DataChanges(ctx, []string{c.lockboxAccountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
+	res, err := c.nc.DataChanges(ctx, []string{c.contractAccountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
 	if err != nil {
 		return nil, "", fmt.Errorf("calling data changes: %v", err)
 	}

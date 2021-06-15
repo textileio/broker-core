@@ -15,7 +15,7 @@ type UpdateDelegate interface {
 	HandleError(error)
 }
 
-// Updater updates the lock box state to the delegate.
+// Updater updates the state to the delegate.
 type Updater struct {
 	config      Config
 	mainCtx     context.Context

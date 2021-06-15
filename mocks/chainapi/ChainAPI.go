@@ -3,9 +3,6 @@
 package mocks
 
 import (
-	cid "github.com/ipfs/go-cid"
-	chainapi "github.com/textileio/broker-core/chainapi"
-
 	context "context"
 
 	mock "github.com/stretchr/testify/mock"
@@ -35,25 +32,4 @@ func (_m *ChainAPI) HasDeposit(ctx context.Context, brokerID string, accountID s
 	}
 
 	return r0, r1
-}
-
-// UpdatePayload provides a mock function with given fields: ctx, payloadCid, opts
-func (_m *ChainAPI) UpdatePayload(ctx context.Context, payloadCid cid.Cid, opts ...chainapi.UpdatePayloadOption) error {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, payloadCid)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, ...chainapi.UpdatePayloadOption) error); ok {
-		r0 = rf(ctx, payloadCid, opts...)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }

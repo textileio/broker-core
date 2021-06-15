@@ -19,7 +19,6 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChainApiServiceClient interface {
 	HasDeposit(ctx context.Context, in *HasDepositRequest, opts ...grpc.CallOption) (*HasDepositResponse, error)
-	UpdatePayload(ctx context.Context, in *UpdatePayloadRequest, opts ...grpc.CallOption) (*UpdatePayloadResponse, error)
 }
 
 type chainApiServiceClient struct {
@@ -39,21 +38,11 @@ func (c *chainApiServiceClient) HasDeposit(ctx context.Context, in *HasDepositRe
 	return out, nil
 }
 
-func (c *chainApiServiceClient) UpdatePayload(ctx context.Context, in *UpdatePayloadRequest, opts ...grpc.CallOption) (*UpdatePayloadResponse, error) {
-	out := new(UpdatePayloadResponse)
-	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/UpdatePayload", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ChainApiServiceServer is the server API for ChainApiService service.
 // All implementations must embed UnimplementedChainApiServiceServer
 // for forward compatibility
 type ChainApiServiceServer interface {
 	HasDeposit(context.Context, *HasDepositRequest) (*HasDepositResponse, error)
-	UpdatePayload(context.Context, *UpdatePayloadRequest) (*UpdatePayloadResponse, error)
 	mustEmbedUnimplementedChainApiServiceServer()
 }
 
@@ -63,9 +52,6 @@ type UnimplementedChainApiServiceServer struct {
 
 func (UnimplementedChainApiServiceServer) HasDeposit(context.Context, *HasDepositRequest) (*HasDepositResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HasDeposit not implemented")
-}
-func (UnimplementedChainApiServiceServer) UpdatePayload(context.Context, *UpdatePayloadRequest) (*UpdatePayloadResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdatePayload not implemented")
 }
 func (UnimplementedChainApiServiceServer) mustEmbedUnimplementedChainApiServiceServer() {}
 
@@ -98,24 +84,6 @@ func _ChainApiService_HasDeposit_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ChainApiService_UpdatePayload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdatePayloadRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChainApiServiceServer).UpdatePayload(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/chainapi.v1.ChainApiService/UpdatePayload",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChainApiServiceServer).UpdatePayload(ctx, req.(*UpdatePayloadRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ChainApiService_ServiceDesc is the grpc.ServiceDesc for ChainApiService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -126,10 +94,6 @@ var ChainApiService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HasDeposit",
 			Handler:    _ChainApiService_HasDeposit_Handler,
-		},
-		{
-			MethodName: "UpdatePayload",
-			Handler:    _ChainApiService_UpdatePayload_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

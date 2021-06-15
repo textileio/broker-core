@@ -20,7 +20,7 @@ type BrokerInfo struct {
 func (c *Client) DeleteBroker(ctx context.Context, brokerID string) error {
 	if _, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
-		c.lockboxAccountID,
+		c.contractAccountID,
 		"deleteBroker",
 		transaction.FunctionCallWithArgs(map[string]interface{}{"brokerId": brokerID}),
 	); err != nil {
@@ -37,7 +37,7 @@ func (c *Client) SetBroker(ctx context.Context, brokerID string, addrs []string)
 	}
 	res, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
-		c.lockboxAccountID,
+		c.contractAccountID,
 		"setBroker",
 		transaction.FunctionCallWithArgs(args),
 	)
@@ -63,7 +63,7 @@ func (c *Client) SetBroker(ctx context.Context, brokerID string, addrs []string)
 func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.lockboxAccountID,
+		c.contractAccountID,
 		"getBroker",
 		nearclient.CallFunctionWithFinality("final"),
 		nearclient.CallFunctionWithArgs(map[string]interface{}{"brokerId": brokerID}),
@@ -85,7 +85,7 @@ func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, e
 func (c *Client) ListBrokers(ctx context.Context) ([]BrokerInfo, error) {
 	res, err := c.nc.CallFunction(
 		ctx,
-		c.lockboxAccountID,
+		c.contractAccountID,
 		"listBrokers",
 		nearclient.CallFunctionWithFinality("final"),
 	)

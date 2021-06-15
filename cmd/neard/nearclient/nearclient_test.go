@@ -21,7 +21,7 @@ func TestIt(t *testing.T) {
 // func TestViewCode(t *testing.T) {
 // 	c, cleanup := makeClient(t)
 // 	defer cleanup()
-// 	res, err := c.ViewCode(ctx, "lock-box.testnet")
+// 	res, err := c.ViewCode(ctx, "filecoin-bridge.testnet")
 // 	require.NoError(t, err)
 // 	require.NotNil(t, res)
 // }
@@ -29,7 +29,7 @@ func TestIt(t *testing.T) {
 // func TestDeployContract(t *testing.T) {
 // 	c, cleanup := makeClient(t)
 // 	defer cleanup()
-// 	res, err := c.ViewCode(ctx, "lock-box.testnet")
+// 	res, err := c.ViewCode(ctx, "filecoin-bridge.testnet")
 // 	require.NoError(t, err)
 // 	require.NotNil(t, res)
 
@@ -51,7 +51,7 @@ func TestIt(t *testing.T) {
 // func TestDataChanges(t *testing.T) {
 // 	c, cleanup := makeClient(t)
 // 	defer cleanup()
-// 	res, err := c.DataChanges(ctx, []string{"lock-box.testnet"}, DataChangesWithFinality("final"))
+// 	res, err := c.DataChanges(ctx, []string{"filecoin-bridge.testnet"}, DataChangesWithFinality("final"))
 // 	require.NoError(t, err)
 // 	require.NotNil(t, res)
 // }

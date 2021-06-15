@@ -46,7 +46,6 @@ type Config struct {
 	DealDuration    uint64
 	DealReplication uint32
 	VerifiedDeals   bool
-	SkipReporting   bool
 }
 
 // Service provides an implementation of the broker API.
@@ -112,7 +111,6 @@ func New(config Config) (*Service, error) {
 		config.DealDuration,
 		config.DealReplication,
 		config.VerifiedDeals,
-		config.SkipReporting,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)

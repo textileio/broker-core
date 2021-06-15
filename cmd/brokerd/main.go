@@ -31,7 +31,6 @@ func init() {
 		{Name: "deal-duration", DefValue: broker.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
-		{Name: "skip-reporting", DefValue: false, Description: "Skips reporting successful deals"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -73,7 +72,6 @@ var rootCmd = &cobra.Command{
 			DealDuration:    v.GetUint64("deal-duration"),
 			DealReplication: v.GetUint32("deal-replication"),
 			VerifiedDeals:   v.GetBool("verified-deals"),
-			SkipReporting:   v.GetBool("skip-reporting"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
