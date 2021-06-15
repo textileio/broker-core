@@ -158,8 +158,8 @@ type StorageDeal struct {
 	ID               StorageDealID
 	Status           StorageDealStatus
 	BrokerRequestIDs []BrokerRequestID
-	RepFactor        int // TODO(jsign): fill and tests
-	DealDuration     int // TODO(jsign): fill and tests
+	RepFactor        int
+	DealDuration     int
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Error            string
