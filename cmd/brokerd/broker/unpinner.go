@@ -14,6 +14,7 @@ import (
 func (b *Broker) daemonUnpinner() {
 	defer close(b.daemonClosed)
 
+	go b.exportIPFSMetrics()
 	for {
 		select {
 		case <-b.daemonCtx.Done():
@@ -59,5 +60,22 @@ func (b *Broker) unpinCid(ctx context.Context, uj store.UnpinJob) (err error) {
 	if err := b.ipfsClient.Pin().Rm(ctx, path.IpfsPath(uj.Cid), options.Pin.RmRecursive(true)); err != nil {
 		return fmt.Errorf("unpinning %s: %s", uj.Cid, err)
 	}
+	log.Debugf("%s was unpinned", uj.Cid)
 	return nil
+}
+
+func (b *Broker) exportIPFSMetrics() {
+	for {
+		<-time.After(b.conf.exportPinCountFrequency)
+		ch, err := b.ipfsClient.Pin().Ls(context.Background(), options.Pin.Ls.Recursive())
+		if err != nil {
+			log.Error("getting total pin count: %s", err)
+			continue
+		}
+		var total int64
+		for range ch {
+			total++
+		}
+		b.statTotalRecursivePins = total
+	}
 }

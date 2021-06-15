@@ -16,18 +16,22 @@ var (
 	prefixPendingUnpinJob = datastore.NewKey("/unpin/pending")
 	// Namespace "/unpin/executing/<cid>" contains an executing job to unpin the Cid from the ipfs layer.
 	prefixExecutingUnpinJob = datastore.NewKey("/unpin/executing")
-	// Namespace "/unpin/done/<cid>" contains a finalized (success|error) pin from the ipfs layer.
-	prefixFinalizedUnpinJob = datastore.NewKey("/unpin/finalized")
 )
 
+// UnpinJobID is the type of UnpinJob identifiers.
 type UnpinJobID string
+
+// UnpinType is the type of an UnpinJob.
 type UnpinType int
 
 const (
+	// UnpinTypeBatch is the type of batch unpins.
 	UnpinTypeBatch UnpinType = iota
+	// UnpinTypeData is the type of data unpins.
 	UnpinTypeData
 )
 
+// UnpinJob describes a job to unpin a Cid.
 type UnpinJob struct {
 	ID         UnpinJobID
 	Cid        cid.Cid
@@ -101,7 +105,6 @@ func (s *Store) UnpinJobGetNext() (UnpinJob, bool, error) {
 	}
 
 	return uj, true, nil
-
 }
 
 // DeleteExecuting removes an executing unpin job.
@@ -161,8 +164,4 @@ func keyPendingUnpinJob(id UnpinJobID) datastore.Key {
 
 func keyExecutingUnpinJob(id UnpinJobID) datastore.Key {
 	return prefixExecutingUnpinJob.ChildString(string(id))
-}
-
-func keyFinalizedUnpinJob(id UnpinJobID) datastore.Key {
-	return prefixFinalizedUnpinJob.ChildString(string(id))
 }

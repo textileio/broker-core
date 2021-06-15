@@ -268,7 +268,6 @@ func TestStorageDealAuctioned(t *testing.T) {
 				require.Empty(t, deal.ErrorCause)
 				found = true
 				break
-
 			}
 		}
 		require.True(t, found)

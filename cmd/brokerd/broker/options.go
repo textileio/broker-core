@@ -12,8 +12,9 @@ var defaultConfig = config{
 	dealReplication: broker.MinDealReplication,
 	verifiedDeals:   true,
 
-	unpinnerFrequency:  time.Minute * 5,
-	unpinnerRetryDelay: time.Minute,
+	unpinnerFrequency:       time.Minute * 5,
+	unpinnerRetryDelay:      time.Minute,
+	exportPinCountFrequency: time.Minute * 15,
 }
 
 type config struct {
@@ -21,8 +22,9 @@ type config struct {
 	dealReplication uint32
 	verifiedDeals   bool
 
-	unpinnerFrequency  time.Duration
-	unpinnerRetryDelay time.Duration
+	unpinnerFrequency       time.Duration
+	unpinnerRetryDelay      time.Duration
+	exportPinCountFrequency time.Duration
 }
 
 // Option provides configuration for Broker.
@@ -76,6 +78,17 @@ func WithUnpinnerRetryDelay(delay time.Duration) Option {
 			return errors.New("unpinner retry delay must be positive")
 		}
 		c.unpinnerRetryDelay = delay
+		return nil
+	}
+}
+
+// WithExportPinCountFrequency configures the frequency of exporting the pin count metric.
+func WithExportPinCountFrequency(freq time.Duration) Option {
+	return func(c *config) error {
+		if freq.Seconds() == 0 {
+			return errors.New("export pin count frequency must be positive")
+		}
+		c.exportPinCountFrequency = freq
 		return nil
 	}
 }

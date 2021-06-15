@@ -31,8 +31,6 @@ var (
 	// is received.
 	ErrEmptyGroup = fmt.Errorf("the storage deal group is empty")
 
-	errAllDealsFailed = "all winning bids deals failed"
-
 	log = logger.Logger("broker")
 )
 
@@ -54,7 +52,9 @@ type Broker struct {
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
 
-	metricUnpinTotal metric.Int64Counter
+	metricUnpinTotal        metric.Int64Counter
+	statTotalRecursivePins  int64
+	metricRecursivePinCount metric.Int64ValueObserver
 }
 
 // New creates a Broker backed by the provided `ds`.
@@ -96,6 +96,7 @@ func New(
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
 	}
+	b.initMetrics()
 
 	go b.daemonUnpinner()
 

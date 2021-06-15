@@ -308,7 +308,7 @@ type WinningBid struct {
 	ProposalCidAcknowledged bool // Whether or not the bidder acknowledged receipt of the proposal Cid
 }
 
-// FinalizedAuctionDeal contains information about a finalized deal
+// FinalizedAuctionDeal contains information about a finalized deal.
 type FinalizedAuctionDeal struct {
 	StorageDealID  StorageDealID
 	Miner          string
