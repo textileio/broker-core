@@ -244,7 +244,7 @@ func carDownloadHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 		}
 
 		if err := s.GetCAR(r.Context(), cid, w); err != nil {
-			httpError(w, fmt.Sprintf("writting car stream: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("writing car stream: %s", err), http.StatusInternalServerError)
 			return
 		}
 	}
