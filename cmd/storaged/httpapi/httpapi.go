@@ -30,7 +30,6 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester) (*http.Ser
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
-		WriteTimeout:      time.Second * 10,
 		Handler:           createMux(s, skipAuth),
 	}
 

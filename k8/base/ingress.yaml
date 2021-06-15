@@ -16,6 +16,13 @@ spec:
                 name: storage
                 port:
                   number: 8888
+          - path: /car/*
+            pathType: Prefix
+            backend:
+              service:
+                name: storage
+                port:
+                  number: 8888
           - path: /storagerequest/*
             pathType: Prefix
             backend:
@@ -23,4 +30,11 @@ spec:
                 name: storage
                 port:
                   number: 8888
+---
+apiVersion: cloud.google.com/v1beta1
+kind: BackendConfig
+metadata:
+  name: broker-backendconfig
+spec:
+  timeoutSec: 240
 
