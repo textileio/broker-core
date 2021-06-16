@@ -129,7 +129,7 @@ func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
 
 func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 			return
 		}
@@ -222,6 +222,54 @@ Loop:
 	}
 
 	return region, file, nil
+}
+
+type auctionDataRequest struct {
+	PieceCid  string  `json:"pieceCid"`
+	PieceSize int     `json:"pieceSize"`
+	RepFactor int     `json:"repFactor"`
+	Deadline  string  `json:"deadline"` //"2009-11-10 23:00:00"
+	CARURL    carURL  `json:"carURL"`
+	CARIPFS   carIPFS `json:"carIPFS"`
+}
+
+type carURL struct {
+	URL string `json:"url"`
+}
+
+type carIPFS struct {
+	Cid             string   `json:"cid"`
+	NodesMultiaddrs []string `json:"nodesMultiaddrs"`
+}
+
+func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			httpError(w, "only POST method is allowed", http.StatusBadRequest)
+			return
+		}
+		body := http.MaxBytesReader(w, r.Body, 1<<20)
+
+		jsonDecoder := json.NewDecoder(body)
+		jsonDecoder.DisallowUnknownFields()
+		var ad auctionDataRequest
+		if err := jsonDecoder.Decode(&ad); err != nil {
+			httpError(w, fmt.Sprintf("decoding auction-data request body: %s", err), http.StatusBadRequest)
+			return
+		}
+
+		sr, err := s.CreateFromExternalData(r.Context(), ad)
+		if err != nil {
+			httpError(w, fmt.Sprintf("creating storage-request from external data: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(sr); err != nil {
+			httpError(w, fmt.Sprintf("marshaling response: %s", err), http.StatusInternalServerError)
+			return
+		}
+	}
 }
 
 func httpError(w http.ResponseWriter, err string, status int) {
