@@ -404,6 +404,10 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 	// 1.a If the finalized deal errored, we should create a new auction with replication factor 1,
 	//     and we're done.
 	if fad.ErrorCause != "" {
+		var excludedMiners []string
+		for _, deal := range sd.Deals {
+			excludedMiners = append(excludedMiners, deal.Miner)
+		}
 		log.Infof("creating new auction for failed deal with miner %s", fad.Miner)
 		_, err := b.auctioneer.ReadyToAuction(
 			ctx,
@@ -413,7 +417,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 			sd.DealDuration,
 			1,
 			b.conf.verifiedDeals,
-			nil,
+			excludedMiners,
 		)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
