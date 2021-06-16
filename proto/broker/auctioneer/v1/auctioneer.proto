@@ -54,6 +54,7 @@ message ReadyToAuctionRequest {
     uint64 deal_duration = 4;
     uint32 deal_replication = 5;
     bool deal_verified = 6;
+    repeated string excluded_miners = 7;
 }
 
 message ReadyToAuctionResponse {

@@ -62,7 +62,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 	c, _ := newClient(t, 1)
 
 	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
@@ -71,7 +71,7 @@ func TestClient_GetAuction(t *testing.T) {
 	c, _ := newClient(t, 1)
 
 	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true, nil)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -99,7 +99,7 @@ func TestClient_RunAuction(t *testing.T) {
 	err = dag.Add(context.Background(), dnode)
 	require.NoError(t, err)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dnode.Cid(), oneGiB, sixMonthsEpochs, 2, true)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dnode.Cid(), oneGiB, sixMonthsEpochs, 2, true, nil)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish

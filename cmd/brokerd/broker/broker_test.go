@@ -18,7 +18,7 @@ import (
 	"github.com/textileio/broker-core/tests"
 )
 
-func TestCreateSuccess(t *testing.T) {
+func TestCreateBrokerRequestSuccess(t *testing.T) {
 	t.Parallel()
 
 	b, packer, _, _, _, _ := createBroker(t)
@@ -37,7 +37,7 @@ func TestCreateSuccess(t *testing.T) {
 	require.Len(t, packer.calledBrokerRequestIDs, 1)
 }
 
-func TestCreateFail(t *testing.T) {
+func TestCreateBrokerRequestFail(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid cid", func(t *testing.T) {
@@ -160,12 +160,15 @@ func TestStorageDealPrepared(t *testing.T) {
 	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.StorageDealAuctioning, sd2.Status)
-	require.Equal(t, broker.AuctionID("AUCTION1"), sd2.Auction.ID)
 
-	// 4- Verify that Auctioneer was called to prepare the data.
+	// 4- Verify that Auctioneer was called to auction the data.
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
+	require.Equal(t, brgCid, auctioneer.calledDataCid)
+	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
+	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
+	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
@@ -177,10 +180,11 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.RequestAuctioning, mbr2.Status)
 }
 
-func TestStorageDealAuctioned(t *testing.T) {
+func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, _, dealer, _ := createBroker(t)
+	b, _, _, auctioneer, dealer, _ := createBroker(t)
+	b.conf.dealReplication = 2
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -239,6 +243,35 @@ func TestStorageDealAuctioned(t *testing.T) {
 	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.StorageDealDealMaking, sd2.Status)
+	require.NotEmpty(t, sd2.ID)
+	require.Len(t, sd2.BrokerRequestIDs, 2)
+	require.Equal(t, int(auction.DealReplication), sd2.RepFactor)
+	require.Greater(t, sd2.DealDuration, 0)
+	require.Greater(t, sd2.CreatedAt.Unix(), int64(0))
+	require.Greater(t, sd2.UpdatedAt.Unix(), int64(0))
+	require.Empty(t, sd2.Error)
+	require.Equal(t, brgCid, sd2.PayloadCid)
+	require.Equal(t, dpr.PieceCid, sd2.PieceCid)
+	require.Equal(t, dpr.PieceSize, sd2.PieceSize)
+	require.Len(t, sd2.Deals, 2)
+	for bidID, wb := range bids {
+		var found bool
+		for _, deal := range sd2.Deals {
+			if deal.BidID == bidID {
+				require.Equal(t, sd, deal.StorageDealID)
+				require.Equal(t, auction.ID, deal.AuctionID)
+				require.Greater(t, deal.CreatedAt.Unix(), int64(0))
+				require.Greater(t, deal.UpdatedAt.Unix(), int64(0))
+				require.Equal(t, wb.MinerAddr, deal.Miner)
+				require.Equal(t, int64(0), deal.DealID)
+				require.Equal(t, uint64(0), deal.DealExpiration)
+				require.Empty(t, deal.ErrorCause)
+				found = true
+				break
+			}
+		}
+		require.True(t, found)
+	}
 
 	// 4- Verify that Dealer was called to execute the winning bids.
 	calledADS := dealer.calledAuctionDeals
@@ -274,6 +307,84 @@ func TestStorageDealAuctioned(t *testing.T) {
 	mbr2, err := b.Get(ctx, br2.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
+
+	// 6- Verify that the auctioneer wasn't called again for a new auction.
+	//    The replication factor was 2, and we had 2 winning bids so a new auction
+	//    isn't necessary.
+	require.Equal(t, 1, auctioneer.calledCount)
+}
+
+func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	b, _, _, auctioneer, _, _ := createBroker(t)
+	b.conf.dealReplication = 3
+
+	// 1- Create two broker requests and a corresponding storage deal, and
+	//    pass through prepared.
+	c := createCidFromString("BrokerRequest1")
+	br1, err := b.Create(ctx, c, broker.Metadata{})
+	require.NoError(t, err)
+	c = createCidFromString("BrokerRequest2")
+	br2, err := b.Create(ctx, c, broker.Metadata{})
+	require.NoError(t, err)
+	brgCid := createCidFromString("StorageDeal")
+	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	require.NoError(t, err)
+	dpr := broker.DataPreparationResult{
+		PieceSize: uint64(123456),
+		PieceCid:  createCidFromString("piececid1"),
+	}
+	err = b.StorageDealPrepared(ctx, sd, dpr)
+	require.NoError(t, err)
+
+	// 2- Call StorageDealAuctioned as if the auctioneer did.
+	bids := map[broker.BidID]broker.Bid{
+		broker.BidID("Bid1"): {
+			MinerAddr:        "f01111",
+			AskPrice:         100,
+			VerifiedAskPrice: 200,
+			StartEpoch:       300,
+			FastRetrieval:    true,
+		},
+		broker.BidID("Bid2"): {
+			MinerAddr:        "f02222",
+			AskPrice:         1100,
+			VerifiedAskPrice: 1200,
+			StartEpoch:       1300,
+			FastRetrieval:    false,
+		},
+	}
+
+	auction := broker.Auction{
+		ID:              broker.AuctionID("AUCTION1"),
+		StorageDealID:   sd,
+		DealSize:        dpr.PieceSize,
+		DealDuration:    broker.MaxDealDuration,
+		DealReplication: 2,
+		DealVerified:    true,
+		Status:          broker.AuctionStatusFinalized,
+		Bids:            bids,
+		WinningBids: map[broker.BidID]broker.WinningBid{
+			broker.BidID("Bid1"): {},
+			broker.BidID("Bid2"): {},
+		},
+	}
+	err = b.StorageDealAuctioned(ctx, auction)
+	require.NoError(t, err)
+
+	// 3- We received two winning bids instead of three. Check that the Auctioneer
+	//    was called to create a new auction with rep factor 1.
+	require.Equal(t, 2, auctioneer.calledCount)
+	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
+	require.Equal(t, sd, auctioneer.calledStorageDealID)
+	require.Equal(t, brgCid, auctioneer.calledDataCid)
+	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
+	require.Equal(t, 1, auctioneer.calledDealReplication)
+	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
+	require.Contains(t, auctioneer.calledExcludedMiners, "f01111")
+	require.Contains(t, auctioneer.calledExcludedMiners, "f02222")
 }
 
 func TestStorageDealFailedAuction(t *testing.T) {
@@ -348,6 +459,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	b, _, _, _, _, chainAPI := createBroker(t)
+	b.conf.dealReplication = 2
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared, auctioned, and deal making.
@@ -369,14 +481,14 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	bids := map[broker.BidID]broker.Bid{
 		broker.BidID("Bid1"): {
-			MinerAddr:        "f1",
+			MinerAddr:        "f0011",
 			AskPrice:         100,
 			VerifiedAskPrice: 200,
 			StartEpoch:       300,
 			FastRetrieval:    true,
 		},
 		broker.BidID("Bid2"): {
-			MinerAddr:        "f2",
+			MinerAddr:        "f0012",
 			AskPrice:         1100,
 			VerifiedAskPrice: 1200,
 			StartEpoch:       1300,
@@ -422,13 +534,14 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
 
-	chainAPI.clean() // clean the previous call stack
 	// 4- Let's finalize the other one but with error. This results in a storage deal
 	//    that had two winning bids, one of them succeeded and othe other failed deal making.
+	chainAPI.clean() // clean the previous call stack
 	fad = broker.FinalizedAuctionDeal{
-		StorageDealID: auction.StorageDealID,
-		Miner:         "f0012",
-		ErrorCause:    "the miner rejected our proposal",
+		StorageDealID:  auction.StorageDealID,
+		Miner:          "f0012",
+		DealID:         101,
+		DealExpiration: 201,
 	}
 	err = b.StorageDealFinalizedDeal(ctx, fad)
 	require.NoError(t, err)
@@ -444,6 +557,16 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	mbr2, err = b.Get(ctx, br2.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestSuccess, mbr2.Status)
+
+	// 6- Verify that we have 3 unpin jobs: the batch cid, and the two data cids in the batch.
+	for i := 0; i < 3; i++ {
+		_, ok, err := b.store.UnpinJobGetNext()
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+	_, ok, err := b.store.UnpinJobGetNext()
+	require.NoError(t, err)
+	require.False(t, ok)
 }
 
 func createBroker(t *testing.T) (
@@ -466,9 +589,7 @@ func createBroker(t *testing.T) (
 		auctioneer,
 		dealer,
 		chainAPI,
-		broker.MaxDealDuration,
-		broker.MinDealReplication,
-		true,
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -513,6 +634,8 @@ type dumbAuctioneer struct {
 	calledDealDuration    int
 	calledDealReplication int
 	calledDealVerified    bool
+	calledExcludedMiners  []string
+	calledCount           int
 }
 
 func (dp *dumbAuctioneer) ReadyToAuction(
@@ -521,6 +644,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dataCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
+	excludedMiners []string,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
 	dp.calledDataCid = dataCid
@@ -528,6 +652,8 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dp.calledDealDuration = dealDuration
 	dp.calledDealReplication = dealReplication
 	dp.calledDealVerified = dealVerified
+	dp.calledExcludedMiners = excludedMiners
+	dp.calledCount++
 	return broker.AuctionID("AUCTION1"), nil
 }
 

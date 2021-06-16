@@ -15,8 +15,11 @@ type Auctioneer interface {
 		ctx context.Context,
 		id broker.StorageDealID,
 		dataCid cid.Cid,
-		dealSize, dealDuration, dealReplication int,
+		dealSize int,
+		dealDuration int,
+		dealReplication int,
 		dealVerified bool,
+		excludedMiners []string,
 	) (broker.AuctionID, error)
 
 	// GetAuction returns an auction by broker.AuctionID.
