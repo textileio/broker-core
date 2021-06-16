@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -28,7 +30,6 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester) (*http.Ser
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
-		WriteTimeout:      time.Second * 10,
 		Handler:           createMux(s, skipAuth),
 	}
 
@@ -53,11 +54,13 @@ func createMux(s storage.Requester, skipAuth bool) *http.ServeMux {
 	storageRequest := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
 	mux.Handle("/storagerequest/", storageRequest)
 
+	mux.HandleFunc("/car/", carDownloadHandler(s))
+
 	return mux
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		httpError(w, "only GET method is allowed", http.StatusBadRequest)
 		return
 	}
@@ -149,7 +152,7 @@ func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Requ
 
 func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			httpError(w, "only GET method is allowed", http.StatusBadRequest)
 			return
 		}
@@ -215,4 +218,34 @@ Loop:
 func httpError(w http.ResponseWriter, err string, status int) {
 	log.Errorf("request error: %s", err)
 	http.Error(w, err, status)
+}
+
+func carDownloadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			httpError(w, "only GET method is allowed", http.StatusBadRequest)
+			return
+		}
+
+		urlParts := strings.SplitN(r.URL.Path, "/", 3)
+		if len(urlParts) < 3 {
+			httpError(w, "the url should be /car/{cid}", http.StatusBadRequest)
+			return
+		}
+		cidStr := urlParts[2]
+
+		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(cidStr)+".car")
+		w.Header().Set("Content-Type", "application/octet-stream")
+
+		cid, err := cid.Decode(cidStr)
+		if err != nil {
+			httpError(w, fmt.Sprintf("decoding cid: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		if err := s.GetCAR(r.Context(), cid, w); err != nil {
+			httpError(w, fmt.Sprintf("writing car stream: %s", err), http.StatusInternalServerError)
+			return
+		}
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	_ "net/http/pprof"
 
+	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/common"
@@ -25,6 +26,7 @@ func init() {
 		{Name: "auth-addr", DefValue: "", Description: "Authorizer API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "skip-auth", DefValue: false, Description: "Disabled authorization check"},
+		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -50,12 +52,20 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
+		ipfsMultiaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
+		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
+		for i, maStr := range ipfsMultiaddrsStr {
+			ma, err := multiaddr.NewMultiaddr(maStr)
+			common.CheckErrf("parsing multiaddress %s: %s", err)
+			ipfsMultiaddrs[i] = ma
+		}
 		serviceConfig := service.Config{
 			HTTPListenAddr:        v.GetString("http-addr"),
 			UploaderIPFSMultiaddr: v.GetString("uploader-ipfs-multiaddr"),
 			BrokerAPIAddr:         v.GetString("broker-addr"),
 			AuthAddr:              v.GetString("auth-addr"),
 			SkipAuth:              v.GetBool("skip-auth"),
+			IpfsMultiaddrs:        ipfsMultiaddrs,
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
