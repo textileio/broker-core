@@ -51,8 +51,11 @@ func createMux(s storage.Requester, skipAuth bool) *http.ServeMux {
 	uploadHandler := wrapMiddlewares(s, skipAuth, uploadHandler(s), "upload")
 	mux.Handle("/upload", uploadHandler)
 
-	storageRequest := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
-	mux.Handle("/storagerequest/", storageRequest)
+	storageRequestStatusHandler := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
+	mux.Handle("/storagerequest/", storageRequestStatusHandler)
+
+	auctionDataHandler := wrapMiddlewares(s, skipAuth, auctionDataHandler(s), "auction-data")
+	mux.Handle("/auction-data/", auctionDataHandler)
 
 	mux.HandleFunc("/car/", carDownloadHandler(s))
 
@@ -68,7 +71,8 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func wrapMiddlewares(s storage.Requester, skipAuth bool, h http.HandlerFunc, name string) http.Handler {
-	handler := instrumentHandler(h, name)
+	handler := corsHandler(h)
+	handler = instrumentHandler(h, name)
 	if !skipAuth {
 		handler = authenticateHandler(handler, s)
 	}
@@ -80,15 +84,20 @@ func instrumentHandler(h http.Handler, name string) http.Handler {
 	return otelhttp.NewHandler(h, name)
 }
 
-func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
+func corsHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Preflight OPTIONS request
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
 			return
 		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader, ok := r.Header["Authorization"]
 		if !ok || len(authHeader) == 0 {
 			httpError(w, "Authorization header is required", http.StatusUnauthorized)
