@@ -534,9 +534,9 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
 
-	chainAPI.clean() // clean the previous call stack
 	// 4- Let's finalize the other one but with error. This results in a storage deal
 	//    that had two winning bids, one of them succeeded and othe other failed deal making.
+	chainAPI.clean() // clean the previous call stack
 	fad = broker.FinalizedAuctionDeal{
 		StorageDealID:  auction.StorageDealID,
 		Miner:          "f0012",
@@ -557,6 +557,16 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	mbr2, err = b.Get(ctx, br2.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestSuccess, mbr2.Status)
+
+	// 6- Verify that we have 3 unpin jobs: the batch cid, and the two data cids in the batch.
+	for i := 0; i < 3; i++ {
+		_, ok, err := b.store.UnpinJobGetNext()
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+	_, ok, err := b.store.UnpinJobGetNext()
+	require.NoError(t, err)
+	require.False(t, ok)
 }
 
 func createBroker(t *testing.T) (
