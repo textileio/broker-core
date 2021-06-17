@@ -51,6 +51,7 @@ func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID broker.AuctionI
 	return r0
 }
 
+<<<<<<< HEAD
 // ReadyToAuction provides a mock function with given fields: ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners
 func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dataUri string, dealSize int, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string) (broker.AuctionID, error) {
 	ret := _m.Called(ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
@@ -58,13 +59,27 @@ func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealI
 	var r0 broker.AuctionID
 	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, string, int, int, int, bool, []string) broker.AuctionID); ok {
 		r0 = rf(ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+=======
+// ReadyToAuction provides a mock function with given fields: ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners
+func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dataCid cid.Cid, dealSize int, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string) (broker.AuctionID, error) {
+	ret := _m.Called(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+
+	var r0 broker.AuctionID
+	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, cid.Cid, int, int, int, bool, []string) broker.AuctionID); ok {
+		r0 = rf(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+>>>>>>> e6d44c5... mocks: update mocks
 	} else {
 		r0 = ret.Get(0).(broker.AuctionID)
 	}
 
 	var r1 error
+<<<<<<< HEAD
 	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageDealID, string, int, int, int, bool, []string) error); ok {
 		r1 = rf(ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+=======
+	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageDealID, cid.Cid, int, int, int, bool, []string) error); ok {
+		r1 = rf(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+>>>>>>> e6d44c5... mocks: update mocks
 	} else {
 		r1 = ret.Error(1)
 	}
