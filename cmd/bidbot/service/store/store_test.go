@@ -2,8 +2,13 @@ package store
 
 import (
 	"crypto/rand"
+	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -269,4 +274,34 @@ func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
 		require.NoError(t, ds.Close())
 	})
 	return s, p.DAGService(), p.BlockStore()
+}
+
+func newHTTPDataUriGateway(t *testing.T) (url string) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {
+		var (
+			id   = path.Base(r.URL.Path)
+			data string
+		)
+		switch id {
+		case "bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq":
+			data = "OqJlcm9vdHOB2CpYJQABcRIgtoQ8ZHCy9PTuMxKWLjxxoTi4/mVZ3IkoMet1CYbJWSxndmVyc2lvbgFKAXESILaEPGRwsv" +
+				"T07jMSli48caE4uP5lWdyJKDHrdQmGyVksWCQ4NzY4MGFkNC1mODIzLTQ0ZTktOWNlZi03OTU2NDlhZDYwMzE="
+		default:
+			t.Fatal("invalid request")
+		}
+		decoded, err := base64.StdEncoding.DecodeString(data)
+		require.NoError(t, err)
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(id)+".car")
+		_, err = w.Write(decoded)
+		require.NoError(t, err)
+	})
+
+	ts := httptest.NewServer(mux)
+	t.Cleanup(func() {
+		ts.Close()
+	})
+	return ts.URL
 }
