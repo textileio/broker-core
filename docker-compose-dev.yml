@@ -98,7 +98,7 @@ services:
       - BIDBOT_DEAL_START_WINDOW=2880
       - BIDBOT_DEAL_DURATION_MIN=525600
       - BIDBOT_DEAL_DURATION_MAX=1051200
-      - BIDBOT_DEAL_SIZE_MIN=57344
+      - BIDBOT_DEAL_SIZE_MIN=1024
       - BIDBOT_DEAL_SIZE_MAX=32000000000
       - BIDBOT_PROPOSAL_CID_FETCH_ATTEMPTS=3
       - BIDBOT_MDNS=true
@@ -152,6 +152,8 @@ services:
       - PACKER_MONGO_DBNAME=packerd
       - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - PACKER_BROKER_ADDR=brokerd:5000
+      - PACKER_BATCH_MIN_SIZE=100
+      - PACKER_TARGET_SECTOR_SIZE=20000
     security_opt:
       - "seccomp:unconfined"
     cap_add:

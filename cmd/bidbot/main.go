@@ -12,6 +12,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
+	"text/tabwriter"
 
 	"github.com/joho/godotenv"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -45,17 +47,20 @@ func init() {
 	}
 	_ = godotenv.Load(filepath.Join(configPath, ".env"))
 
-	rootCmd.AddCommand(initCmd, daemonCmd, dealsCmd)
+	rootCmd.AddCommand(initCmd, daemonCmd, dealsCmd, downloadCmd)
 	dealsCmd.AddCommand(dealsListCmd)
 	dealsCmd.AddCommand(dealsShowCmd)
-	dealsCmd.AddCommand(downloadCmd)
-	dealsListCmd.Flags().String("status", "", "filter by status")
+
+	dealsCmd.PersistentFlags().Bool("json", false, "output in json format instead of tabular print")
+	v.BindPFlag("json", dealsCmd.PersistentFlags().Lookup("json"))
+
+	dealsListCmd.Flags().String("status", "", "filter by auction statuses, separated by comma")
 	v.BindPFlag("status", dealsListCmd.Flags().Lookup("status"))
 
 	commonFlags := []common.Flag{
 		{
 			Name:        "http-addr",
-			DefValue:    ":8888",
+			DefValue:    ":9999",
 			Description: "HTTP API listen address",
 		},
 	}
@@ -307,45 +312,81 @@ func urlFor(parts ...string) string {
 
 var dealsListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List deals optinally filtered by status",
-	Long:  ``,
+	Short: "List deals, optionally filtered by status",
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		var query string
 		if status := v.GetString("status"); status != "" {
 			query = fmt.Sprintf("?status=%s", url.QueryEscape(status))
 		}
-		printDeals(urlFor("deals") + query)
+		bids := getBids(urlFor("deals") + query)
+		if v.GetBool("json") {
+			b, err := json.Marshal(bids)
+			common.CheckErr(err)
+			fmt.Println(string(b))
+			return
+		}
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.DiscardEmptyColumns)
+		defer w.Flush()
+		fields := []string{"ID", "DealSize", "DealDuration", "Status", "AskPrice", "DataCidFetchAttempts", "CreatedAt", "UpdatedAt", "ErrorCause"}
+		for i, bid := range bids {
+			if i == 0 {
+				for _, field := range fields {
+					fmt.Fprintf(w, "%s\t", field)
+				}
+				fmt.Fprintln(w, "")
+			}
+			value := reflect.ValueOf(bid)
+			for _, field := range fields {
+				fmt.Fprintf(w, "%v\t", value.FieldByName(field))
+			}
+			fmt.Fprintln(w, "")
+		}
 	},
 }
 
 var dealsShowCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show information of one deals",
-	Long:  ``,
+	Short: "Show details of one deal",
+	Long:  `Show details of one deal, specified by the bid ID, which can be obtained by 'bidbot deals list'`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(c *cobra.Command, args []string) {
-		printDeals(urlFor("deals", args[0]))
+		bids := getBids(urlFor("deals", args[0]))
+		if len(bids) == 0 {
+			return
+		}
+		bid := bids[0]
+		if v.GetBool("json") {
+			b, err := json.Marshal(bid)
+			common.CheckErr(err)
+			fmt.Println(string(b))
+			return
+		}
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+		defer w.Flush()
+		typ := reflect.TypeOf(bid)
+		value := reflect.ValueOf(bid)
+		for i := 0; i < typ.NumField(); i++ {
+			fmt.Fprintf(w, "%s:\t%v\n", typ.Field(i).Name, value.Field(i))
+		}
 	},
 }
 
-func printDeals(u string) {
+func getBids(u string) (bids []store.Bid) {
 	res, err := http.Get(u)
 	common.CheckErr(err)
-	var bids []store.Bid
 	defer func() {
 		err := res.Body.Close()
 		common.CheckErr(err)
 	}()
 	if res.StatusCode != http.StatusOK {
-		log.Fatalf("Unexpected HTTP status %s", res.Status)
+		b, _ := io.ReadAll(res.Body)
+		log.Fatalf("%s: %s", res.Status, string(b))
 	}
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&bids)
 	common.CheckErr(err)
-	for _, bid := range bids {
-		fmt.Printf("%v\n", bid)
-	}
+	return
 }
 
 var downloadCmd = &cobra.Command{
