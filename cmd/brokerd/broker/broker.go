@@ -160,6 +160,10 @@ func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc brok
 		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
 	}
 
+	if pc.RepFactor == 0 {
+		pc.RepFactor = int(b.conf.dealReplication)
+	}
+
 	sd := broker.StorageDeal{
 		RepFactor:        int(pc.RepFactor),
 		DealDuration:     int(b.conf.dealDuration),

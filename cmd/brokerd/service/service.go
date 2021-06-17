@@ -190,8 +190,8 @@ func (s *Service) CreatePreparedBrokerRequest(
 	}
 
 	// Validate rep factor.
-	if r.PreparedCAR.RepFactor <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "rep-factor should be positive")
+	if r.PreparedCAR.RepFactor < 0 {
+		return nil, status.Error(codes.InvalidArgument, "rep-factor can't be negative")
 	}
 
 	pc.Deadline = r.PreparedCAR.Deadline.AsTime()

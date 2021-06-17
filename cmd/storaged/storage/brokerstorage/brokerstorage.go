@@ -128,8 +128,8 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 	}
 
 	// Validate rep factor.
-	if adr.RepFactor <= 0 {
-		return storage.Request{}, errors.New("rep-factor should be positive")
+	if adr.RepFactor < 0 {
+		return storage.Request{}, errors.New("rep-factor should can't be negative")
 	}
 
 	deadline, err := time.Parse(time.RFC3339, adr.Deadline)
