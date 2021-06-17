@@ -125,9 +125,8 @@ func init() {
 func (as BidStatus) String() string {
 	if s, exists := bidStatusStrings[as]; exists {
 		return s
-	} else {
-		return "invalid"
 	}
+	return "invalid"
 }
 
 // BidStatusByString finds a status by its string representation, or errors if

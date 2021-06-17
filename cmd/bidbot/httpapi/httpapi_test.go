@@ -55,7 +55,8 @@ func TestAPI_Deals(t *testing.T) {
 
 		// list deals
 		{"all", allBids, "/deals", http.StatusOK, allBids},
-		{"all with filter", allBids, "/deals?status= awaiting_proposal,  queued_data, awaiting_proposal", http.StatusOK, []*bidstore.Bid{queued}},
+		{"all with filter", allBids, "/deals?status= awaiting_proposal,  queued_data, awaiting_proposal",
+			http.StatusOK, []*bidstore.Bid{queued}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ms := &mockService{}
@@ -94,9 +95,7 @@ func TestAPI_Deals(t *testing.T) {
 			require.NoError(t, json.Unmarshal(res.Body.Bytes(), &bids))
 			require.Equal(t, tc.expectedResult, bids)
 		})
-
 	}
-
 }
 
 func TestAPI_DownloadCID(t *testing.T) {
@@ -124,7 +123,7 @@ func TestAPI_DownloadCID(t *testing.T) {
 			mux.ServeHTTP(res, req)
 			require.Equal(t, tc.expectedStatusCode, res.Code)
 			if tc.expectedStatusCode == http.StatusOK {
-				require.Equal(t, tc.expectedResult, string(res.Body.Bytes()))
+				require.Equal(t, tc.expectedResult, res.Body.String())
 			}
 		})
 	}
@@ -134,21 +133,20 @@ type mockService struct {
 	mock.Mock
 }
 
-func (s mockService) GetBid(id broker.BidID) (*bidstore.Bid, error) {
+func (s *mockService) GetBid(id broker.BidID) (*bidstore.Bid, error) {
 	args := s.Called(id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
-	} else {
-		return args.Get(0).(*bidstore.Bid), args.Error(1)
 	}
+	return args.Get(0).(*bidstore.Bid), args.Error(1)
 }
 
-func (s mockService) ListBids(query bidstore.Query) ([]*bidstore.Bid, error) {
+func (s *mockService) ListBids(query bidstore.Query) ([]*bidstore.Bid, error) {
 	args := s.Called(query)
 	return args.Get(0).([]*bidstore.Bid), args.Error(1)
 }
 
-func (s mockService) WriteCar(ctx context.Context, cid cid.Cid) (string, error) {
+func (s *mockService) WriteCar(ctx context.Context, cid cid.Cid) (string, error) {
 	args := s.Called(ctx, cid)
 	return args.String(0), args.Error(1)
 }

@@ -141,12 +141,12 @@ func listBids(w http.ResponseWriter, service Service, statusFilters []string) (b
 		if s == "" {
 			continue
 		}
-		if bs, err := bidstore.BidStatusByString(s); err != nil {
+		bs, err := bidstore.BidStatusByString(s)
+		if err != nil {
 			httpError(w, fmt.Sprintf("%s: %s", s, err), http.StatusBadRequest)
 			return nil, false
-		} else {
-			filters = append(filters, bs)
 		}
+		filters = append(filters, bs)
 	}
 	// for simplicity we apply filters after retrieving. if performance
 	// becomes an issue, we can add query filters.

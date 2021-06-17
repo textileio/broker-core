@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -50,12 +51,6 @@ func init() {
 	rootCmd.AddCommand(initCmd, daemonCmd, dealsCmd, downloadCmd)
 	dealsCmd.AddCommand(dealsListCmd)
 	dealsCmd.AddCommand(dealsShowCmd)
-
-	dealsCmd.PersistentFlags().Bool("json", false, "output in json format instead of tabular print")
-	v.BindPFlag("json", dealsCmd.PersistentFlags().Lookup("json"))
-
-	dealsListCmd.Flags().String("status", "", "filter by auction statuses, separated by comma")
-	v.BindPFlag("status", dealsListCmd.Flags().Lookup("status"))
 
 	commonFlags := []common.Flag{
 		{
@@ -126,6 +121,10 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 	daemonFlags = append(daemonFlags, marketpeer.Flags...)
+	dealsFlags := []common.Flag{{Name: "json", DefValue: false,
+		Description: "output in json format instead of tabular print"}}
+	dealsListFlags := []common.Flag{{Name: "status", DefValue: "",
+		Description: "filter by auction statuses, separated by comma"}}
 
 	cobra.OnInitialize(func() {
 		v.SetConfigType("json")
@@ -138,6 +137,8 @@ func init() {
 	common.ConfigureCLI(v, "BIDBOT", commonFlags, rootCmd.PersistentFlags())
 	common.ConfigureCLI(v, "BIDBOT", marketpeer.Flags, initCmd.PersistentFlags())
 	common.ConfigureCLI(v, "BIDBOT", daemonFlags, daemonCmd.PersistentFlags())
+	common.ConfigureCLI(v, "BIDBOT", dealsFlags, dealsCmd.PersistentFlags())
+	common.ConfigureCLI(v, "BIDBOT", dealsListFlags, dealsListCmd.PersistentFlags())
 }
 
 var rootCmd = &cobra.Command{
@@ -327,8 +328,8 @@ var dealsListCmd = &cobra.Command{
 			return
 		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.DiscardEmptyColumns)
-		defer w.Flush()
-		fields := []string{"ID", "DealSize", "DealDuration", "Status", "AskPrice", "DataCidFetchAttempts", "CreatedAt", "UpdatedAt", "ErrorCause"}
+		fields := []string{"ID", "DealSize", "DealDuration", "Status",
+			"AskPrice", "DataCidFetchAttempts", "CreatedAt", "UpdatedAt", "ErrorCause"}
 		for i, bid := range bids {
 			if i == 0 {
 				for _, field := range fields {
@@ -342,6 +343,7 @@ var dealsListCmd = &cobra.Command{
 			}
 			fmt.Fprintln(w, "")
 		}
+		_ = w.Flush()
 	},
 }
 
@@ -363,12 +365,12 @@ var dealsShowCmd = &cobra.Command{
 			return
 		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		defer w.Flush()
 		typ := reflect.TypeOf(bid)
 		value := reflect.ValueOf(bid)
 		for i := 0; i < typ.NumField(); i++ {
 			fmt.Fprintf(w, "%s:\t%v\n", typ.Field(i).Name, value.Field(i))
 		}
+		_ = w.Flush()
 	},
 }
 
@@ -380,7 +382,7 @@ func getBids(u string) (bids []store.Bid) {
 		common.CheckErr(err)
 	}()
 	if res.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(res.Body)
+		b, _ := ioutil.ReadAll(res.Body)
 		log.Fatalf("%s: %s", res.Status, string(b))
 	}
 	decoder := json.NewDecoder(res.Body)
