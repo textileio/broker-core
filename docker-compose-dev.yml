@@ -89,6 +89,7 @@ services:
     environment:
       - BIDBOT_LOG_DEBUG=true
       - BIDBOT_LOG_JSON=false
+      - BIDBOT_HTTP_ADDR=:9999
       - BIDBOT_MINER_ADDR=f02222
       - BIDBOT_WALLET_ADDR_SIG=66616B655F7369676E6174757265
       - BIDBOT_ASK_PRICE=100000000000
@@ -102,6 +103,8 @@ services:
       - BIDBOT_PROPOSAL_CID_FETCH_ATTEMPTS=3
       - BIDBOT_MDNS=true
       - BIDBOT_FAKE_MODE=true
+    ports:
+      - "127.0.0.1:9999:9999"
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -115,6 +118,7 @@ services:
     environment:
       - BROKER_LOG_DEBUG=true
       - BROKER_LOG_JSON=false
+      - BROKER_IPFS_API_MULTIADDR=/dns4/ipfs/tcp/5001
       - BROKER_RPC_ADDR=:5000
       - BROKER_MONGO_URI=mongodb://mongo:27017
       - BROKER_MONGO_DBNAME=brokerd

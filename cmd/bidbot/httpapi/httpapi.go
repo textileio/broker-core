@@ -97,7 +97,6 @@ func dealsHandler(service Service) http.HandlerFunc {
 		if err != nil {
 			log.Errorf("write failed: %+v", err)
 		}
-		w.WriteHeader(200)
 	}
 }
 
