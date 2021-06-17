@@ -144,7 +144,7 @@ func validate(a broker.Auction) error {
 	if a.StorageDealID == "" {
 		return errors.New("storage deal id is empty")
 	}
-	if a.DataUri == "" {
+	if a.DataURI == "" {
 		return errors.New("data uri is empty")
 	}
 	if a.DealSize == 0 {

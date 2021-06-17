@@ -35,8 +35,8 @@ var (
 	// bidsAckTimeout is the max duration bidbot will wait for an ack after bidding in an auction.
 	bidsAckTimeout = time.Second * 10
 
-	// dataUriValidateTimeout is the timeout used when validating a data uri.
-	dataUriValidateTimeout = time.Second * 10
+	// dataURIValidateTimeout is the timeout used when validating a data uri.
+	dataURIValidateTimeout = time.Second * 10
 )
 
 // Config defines params for Service configuration.
@@ -289,7 +289,7 @@ func (s *Service) GetBid(id broker.BidID) (*bidstore.Bid, error) {
 
 // WriteDataURI writes a data uri resource to the configured deal data directory.
 func (s *Service) WriteDataURI(uri string) (string, error) {
-	return s.store.WriteDataUri(uri)
+	return s.store.WriteDataURI(uri)
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
@@ -361,13 +361,13 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	}
 
 	// Ensure we can fetch the data
-	dataUri, err := datauri.NewUri(auction.DataUri)
+	dataURI, err := datauri.NewURI(auction.DataUri)
 	if err != nil {
 		return fmt.Errorf("parsing data uri: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(s.ctx, dataUriValidateTimeout)
+	ctx, cancel := context.WithTimeout(s.ctx, dataURIValidateTimeout)
 	defer cancel()
-	if err := dataUri.Validate(ctx); err != nil {
+	if err := dataURI.Validate(ctx); err != nil {
 		return fmt.Errorf("validating data uri: %v", err)
 	}
 
@@ -427,7 +427,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		ID:               broker.BidID(id),
 		AuctionID:        broker.AuctionID(auction.Id),
 		AuctioneerID:     from,
-		DataUri:          dataUri.String(),
+		DataURI:          dataURI.String(),
 		DealSize:         auction.DealSize,
 		DealDuration:     auction.DealDuration,
 		AskPrice:         bid.AskPrice,

@@ -43,7 +43,7 @@ func init() {
 		panic(err)
 	}
 
-	DataUriFetchTimeout = time.Second * 5
+	DataURIFetchTimeout = time.Second * 5
 }
 
 func TestStore_ListBids(t *testing.T) {
@@ -66,7 +66,7 @@ func TestStore_ListBids(t *testing.T) {
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataUri:          "https://foo.com/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq",
+			DataURI:          "https://foo.com/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq",
 			DealSize:         1024,
 			DealDuration:     1000,
 			AskPrice:         100,
@@ -112,13 +112,13 @@ func TestStore_SaveBid(t *testing.T) {
 
 	id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 	aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-	dataUri := "https://foo.com/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
+	dataURI := "https://foo.com/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
 
 	err = s.SaveBid(Bid{
 		ID:               id,
 		AuctionID:        aid,
 		AuctioneerID:     auctioneerID,
-		DataUri:          dataUri,
+		DataURI:          dataURI,
 		DealSize:         1024,
 		DealDuration:     1000,
 		AskPrice:         100,
@@ -132,7 +132,7 @@ func TestStore_SaveBid(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, aid, got.AuctionID)
 	assert.True(t, got.AuctioneerID.MatchesPrivateKey(sk))
-	assert.Equal(t, dataUri, got.DataUri)
+	assert.Equal(t, dataURI, got.DataURI)
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1000, int(got.DealDuration))
 	assert.Equal(t, BidStatusSubmitted, got.Status)
@@ -141,7 +141,7 @@ func TestStore_SaveBid(t *testing.T) {
 	assert.Equal(t, 2000, int(got.StartEpoch))
 	assert.False(t, got.FastRetrieval)
 	assert.False(t, got.ProposalCid.Defined())
-	assert.Equal(t, 0, int(got.DataUriFetchAttempts))
+	assert.Equal(t, 0, int(got.DataURIFetchAttempts))
 	assert.False(t, got.CreatedAt.IsZero())
 	assert.False(t, got.UpdatedAt.IsZero())
 	assert.Empty(t, got.ErrorCause)
@@ -150,7 +150,7 @@ func TestStore_SaveBid(t *testing.T) {
 func TestStore_StatusProgression(t *testing.T) {
 	t.Parallel()
 	s, _, bs := newStore(t)
-	gwurl := newHTTPDataUriGateway(t)
+	gwurl := newHTTPDataURIGateway(t)
 
 	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestStore_StatusProgression(t *testing.T) {
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataUri:          gwurl + "/cid/" + dataCid,
+			DataURI:          gwurl + "/cid/" + dataCid,
 			DealSize:         1024,
 			DealDuration:     1000,
 			AskPrice:         100,
@@ -218,7 +218,7 @@ func TestStore_StatusProgression(t *testing.T) {
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataUri:          "https://foo.com/cid/" + dataCid,
+			DataURI:          "https://foo.com/cid/" + dataCid,
 			DealSize:         1024,
 			DealDuration:     1000,
 			AskPrice:         100,
@@ -250,7 +250,7 @@ func TestStore_StatusProgression(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, BidStatusFinalized, got.Status)
 		assert.NotEmpty(t, got.ErrorCause)
-		assert.Equal(t, 2, int(got.DataUriFetchAttempts))
+		assert.Equal(t, 2, int(got.DataURIFetchAttempts))
 	})
 }
 
@@ -266,8 +266,8 @@ func TestStore_GenerateCarData(t *testing.T) {
 	err = car.WriteCar(context.Background(), dag, []cid.Cid{node.Cid()}, buff)
 	require.NoError(t, err)
 
-	fmt.Println(fmt.Sprintf("cid: %s", node.Cid()))
-	fmt.Println(fmt.Sprintf("data: %s", base64.StdEncoding.EncodeToString(buff.Bytes())))
+	fmt.Printf("cid: %s\n", node.Cid())
+	fmt.Printf("data: %s\n", base64.StdEncoding.EncodeToString(buff.Bytes()))
 }
 
 func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
@@ -289,7 +289,7 @@ func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
 	return s, p.DAGService(), p.BlockStore()
 }
 
-func newHTTPDataUriGateway(t *testing.T) (url string) {
+func newHTTPDataURIGateway(t *testing.T) (url string) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {

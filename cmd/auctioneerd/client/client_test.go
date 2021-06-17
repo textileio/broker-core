@@ -17,7 +17,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
@@ -63,17 +62,17 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c, _ := newClient(t, 1)
+	c := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataUri(), oneGiB, sixMonthsEpochs, 1, true, nil)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataURI(), oneGiB, sixMonthsEpochs, 1, true, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	c, _ := newClient(t, 1)
+	c := newClient(t, 1)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataUri(), oneGiB, sixMonthsEpochs, 1, true, nil)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataURI(), oneGiB, sixMonthsEpochs, 1, true, nil)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -91,15 +90,15 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	c, _ := newClient(t, 2)
+	c := newClient(t, 2)
 	bots := addBidbots(t, 10)
-	gwurl := newHTTPDataUriGateway(t)
+	gwurl := newHTTPDataURIGateway(t)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	dataUri := gwurl + "/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
+	dataURI := gwurl + "/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataUri, oneGiB, sixMonthsEpochs, 2, true, nil)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataURI, oneGiB, sixMonthsEpochs, 2, true, nil)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -140,7 +139,7 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Contains(t, err.Error(), auctioneer.ErrAuctionNotFound.Error())
 }
 
-func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService) {
+func newClient(t *testing.T, attempts uint32) *client.Client {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -184,7 +183,7 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
 	fin.Add(conn)
-	return client.New(conn), s.DAGService()
+	return client.New(conn)
 }
 
 func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
@@ -246,7 +245,7 @@ func newDealID() core.StorageDealID {
 	return core.StorageDealID(uuid.New().String())
 }
 
-func newDataUri() string {
+func newDataURI() string {
 	return fmt.Sprintf("https://foo.com/cid/%s", cid.NewCidV1(cid.Raw, util.Hash([]byte(uuid.NewString()))))
 }
 
@@ -263,7 +262,7 @@ func newFilClientMock() *auctioneermocks.FilClient {
 	return fc
 }
 
-func newHTTPDataUriGateway(t *testing.T) (url string) {
+func newHTTPDataURIGateway(t *testing.T) (url string) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {

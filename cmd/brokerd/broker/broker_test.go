@@ -166,7 +166,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, createCidUri(brgCid), auctioneer.calledDataUri)
+	require.Equal(t, createCidURI(brgCid), auctioneer.calledDataURI)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
@@ -380,7 +380,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, createCidUri(brgCid), auctioneer.calledDataUri)
+	require.Equal(t, createCidURI(brgCid), auctioneer.calledDataURI)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, 1, auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
@@ -630,7 +630,7 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 
 type dumbAuctioneer struct {
 	calledStorageDealID   broker.StorageDealID
-	calledDataUri         string
+	calledDataURI         string
 	calledPieceSize       int
 	calledDealDuration    int
 	calledDealReplication int
@@ -642,13 +642,13 @@ type dumbAuctioneer struct {
 func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
 	id broker.StorageDealID,
-	dataUri string,
+	dataURI string,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
-	dp.calledDataUri = dataUri
+	dp.calledDataURI = dataURI
 	dp.calledPieceSize = dealSize
 	dp.calledDealDuration = dealDuration
 	dp.calledDealReplication = dealReplication
@@ -682,7 +682,7 @@ func createCidFromString(s string) cid.Cid {
 	return cid.NewCidV1(cid.Raw, mh)
 }
 
-func createCidUri(c cid.Cid) string {
+func createCidURI(c cid.Cid) string {
 	return fmt.Sprintf("https://todo.net/cid/%s", c)
 }
 

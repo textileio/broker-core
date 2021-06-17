@@ -38,14 +38,14 @@ const (
 var (
 	log = golog.Logger("bidbot/store")
 
-	// DataUriFetchStartDelay is the time delay before the store will process queued data uri fetches on start.
-	DataUriFetchStartDelay = time.Second * 10
+	// DataURIFetchStartDelay is the time delay before the store will process queued data uri fetches on start.
+	DataURIFetchStartDelay = time.Second * 10
 
-	// DataUriFetchTimeout is the timeout used when fetching data uris.
-	DataUriFetchTimeout = time.Hour
+	// DataURIFetchTimeout is the timeout used when fetching data uris.
+	DataURIFetchTimeout = time.Hour
 
-	// MaxDataUriFetchConcurrency is the maximum number of data uri fetches that will be handled concurrently.
-	MaxDataUriFetchConcurrency = 10
+	// MaxDataURIFetchConcurrency is the maximum number of data uri fetches that will be handled concurrently.
+	MaxDataURIFetchConcurrency = 10
 
 	// ErrBidNotFound indicates the requested bid was not found.
 	ErrBidNotFound = errors.New("bid not found")
@@ -68,7 +68,7 @@ type Bid struct {
 	ID                   broker.BidID
 	AuctionID            broker.AuctionID
 	AuctioneerID         peer.ID
-	DataUri              string
+	DataURI              string
 	DealSize             uint64
 	DealDuration         uint64
 	Status               BidStatus
@@ -77,7 +77,7 @@ type Bid struct {
 	StartEpoch           uint64
 	FastRetrieval        bool
 	ProposalCid          cid.Cid
-	DataUriFetchAttempts uint32
+	DataURIFetchAttempts uint32
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 	ErrorCause           string
@@ -177,8 +177,8 @@ func NewStore(
 		host:                  host,
 		nodeGetter:            nodeGetter,
 		bootstrap:             baddrs,
-		jobCh:                 make(chan *Bid, MaxDataUriFetchConcurrency),
-		tickCh:                make(chan struct{}, MaxDataUriFetchConcurrency),
+		jobCh:                 make(chan *Bid, MaxDataURIFetchConcurrency),
+		tickCh:                make(chan struct{}, MaxDataURIFetchConcurrency),
 		dealDataDirectory:     dealDataDirectory,
 		dealDataFetchAttempts: dealDataFetchAttempts,
 		ctx:                   ctx,
@@ -186,8 +186,8 @@ func NewStore(
 	}
 
 	// Create data fetch workers
-	s.wg.Add(MaxDataUriFetchConcurrency)
-	for i := 0; i < MaxDataUriFetchConcurrency; i++ {
+	s.wg.Add(MaxDataURIFetchConcurrency)
+	for i := 0; i < MaxDataURIFetchConcurrency; i++ {
 		go s.fetchWorker(i + 1)
 	}
 
@@ -231,7 +231,7 @@ func validate(b Bid) error {
 	if err := b.AuctioneerID.Validate(); err != nil {
 		return fmt.Errorf("auctioneer id is not a valid peer id: %v", err)
 	}
-	if b.DataUri == "" {
+	if b.DataURI == "" {
 		return errors.New("data uri is not defined")
 	}
 	if b.DealSize == 0 {
@@ -255,7 +255,7 @@ func validate(b Bid) error {
 	if b.ProposalCid.Defined() {
 		return errors.New("initial proposal cid cannot be defined")
 	}
-	if b.DataUriFetchAttempts != 0 {
+	if b.DataURIFetchAttempts != 0 {
 		return errors.New("initial data uri fetch attempts must be zero")
 	}
 	if !b.CreatedAt.IsZero() {
@@ -343,11 +343,11 @@ func (s *Store) SetProposalCid(id broker.BidID, pcid cid.Cid) error {
 	}
 
 	b.ProposalCid = pcid
-	if err := s.enqueueDataUri(txn, b); err != nil {
+	if err := s.enqueueDataURI(txn, b); err != nil {
 		return fmt.Errorf("enqueueing data uri: %v", err)
 	}
 
-	log.Infof("set proposal cid for bid %s; enqueued data uri %s for fetch", b.ID, b.DataUri)
+	log.Infof("set proposal cid for bid %s; enqueued data uri %s for fetch", b.ID, b.DataURI)
 	return nil
 }
 
@@ -444,9 +444,9 @@ func (s *Store) ListBids(query Query) ([]*Bid, error) {
 	return list, nil
 }
 
-// WriteDataUri writes the uri resource to the configured deal data directory.
-func (s *Store) WriteDataUri(uri string) (string, error) {
-	duri, err := datauri.NewUri(uri)
+// WriteDataURI writes the uri resource to the configured deal data directory.
+func (s *Store) WriteDataURI(uri string) (string, error) {
+	duri, err := datauri.NewURI(uri)
 	if err != nil {
 		return "", fmt.Errorf("parsing data uri: %v", err)
 	}
@@ -460,7 +460,7 @@ func (s *Store) WriteDataUri(uri string) (string, error) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(s.ctx, DataUriFetchTimeout)
+	ctx, cancel := context.WithTimeout(s.ctx, DataURIFetchTimeout)
 	defer cancel()
 	if err := duri.Write(ctx, f); err != nil {
 		return "", fmt.Errorf("writing data uri %s: %v", uri, err)
@@ -468,9 +468,9 @@ func (s *Store) WriteDataUri(uri string) (string, error) {
 	return f.Name(), nil
 }
 
-// enqueueDataUri queues a data uri fetch.
+// enqueueDataURI queues a data uri fetch.
 // commitTxn will be committed internally!
-func (s *Store) enqueueDataUri(commitTxn ds.Txn, b *Bid) error {
+func (s *Store) enqueueDataURI(commitTxn ds.Txn, b *Bid) error {
 	// Set the bid to "fetching_data"
 	if err := s.saveAndTransitionStatus(commitTxn, b, BidStatusFetchingData); err != nil {
 		return fmt.Errorf("updating status (fetching_data): %v", err)
@@ -501,7 +501,7 @@ func (s *Store) fetchWorker(num int) {
 
 	fail := func(b *Bid, err error) (status BidStatus) {
 		b.ErrorCause = err.Error()
-		if b.DataUriFetchAttempts >= s.dealDataFetchAttempts {
+		if b.DataURIFetchAttempts >= s.dealDataFetchAttempts {
 			status = BidStatusFinalized
 			log.Warnf("job %s exhausted all %d attempts with error: %v", b.ID, s.dealDataFetchAttempts, err)
 		} else {
@@ -520,17 +520,17 @@ func (s *Store) fetchWorker(num int) {
 			if s.ctx.Err() != nil {
 				return
 			}
-			log.Infof("fetching data uri %s", b.DataUri)
-			b.DataUriFetchAttempts++
+			log.Infof("fetching data uri %s", b.DataURI)
+			b.DataURIFetchAttempts++
 			log.Debugf(
-				"worker %d got job %s (attempt=%d/%d)", num, b.ID, b.DataUriFetchAttempts, s.dealDataFetchAttempts)
+				"worker %d got job %s (attempt=%d/%d)", num, b.ID, b.DataURIFetchAttempts, s.dealDataFetchAttempts)
 
 			// Fetch the data cid
 			var (
 				status BidStatus
 				logMsg string
 			)
-			if _, err := s.WriteDataUri(b.DataUri); err != nil {
+			if _, err := s.WriteDataURI(b.DataURI); err != nil {
 				status = fail(b, err)
 				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
 			} else {
@@ -556,7 +556,7 @@ func (s *Store) fetchWorker(num int) {
 }
 
 func (s *Store) startFetching() {
-	t := time.NewTimer(DataUriFetchStartDelay)
+	t := time.NewTimer(DataURIFetchStartDelay)
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -587,7 +587,7 @@ func (s *Store) getNext() {
 		return
 	}
 	log.Debugf("enqueueing job: %s", b.ID)
-	if err := s.enqueueDataUri(txn, b); err != nil {
+	if err := s.enqueueDataURI(txn, b); err != nil {
 		log.Errorf("enqueueing: %v", err)
 	}
 }
@@ -639,7 +639,7 @@ func (s *Store) getOrphaned() error {
 
 	for _, b := range bids {
 		log.Debugf("enqueueing orphaned job: %s", b.ID)
-		if err := s.enqueueDataUri(txn, &b); err != nil {
+		if err := s.enqueueDataURI(txn, &b); err != nil {
 			return fmt.Errorf("enqueueing: %v", err)
 		}
 	}

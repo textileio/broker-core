@@ -163,14 +163,14 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 // New auctions are queud if the auctioneer is busy.
 func (a *Auctioneer) CreateAuction(
 	storageDealID core.StorageDealID,
-	dataUri string,
+	dataURI string,
 	dealSize, dealDuration uint64,
 	dealReplication uint32,
 	dealVerified bool,
 ) (core.AuctionID, error) {
 	auction := core.Auction{
 		StorageDealID:   storageDealID,
-		DataUri:         dataUri,
+		DataURI:         dataURI,
 		DealSize:        dealSize,
 		DealDuration:    dealDuration,
 		DealReplication: dealReplication,
@@ -319,7 +319,7 @@ func (a *Auctioneer) processAuction(
 	// Publish the auction
 	msg, err := proto.Marshal(&pb.Auction{
 		Id:           string(auction.ID),
-		DataUri:      auction.DataUri,
+		DataUri:      auction.DataURI,
 		DealSize:     auction.DealSize,
 		DealDuration: auction.DealDuration,
 		EndsAt:       timestamppb.New(deadline),
