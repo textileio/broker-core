@@ -22,7 +22,6 @@ type Client struct {
 
 var _ broker.Broker = (*Client)(nil)
 
-// TODO(jsign): switch to piecer style of client.
 // New returns a new *Client.
 func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 	conn, err := grpc.Dial(brokerAPIAddr, rpc.GetClientOpts(brokerAPIAddr)...)

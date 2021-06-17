@@ -15,7 +15,6 @@ import (
 	"github.com/textileio/broker-core/rpc"
 )
 
-// TODO(jsign): move to options.
 // Config provides configuration parameters for a service.
 type Config struct {
 	// HTTPListenAddr is the binding address for the public REST API.
