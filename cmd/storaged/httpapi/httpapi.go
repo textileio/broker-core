@@ -55,7 +55,7 @@ func createMux(s storage.Requester, skipAuth bool) *http.ServeMux {
 	mux.Handle("/storagerequest/", storageRequestStatusHandler)
 
 	auctionDataHandler := wrapMiddlewares(s, skipAuth, auctionDataHandler(s), "auction-data")
-	mux.Handle("/auction-data/", auctionDataHandler)
+	mux.Handle("/auction-data", auctionDataHandler)
 
 	mux.HandleFunc("/car/", carDownloadHandler(s))
 
@@ -136,16 +136,13 @@ func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Requ
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 
-		region, file, err := parseMultipart(r)
+		file, err := parseMultipart(r)
 		if err != nil {
 			httpError(w, fmt.Sprintf("parsing multipart: %s", err), http.StatusBadRequest)
 			return
 		}
 
-		meta := storage.Metadata{
-			Region: region,
-		}
-		storageRequest, err := s.CreateFromReader(r.Context(), file, meta)
+		storageRequest, err := s.CreateFromReader(r.Context(), file)
 		if err != nil {
 			httpError(w, fmt.Sprintf("upload data and create broker request: %s", err), http.StatusInternalServerError)
 			return
@@ -186,13 +183,12 @@ func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *h
 	}
 }
 
-func parseMultipart(r *http.Request) (string, io.Reader, error) {
+func parseMultipart(r *http.Request) (io.Reader, error) {
 	mr, err := r.MultipartReader()
 	if err != nil {
-		return "", nil, fmt.Errorf("opening multipart reader: %s", err)
+		return nil, fmt.Errorf("opening multipart reader: %s", err)
 	}
 
-	var region string
 	var file io.Reader
 Loop:
 	for {
@@ -201,27 +197,21 @@ Loop:
 			break
 		}
 		if err != nil {
-			return "", nil, fmt.Errorf("getting next part: %s", err)
+			return nil, fmt.Errorf("getting next part: %s", err)
 		}
 		switch part.FormName() {
-		case "region":
-			buf := &strings.Builder{}
-			if _, err := io.Copy(buf, part); err != nil {
-				return "", nil, fmt.Errorf("getting region part: %s", err)
-			}
-			region = buf.String()
 		case "file":
 			file = part
 			break Loop
 		default:
-			return "", nil, errors.New("malformed request")
+			return nil, errors.New("malformed request")
 		}
 	}
 	if file == nil {
-		return "", nil, fmt.Errorf("missing file part: %s", err)
+		return nil, fmt.Errorf("missing file part: %s", err)
 	}
 
-	return region, file, nil
+	return file, nil
 }
 
 func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {

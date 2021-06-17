@@ -80,7 +80,6 @@ func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (boo
 func (bs *BrokerStorage) CreateFromReader(
 	ctx context.Context,
 	r io.Reader,
-	meta storage.Metadata,
 ) (storage.Request, error) {
 	c, err := bs.up.Store(ctx, r)
 	if err != nil {

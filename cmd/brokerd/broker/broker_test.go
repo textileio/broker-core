@@ -45,9 +45,6 @@ func TestCreateBrokerRequestFail(t *testing.T) {
 		_, err := b.Create(context.Background(), cid.Undef)
 		require.Equal(t, ErrInvalidCid, err)
 	})
-
-	// TODO: create a failing test whenever we add
-	// broker.Metadata() validation rules.
 }
 
 func TestCreateStorageDeal(t *testing.T) {
@@ -589,6 +586,7 @@ func createBroker(t *testing.T) (
 		dealer,
 		chainAPI,
 		nil,
+		WithCARExportURL("http://duke.web3"),
 	)
 	require.NoError(t, err)
 

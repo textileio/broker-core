@@ -11,15 +11,10 @@ import (
 // stored with the Broker service.
 type Requester interface {
 	IsAuthorized(ctx context.Context, identity string) (bool, string, error)
-	CreateFromReader(ctx context.Context, r io.Reader, meta Metadata) (Request, error)
+	CreateFromReader(ctx context.Context, r io.Reader) (Request, error)
 	CreateFromExternalSource(ctx context.Context, adr AuctionDataRequest) (Request, error)
 	GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error
 	Get(ctx context.Context, id string) (Request, error)
-}
-
-// Metadata contains extra data to be considered by the Broker.
-type Metadata struct {
-	Region string
 }
 
 // Status is the status of a StorageRequest.
