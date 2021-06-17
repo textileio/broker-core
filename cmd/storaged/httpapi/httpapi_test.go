@@ -182,3 +182,12 @@ func (um *uploaderMock) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) erro
 
 	return args.Error(0)
 }
+
+func (um *uploaderMock) CreateFromExternalSource(
+	ctx context.Context,
+	adr storage.AuctionDataRequest) (storage.Request, error) {
+	args := um.Called(ctx, adr)
+
+	return args.Get(0).(storage.Request), args.Error(0)
+
+}

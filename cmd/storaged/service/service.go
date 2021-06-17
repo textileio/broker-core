@@ -16,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/rpc"
 )
 
+// TODO(jsign): move to options.
 // Config provides configuration parameters for a service.
 type Config struct {
 	// HTTPListenAddr is the binding address for the public REST API.
@@ -56,8 +57,10 @@ func New(config Config) (*Service, error) {
 	s := &Service{
 		config: config,
 
+		// TODO(jsign): rename.
 		httpAPIServer: httpAPIServer,
 	}
+
 	return s, nil
 }
 

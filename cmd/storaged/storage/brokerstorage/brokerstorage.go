@@ -2,9 +2,11 @@ package brokerstorage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
+	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -88,7 +90,7 @@ func (bs *BrokerStorage) CreateFromReader(
 	brokerMeta := broker.Metadata{
 		Region: meta.Region,
 	}
-	sr, err := bs.broker.Create(ctx, c, brokerMeta)
+	sr, err := bs.broker.Create(ctx, c, brokerMeta, nil)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
@@ -100,6 +102,99 @@ func (bs *BrokerStorage) CreateFromReader(
 	return storage.Request{
 		ID:         string(sr.ID),
 		Cid:        c,
+		StatusCode: status,
+	}, nil
+}
+
+func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr storage.AuctionDataRequest) (storage.Request, error) {
+	// Validate PayloadCid.
+	payloadCid, err := cid.Decode(adr.PayloadCid)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("payload-cid is invalid: %s", err)
+	}
+
+	// Validate PieceCid.
+	pieceCid, err := cid.Decode(adr.PieceCid)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("piece-cid is invalid: %s", err)
+	}
+	if pieceCid.Prefix().Codec != broker.CodecFilCommitmentUnsealed {
+		return storage.Request{}, fmt.Errorf("piece-cid must be have fil-commitment-unsealed codec")
+	}
+
+	// Validate PieceSize.
+	if adr.PieceSize <= 0 {
+		return storage.Request{}, errors.New("piece-size must be greater than zero")
+	}
+	if adr.PieceSize&(adr.PieceSize-1) != 0 {
+		return storage.Request{}, errors.New("piece-size must be a power of two")
+	}
+	if adr.PieceSize > broker.MaxPieceSize {
+		return storage.Request{}, fmt.Errorf("piece-size can't be greater than %d", broker.MaxPieceSize)
+	}
+
+	// Validate rep factor.
+	if adr.RepFactor <= 0 {
+		return storage.Request{}, errors.New("rep-factor should be positive")
+	}
+
+	deadline, err := time.Parse(time.RFC3339, adr.Deadline)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("deadline should be in RFC3339 format: %s", err)
+	}
+
+	pc := &broker.PreparedCAR{
+		PieceCid:  pieceCid,
+		PieceSize: adr.PieceSize,
+		RepFactor: adr.RepFactor,
+		Deadline:  deadline,
+	}
+
+	if adr.CARURL != nil {
+		url, err := url.Parse(adr.CARURL.URL)
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("parsing CAR URL: %s", err)
+		}
+		if url.Scheme != "http" && url.Scheme != "https" {
+			return storage.Request{}, fmt.Errorf("CAR URL scheme should be http(s)")
+		}
+
+		pc.CARURL = &broker.CARURL{
+			URL: *url,
+		}
+	}
+
+	if adr.CARIPFS != nil {
+		carCid, err := cid.Decode(adr.CARIPFS.Cid)
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("car cid isn't valid: %s", err)
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(adr.CARIPFS.NodesMultiaddr))
+		for i, smaddr := range adr.CARIPFS.NodesMultiaddr {
+			maddr, err := multiaddr.NewMultiaddr(smaddr)
+			if err != nil {
+				return storage.Request{}, fmt.Errorf("invalid multiaddr %s: %s", smaddr, err)
+			}
+			maddrs[i] = maddr
+		}
+		pc.CARIPFS = &broker.CARIPFS{
+			Cid:            carCid,
+			NodesMultiaddr: maddrs,
+		}
+	}
+
+	sr, err := bs.broker.Create(ctx, payloadCid, broker.Metadata{}, pc)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
+	}
+	status, err := brokerRequestStatusToStorageRequestStatus(sr.Status)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
+	}
+
+	return storage.Request{
+		ID:         string(sr.ID),
+		Cid:        payloadCid,
 		StatusCode: status,
 	}, nil
 }

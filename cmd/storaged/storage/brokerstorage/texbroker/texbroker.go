@@ -14,6 +14,7 @@ var (
 	log = logger.Logger("texbroker")
 )
 
+// TODO(jsign): nuke this abstraction and go directly with client.
 // TexBroker provides an interface with the Broker subsystem.
 type TexBroker struct {
 	c *client.Client
@@ -31,10 +32,10 @@ func New(c *client.Client) (*TexBroker, error) {
 }
 
 // Create creates a new BrokerRequest.
-func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata, pc *broker.PreparedCAR) (broker.BrokerRequest, error) {
 	log.Debugf("creating broker request for cid %s", c)
 
-	br, err := tb.c.Create(ctx, c, meta)
+	br, err := tb.c.Create(ctx, c, meta, pc)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("calling create api: %s", err)
 	}

@@ -224,24 +224,6 @@ Loop:
 	return region, file, nil
 }
 
-type auctionDataRequest struct {
-	PieceCid  string  `json:"pieceCid"`
-	PieceSize int     `json:"pieceSize"`
-	RepFactor int     `json:"repFactor"`
-	Deadline  string  `json:"deadline"` //"2009-11-10 23:00:00"
-	CARURL    carURL  `json:"carURL"`
-	CARIPFS   carIPFS `json:"carIPFS"`
-}
-
-type carURL struct {
-	URL string `json:"url"`
-}
-
-type carIPFS struct {
-	Cid             string   `json:"cid"`
-	NodesMultiaddrs []string `json:"nodesMultiaddrs"`
-}
-
 func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -252,13 +234,13 @@ func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 
 		jsonDecoder := json.NewDecoder(body)
 		jsonDecoder.DisallowUnknownFields()
-		var ad auctionDataRequest
+		var ad storage.AuctionDataRequest
 		if err := jsonDecoder.Decode(&ad); err != nil {
 			httpError(w, fmt.Sprintf("decoding auction-data request body: %s", err), http.StatusBadRequest)
 			return
 		}
 
-		sr, err := s.CreateFromExternalData(r.Context(), ad)
+		sr, err := s.CreateFromExternalSource(r.Context(), ad)
 		if err != nil {
 			httpError(w, fmt.Sprintf("creating storage-request from external data: %s", err), http.StatusInternalServerError)
 			return
