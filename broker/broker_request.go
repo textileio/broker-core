@@ -2,17 +2,24 @@ package broker
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multiaddr"
 )
 
-// BrokerRequestor alows to create and query BrokerRequests.
+const (
+	CodecFilCommitmentUnsealed = 0xf101
+	MaxPieceSize               = 32 << 30
+)
+
+// TODO(jsign): rename and reorganize?
+// BrokerRequestor allows to create and query BrokerRequests.
 type BrokerRequestor interface {
-	// TODO(jsign): rename and reorganize?
 	// Create creates a new BrokerRequest for data `c` and
 	// configuration `meta`.
-	Create(ctx context.Context, c cid.Cid, meta Metadata) (BrokerRequest, error)
+	Create(ctx context.Context, c cid.Cid, meta Metadata, pc *PreparedCAR) (BrokerRequest, error)
 	// Get returns a broker request from an id.
 	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
 }
@@ -22,18 +29,39 @@ type BrokerRequestID string
 
 // BrokerRequest references a storage request for a Cid.
 type BrokerRequest struct {
-	ID            BrokerRequestID     `json:"id"`
-	DataCid       cid.Cid             `json:"data_cid"`
-	Status        BrokerRequestStatus `json:"status"`
-	Metadata      Metadata            `json:"metadata"`
-	StorageDealID StorageDealID       `json:"storage_deal_id,omitempty"`
-	CreatedAt     time.Time           `json:"created_at"`
-	UpdatedAt     time.Time           `json:"updated_at"`
+	ID            BrokerRequestID
+	DataCid       cid.Cid
+	Status        BrokerRequestStatus
+	Metadata      Metadata
+	StorageDealID StorageDealID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
+// TODO(jsign): delete metadata.
 // Metadata provides storage and bidding configuration.
 type Metadata struct {
-	Region string `json:"region"`
+	Region string
+}
+
+type PreparedCAR struct {
+	PieceCid  cid.Cid
+	PieceSize int64
+	RepFactor int
+	Deadline  time.Time
+	CARURL    *CARURL
+	CARIPFS   *CARIPFS
+}
+
+// CARURL contains details of a CAR file stored in an HTTP endpoint.
+type CARURL struct {
+	URL url.URL
+}
+
+// CARIPFS contains details of a CAR file Cid stored in an HTTP endpoint.
+type CARIPFS struct {
+	Cid            cid.Cid
+	NodesMultiaddr []multiaddr.Multiaddr
 }
 
 // BrokerRequestStatus describe the current status of a
