@@ -34,16 +34,10 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 		return broker.BrokerRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
 	}
 
-	var metadata broker.Metadata
-	if brproto.Meta != nil {
-		metadata.Region = brproto.Meta.Region
-	}
-
 	br := broker.BrokerRequest{
 		ID:            broker.BrokerRequestID(brproto.Id),
 		DataCid:       c,
 		Status:        status,
-		Metadata:      metadata,
 		StorageDealID: broker.StorageDealID(brproto.StorageDealId),
 		CreatedAt:     brproto.CreatedAt.AsTime(),
 		UpdatedAt:     brproto.UpdatedAt.AsTime(),
@@ -73,12 +67,9 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 	}
 
 	return &pb.BrokerRequest{
-		Id:      string(br.ID),
-		DataCid: br.DataCid.String(),
-		Status:  pbStatus,
-		Meta: &pb.BrokerRequest_Metadata{
-			Region: br.Metadata.Region,
-		},
+		Id:            string(br.ID),
+		DataCid:       br.DataCid.String(),
+		Status:        pbStatus,
 		StorageDealId: string(br.StorageDealID),
 		CreatedAt:     timestamppb.New(br.CreatedAt),
 		UpdatedAt:     timestamppb.New(br.UpdatedAt),

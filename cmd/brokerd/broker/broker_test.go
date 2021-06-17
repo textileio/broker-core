@@ -25,12 +25,10 @@ func TestCreateBrokerRequestSuccess(t *testing.T) {
 	b, packer, _, _, _, _ := createBroker(t)
 	c := createCidFromString("BrokerRequest1")
 
-	meta := broker.Metadata{Region: "Region1"}
-	br, err := b.Create(context.Background(), c, meta)
+	br, err := b.Create(context.Background(), c)
 	require.NoError(t, err)
 	require.NotEmpty(t, br.ID)
 	require.Equal(t, broker.RequestBatching, br.Status)
-	require.Equal(t, meta, br.Metadata)
 	require.True(t, time.Since(br.CreatedAt).Seconds() < 5)
 	require.True(t, time.Since(br.UpdatedAt).Seconds() < 5)
 
@@ -44,7 +42,7 @@ func TestCreateBrokerRequestFail(t *testing.T) {
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
 		b, _, _, _, _, _ := createBroker(t)
-		_, err := b.Create(context.Background(), cid.Undef, broker.Metadata{})
+		_, err := b.Create(context.Background(), cid.Undef)
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
@@ -59,12 +57,12 @@ func TestCreateStorageDeal(t *testing.T) {
 
 	// 1- Create two broker requests.
 	c := createCidFromString("BrokerRequest1")
-	br1, err := b.Create(ctx, c, broker.Metadata{})
+	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, br1.Status)
 
 	c = createCidFromString("BrokerRequest2")
-	br2, err := b.Create(ctx, c, broker.Metadata{})
+	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, br1.Status)
 
@@ -139,10 +137,10 @@ func TestStorageDealPrepared(t *testing.T) {
 
 	// 1- Create two broker requests and a corresponding storage deal.
 	c := createCidFromString("BrokerRequest1")
-	br1, err := b.Create(ctx, c, broker.Metadata{})
+	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	c = createCidFromString("BrokerRequest2")
-	br2, err := b.Create(ctx, c, broker.Metadata{})
+	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
 	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
@@ -190,10 +188,10 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
 	c := createCidFromString("BrokerRequest1")
-	br1, err := b.Create(ctx, c, broker.Metadata{})
+	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	c = createCidFromString("BrokerRequest2")
-	br2, err := b.Create(ctx, c, broker.Metadata{})
+	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
 	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
@@ -324,10 +322,10 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
 	c := createCidFromString("BrokerRequest1")
-	br1, err := b.Create(ctx, c, broker.Metadata{})
+	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	c = createCidFromString("BrokerRequest2")
-	br2, err := b.Create(ctx, c, broker.Metadata{})
+	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
 	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
@@ -396,10 +394,10 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
 	c := createCidFromString("BrokerRequest1")
-	br1, err := b.Create(ctx, c, broker.Metadata{})
+	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	c = createCidFromString("BrokerRequest2")
-	br2, err := b.Create(ctx, c, broker.Metadata{})
+	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
 	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
@@ -465,10 +463,10 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared, auctioned, and deal making.
 	c1 := createCidFromString("BrokerRequest1")
-	br1, err := b.Create(ctx, c1, broker.Metadata{})
+	br1, err := b.Create(ctx, c1)
 	require.NoError(t, err)
 	c2 := createCidFromString("BrokerRequest2")
-	br2, err := b.Create(ctx, c2, broker.Metadata{})
+	br2, err := b.Create(ctx, c2)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
 	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})

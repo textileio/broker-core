@@ -7,7 +7,6 @@ import "google/protobuf/timestamp.proto";
 
 message CreateBrokerRequestRequest {
   string cid = 1;
-  BrokerRequest.Metadata meta = 2;
 }
 
 message CreateBrokerRequestResponse {
@@ -16,8 +15,7 @@ message CreateBrokerRequestResponse {
 
 message CreatePreparedBrokerRequestRequest {
   string cid = 1;
-  BrokerRequest.Metadata meta = 2;
-  PreparedCAR preparedCAR = 3;
+  PreparedCAR preparedCAR = 2;
 
   message PreparedCAR {
     string piece_cid = 1;
@@ -101,10 +99,9 @@ message BrokerRequest {
   string id = 1;
   string data_cid = 2;
   Status status = 3;
-  Metadata meta = 4;
-  string storage_deal_id = 5;
-  google.protobuf.Timestamp created_at = 6; 
-  google.protobuf.Timestamp updated_at = 7; 
+  string storage_deal_id = 4;
+  google.protobuf.Timestamp created_at = 5; 
+  google.protobuf.Timestamp updated_at = 6; 
 
   enum Status {
     UNSPECIFIED = 0;
@@ -113,10 +110,6 @@ message BrokerRequest {
     AUCTIONING = 3;
     DEALMAKING = 4;
     SUCCESS = 5;
-  }
-
-  message Metadata {
-    string region = 1;
   }
 }
 

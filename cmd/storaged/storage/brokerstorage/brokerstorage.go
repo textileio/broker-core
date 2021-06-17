@@ -87,10 +87,7 @@ func (bs *BrokerStorage) CreateFromReader(
 		return storage.Request{}, fmt.Errorf("storing stream: %s", err)
 	}
 
-	brokerMeta := broker.Metadata{
-		Region: meta.Region,
-	}
-	sr, err := bs.broker.Create(ctx, c, brokerMeta)
+	sr, err := bs.broker.Create(ctx, c)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
@@ -180,7 +177,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 		}
 	}
 
-	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, broker.Metadata{}, pc)
+	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}

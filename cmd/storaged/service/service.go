@@ -37,7 +37,7 @@ type Config struct {
 type Service struct {
 	config Config
 
-	httpAPIServer *http.Server
+	httpServer *http.Server
 }
 
 // New returns a new Service.
@@ -48,17 +48,15 @@ func New(config Config) (*Service, error) {
 	}
 
 	// Bootstrap HTTP API server.
-	httpAPIServer, err := httpapi.NewServer(config.HTTPListenAddr, config.SkipAuth, storage)
+	server, err := httpapi.NewServer(config.HTTPListenAddr, config.SkipAuth, storage)
 	if err != nil {
 		return nil, fmt.Errorf("creating http server: %s", err)
 	}
 
 	// Generate service.
 	s := &Service{
-		config: config,
-
-		// TODO(jsign): rename.
-		httpAPIServer: httpAPIServer,
+		config:     config,
+		httpServer: server,
 	}
 
 	return s, nil
@@ -97,7 +95,7 @@ func createStorage(config Config) (storage.Requester, error) {
 func (s *Service) Close() error {
 	var errors []string
 
-	if err := s.httpAPIServer.Close(); err != nil {
+	if err := s.httpServer.Close(); err != nil {
 		errors = append(errors, fmt.Sprintf("closing http api server: %s", err))
 	}
 

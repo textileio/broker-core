@@ -38,12 +38,9 @@ func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 }
 
 // Create creates a new BrokerRequest.
-func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequest, error) {
 	req := &pb.CreateBrokerRequestRequest{
 		Cid: dataCid.String(),
-		Meta: &pb.BrokerRequest_Metadata{
-			Region: meta.Region,
-		},
 	}
 	res, err := c.c.CreateBrokerRequest(ctx, req)
 	if err != nil {
@@ -58,12 +55,9 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metada
 	return br, nil
 }
 
-func (c *Client) CreatePrepared(ctx context.Context, dataCid cid.Cid, meta broker.Metadata, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+func (c *Client) CreatePrepared(ctx context.Context, dataCid cid.Cid, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
 	req := &pb.CreatePreparedBrokerRequestRequest{
 		Cid: dataCid.String(),
-		Meta: &pb.BrokerRequest_Metadata{
-			Region: meta.Region,
-		},
 	}
 	req.PreparedCAR = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR{
 		PieceCid:  pc.PieceCid.String(),

@@ -43,12 +43,9 @@ func (m metadata) validate() error {
 
 func castToInternalBrokerRequest(br broker.BrokerRequest) brokerRequest {
 	return brokerRequest{
-		ID:      br.ID,
-		DataCid: br.DataCid,
-		Status:  br.Status,
-		Metadata: metadata{
-			Region: br.Metadata.Region,
-		},
+		ID:            br.ID,
+		DataCid:       br.DataCid,
+		Status:        br.Status,
 		StorageDealID: br.StorageDealID,
 		CreatedAt:     br.CreatedAt,
 		UpdatedAt:     br.UpdatedAt,
@@ -57,12 +54,9 @@ func castToInternalBrokerRequest(br broker.BrokerRequest) brokerRequest {
 
 func castToBrokerRequest(ibr brokerRequest) broker.BrokerRequest {
 	return broker.BrokerRequest{
-		ID:      ibr.ID,
-		DataCid: ibr.DataCid,
-		Status:  ibr.Status,
-		Metadata: broker.Metadata{
-			Region: ibr.Metadata.Region,
-		},
+		ID:            ibr.ID,
+		DataCid:       ibr.DataCid,
+		Status:        ibr.Status,
 		StorageDealID: ibr.StorageDealID,
 		CreatedAt:     ibr.CreatedAt,
 		UpdatedAt:     ibr.UpdatedAt,

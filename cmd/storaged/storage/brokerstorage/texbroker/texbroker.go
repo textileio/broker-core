@@ -32,20 +32,20 @@ func New(c *client.Client) (*TexBroker, error) {
 }
 
 // Create creates a new BrokerRequest.
-func (tb *TexBroker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (tb *TexBroker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, error) {
 	log.Debugf("creating broker request for cid %s", c)
 
-	br, err := tb.c.Create(ctx, c, meta)
+	br, err := tb.c.Create(ctx, c)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("calling create api: %s", err)
 	}
 	return br, nil
 }
 
-func (tb *TexBroker) CreatePrepared(ctx context.Context, c cid.Cid, meta broker.Metadata, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+func (tb *TexBroker) CreatePrepared(ctx context.Context, c cid.Cid, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
 	log.Debugf("creating prepared broker request for cid %s", c)
 
-	br, err := tb.c.CreatePrepared(ctx, c, meta, pc)
+	br, err := tb.c.CreatePrepared(ctx, c, pc)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("calling create prepared api: %s", err)
 	}

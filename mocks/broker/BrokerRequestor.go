@@ -16,20 +16,20 @@ type BrokerRequestor struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: ctx, c, meta
-func (_m *BrokerRequestor) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
-	ret := _m.Called(ctx, c, meta)
+// Create provides a mock function with given fields: ctx, dataCid
+func (_m *BrokerRequestor) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequest, error) {
+	ret := _m.Called(ctx, dataCid)
 
 	var r0 broker.BrokerRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.Metadata) broker.BrokerRequest); ok {
-		r0 = rf(ctx, c, meta)
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid) broker.BrokerRequest); ok {
+		r0 = rf(ctx, dataCid)
 	} else {
 		r0 = ret.Get(0).(broker.BrokerRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.Metadata) error); ok {
-		r1 = rf(ctx, c, meta)
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid) error); ok {
+		r1 = rf(ctx, dataCid)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -37,20 +37,20 @@ func (_m *BrokerRequestor) Create(ctx context.Context, c cid.Cid, meta broker.Me
 	return r0, r1
 }
 
-// CreatePrepared provides a mock function with given fields: ctx, c, meta, pc
-func (_m *BrokerRequestor) CreatePrepared(ctx context.Context, c cid.Cid, meta broker.Metadata, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
-	ret := _m.Called(ctx, c, meta, pc)
+// CreatePrepared provides a mock function with given fields: ctx, payloadCid, pc
+func (_m *BrokerRequestor) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+	ret := _m.Called(ctx, payloadCid, pc)
 
 	var r0 broker.BrokerRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.Metadata, broker.PreparedCAR) broker.BrokerRequest); ok {
-		r0 = rf(ctx, c, meta, pc)
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.PreparedCAR) broker.BrokerRequest); ok {
+		r0 = rf(ctx, payloadCid, pc)
 	} else {
 		r0 = ret.Get(0).(broker.BrokerRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.Metadata, broker.PreparedCAR) error); ok {
-		r1 = rf(ctx, c, meta, pc)
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.PreparedCAR) error); ok {
+		r1 = rf(ctx, payloadCid, pc)
 	} else {
 		r1 = ret.Error(1)
 	}

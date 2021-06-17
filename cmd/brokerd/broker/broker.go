@@ -107,7 +107,7 @@ var _ broker.Broker = (*Broker)(nil)
 
 // Create creates a new BrokerRequest with the provided Cid and
 // Metadata configuration.
-func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, error) {
 	if !c.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
 	}
@@ -117,7 +117,6 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 		ID:        broker.BrokerRequestID(uuid.New().String()),
 		DataCid:   c,
 		Status:    broker.RequestBatching,
-		Metadata:  meta,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -137,7 +136,7 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	return br, nil
 }
 
-func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, meta broker.Metadata, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
 	log.Debugf("creating prepared car broker request")
 	if !payloadCid.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
@@ -148,7 +147,6 @@ func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, meta br
 		ID:        broker.BrokerRequestID(uuid.New().String()),
 		DataCid:   payloadCid,
 		Status:    broker.RequestAuctioning,
-		Metadata:  meta,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

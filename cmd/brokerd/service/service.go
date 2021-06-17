@@ -165,11 +165,6 @@ func (s *Service) CreatePreparedBrokerRequest(
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
 
-	meta := broker.Metadata{}
-	if r.Meta != nil {
-		meta.Region = r.Meta.Region
-	}
-
 	var pc broker.PreparedCAR
 	// Validate PieceCid.
 	pc.PieceCid, err = cid.Decode(r.PreparedCAR.PieceCid)
@@ -231,7 +226,7 @@ func (s *Service) CreatePreparedBrokerRequest(
 		}
 	}
 
-	br, err := s.broker.CreatePrepared(ctx, c, meta, pc)
+	br, err := s.broker.CreatePrepared(ctx, c, pc)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
@@ -261,12 +256,7 @@ func (s *Service) CreateBrokerRequest(
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
 
-	meta := broker.Metadata{}
-	if r.Meta != nil {
-		meta.Region = r.Meta.Region
-	}
-
-	br, err := s.broker.Create(ctx, c, meta)
+	br, err := s.broker.Create(ctx, c)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
