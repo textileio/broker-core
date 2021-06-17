@@ -51,6 +51,8 @@ type Config struct {
 	DealDuration    uint64
 	DealReplication uint32
 	VerifiedDeals   bool
+
+	CARExportURL string
 }
 
 // Service provides an implementation of the broker API.
@@ -126,6 +128,7 @@ func New(config Config) (*Service, error) {
 		brokeri.WithDealDuration(config.DealDuration),
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
+		brokeri.WithCARExportURL(config.CARExportURL),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
