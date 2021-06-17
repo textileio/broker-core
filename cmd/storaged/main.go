@@ -27,6 +27,7 @@ func init() {
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "skip-auth", DefValue: false, Description: "Disabled authorization check"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
+		{Name: "bearer-tokens", DefValue: []string{}, Description: "Raw accepted bearer tokens"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -66,6 +67,7 @@ var rootCmd = &cobra.Command{
 			AuthAddr:              v.GetString("auth-addr"),
 			SkipAuth:              v.GetBool("skip-auth"),
 			IpfsMultiaddrs:        ipfsMultiaddrs,
+			BearerTokens:          common.ParseStringSlice(v, "berer-tokens"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

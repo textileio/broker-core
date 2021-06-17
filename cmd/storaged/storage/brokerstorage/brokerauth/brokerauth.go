@@ -13,17 +13,26 @@ import (
 
 // AuthService provides authentication resolution for the storage service.
 type AuthService struct {
-	client authd.AuthAPIServiceClient
+	client       authd.AuthAPIServiceClient
+	bearerTokens []string
 }
 
 // New returns a new BrokerAuth.
-func New(addr string) (*AuthService, error) {
+func New(addr string, bearerTokens []string) (*AuthService, error) {
 	conn, connErr := grpc.Dial(addr, grpc.WithInsecure())
 	if connErr != nil {
 		return nil, fmt.Errorf("creating authd client connection: %v", connErr)
 	}
 	client := authd.NewAuthAPIServiceClient(conn)
-	return &AuthService{client: client}, nil
+
+	tokens := make([]string, len(bearerTokens))
+	for i := range bearerTokens {
+		tokens[i] = "Bearer " + bearerTokens[i]
+	}
+	return &AuthService{
+		client:       client,
+		bearerTokens: bearerTokens,
+	}, nil
 }
 
 var _ auth.Authorizer = (*AuthService)(nil)
@@ -31,12 +40,18 @@ var _ auth.Authorizer = (*AuthService)(nil)
 // IsAuthorized returns the identity that is authorized to use the storage service, otherwise returning an error.
 // The token is a base64 URL encoded JWT.
 func (a *AuthService) IsAuthorized(ctx context.Context, token string) (bool, string, error) {
+	for _, staticToken := range a.bearerTokens {
+		if token == staticToken {
+			return true, "", nil
+		}
+	}
+
 	req := &authd.AuthRequest{Token: token}
-	res, err := a.client.Auth(ctx, req)
+	_, err := a.client.Auth(ctx, req)
 	if status.Code(err) == codes.Unauthenticated {
 		return false, err.Error(), nil
 	} else if err != nil {
 		return false, err.Error(), err
 	}
-	return true, res.Identity, nil
+	return true, "", nil
 }

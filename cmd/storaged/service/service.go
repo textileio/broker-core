@@ -29,6 +29,8 @@ type Config struct {
 	SkipAuth bool
 	// IpfsMultiaddrs provides a complete set of ipfs nodes APIs to make retrievals of pinned data.
 	IpfsMultiaddrs []multiaddr.Multiaddr
+	// BearerTokens contains a list of authentication tokens that are accepted for API calls.
+	BearerTokens []string
 }
 
 // Service provides an implementation of the Storage API.
@@ -61,7 +63,7 @@ func New(config Config) (*Service, error) {
 }
 
 func createStorage(config Config) (storage.Requester, error) {
-	auth, err := brokerauth.New(config.AuthAddr)
+	auth, err := brokerauth.New(config.AuthAddr, config.BearerTokens)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker auth: %s", err)
 	}

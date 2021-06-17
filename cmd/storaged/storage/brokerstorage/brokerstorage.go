@@ -71,7 +71,7 @@ func New(
 }
 
 // IsAuthorized resolves if the provided identity is authorized to use the
-// service. If that isn't the case, a string is also return to exply why.
+// service. If it isn't authorized, the second return parameter explains the cause.
 func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {
 	return bs.auth.IsAuthorized(ctx, identity)
 }
