@@ -2,12 +2,31 @@ syntax = "proto3";
 package broker.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
-import "google/protobuf/timestamp.proto";
 import "broker/auctioneer/v1/auctioneer.proto";
+import "google/protobuf/timestamp.proto";
 
 message CreateBrokerRequestRequest {
   string cid = 1;
   BrokerRequest.Metadata meta = 2;
+  PreparedCAR preparedCAR = 3;
+
+  message PreparedCAR {
+    string piece_cid = 1;
+    int64 piece_size = 2;
+    int64 rep_factor = 3;
+    google.protobuf.Timestamp deadline = 4;
+    CARURL car_url = 5;
+    CARIPFS car_ipfs = 6;
+
+    message CARURL {
+      string url = 1;
+    }
+
+    message CARIPFS {
+      string cid = 1;
+      repeated string nodes_multiaddr = 2;
+    }
+  }
 }
 
 message CreateBrokerRequestResponse {
