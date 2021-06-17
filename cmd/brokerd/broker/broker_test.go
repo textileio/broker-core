@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -165,7 +166,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, brgCid, auctioneer.calledDataCid)
+	require.Equal(t, createCidUri(brgCid), auctioneer.calledDataUri)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
@@ -379,7 +380,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, brgCid, auctioneer.calledDataCid)
+	require.Equal(t, createCidUri(brgCid), auctioneer.calledDataUri)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, 1, auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
@@ -629,7 +630,7 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 
 type dumbAuctioneer struct {
 	calledStorageDealID   broker.StorageDealID
-	calledDataCid         cid.Cid
+	calledDataUri         string
 	calledPieceSize       int
 	calledDealDuration    int
 	calledDealReplication int
@@ -641,13 +642,13 @@ type dumbAuctioneer struct {
 func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
 	id broker.StorageDealID,
-	dataCid cid.Cid,
+	dataUri string,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
-	dp.calledDataCid = dataCid
+	dp.calledDataUri = dataUri
 	dp.calledPieceSize = dealSize
 	dp.calledDealDuration = dealDuration
 	dp.calledDealReplication = dealReplication
@@ -678,7 +679,11 @@ func (dd *dumbDealer) ReadyToCreateDeals(ctx context.Context, ads dealer.Auction
 
 func createCidFromString(s string) cid.Cid {
 	mh, _ := multihash.Encode([]byte(s), multihash.SHA2_256)
-	return cid.NewCidV1(cid.Raw, multihash.Multihash(mh))
+	return cid.NewCidV1(cid.Raw, mh)
+}
+
+func createCidUri(c cid.Cid) string {
+	return fmt.Sprintf("https://todo.net/cid/%s", c)
 }
 
 type dumbChainAPI struct {
