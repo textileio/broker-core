@@ -64,18 +64,18 @@ func (c *Client) CreatePrepared(ctx context.Context, dataCid cid.Cid, pc broker.
 		RepFactor: int64(pc.RepFactor),
 		Deadline:  timestamppb.New(pc.Deadline),
 	}
-	if pc.CARURL != nil {
+	if pc.Sources.CARURL != nil {
 		req.PreparedCAR.CarUrl = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL{
-			Url: pc.CARURL.URL.String(),
+			Url: pc.Sources.CARURL.URL.String(),
 		}
 	}
-	if pc.CARIPFS != nil {
+	if pc.Sources.CARIPFS != nil {
 		req.PreparedCAR.CarIpfs = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS{
-			Cid:            pc.CARIPFS.Cid.String(),
-			NodesMultiaddr: make([]string, len(pc.CARIPFS.NodesMultiaddr)),
+			Cid:        pc.Sources.CARIPFS.Cid.String(),
+			Multiaddrs: make([]string, len(pc.Sources.CARIPFS.Multiaddrs)),
 		}
-		for i, ma := range pc.CARIPFS.NodesMultiaddr {
-			req.PreparedCAR.CarIpfs.NodesMultiaddr[i] = ma.String()
+		for i, ma := range pc.Sources.CARIPFS.Multiaddrs {
+			req.PreparedCAR.CarIpfs.Multiaddrs[i] = ma.String()
 		}
 	}
 

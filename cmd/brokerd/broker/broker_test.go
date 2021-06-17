@@ -635,6 +635,7 @@ type dumbAuctioneer struct {
 	calledDealVerified    bool
 	calledExcludedMiners  []string
 	calledCount           int
+	calledSources         broker.Sources
 }
 
 func (dp *dumbAuctioneer) ReadyToAuction(
@@ -644,6 +645,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
+	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
 	dp.calledDataURI = dataURI
@@ -653,6 +655,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dp.calledDealVerified = dealVerified
 	dp.calledExcludedMiners = excludedMiners
 	dp.calledCount++
+	dp.calledSources = sources
 	return broker.AuctionID("AUCTION1"), nil
 }
 

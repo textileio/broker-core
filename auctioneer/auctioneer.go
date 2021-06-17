@@ -20,6 +20,7 @@ type Auctioneer interface {
 		dealReplication int,
 		dealVerified bool,
 		excludedMiners []string,
+		sources broker.Sources,
 	) (broker.AuctionID, error)
 
 	// GetAuction returns an auction by broker.AuctionID.

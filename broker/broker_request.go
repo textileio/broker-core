@@ -31,8 +31,7 @@ type PreparedCAR struct {
 	PieceSize uint64
 	RepFactor int
 	Deadline  time.Time
-	CARURL    *CARURL
-	CARIPFS   *CARIPFS
+	Sources   Sources
 }
 
 // CARURL contains details of a CAR file stored in an HTTP endpoint.
@@ -42,8 +41,8 @@ type CARURL struct {
 
 // CARIPFS contains details of a CAR file Cid stored in an HTTP endpoint.
 type CARIPFS struct {
-	Cid            cid.Cid
-	NodesMultiaddr []multiaddr.Multiaddr
+	Cid        cid.Cid
+	Multiaddrs []multiaddr.Multiaddr
 }
 
 // BrokerRequestStatus describe the current status of a

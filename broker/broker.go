@@ -49,6 +49,7 @@ type StorageDeal struct {
 	BrokerRequestIDs []BrokerRequestID
 	RepFactor        int
 	DealDuration     int
+	Sources          Sources
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Error            string
@@ -62,6 +63,11 @@ type StorageDeal struct {
 
 	// Dealer populates this field
 	Deals []MinerDeal
+}
+
+type Sources struct {
+	CARURL  *CARURL
+	CARIPFS *CARIPFS
 }
 
 // StorageDealID is the type of a StorageDeal identifier.

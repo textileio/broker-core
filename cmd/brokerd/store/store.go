@@ -110,6 +110,20 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 	}
 
 	// 3- Persist the StorageDeal.
+	dsources := sources{}
+	if sd.Sources.CARURL != nil {
+		url := sd.Sources.CARURL.URL.String()
+		dsources.CARURL = &url
+	}
+	if sd.Sources.CARIPFS != nil {
+		dsources.CARIPFS = &carIPFS{
+			Cid:        sd.Sources.CARIPFS.Cid.String(),
+			Multiaddrs: make([]string, len(sd.Sources.CARIPFS.Multiaddrs)),
+		}
+		for _, maddr := range sd.Sources.CARIPFS.Multiaddrs {
+			dsources.CARIPFS.Multiaddrs = append(dsources.CARIPFS.Multiaddrs, maddr.String())
+		}
+	}
 	isd := storageDeal{
 		ID:               sd.ID,
 		Status:           sd.Status,
@@ -117,6 +131,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 		RepFactor:        sd.RepFactor,
 		DealDuration:     sd.DealDuration,
 		PayloadCid:       sd.PayloadCid,
+		Sources:          dsources,
 		CreatedAt:        sd.CreatedAt,
 		UpdatedAt:        sd.UpdatedAt,
 	}
@@ -447,7 +462,7 @@ func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (br
 		return broker.StorageDeal{}, fmt.Errorf("get storage-deal from datastore: %s", err)
 	}
 
-	return castToStorageDeal(isd), nil
+	return castToStorageDeal(isd)
 }
 
 // SaveFinalizedDeal saves a new finalized (succeeded or errored) auction deal

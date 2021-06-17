@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -78,6 +79,9 @@ func New(
 		if err := op(&conf); err != nil {
 			return nil, fmt.Errorf("applying config: %s", err)
 		}
+	}
+	if err := conf.validate(); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %s", err)
 	}
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -161,6 +165,7 @@ func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc brok
 		DealDuration:     int(b.conf.dealDuration),
 		Status:           broker.StorageDealPreparing,
 		BrokerRequestIDs: []broker.BrokerRequestID{br.ID},
+		Sources:          pc.Sources,
 
 		// We fill what packer+piecer usually do.
 		PayloadCid: payloadCid,
@@ -185,6 +190,7 @@ func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc brok
 		sd.RepFactor,
 		b.conf.verifiedDeals,
 		nil,
+		sd.Sources,
 	)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("signaling auctioneer to create auction: %s", err)
@@ -227,6 +233,10 @@ func (b *Broker) CreateStorageDeal(
 		}
 	}
 
+	cidURL, err := url.Parse(batchCid.String())
+	if err != nil {
+		return "", fmt.Errorf("creating cid url fragment: %s", err)
+	}
 	now := time.Now()
 	sd := broker.StorageDeal{
 		PayloadCid:       batchCid,
@@ -236,6 +246,11 @@ func (b *Broker) CreateStorageDeal(
 		BrokerRequestIDs: brids,
 		CreatedAt:        now,
 		UpdatedAt:        now,
+		Sources: broker.Sources{
+			CARURL: &broker.CARURL{
+				URL: *b.conf.carExportURL.ResolveReference(cidURL),
+			},
+		},
 	}
 
 	// Transactionally we:
@@ -286,6 +301,7 @@ func (b *Broker) StorageDealPrepared(
 		sd.RepFactor,
 		b.conf.verifiedDeals,
 		nil,
+		sd.Sources,
 	)
 	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
@@ -433,6 +449,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 			deltaRepFactor,
 			b.conf.verifiedDeals,
 			excludedMiners,
+			sd.Sources,
 		)
 		if err != nil {
 			return fmt.Errorf("creating new auction for missing bids %d: %s", deltaRepFactor, err)
@@ -473,6 +490,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 			1,
 			b.conf.verifiedDeals,
 			excludedMiners,
+			sd.Sources,
 		)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)

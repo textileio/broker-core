@@ -3,9 +3,11 @@ package store
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -69,6 +71,7 @@ type storageDeal struct {
 	BrokerRequestIDs []broker.BrokerRequestID
 	RepFactor        int
 	DealDuration     int
+	Sources          sources
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Error            string
@@ -79,6 +82,16 @@ type storageDeal struct {
 	PieceSize uint64
 
 	Deals []minerDeal
+}
+
+type sources struct {
+	CARURL  *string
+	CARIPFS *carIPFS
+}
+
+type carIPFS struct {
+	Cid        string
+	Multiaddrs []string
 }
 
 type minerDeal struct {
@@ -94,7 +107,7 @@ type minerDeal struct {
 	ErrorCause     string
 }
 
-func castToStorageDeal(isd storageDeal) broker.StorageDeal {
+func castToStorageDeal(isd storageDeal) (broker.StorageDeal, error) {
 	bd := broker.StorageDeal{
 		ID:               isd.ID,
 		Status:           isd.Status,
@@ -129,5 +142,31 @@ func castToStorageDeal(isd storageDeal) broker.StorageDeal {
 		}
 	}
 
-	return bd
+	if isd.Sources.CARURL != nil {
+		u, err := url.Parse(*isd.Sources.CARURL)
+		if err != nil {
+			return broker.StorageDeal{}, fmt.Errorf("parsing url: %s", err)
+		}
+		bd.Sources.CARURL = &broker.CARURL{URL: *u}
+	}
+	if isd.Sources.CARIPFS != nil {
+		carCID, err := cid.Parse(isd.Sources.CARIPFS.Cid)
+		if err != nil {
+			return broker.StorageDeal{}, fmt.Errorf("parsing cid: %s", err)
+		}
+		multiaddrs := make([]multiaddr.Multiaddr, len(isd.Sources.CARIPFS.Multiaddrs))
+		for i, strmaddr := range isd.Sources.CARIPFS.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(strmaddr)
+			if err != nil {
+				return broker.StorageDeal{}, fmt.Errorf("parsing multiaddr: %s", err)
+			}
+			multiaddrs[i] = maddr
+		}
+		bd.Sources.CARIPFS = &broker.CARIPFS{
+			Cid:        carCID,
+			Multiaddrs: multiaddrs,
+		}
+	}
+
+	return bd, nil
 }

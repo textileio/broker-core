@@ -67,6 +67,6 @@ type CARURL struct {
 
 // CARIPFS contains details of a CAR file Cid stored in an HTTP endpoint.
 type CARIPFS struct {
-	Cid            string   `json:"cid"`
-	NodesMultiaddr []string `json:"nodesMultiaddr"`
+	Cid        string   `json:"cid"`
+	Multiaddrs []string `json:"multiaddrs"`
 }

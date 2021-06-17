@@ -31,7 +31,7 @@ message CreatePreparedBrokerRequestRequest {
 
     message CARIPFS {
       string cid = 1;
-      repeated string nodes_multiaddr = 2;
+      repeated string multiaddrs = 2;
     }
   }
 }

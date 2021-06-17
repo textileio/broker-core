@@ -202,7 +202,7 @@ func (s *Service) CreatePreparedBrokerRequest(
 			return nil, status.Error(codes.InvalidArgument, "CAR URL scheme should be http(s)")
 		}
 
-		pc.CARURL = &broker.CARURL{
+		pc.Sources.CARURL = &broker.CARURL{
 			URL: *url,
 		}
 	}
@@ -212,18 +212,22 @@ func (s *Service) CreatePreparedBrokerRequest(
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "car cid isn't valid: %s", err)
 		}
-		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCAR.CarIpfs.NodesMultiaddr))
-		for i, smaddr := range r.PreparedCAR.CarIpfs.NodesMultiaddr {
+		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCAR.CarIpfs.Multiaddrs))
+		for i, smaddr := range r.PreparedCAR.CarIpfs.Multiaddrs {
 			maddr, err := multiaddr.NewMultiaddr(smaddr)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "invalid multiaddr %s: %s", smaddr, err)
 			}
 			maddrs[i] = maddr
 		}
-		pc.CARIPFS = &broker.CARIPFS{
-			Cid:            carCid,
-			NodesMultiaddr: maddrs,
+		pc.Sources.CARIPFS = &broker.CARIPFS{
+			Cid:        carCid,
+			Multiaddrs: maddrs,
 		}
+	}
+
+	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
+		return nil, status.Error(codes.InvalidArgument, "at least one download source must be specified")
 	}
 
 	br, err := s.broker.CreatePrepared(ctx, c, pc)

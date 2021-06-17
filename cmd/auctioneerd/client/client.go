@@ -34,6 +34,7 @@ func (c *Client) ReadyToAuction(
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
+	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
 		StorageDealId:   string(storageDealID),
@@ -43,6 +44,7 @@ func (c *Client) ReadyToAuction(
 		DealReplication: uint32(dealReplication),
 		DealVerified:    dealVerified,
 		ExcludedMiners:  excludedMiners,
+		// Sources: sources, // TODO(sander/merlin): pending wiring.
 	})
 	if err != nil {
 		return "", fmt.Errorf("calling ready to auction api: %s", err)

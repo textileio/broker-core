@@ -52,6 +52,7 @@ func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID broker.AuctionI
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // ReadyToAuction provides a mock function with given fields: ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners
 func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dataUri string, dealSize int, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string) (broker.AuctionID, error) {
 	ret := _m.Called(ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
@@ -68,11 +69,21 @@ func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealI
 	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, cid.Cid, uint64, int, int, bool, []string) broker.AuctionID); ok {
 		r0 = rf(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
 >>>>>>> e6d44c5... mocks: update mocks
+=======
+// ReadyToAuction provides a mock function with given fields: ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, sources
+func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dataCid cid.Cid, dealSize uint64, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string, sources broker.Sources) (broker.AuctionID, error) {
+	ret := _m.Called(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, sources)
+
+	var r0 broker.AuctionID
+	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, cid.Cid, uint64, int, int, bool, []string, broker.Sources) broker.AuctionID); ok {
+		r0 = rf(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, sources)
+>>>>>>> cbc24aa... broker: wire download sources to the auctioneer and storage, and simplify names
 	} else {
 		r0 = ret.Get(0).(broker.AuctionID)
 	}
 
 	var r1 error
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageDealID, string, int, int, int, bool, []string) error); ok {
@@ -84,6 +95,10 @@ func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealI
 >>>>>>> ee8fd85... brokerd: split prepared API
 		r1 = rf(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
 >>>>>>> e6d44c5... mocks: update mocks
+=======
+	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageDealID, cid.Cid, uint64, int, int, bool, []string, broker.Sources) error); ok {
+		r1 = rf(ctx, id, dataCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, sources)
+>>>>>>> cbc24aa... broker: wire download sources to the auctioneer and storage, and simplify names
 	} else {
 		r1 = ret.Error(1)
 	}

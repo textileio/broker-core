@@ -153,7 +153,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 			return storage.Request{}, fmt.Errorf("CAR URL scheme should be http(s)")
 		}
 
-		pc.CARURL = &broker.CARURL{
+		pc.Sources.CARURL = &broker.CARURL{
 			URL: *url,
 		}
 	}
@@ -163,18 +163,22 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 		if err != nil {
 			return storage.Request{}, fmt.Errorf("car cid isn't valid: %s", err)
 		}
-		maddrs := make([]multiaddr.Multiaddr, len(adr.CARIPFS.NodesMultiaddr))
-		for i, smaddr := range adr.CARIPFS.NodesMultiaddr {
+		maddrs := make([]multiaddr.Multiaddr, len(adr.CARIPFS.Multiaddrs))
+		for i, smaddr := range adr.CARIPFS.Multiaddrs {
 			maddr, err := multiaddr.NewMultiaddr(smaddr)
 			if err != nil {
 				return storage.Request{}, fmt.Errorf("invalid multiaddr %s: %s", smaddr, err)
 			}
 			maddrs[i] = maddr
 		}
-		pc.CARIPFS = &broker.CARIPFS{
-			Cid:            carCid,
-			NodesMultiaddr: maddrs,
+		pc.Sources.CARIPFS = &broker.CARIPFS{
+			Cid:        carCid,
+			Multiaddrs: maddrs,
 		}
+	}
+
+	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
+		return storage.Request{}, fmt.Errorf("at least one source must be specified: %s", err)
 	}
 
 	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc)

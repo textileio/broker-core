@@ -2,6 +2,8 @@ package broker
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/textileio/broker-core/broker"
@@ -25,6 +27,8 @@ type config struct {
 	unpinnerFrequency       time.Duration
 	unpinnerRetryDelay      time.Duration
 	exportPinCountFrequency time.Duration
+
+	carExportURL *url.URL
 }
 
 // Option provides configuration for Broker.
@@ -91,4 +95,23 @@ func WithExportPinCountFrequency(freq time.Duration) Option {
 		c.exportPinCountFrequency = freq
 		return nil
 	}
+}
+
+// WithCAR configures the frequency of exporting the pin count metric.
+func WithCARExportURL(rawURL string) Option {
+	return func(c *config) error {
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return fmt.Errorf("parsing url: %s", err)
+		}
+		c.carExportURL = u
+		return nil
+	}
+}
+
+func (c config) validate() error {
+	if c.carExportURL == nil {
+		return fmt.Errorf("the CAR exporting URL can't be empty")
+	}
+	return nil
 }
