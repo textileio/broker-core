@@ -274,8 +274,13 @@ func (s *Service) ID() peer.ID {
 }
 
 // ListBids lists bids by applying a store.Query.
-func (s *Service) ListBids(query bidstore.Query) ([]bidstore.Bid, error) {
+func (s *Service) ListBids(query bidstore.Query) ([]*bidstore.Bid, error) {
 	return s.store.ListBids(query)
+}
+
+// GetBid gets the bid with specific ID.
+func (s *Service) GetBid(id broker.BidID) (*bidstore.Bid, error) {
+	return s.store.GetBid(id)
 }
 
 // WriteCar writes a car file to the configured deal data directory.

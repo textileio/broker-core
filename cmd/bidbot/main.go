@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,6 +22,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -43,14 +46,20 @@ func init() {
 	_ = godotenv.Load(filepath.Join(configPath, ".env"))
 
 	rootCmd.AddCommand(initCmd, daemonCmd, dealsCmd)
+	dealsCmd.AddCommand(dealsListCmd)
+	dealsCmd.AddCommand(dealsShowCmd)
 	dealsCmd.AddCommand(downloadCmd)
+	dealsListCmd.Flags().String("status", "", "filter by status")
+	v.BindPFlag("status", dealsListCmd.Flags().Lookup("status"))
 
-	flags := []common.Flag{
+	commonFlags := []common.Flag{
 		{
 			Name:        "http-addr",
 			DefValue:    ":8888",
 			Description: "HTTP API listen address",
 		},
+	}
+	daemonFlags := []common.Flag{
 		{
 			Name:        "miner-addr",
 			DefValue:    "",
@@ -111,7 +120,7 @@ func init() {
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level log"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
-	flags = append(flags, marketpeer.Flags...)
+	daemonFlags = append(daemonFlags, marketpeer.Flags...)
 
 	cobra.OnInitialize(func() {
 		v.SetConfigType("json")
@@ -121,7 +130,9 @@ func init() {
 		_ = v.ReadInConfig()
 	})
 
-	common.ConfigureCLI(v, "BIDBOT", flags, rootCmd.PersistentFlags())
+	common.ConfigureCLI(v, "BIDBOT", commonFlags, rootCmd.PersistentFlags())
+	common.ConfigureCLI(v, "BIDBOT", marketpeer.Flags, initCmd.PersistentFlags())
+	common.ConfigureCLI(v, "BIDBOT", daemonFlags, daemonCmd.PersistentFlags())
 }
 
 var rootCmd = &cobra.Command{
@@ -290,6 +301,53 @@ var dealsCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 }
 
+func urlFor(parts ...string) string {
+	return "http://127.0.0.1" + v.GetString("http-addr") + "/" + path.Join(parts...)
+}
+
+var dealsListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List deals optinally filtered by status",
+	Long:  ``,
+	Args:  cobra.ExactArgs(0),
+	Run: func(c *cobra.Command, args []string) {
+		var query string
+		if status := v.GetString("status"); status != "" {
+			query = fmt.Sprintf("?status=%s", url.QueryEscape(status))
+		}
+		printDeals(urlFor("deals") + query)
+	},
+}
+
+var dealsShowCmd = &cobra.Command{
+	Use:   "show",
+	Short: "Show information of one deals",
+	Long:  ``,
+	Args:  cobra.ExactArgs(1),
+	Run: func(c *cobra.Command, args []string) {
+		printDeals(urlFor("deals", args[0]))
+	},
+}
+
+func printDeals(u string) {
+	res, err := http.Get(u)
+	common.CheckErr(err)
+	var bids []store.Bid
+	defer func() {
+		err := res.Body.Close()
+		common.CheckErr(err)
+	}()
+	if res.StatusCode != http.StatusOK {
+		log.Fatalf("Unexpected HTTP status %s", res.Status)
+	}
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(&bids)
+	common.CheckErr(err)
+	for _, bid := range bids {
+		fmt.Printf("%v\n", bid)
+	}
+}
+
 var downloadCmd = &cobra.Command{
 	Use:   "download",
 	Short: "Download and write to disk storage deal data",
@@ -299,9 +357,7 @@ Deal data is written to BIDBOT_DEAL_DATA_DIRECTORY in CAR format.
 `,
 	Args: cobra.ExactArgs(1),
 	Run: func(c *cobra.Command, args []string) {
-		host := "http://127.0.0.1" + v.GetString("http-addr") + "/"
-		pth := path.Join("cid", args[0])
-		res, err := http.Get(host + pth)
+		res, err := http.Get(urlFor("cid", args[0]))
 		common.CheckErr(err)
 		defer func() {
 			err := res.Body.Close()

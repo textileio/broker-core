@@ -103,24 +103,40 @@ const (
 	BidStatusFinalized
 )
 
+var bidStatusStrings map[BidStatus]string = map[BidStatus]string{
+	BidStatusUnspecified:      "unspecified",
+	BidStatusSubmitted:        "submitted",
+	BidStatusAwaitingProposal: "awaiting_proposal",
+	BidStatusQueuedData:       "queued_data",
+	BidStatusFetchingData:     "fetching_data",
+	BidStatusFinalized:        "finalized",
+}
+
+var bidStatusByString map[string]BidStatus
+
+func init() {
+	bidStatusByString = make(map[string]BidStatus)
+	for b, s := range bidStatusStrings {
+		bidStatusByString[s] = b
+	}
+}
+
 // String returns a string-encoded status.
 func (as BidStatus) String() string {
-	switch as {
-	case BidStatusUnspecified:
-		return "unspecified"
-	case BidStatusSubmitted:
-		return "submitted"
-	case BidStatusAwaitingProposal:
-		return "awaiting_proposal"
-	case BidStatusQueuedData:
-		return "queued_data"
-	case BidStatusFetchingData:
-		return "fetching_data"
-	case BidStatusFinalized:
-		return "finalized"
-	default:
+	if s, exists := bidStatusStrings[as]; exists {
+		return s
+	} else {
 		return "invalid"
 	}
+}
+
+// BidStatusByString finds a status by its string representation, or errors if
+// the status does not exist.
+func BidStatusByString(s string) (BidStatus, error) {
+	if bs, exists := bidStatusByString[s]; exists {
+		return bs, nil
+	}
+	return -1, errors.New("invalid bid status")
 }
 
 // Store stores miner auction deal bids.
@@ -276,7 +292,7 @@ func getBid(reader ds.Read, id broker.BidID) (*Bid, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decoding value: %v", err)
 	}
-	return &r, nil
+	return r, nil
 }
 
 // SetAwaitingProposalCid updates bid status to BidStatusAwaitingProposal.
@@ -366,7 +382,7 @@ const (
 )
 
 // ListBids lists bids by applying a Query.
-func (s *Store) ListBids(query Query) ([]Bid, error) {
+func (s *Store) ListBids(query Query) ([]*Bid, error) {
 	query = query.setDefaults()
 
 	var (
@@ -409,7 +425,7 @@ func (s *Store) ListBids(query Query) ([]Bid, error) {
 		}
 	}()
 
-	var list []Bid
+	var list []*Bid
 	for res := range results.Next() {
 		if res.Error != nil {
 			return nil, fmt.Errorf("getting next result: %v", res.Error)
@@ -728,7 +744,7 @@ func encode(v interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func decode(v []byte) (b Bid, err error) {
+func decode(v []byte) (b *Bid, err error) {
 	dec := gob.NewDecoder(bytes.NewReader(v))
 	if err := dec.Decode(&b); err != nil {
 		return b, err
