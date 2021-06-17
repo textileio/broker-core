@@ -11,7 +11,6 @@ import (
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/brokerauth"
-	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/texbroker"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader/ipfsuploader"
 	"github.com/textileio/broker-core/rpc"
 )
@@ -73,17 +72,12 @@ func createStorage(config Config) (storage.Requester, error) {
 		return nil, fmt.Errorf("creating broker uploader: %s", err)
 	}
 
-	brokerdClient, err := client.New(config.BrokerAPIAddr, rpc.GetClientOpts(config.BrokerAPIAddr)...)
+	client, err := client.New(config.BrokerAPIAddr, rpc.GetClientOpts(config.BrokerAPIAddr)...)
 	if err != nil {
 		return nil, fmt.Errorf("creating brokerd gRPC client: %s", err)
 	}
 
-	brok, err := texbroker.New(brokerdClient)
-	if err != nil {
-		return nil, fmt.Errorf("creating broker service: %s", err)
-	}
-
-	bs, err := brokerstorage.New(auth, up, brok, config.IpfsMultiaddrs)
+	bs, err := brokerstorage.New(auth, up, client, config.IpfsMultiaddrs)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker storage: %s", err)
 	}

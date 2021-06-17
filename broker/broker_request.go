@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"context"
 	"net/url"
 	"time"
 
@@ -13,17 +12,6 @@ const (
 	CodecFilCommitmentUnsealed = 0xf101
 	MaxPieceSize               = 32 << 30
 )
-
-// TODO(jsign): rename and reorganize?
-// BrokerRequestor allows to create and query BrokerRequests.
-type BrokerRequestor interface {
-	// Create creates a new BrokerRequest for a cid.
-	Create(ctx context.Context, dataCid cid.Cid) (BrokerRequest, error)
-	// CreatePrepared creates a new BrokerRequest for prepared data.
-	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (BrokerRequest, error)
-	// Get returns a broker request from an id.
-	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
-}
 
 // BrokerRequestID is the type used for broker request identity.
 type BrokerRequestID string

@@ -32,7 +32,7 @@ var (
 type BrokerStorage struct {
 	auth     auth.Authorizer
 	up       uploader.Uploader
-	broker   broker.BrokerRequestor
+	broker   broker.Broker
 	ipfsApis []ipfsAPI
 }
 
@@ -47,7 +47,7 @@ var _ storage.Requester = (*BrokerStorage)(nil)
 func New(
 	auth auth.Authorizer,
 	up uploader.Uploader,
-	broker broker.BrokerRequestor,
+	broker broker.Broker,
 	ipfsEndpoints []multiaddr.Multiaddr,
 ) (*BrokerStorage, error) {
 	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))

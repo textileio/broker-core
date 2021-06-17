@@ -14,7 +14,14 @@ const (
 
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
-	BrokerRequestor
+	// Create creates a new BrokerRequest for a cid.
+	Create(ctx context.Context, dataCid cid.Cid) (BrokerRequest, error)
+
+	// CreatePrepared creates a new BrokerRequest for prepared data.
+	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (BrokerRequest, error)
+
+	// Get returns a broker request from an id.
+	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
 
 	// CreateStorageDeal creates a new StorageDeal. It is called
 	// by the Packer after batching a set of BrokerRequest properly.
