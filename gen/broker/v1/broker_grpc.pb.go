@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type APIServiceClient interface {
 	CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error)
+	CreatePreparedBrokerRequest(ctx context.Context, in *CreatePreparedBrokerRequestRequest, opts ...grpc.CallOption) (*CreatePreparedBrokerRequestResponse, error)
 	GetBrokerRequest(ctx context.Context, in *GetBrokerRequestRequest, opts ...grpc.CallOption) (*GetBrokerRequestResponse, error)
 	CreateStorageDeal(ctx context.Context, in *CreateStorageDealRequest, opts ...grpc.CallOption) (*CreateStorageDealResponse, error)
 	StorageDealAuctioned(ctx context.Context, in *StorageDealAuctionedRequest, opts ...grpc.CallOption) (*StorageDealAuctionedResponse, error)
@@ -38,6 +39,15 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 func (c *aPIServiceClient) CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error) {
 	out := new(CreateBrokerRequestResponse)
 	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateBrokerRequest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIServiceClient) CreatePreparedBrokerRequest(ctx context.Context, in *CreatePreparedBrokerRequestRequest, opts ...grpc.CallOption) (*CreatePreparedBrokerRequestResponse, error) {
+	out := new(CreatePreparedBrokerRequestResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreatePreparedBrokerRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +113,7 @@ func (c *aPIServiceClient) StorageDealPrepared(ctx context.Context, in *StorageD
 // for forward compatibility
 type APIServiceServer interface {
 	CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error)
+	CreatePreparedBrokerRequest(context.Context, *CreatePreparedBrokerRequestRequest) (*CreatePreparedBrokerRequestResponse, error)
 	GetBrokerRequest(context.Context, *GetBrokerRequestRequest) (*GetBrokerRequestResponse, error)
 	CreateStorageDeal(context.Context, *CreateStorageDealRequest) (*CreateStorageDealResponse, error)
 	StorageDealAuctioned(context.Context, *StorageDealAuctionedRequest) (*StorageDealAuctionedResponse, error)
@@ -118,6 +129,9 @@ type UnimplementedAPIServiceServer struct {
 
 func (UnimplementedAPIServiceServer) CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBrokerRequest not implemented")
+}
+func (UnimplementedAPIServiceServer) CreatePreparedBrokerRequest(context.Context, *CreatePreparedBrokerRequestRequest) (*CreatePreparedBrokerRequestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePreparedBrokerRequest not implemented")
 }
 func (UnimplementedAPIServiceServer) GetBrokerRequest(context.Context, *GetBrokerRequestRequest) (*GetBrokerRequestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBrokerRequest not implemented")
@@ -164,6 +178,24 @@ func _APIService_CreateBrokerRequest_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServiceServer).CreateBrokerRequest(ctx, req.(*CreateBrokerRequestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _APIService_CreatePreparedBrokerRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreatePreparedBrokerRequestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServiceServer).CreatePreparedBrokerRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/broker.v1.APIService/CreatePreparedBrokerRequest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServiceServer).CreatePreparedBrokerRequest(ctx, req.(*CreatePreparedBrokerRequestRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -286,6 +318,10 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateBrokerRequest",
 			Handler:    _APIService_CreateBrokerRequest_Handler,
+		},
+		{
+			MethodName: "CreatePreparedBrokerRequest",
+			Handler:    _APIService_CreatePreparedBrokerRequest_Handler,
 		},
 		{
 			MethodName: "GetBrokerRequest",

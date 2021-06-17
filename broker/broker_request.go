@@ -17,9 +17,10 @@ const (
 // TODO(jsign): rename and reorganize?
 // BrokerRequestor allows to create and query BrokerRequests.
 type BrokerRequestor interface {
-	// Create creates a new BrokerRequest for data `c` and
-	// configuration `meta`.
-	Create(ctx context.Context, c cid.Cid, meta Metadata, pc *PreparedCAR) (BrokerRequest, error)
+	// Create creates a new BrokerRequest for data `c` and configuration `meta`.
+	Create(ctx context.Context, c cid.Cid, meta Metadata) (BrokerRequest, error)
+	// CreatePrepared creates a new BrokerRequest with prepared data.
+	CreatePrepared(ctx context.Context, c cid.Cid, meta Metadata, pc PreparedCAR) (BrokerRequest, error)
 	// Get returns a broker request from an id.
 	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
 }
@@ -46,7 +47,7 @@ type Metadata struct {
 
 type PreparedCAR struct {
 	PieceCid  cid.Cid
-	PieceSize int64
+	PieceSize uint64
 	RepFactor int
 	Deadline  time.Time
 	CARURL    *CARURL

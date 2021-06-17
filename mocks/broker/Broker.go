@@ -16,19 +16,40 @@ type Broker struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: ctx, c, meta, pc
-func (_m *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata, pc *broker.PreparedCAR) (broker.BrokerRequest, error) {
+// Create provides a mock function with given fields: ctx, c, meta
+func (_m *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+	ret := _m.Called(ctx, c, meta)
+
+	var r0 broker.BrokerRequest
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.Metadata) broker.BrokerRequest); ok {
+		r0 = rf(ctx, c, meta)
+	} else {
+		r0 = ret.Get(0).(broker.BrokerRequest)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.Metadata) error); ok {
+		r1 = rf(ctx, c, meta)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CreatePrepared provides a mock function with given fields: ctx, c, meta, pc
+func (_m *Broker) CreatePrepared(ctx context.Context, c cid.Cid, meta broker.Metadata, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
 	ret := _m.Called(ctx, c, meta, pc)
 
 	var r0 broker.BrokerRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.Metadata, *broker.PreparedCAR) broker.BrokerRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.Metadata, broker.PreparedCAR) broker.BrokerRequest); ok {
 		r0 = rf(ctx, c, meta, pc)
 	} else {
 		r0 = ret.Get(0).(broker.BrokerRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.Metadata, *broker.PreparedCAR) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.Metadata, broker.PreparedCAR) error); ok {
 		r1 = rf(ctx, c, meta, pc)
 	} else {
 		r1 = ret.Error(1)

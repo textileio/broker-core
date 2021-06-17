@@ -8,11 +8,20 @@ import "google/protobuf/timestamp.proto";
 message CreateBrokerRequestRequest {
   string cid = 1;
   BrokerRequest.Metadata meta = 2;
+}
+
+message CreateBrokerRequestResponse {
+  BrokerRequest request = 1;
+}
+
+message CreatePreparedBrokerRequestRequest {
+  string cid = 1;
+  BrokerRequest.Metadata meta = 2;
   PreparedCAR preparedCAR = 3;
 
   message PreparedCAR {
     string piece_cid = 1;
-    int64 piece_size = 2;
+    uint64 piece_size = 2;
     int64 rep_factor = 3;
     google.protobuf.Timestamp deadline = 4;
     CARURL car_url = 5;
@@ -29,9 +38,11 @@ message CreateBrokerRequestRequest {
   }
 }
 
-message CreateBrokerRequestResponse {
+message CreatePreparedBrokerRequestResponse {
   BrokerRequest request = 1;
 }
+
+
 
 message GetBrokerRequestRequest {
   string id = 1;
@@ -111,6 +122,7 @@ message BrokerRequest {
 
 service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
+  rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
   rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}
   rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}

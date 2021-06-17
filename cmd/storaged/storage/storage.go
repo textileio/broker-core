@@ -53,7 +53,7 @@ type Request struct {
 type AuctionDataRequest struct {
 	PayloadCid string   `json:"payloadCid"`
 	PieceCid   string   `json:"pieceCid"`
-	PieceSize  int64    `json:"pieceSize"`
+	PieceSize  uint64   `json:"pieceSize"`
 	RepFactor  int      `json:"repFactor"`
 	Deadline   string   `json:"deadline"`
 	CARURL     *CARURL  `json:"carURL"`

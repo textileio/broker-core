@@ -107,7 +107,7 @@ var _ broker.Broker = (*Broker)(nil)
 
 // Create creates a new BrokerRequest with the provided Cid and
 // Metadata configuration.
-func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata, pc *broker.PreparedCAR) (broker.BrokerRequest, error) {
+func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
 	if !c.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
 	}
@@ -121,7 +121,6 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata, pc
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-
 	log.Debugf("saving broker request in store")
 	if err := b.store.SaveBrokerRequest(ctx, br); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
@@ -134,6 +133,65 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata, pc
 	if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("notifying packer of ready broker request: %s", err)
 	}
+
+	return br, nil
+}
+
+func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, meta broker.Metadata, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+	log.Debugf("creating prepared car broker request")
+	if !payloadCid.Defined() {
+		return broker.BrokerRequest{}, ErrInvalidCid
+	}
+
+	now := time.Now()
+	br := broker.BrokerRequest{
+		ID:        broker.BrokerRequestID(uuid.New().String()),
+		DataCid:   payloadCid,
+		Status:    broker.RequestAuctioning,
+		Metadata:  meta,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	log.Debugf("creating prepared broker request")
+	if err := b.store.SaveBrokerRequest(ctx, br); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
+	}
+
+	sd := broker.StorageDeal{
+		RepFactor:        int(pc.RepFactor),
+		DealDuration:     int(b.conf.dealDuration),
+		Status:           broker.StorageDealPreparing,
+		BrokerRequestIDs: []broker.BrokerRequestID{br.ID},
+
+		// We fill what packer+piecer usually do.
+		PayloadCid: payloadCid,
+		PieceCid:   pc.PieceCid,
+		PieceSize:  pc.PieceSize,
+
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	log.Debugf("creating prepared storage deal")
+	if err := b.store.CreateStorageDeal(ctx, &sd); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("creating storage deal: %w", err)
+	}
+
+	auctionID, err := b.auctioneer.ReadyToAuction(
+		ctx,
+		sd.ID,
+		sd.PayloadCid,
+		sd.PieceSize,
+		sd.DealDuration,
+		sd.RepFactor,
+		b.conf.verifiedDeals,
+		nil,
+	)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("signaling auctioneer to create auction: %s", err)
+	}
+	log.Debugf("created prepared auction %s", auctionID)
 
 	return br, nil
 }
@@ -225,7 +283,6 @@ func (b *Broker) StorageDealPrepared(
 	auctionID, err := b.auctioneer.ReadyToAuction(
 		ctx,
 		id,
-		fmt.Sprintf("https://todo.net/cid/%s", sd.PayloadCid),
 		int(dpr.PieceSize),
 		sd.DealDuration,
 		sd.RepFactor,

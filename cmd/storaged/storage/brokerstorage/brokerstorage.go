@@ -90,7 +90,7 @@ func (bs *BrokerStorage) CreateFromReader(
 	brokerMeta := broker.Metadata{
 		Region: meta.Region,
 	}
-	sr, err := bs.broker.Create(ctx, c, brokerMeta, nil)
+	sr, err := bs.broker.Create(ctx, c, brokerMeta)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
@@ -123,9 +123,6 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 	}
 
 	// Validate PieceSize.
-	if adr.PieceSize <= 0 {
-		return storage.Request{}, errors.New("piece-size must be greater than zero")
-	}
 	if adr.PieceSize&(adr.PieceSize-1) != 0 {
 		return storage.Request{}, errors.New("piece-size must be a power of two")
 	}
@@ -143,7 +140,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 		return storage.Request{}, fmt.Errorf("deadline should be in RFC3339 format: %s", err)
 	}
 
-	pc := &broker.PreparedCAR{
+	pc := broker.PreparedCAR{
 		PieceCid:  pieceCid,
 		PieceSize: adr.PieceSize,
 		RepFactor: adr.RepFactor,
@@ -183,7 +180,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 		}
 	}
 
-	sr, err := bs.broker.Create(ctx, payloadCid, broker.Metadata{}, pc)
+	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, broker.Metadata{}, pc)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
