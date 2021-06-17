@@ -110,9 +110,8 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	if req.StorageDealId == "" {
 		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
 	}
-	dataCid, err := cid.Decode(req.DataCid)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid data cid")
+	if req.DataUri == "" {
+		return nil, status.Error(codes.InvalidArgument, "data uri is empty")
 	}
 	if req.DealSize == 0 {
 		return nil, status.Error(codes.InvalidArgument, "deal size must be greater than zero")
@@ -126,7 +125,7 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 
 	id, err := s.lib.CreateAuction(
 		broker.StorageDealID(req.StorageDealId),
-		dataCid,
+		req.DataUri,
 		req.DealSize,
 		req.DealDuration,
 		req.DealReplication,

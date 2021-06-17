@@ -1,14 +1,22 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	util "github.com/ipfs/go-ipfs-util"
@@ -35,7 +43,7 @@ func init() {
 		panic(err)
 	}
 
-	DataCidFetchTimeout = time.Second * 5
+	DataUriFetchTimeout = time.Second * 5
 }
 
 func TestStore_ListBids(t *testing.T) {
@@ -58,7 +66,7 @@ func TestStore_ListBids(t *testing.T) {
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataCid:          cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
+			DataUri:          "https://foo.com/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq",
 			DealSize:         1024,
 			DealDuration:     1000,
 			AskPrice:         100,
@@ -104,12 +112,13 @@ func TestStore_SaveBid(t *testing.T) {
 
 	id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 	aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("data")))
+	dataUri := "https://foo.com/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
+
 	err = s.SaveBid(Bid{
 		ID:               id,
 		AuctionID:        aid,
 		AuctioneerID:     auctioneerID,
-		DataCid:          dataCid,
+		DataUri:          dataUri,
 		DealSize:         1024,
 		DealDuration:     1000,
 		AskPrice:         100,
@@ -123,7 +132,7 @@ func TestStore_SaveBid(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, aid, got.AuctionID)
 	assert.True(t, got.AuctioneerID.MatchesPrivateKey(sk))
-	assert.True(t, got.DataCid.Equals(dataCid))
+	assert.Equal(t, dataUri, got.DataUri)
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1000, int(got.DealDuration))
 	assert.Equal(t, BidStatusSubmitted, got.Status)
@@ -132,7 +141,7 @@ func TestStore_SaveBid(t *testing.T) {
 	assert.Equal(t, 2000, int(got.StartEpoch))
 	assert.False(t, got.FastRetrieval)
 	assert.False(t, got.ProposalCid.Defined())
-	assert.Equal(t, 0, int(got.DataCidFetchAttempts))
+	assert.Equal(t, 0, int(got.DataUriFetchAttempts))
 	assert.False(t, got.CreatedAt.IsZero())
 	assert.False(t, got.UpdatedAt.IsZero())
 	assert.Empty(t, got.ErrorCause)
@@ -140,7 +149,8 @@ func TestStore_SaveBid(t *testing.T) {
 
 func TestStore_StatusProgression(t *testing.T) {
 	t.Parallel()
-	s, dag, bs := newStore(t)
+	s, _, bs := newStore(t)
+	gwurl := newHTTPDataUriGateway(t)
 
 	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	require.NoError(t, err)
@@ -150,18 +160,13 @@ func TestStore_StatusProgression(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-
-		// Create data node and add to ipfs
-		dnode, err := cbor.WrapObject([]byte("foo"), multihash.SHA2_256, -1)
-		require.NoError(t, err)
-		err = dag.Add(context.Background(), dnode)
-		require.NoError(t, err)
+		dataCid := "bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
 
 		err = s.SaveBid(Bid{
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataCid:          dnode.Cid(),
+			DataUri:          gwurl + "/cid/" + dataCid,
 			DealSize:         1024,
 			DealDuration:     1000,
 			AskPrice:         100,
@@ -195,23 +200,25 @@ func TestStore_StatusProgression(t *testing.T) {
 		assert.Empty(t, got.ErrorCause)
 
 		// Check if car file was written to proposal data directory
-		f, err := os.Open(filepath.Join(s.dealDataDirectory, dnode.Cid().String()))
+		f, err := os.Open(filepath.Join(s.dealDataDirectory, dataCid))
 		require.NoError(t, err)
 		defer func() { _ = f.Close() }()
 		h, err := car.LoadCar(bs, f)
 		require.NoError(t, err)
 		require.Len(t, h.Roots, 1)
-		require.True(t, h.Roots[0].Equals(dnode.Cid()))
+		require.Equal(t, h.Roots[0].String(), dataCid)
 	})
 
-	t.Run("unreachable data cid", func(t *testing.T) {
+	t.Run("unreachable data uri", func(t *testing.T) {
 		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
+		dataCid := "bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
+
 		err = s.SaveBid(Bid{
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataCid:          cid.NewCidV1(cid.Raw, util.Hash([]byte("unreachable"))),
+			DataUri:          "https://foo.com/cid/" + dataCid,
 			DealSize:         1024,
 			DealDuration:     1000,
 			AskPrice:         100,
@@ -243,8 +250,24 @@ func TestStore_StatusProgression(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, BidStatusFinalized, got.Status)
 		assert.NotEmpty(t, got.ErrorCause)
-		assert.Equal(t, 2, int(got.DataCidFetchAttempts))
+		assert.Equal(t, 2, int(got.DataUriFetchAttempts))
 	})
+}
+
+func TestStore_GenerateCarData(t *testing.T) {
+	t.Skip()
+	_, dag, _ := newStore(t)
+
+	node, err := cbor.WrapObject([]byte(uuid.NewString()), multihash.SHA2_256, -1)
+	require.NoError(t, err)
+	err = dag.Add(context.Background(), node)
+	require.NoError(t, err)
+	buff := &bytes.Buffer{}
+	err = car.WriteCar(context.Background(), dag, []cid.Cid{node.Cid()}, buff)
+	require.NoError(t, err)
+
+	fmt.Println(fmt.Sprintf("cid: %s", node.Cid()))
+	fmt.Println(fmt.Sprintf("data: %s", base64.StdEncoding.EncodeToString(buff.Bytes())))
 }
 
 func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
@@ -264,4 +287,34 @@ func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
 		require.NoError(t, ds.Close())
 	})
 	return s, p.DAGService(), p.BlockStore()
+}
+
+func newHTTPDataUriGateway(t *testing.T) (url string) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {
+		var (
+			id   = path.Base(r.URL.Path)
+			data string
+		)
+		switch id {
+		case "bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq":
+			data = "OqJlcm9vdHOB2CpYJQABcRIgtoQ8ZHCy9PTuMxKWLjxxoTi4/mVZ3IkoMet1CYbJWSxndmVyc2lvbgFKAXESILaEPGRwsv" +
+				"T07jMSli48caE4uP5lWdyJKDHrdQmGyVksWCQ4NzY4MGFkNC1mODIzLTQ0ZTktOWNlZi03OTU2NDlhZDYwMzE="
+		default:
+			t.Fatal("invalid request")
+		}
+		decoded, err := base64.StdEncoding.DecodeString(data)
+		require.NoError(t, err)
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(id)+".car")
+		_, err = w.Write(decoded)
+		require.NoError(t, err)
+	})
+
+	ts := httptest.NewServer(mux)
+	t.Cleanup(func() {
+		ts.Close()
+	})
+	return ts.URL
 }

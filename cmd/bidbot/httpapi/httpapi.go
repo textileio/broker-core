@@ -1,14 +1,13 @@
 package httpapi
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	golog "github.com/textileio/go-log/v2"
@@ -22,7 +21,7 @@ var (
 type Service interface {
 	ListBids(query bidstore.Query) ([]*bidstore.Bid, error)
 	GetBid(id broker.BidID) (*bidstore.Bid, error)
-	WriteCar(ctx context.Context, cid cid.Cid) (string, error)
+	WriteDataURI(uri string) (string, error)
 }
 
 // NewServer returns a new http server for bidbot commands.
@@ -51,7 +50,9 @@ func createMux(service Service) *http.ServeMux {
 	deals := getOnly(dealsHandler(service))
 	mux.HandleFunc("/deals", deals)
 	mux.HandleFunc("/deals/", deals)
-	mux.HandleFunc("/cid/", getOnly(writeCarRequestHandler(service)))
+	dataURI := getOnly(dataURIRequestHandler(service))
+	mux.HandleFunc("/datauri", dataURI)
+	mux.HandleFunc("/datauri/", dataURI)
 	return mux
 }
 
@@ -65,7 +66,7 @@ func getOnly(f http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -100,28 +101,32 @@ func dealsHandler(service Service) http.HandlerFunc {
 	}
 }
 
-func writeCarRequestHandler(service Service) http.HandlerFunc {
+func dataURIRequestHandler(service Service) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		urlParts := strings.SplitN(r.URL.Path, "/", 3)
-		if len(urlParts) < 3 {
-			httpError(w, "the url should be /cid/{cid}", http.StatusBadRequest)
-			return
-		}
-		id, err := cid.Decode(urlParts[2])
-		if err != nil {
-			httpError(w, fmt.Sprintf("decoding cid: %s", err), http.StatusBadRequest)
+		if r.Method != "GET" {
+			httpError(w, "only GET method is allowed", http.StatusBadRequest)
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), bidstore.DataCidFetchTimeout)
-		defer cancel()
-		dest, err := service.WriteCar(ctx, id)
+		query := r.URL.Query().Get("uri")
+		if query == "" {
+			httpError(w, "missing 'uri' query param", http.StatusBadRequest)
+			return
+		}
+		uri, err := url.QueryUnescape(query)
 		if err != nil {
-			httpError(w, fmt.Sprintf("writing car: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("parsing queury: %s", err), http.StatusBadRequest)
 			return
 		}
 
-		resp := fmt.Sprintf("downloaded to %s", dest)
+		dest, err := service.WriteDataURI(uri)
+		if err != nil {
+			httpError(w, fmt.Sprintf("writing data uri: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		resp := fmt.Sprintf("wrote to %s", dest)
 		if _, err = w.Write([]byte(resp)); err != nil {
 			httpError(w, fmt.Sprintf("writing response: %s", err), http.StatusInternalServerError)
 			return

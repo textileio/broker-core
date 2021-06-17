@@ -9,6 +9,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
+	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
@@ -56,7 +57,7 @@ func TestQueue_ListAuctions(t *testing.T) {
 		now = now.Add(time.Millisecond)
 		id, err := q.CreateAuction(broker.Auction{
 			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
-			DataCid:         cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
+			DataUri:         path.IpldPath(cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))).String(),
 			DealSize:        1024,
 			DealDuration:    1,
 			DealReplication: 1,
@@ -99,7 +100,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	id, err := q.CreateAuction(broker.Auction{
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
-		DataCid:         cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
+		DataUri:         path.IpldPath(cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))).String(),
 		DealSize:        1024,
 		DealDuration:    1,
 		DealReplication: 1,
@@ -115,7 +116,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	assert.NotEmpty(t, got.ID)
 	assert.NotEmpty(t, got.StorageDealID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
-	assert.True(t, got.DataCid.Defined())
+	assert.NotEmpty(t, got.DataUri)
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1, int(got.DealDuration))
 	assert.Equal(t, 1, int(got.DealReplication))
@@ -134,7 +135,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 
 	id, err := q.CreateAuction(broker.Auction{
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
-		DataCid:         cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))),
+		DataUri:         path.IpldPath(cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))).String(),
 		DealSize:        1024,
 		DealDuration:    1,
 		DealReplication: 2,

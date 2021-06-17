@@ -3,19 +3,23 @@ package client_test
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"path"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -61,8 +65,7 @@ func init() {
 func TestClient_ReadyToAuction(t *testing.T) {
 	c, _ := newClient(t, 1)
 
-	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true, nil)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataUri(), oneGiB, sixMonthsEpochs, 1, true, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
@@ -70,8 +73,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 func TestClient_GetAuction(t *testing.T) {
 	c, _ := newClient(t, 1)
 
-	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true, nil)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataUri(), oneGiB, sixMonthsEpochs, 1, true, nil)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -89,17 +91,15 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	c, dag := newClient(t, 2)
+	c, _ := newClient(t, 2)
 	bots := addBidbots(t, 10)
+	gwurl := newHTTPDataUriGateway(t)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	dnode, err := cbor.WrapObject([]byte("lets make a deal"), multihash.SHA2_256, -1)
-	require.NoError(t, err)
-	err = dag.Add(context.Background(), dnode)
-	require.NoError(t, err)
+	dataUri := gwurl + "/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dnode.Cid(), oneGiB, sixMonthsEpochs, 2, true, nil)
+	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataUri, oneGiB, sixMonthsEpochs, 2, true, nil)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -246,6 +246,10 @@ func newDealID() core.StorageDealID {
 	return core.StorageDealID(uuid.New().String())
 }
 
+func newDataUri() string {
+	return fmt.Sprintf("https://foo.com/cid/%s", cid.NewCidV1(cid.Raw, util.Hash([]byte(uuid.NewString()))))
+}
+
 func newFilClientMock() *auctioneermocks.FilClient {
 	fc := &auctioneermocks.FilClient{}
 	fc.On(
@@ -257,4 +261,34 @@ func newFilClientMock() *auctioneermocks.FilClient {
 	fc.On("GetChainHeight").Return(uint64(0), nil)
 	fc.On("Close").Return(nil)
 	return fc
+}
+
+func newHTTPDataUriGateway(t *testing.T) (url string) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {
+		var (
+			id   = path.Base(r.URL.Path)
+			data string
+		)
+		switch id {
+		case "bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq":
+			data = "OqJlcm9vdHOB2CpYJQABcRIgtoQ8ZHCy9PTuMxKWLjxxoTi4/mVZ3IkoMet1CYbJWSxndmVyc2lvbgFKAXESILaEPGRwsv" +
+				"T07jMSli48caE4uP5lWdyJKDHrdQmGyVksWCQ4NzY4MGFkNC1mODIzLTQ0ZTktOWNlZi03OTU2NDlhZDYwMzE="
+		default:
+			t.Fatal("invalid request")
+		}
+		decoded, err := base64.StdEncoding.DecodeString(data)
+		require.NoError(t, err)
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(id)+".car")
+		_, err = w.Write(decoded)
+		require.NoError(t, err)
+	})
+
+	ts := httptest.NewServer(mux)
+	t.Cleanup(func() {
+		ts.Close()
+	})
+	return ts.URL
 }

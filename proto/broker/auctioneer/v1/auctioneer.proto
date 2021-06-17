@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 message Auction {
     string id = 1;
     string storage_deal_id = 2;
-    string data_cid = 3;
+    string data_uri = 3;
     uint64 deal_size = 4;
     uint64 deal_duration = 5;
     uint32 deal_replication = 6;
@@ -49,7 +49,7 @@ message Auction {
 
 message ReadyToAuctionRequest {
     string storage_deal_id = 1;
-    string data_cid = 2;
+    string data_uri = 2;
     uint64 deal_size = 3;
     uint64 deal_duration = 4;
     uint32 deal_replication = 5;

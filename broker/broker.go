@@ -238,7 +238,7 @@ type AuctionID string
 type Auction struct {
 	ID              AuctionID
 	StorageDealID   StorageDealID
-	DataCid         cid.Cid
+	DataUri         string
 	DealSize        uint64
 	DealDuration    uint64
 	DealReplication uint32
