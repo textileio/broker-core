@@ -276,7 +276,7 @@ func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
 	return s, p.DAGService(), p.BlockStore()
 }
 
-func newHTTPDataUriGateway(t *testing.T) (url string) {
+func newHTTPDataURIGateway(t *testing.T) (url string) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {

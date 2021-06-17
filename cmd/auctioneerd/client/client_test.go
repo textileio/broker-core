@@ -16,7 +16,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -62,7 +61,7 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c, dag := newClient(t, 1)
+	c := newClient(t, 1)
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
 
@@ -84,7 +83,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	c, dag := newClient(t, 1)
+	c := newClient(t, 1)
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
 
@@ -178,7 +177,7 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Contains(t, err.Error(), auctioneer.ErrAuctionNotFound.Error())
 }
 
-func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService) {
+func newClient(t *testing.T, attempts uint32) *client.Client {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -222,7 +221,7 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
 	fin.Add(conn)
-	return client.New(conn), s.DAGService()
+	return client.New(conn)
 }
 
 func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
@@ -280,7 +279,7 @@ func newDealID() core.StorageDealID {
 	return core.StorageDealID(uuid.New().String())
 }
 
-func newDataUri() string {
+func newDataURI() string {
 	return fmt.Sprintf("https://foo.com/cid/%s", cid.NewCidV1(cid.Raw, util.Hash([]byte(uuid.NewString()))))
 }
 
@@ -297,7 +296,7 @@ func newFilClientMock() *auctioneermocks.FilClient {
 	return fc
 }
 
-func newHTTPDataUriGateway(t *testing.T) (url string) {
+func newHTTPDataURIGateway(t *testing.T) (url string) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {
