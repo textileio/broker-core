@@ -18,6 +18,8 @@ const (
 	MinDealReplication = 1
 	// MaxDealReplication is the maximum allowed deal replication requested of miners.
 	MaxDealReplication = 10
+	// DefaultDealDeadline is the default deadline for deals.
+	DefaultDealDeadline = time.Hour * 48
 )
 
 // AuctionID is a unique identifier for an Auction.

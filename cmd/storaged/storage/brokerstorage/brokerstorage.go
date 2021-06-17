@@ -132,9 +132,12 @@ func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr stora
 		return storage.Request{}, errors.New("rep-factor should can't be negative")
 	}
 
-	deadline, err := time.Parse(time.RFC3339, adr.Deadline)
-	if err != nil {
-		return storage.Request{}, fmt.Errorf("deadline should be in RFC3339 format: %s", err)
+	deadline := time.Now().Add(broker.DefaultDealDeadline)
+	if adr.Deadline != "" {
+		deadline, err = time.Parse(time.RFC3339, adr.Deadline)
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("deadline should be in RFC3339 format: %s", err)
+		}
 	}
 
 	pc := broker.PreparedCAR{
