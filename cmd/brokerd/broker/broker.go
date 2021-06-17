@@ -107,7 +107,7 @@ var _ broker.Broker = (*Broker)(nil)
 
 // Create creates a new BrokerRequest with the provided Cid and
 // Metadata configuration.
-func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata, pc *broker.PreparedCAR) (broker.BrokerRequest, error) {
 	if !c.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
 	}

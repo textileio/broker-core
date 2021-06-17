@@ -11,6 +11,7 @@ import (
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Client is a brokerd client.
@@ -21,6 +22,7 @@ type Client struct {
 
 var _ broker.Broker = (*Client)(nil)
 
+// TODO(jsign): switch to piecer style of client.
 // New returns a new *Client.
 func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 	conn, err := grpc.Dial(brokerAPIAddr, rpc.GetClientOpts(brokerAPIAddr)...)
@@ -36,13 +38,36 @@ func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 }
 
 // Create creates a new BrokerRequest.
-func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metadata, pc *broker.PreparedCAR) (broker.BrokerRequest, error) {
 	req := &pb.CreateBrokerRequestRequest{
 		Cid: dataCid.String(),
 		Meta: &pb.BrokerRequest_Metadata{
 			Region: meta.Region,
 		},
 	}
+	if pc != nil {
+		req.PreparedCAR = &pb.CreateBrokerRequestRequest_PreparedCAR{
+			PieceCid:  pc.PieceCid.String(),
+			PieceSize: pc.PieceSize,
+			RepFactor: int64(pc.RepFactor),
+			Deadline:  timestamppb.New(pc.Deadline),
+		}
+		if pc.CARURL != nil {
+			req.PreparedCAR.CarUrl = &pb.CreateBrokerRequestRequest_PreparedCAR_CARURL{
+				Url: pc.CARURL.URL.String(),
+			}
+		}
+		if pc.CARIPFS != nil {
+			req.PreparedCAR.CarIpfs = &pb.CreateBrokerRequestRequest_PreparedCAR_CARIPFS{
+				Cid:            pc.CARIPFS.Cid.String(),
+				NodesMultiaddr: make([]string, len(pc.CARIPFS.NodesMultiaddr)),
+			}
+			for i, ma := range pc.CARIPFS.NodesMultiaddr {
+				req.PreparedCAR.CarIpfs.NodesMultiaddr[i] = ma.String()
+			}
+		}
+	}
+
 	res, err := c.c.CreateBrokerRequest(ctx, req)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)

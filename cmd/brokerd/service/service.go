@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -166,7 +167,70 @@ func (s *Service) CreateBrokerRequest(
 		meta.Region = r.Meta.Region
 	}
 
-	br, err := s.broker.Create(ctx, c, meta)
+	var pc *broker.PreparedCAR
+	if r.PreparedCAR != nil {
+		// Validate PieceCid.
+		pc.PieceCid, err = cid.Decode(r.PreparedCAR.PieceCid)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "piece-cid is invalid: %s", err)
+		}
+		if pc.PieceCid.Prefix().Codec != broker.CodecFilCommitmentUnsealed {
+			return nil, status.Error(codes.InvalidArgument, "piece-cid must be have fil-commitment-unsealed codec")
+		}
+
+		// Validate PieceSize.
+		if r.PreparedCAR.PieceSize <= 0 {
+			return nil, status.Error(codes.InvalidArgument, "piece-size must be greater than zero")
+		}
+		if r.PreparedCAR.PieceSize&(r.PreparedCAR.PieceSize-1) != 0 {
+			return nil, status.Error(codes.InvalidArgument, "piece-size must be a power of two")
+		}
+		if r.PreparedCAR.PieceSize > broker.MaxPieceSize {
+			return nil, status.Errorf(codes.InvalidArgument, "piece-size can't be greater than %d", broker.MaxPieceSize)
+		}
+
+		// Validate rep factor.
+		if r.PreparedCAR.RepFactor <= 0 {
+			return nil, status.Error(codes.InvalidArgument, "rep-factor should be positive")
+		}
+
+		pc.Deadline = r.PreparedCAR.Deadline.AsTime()
+
+		if r.PreparedCAR.CarUrl != nil {
+			url, err := url.Parse(r.PreparedCAR.CarUrl.Url)
+			if err != nil {
+				return nil, status.Errorf(codes.InvalidArgument, "parsing CAR URL: %s", err)
+			}
+			if url.Scheme != "http" && url.Scheme != "https" {
+				return nil, status.Error(codes.InvalidArgument, "CAR URL scheme should be http(s)")
+			}
+
+			pc.CARURL = &broker.CARURL{
+				URL: *url,
+			}
+		}
+
+		if r.PreparedCAR.CarIpfs != nil {
+			carCid, err := cid.Decode(r.PreparedCAR.CarIpfs.Cid)
+			if err != nil {
+				return nil, status.Errorf(codes.InvalidArgument, "car cid isn't valid: %s", err)
+			}
+			maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCAR.CarIpfs.NodesMultiaddr))
+			for i, smaddr := range r.PreparedCAR.CarIpfs.NodesMultiaddr {
+				maddr, err := multiaddr.NewMultiaddr(smaddr)
+				if err != nil {
+					return nil, status.Errorf(codes.InvalidArgument, "invalid multiaddr %s: %s", smaddr, err)
+				}
+				maddrs[i] = maddr
+			}
+			pc.CARIPFS = &broker.CARIPFS{
+				Cid:            carCid,
+				NodesMultiaddr: maddrs,
+			}
+		}
+	}
+
+	br, err := s.broker.Create(ctx, c, meta, pc)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
