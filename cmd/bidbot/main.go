@@ -322,14 +322,14 @@ var dealsListCmd = &cobra.Command{
 		}
 		bids := getBids(urlFor("deals") + query)
 		if v.GetBool("json") {
-			b, err := json.Marshal(bids)
+			b, err := json.MarshalIndent(bids, "", "\t")
 			common.CheckErr(err)
 			fmt.Println(string(b))
 			return
 		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.DiscardEmptyColumns)
-		fields := []string{"ID", "DealSize", "DealDuration", "Status",
-			"AskPrice", "DataCidFetchAttempts", "CreatedAt", "UpdatedAt", "ErrorCause"}
+		fields := []string{"ID", "DealSize", "DealDuration", "Status", "AskPrice", "VerifiedAskPrice",
+			"StartEpoch", "DataCidFetchAttempts", "CreatedAt", "ErrorCause"}
 		for i, bid := range bids {
 			if i == 0 {
 				for _, field := range fields {
@@ -359,7 +359,7 @@ var dealsShowCmd = &cobra.Command{
 		}
 		bid := bids[0]
 		if v.GetBool("json") {
-			b, err := json.Marshal(bid)
+			b, err := json.MarshalIndent(bid, "", "\t")
 			common.CheckErr(err)
 			fmt.Println(string(b))
 			return
