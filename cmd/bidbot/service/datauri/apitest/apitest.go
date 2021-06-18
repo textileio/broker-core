@@ -17,12 +17,14 @@ import (
 	"github.com/multiformats/go-multihash"
 )
 
+// DataURIHTTPGateway is a test http server for bidbot data uris.
 type DataURIHTTPGateway struct {
 	server *httptest.Server
 	data   map[cid.Cid][]byte
 	dag    format.DAGService
 }
 
+// NewDataURIHTTPGateway returns a new *DataURIHTTPGateway for testing.
 func NewDataURIHTTPGateway(dag format.DAGService) *DataURIHTTPGateway {
 	g := &DataURIHTTPGateway{
 		data: make(map[cid.Cid][]byte),
@@ -34,10 +36,12 @@ func NewDataURIHTTPGateway(dag format.DAGService) *DataURIHTTPGateway {
 	return g
 }
 
+// Close it.
 func (g *DataURIHTTPGateway) Close() {
 	g.server.Close()
 }
 
+// CreateURI creates a uri that will be served over the gateway if serve is true.
 func (g *DataURIHTTPGateway) CreateURI(serve bool) (cid.Cid, string, error) {
 	node, err := cbor.WrapObject([]byte(uuid.NewString()), multihash.SHA2_256, -1)
 	if err != nil {
@@ -57,6 +61,7 @@ func (g *DataURIHTTPGateway) CreateURI(serve bool) (cid.Cid, string, error) {
 	return node.Cid(), fmt.Sprintf("%s/cid/%s", g.server.URL, node.Cid()), nil
 }
 
+// CreateURIWithWrongRoot creates a uri whos cid points to a car file with the wrong root.
 func (g *DataURIHTTPGateway) CreateURIWithWrongRoot() (cid.Cid, string, error) {
 	c1, _, err := g.CreateURI(true)
 	if err != nil {

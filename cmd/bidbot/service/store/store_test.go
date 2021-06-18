@@ -98,7 +98,6 @@ func TestStore_ListBids(t *testing.T) {
 
 func TestStore_SaveBid(t *testing.T) {
 	t.Parallel()
-	s, _, _ := newStore(t)
 	s, dag, _ := newStore(t)
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
@@ -193,7 +192,7 @@ func TestStore_StatusProgression(t *testing.T) {
 		assert.Equal(t, BidStatusFetchingData, got.Status)
 
 		// Allow to finish
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 1)
 
 		got, err = s.GetBid(id)
 		require.NoError(t, err)
@@ -241,12 +240,9 @@ func TestStore_StatusProgression(t *testing.T) {
 
 		err = s.SetProposalCid(id, cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))))
 		require.NoError(t, err)
-		got, err = s.GetBid(id)
-		require.NoError(t, err)
-		assert.Equal(t, BidStatusFetchingData, got.Status)
 
 		// Allow to finish
-		time.Sleep(time.Second * 12)
+		time.Sleep(time.Second * 1)
 
 		got, err = s.GetBid(id)
 		require.NoError(t, err)

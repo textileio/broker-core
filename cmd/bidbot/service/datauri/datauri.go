@@ -2,7 +2,9 @@ package datauri
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +13,7 @@ import (
 	"path"
 
 	"github.com/ipfs/go-cid"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipld/go-car"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -83,7 +86,7 @@ func (u *HTTPURI) Validate(ctx context.Context) error {
 		return fmt.Errorf("http request returned bad status %d: %w", res.StatusCode, ErrCarFileUnavailable)
 	}
 
-	if err := validateCarHeader(u.cid, res.Body); err != nil {
+	if _, err := validateCarHeader(u.cid, res.Body); err != nil {
 		return fmt.Errorf("validating car header: %w", err)
 	}
 	return nil
@@ -105,11 +108,12 @@ func (u *HTTPURI) Write(ctx context.Context, writer io.Writer) error {
 		return fmt.Errorf("http request returned bad status %d: %w", res.StatusCode, ErrCarFileUnavailable)
 	}
 
-	if err := validateCarHeader(u.cid, res.Body); err != nil {
+	r, err := validateCarHeader(u.cid, res.Body)
+	if err != nil {
 		return fmt.Errorf("validating car header: %v", err)
 	}
 
-	if _, err := io.Copy(writer, res.Body); err != nil {
+	if _, err := io.Copy(writer, r); err != nil {
 		return fmt.Errorf("writing http get response: %v", err)
 	}
 	return nil
@@ -134,16 +138,49 @@ func (u *HTTPURI) getRequest(ctx context.Context) (*http.Response, error) {
 }
 
 // validateCarHeader ensures cid is the one and only root of the car file.
-func validateCarHeader(root cid.Cid, reader io.Reader) error {
-	ch, _, err := car.ReadHeader(bufio.NewReader(reader))
+func validateCarHeader(root cid.Cid, reader io.Reader) (io.Reader, error) {
+	buf := bufio.NewReader(reader)
+	phb, hb, err := ldRead(buf)
 	if err != nil {
-		return fmt.Errorf("reading car header: %v", err)
+		return nil, fmt.Errorf("reading car header: %v", err)
 	}
+	var ch car.CarHeader
+	if err := cbor.DecodeInto(hb, &ch); err != nil {
+		return nil, fmt.Errorf("decoding car header: %v", err)
+	}
+
 	if len(ch.Roots) != 1 {
-		return fmt.Errorf("car file must have only one root: %w", ErrInvalidCarFile)
+		return nil, fmt.Errorf("car file must have only one root: %w", ErrInvalidCarFile)
 	}
 	if !ch.Roots[0].Equals(root) {
-		return fmt.Errorf("car file root does not match uri: %w", ErrInvalidCarFile)
+		return nil, fmt.Errorf("car file root does not match uri: %w", ErrInvalidCarFile)
 	}
-	return nil
+
+	return io.MultiReader(bytes.NewReader(phb), bytes.NewReader(hb), buf), nil
+}
+
+// modified from https://github.com/ipld/go-car/blob/master/util/util.go#L102
+// to return the header length prefix.
+func ldRead(r *bufio.Reader) ([]byte, []byte, error) {
+	if _, err := r.Peek(1); err != nil { // no more blocks, likely clean io.EOF
+		return nil, nil, err
+	}
+	l, err := binary.ReadUvarint(r)
+
+	if err != nil {
+		if err == io.EOF {
+			return nil, nil, io.ErrUnexpectedEOF // don't silently pretend this is a clean EOF
+		}
+		return nil, nil, err
+	}
+
+	buf := make([]byte, l)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, nil, err
+	}
+
+	ubuf := make([]byte, 1)
+	_ = binary.PutUvarint(ubuf, l)
+
+	return ubuf, buf, nil
 }
