@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -9,12 +8,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -98,24 +97,40 @@ func TestAPI_Deals(t *testing.T) {
 	}
 }
 
-func TestAPI_DownloadCID(t *testing.T) {
+func TestAPI_WriteDataURI(t *testing.T) {
 	ms := &mockService{}
 	mux := createMux(ms)
-	cid1 := castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1")
-	cid2 := castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2")
-	ms.On("WriteCar", mock.Anything, cid1).Return("foo/bar", nil)
-	ms.On("WriteCar", mock.Anything, cid2).Return("", errors.New("Some Error"))
+	uri1 := "s3://foo.com/cid/123"
+	uri2 := "https://foo.com/cid/QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"
+	uri3 := "https://foo.com/cid/QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"
+	ms.On("WriteDataURI", uri1).Return("", datauri.ErrSchemeNotSupported)
+	ms.On("WriteDataURI", uri2).Return("foo/bar", nil)
+	ms.On("WriteDataURI", uri3).Return("", errors.New("some error"))
 	for _, tc := range []struct {
 		name               string
 		url                string
 		expectedStatusCode int
 		expectedResult     string
 	}{
-		{"no trailing slash", "/cid", http.StatusMovedPermanently, ""},
-		{"with trailing slash", "/cid/", http.StatusBadRequest, ""},
-		{"invalid cid", "/cid/123", http.StatusBadRequest, ""},
-		{"success", "/cid/QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1", http.StatusOK, "downloaded to foo/bar"},
-		{"error", "/cid/QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2", http.StatusInternalServerError, ""},
+		{"unsupported scheme", "/datauri?uri=s3%3A%2F%2Ffoo.com%2Fcid%2F123", http.StatusBadRequest, ""},
+		{
+			"success",
+			"/datauri?uri=https%3A%2F%2Ffoo.com%2Fcid%2FQmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1",
+			http.StatusOK,
+			"wrote to foo/bar",
+		},
+		{
+			"success with trailing slash",
+			"/datauri/?uri=https%3A%2F%2Ffoo.com%2Fcid%2FQmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1",
+			http.StatusOK,
+			"wrote to foo/bar",
+		},
+		{
+			"error",
+			"/datauri?uri=https%3A%2F%2Ffoo.com%2Fcid%2FQmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2",
+			http.StatusInternalServerError,
+			"",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res := httptest.NewRecorder()
@@ -146,12 +161,7 @@ func (s *mockService) ListBids(query bidstore.Query) ([]*bidstore.Bid, error) {
 	return args.Get(0).([]*bidstore.Bid), args.Error(1)
 }
 
-func (s *mockService) WriteCar(ctx context.Context, cid cid.Cid) (string, error) {
-	args := s.Called(ctx, cid)
+func (s *mockService) WriteDataURI(uri string) (string, error) {
+	args := s.Called(uri)
 	return args.String(0), args.Error(1)
-}
-
-func castCid(cidStr string) cid.Cid {
-	c, _ := cid.Decode(cidStr)
-	return c
 }

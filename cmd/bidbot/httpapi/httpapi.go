@@ -2,12 +2,14 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -98,44 +100,6 @@ func dealsHandler(service Service) http.HandlerFunc {
 	}
 }
 
-func dataURIRequestHandler(service Service) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			httpError(w, "only GET method is allowed", http.StatusBadRequest)
-			return
-		}
-
-		query := r.URL.Query().Get("uri")
-		if query == "" {
-			httpError(w, "missing 'uri' query param", http.StatusBadRequest)
-			return
-		}
-		uri, err := url.QueryUnescape(query)
-		if err != nil {
-			httpError(w, fmt.Sprintf("parsing query: %s", err), http.StatusBadRequest)
-			return
-		}
-
-		dest, err := service.WriteDataURI(uri)
-		if err != nil {
-			httpError(w, fmt.Sprintf("writing data uri: %s", err), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		resp := fmt.Sprintf("wrote to %s", dest)
-		if _, err = w.Write([]byte(resp)); err != nil {
-			httpError(w, fmt.Sprintf("writing response: %s", err), http.StatusInternalServerError)
-			return
-		}
-	}
-}
-
-func httpError(w http.ResponseWriter, err string, status int) {
-	log.Debugf("request error: %s", err)
-	http.Error(w, err, status)
-}
-
 func listBids(w http.ResponseWriter, service Service, statusFilters []string) (bids []*bidstore.Bid, proceed bool) {
 	var filters []bidstore.BidStatus
 	for _, s := range statusFilters {
@@ -169,4 +133,47 @@ func listBids(w http.ResponseWriter, service Service, statusFilters []string) (b
 		}
 	}
 	return bids, true
+}
+
+func dataURIRequestHandler(service Service) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			httpError(w, "only GET method is allowed", http.StatusBadRequest)
+			return
+		}
+
+		query := r.URL.Query().Get("uri")
+		if query == "" {
+			httpError(w, "missing 'uri' query param", http.StatusBadRequest)
+			return
+		}
+		uri, err := url.QueryUnescape(query)
+		if err != nil {
+			httpError(w, fmt.Sprintf("parsing query: %s", err), http.StatusBadRequest)
+			return
+		}
+
+		dest, err := service.WriteDataURI(uri)
+		if errors.Is(err, datauri.ErrSchemeNotSupported) ||
+			errors.Is(err, datauri.ErrCarFileUnavailable) ||
+			errors.Is(err, datauri.ErrInvalidCarFile) {
+			httpError(w, fmt.Sprintf("writing data uri: %s", err), http.StatusBadRequest)
+			return
+		} else if err != nil {
+			httpError(w, fmt.Sprintf("writing data uri: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		resp := fmt.Sprintf("wrote to %s", dest)
+		if _, err = w.Write([]byte(resp)); err != nil {
+			httpError(w, fmt.Sprintf("writing response: %s", err), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func httpError(w http.ResponseWriter, err string, status int) {
+	log.Debugf("request error: %s", err)
+	http.Error(w, err, status)
 }

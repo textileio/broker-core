@@ -103,7 +103,7 @@ const (
 	BidStatusFinalized
 )
 
-var bidStatusStrings map[BidStatus]string = map[BidStatus]string{
+var bidStatusStrings = map[BidStatus]string{
 	BidStatusUnspecified:      "unspecified",
 	BidStatusSubmitted:        "submitted",
 	BidStatusAwaitingProposal: "awaiting_proposal",
@@ -448,7 +448,7 @@ func (s *Store) ListBids(query Query) ([]*Bid, error) {
 func (s *Store) WriteDataURI(uri string) (string, error) {
 	duri, err := datauri.NewURI(uri)
 	if err != nil {
-		return "", fmt.Errorf("parsing data uri: %v", err)
+		return "", fmt.Errorf("parsing data uri: %w", err)
 	}
 	f, err := os.Create(filepath.Join(s.dealDataDirectory, duri.Cid().String()))
 	if err != nil {
@@ -463,7 +463,7 @@ func (s *Store) WriteDataURI(uri string) (string, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, DataURIFetchTimeout)
 	defer cancel()
 	if err := duri.Write(ctx, f); err != nil {
-		return "", fmt.Errorf("writing data uri %s: %v", uri, err)
+		return "", fmt.Errorf("writing data uri %s: %w", uri, err)
 	}
 	return f.Name(), nil
 }

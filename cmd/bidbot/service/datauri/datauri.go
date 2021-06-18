@@ -110,7 +110,7 @@ func (u *HTTPURI) Write(ctx context.Context, writer io.Writer) error {
 
 	r, err := validateCarHeader(u.cid, res.Body)
 	if err != nil {
-		return fmt.Errorf("validating car header: %v", err)
+		return fmt.Errorf("validating car header: %w", err)
 	}
 
 	if _, err := io.Copy(writer, r); err != nil {
