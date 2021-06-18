@@ -3,7 +3,6 @@ package broker
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -762,10 +761,6 @@ func (dd *dumbDealer) ReadyToCreateDeals(ctx context.Context, ads dealer.Auction
 func createCidFromString(s string) cid.Cid {
 	mh, _ := multihash.Encode([]byte(s), multihash.SHA2_256)
 	return cid.NewCidV1(cid.Raw, mh)
-}
-
-func createCidURI(c cid.Cid) string {
-	return fmt.Sprintf("https://todo.net/cid/%s", c)
 }
 
 type dumbChainAPI struct {
