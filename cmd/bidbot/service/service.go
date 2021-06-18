@@ -150,6 +150,9 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	if err := conf.AuctionFilters.Validate(); err != nil {
 		return nil, fmt.Errorf("validating auction filters: %v", err)
 	}
+	if conf.HTTPListenAddr == "" {
+		conf.HTTPListenAddr = ":0"
+	}
 
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())

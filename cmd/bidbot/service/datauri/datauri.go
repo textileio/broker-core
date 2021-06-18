@@ -102,6 +102,10 @@ func (u *HTTPURI) Write(ctx context.Context, writer io.Writer) error {
 		}
 	}()
 
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("http request returned bad status: %d", res.StatusCode)
+	}
+
 	if _, err := io.Copy(writer, res.Body); err != nil {
 		return fmt.Errorf("writing http get response: %v", err)
 	}

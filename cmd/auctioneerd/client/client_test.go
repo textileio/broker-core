@@ -3,20 +3,15 @@ package client_test
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
-	"fmt"
 	"net"
-	"net/http"
-	"net/http/httptest"
-	"path"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
@@ -27,6 +22,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/cmd/bidbot/service/datauri/apitest"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -62,17 +58,45 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c := newClient(t, 1)
+	c, dag := newClient(t, 1)
+	gw := apitest.NewDataURIHTTPGateway(dag)
+	t.Cleanup(gw.Close)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataURI(), oneGiB, sixMonthsEpochs, 1, true, nil)
+	_, dataURI, err := gw.CreateURI(true)
+	require.NoError(t, err)
+
+	id, err := c.ReadyToAuction(
+		context.Background(),
+		newDealID(),
+		dataURI,
+		oneGiB,
+		sixMonthsEpochs,
+		1,
+		true,
+		nil,
+	)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	c := newClient(t, 1)
+	c, dag := newClient(t, 1)
+	gw := apitest.NewDataURIHTTPGateway(dag)
+	t.Cleanup(gw.Close)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), newDataURI(), oneGiB, sixMonthsEpochs, 1, true, nil)
+	_, dataURI, err := gw.CreateURI(true)
+	require.NoError(t, err)
+
+	id, err := c.ReadyToAuction(
+		context.Background(),
+		newDealID(),
+		dataURI,
+		oneGiB,
+		sixMonthsEpochs,
+		1,
+		true,
+		nil,
+	)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -90,15 +114,26 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	c := newClient(t, 2)
+	c, dag := newClient(t, 2)
 	bots := addBidbots(t, 10)
-	gwurl := newHTTPDataURIGateway(t)
+	gw := apitest.NewDataURIHTTPGateway(dag)
+	t.Cleanup(gw.Close)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	dataURI := gwurl + "/cid/bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq"
+	_, dataURI, err := gw.CreateURI(true)
+	require.NoError(t, err)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataURI, oneGiB, sixMonthsEpochs, 2, true, nil)
+	id, err := c.ReadyToAuction(
+		context.Background(),
+		newDealID(),
+		dataURI,
+		oneGiB,
+		sixMonthsEpochs,
+		2,
+		true,
+		nil,
+	)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -139,7 +174,7 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Contains(t, err.Error(), auctioneer.ErrAuctionNotFound.Error())
 }
 
-func newClient(t *testing.T, attempts uint32) *client.Client {
+func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService) {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -183,7 +218,7 @@ func newClient(t *testing.T, attempts uint32) *client.Client {
 	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
 	fin.Add(conn)
-	return client.New(conn)
+	return client.New(conn), s.DAGService()
 }
 
 func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
@@ -245,10 +280,6 @@ func newDealID() core.StorageDealID {
 	return core.StorageDealID(uuid.New().String())
 }
 
-func newDataURI() string {
-	return fmt.Sprintf("https://foo.com/cid/%s", cid.NewCidV1(cid.Raw, util.Hash([]byte(uuid.NewString()))))
-}
-
 func newFilClientMock() *auctioneermocks.FilClient {
 	fc := &auctioneermocks.FilClient{}
 	fc.On(
@@ -260,34 +291,4 @@ func newFilClientMock() *auctioneermocks.FilClient {
 	fc.On("GetChainHeight").Return(uint64(0), nil)
 	fc.On("Close").Return(nil)
 	return fc
-}
-
-func newHTTPDataURIGateway(t *testing.T) (url string) {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/cid/", func(w http.ResponseWriter, r *http.Request) {
-		var (
-			id   = path.Base(r.URL.Path)
-			data string
-		)
-		switch id {
-		case "bafyreifwqq6gi4fs6t2o4myssyxdy4nbhc4p4zkz3sesqmploueynskzfq":
-			data = "OqJlcm9vdHOB2CpYJQABcRIgtoQ8ZHCy9PTuMxKWLjxxoTi4/mVZ3IkoMet1CYbJWSxndmVyc2lvbgFKAXESILaEPGRwsv" +
-				"T07jMSli48caE4uP5lWdyJKDHrdQmGyVksWCQ4NzY4MGFkNC1mODIzLTQ0ZTktOWNlZi03OTU2NDlhZDYwMzE="
-		default:
-			t.Fatal("invalid request")
-		}
-		decoded, err := base64.StdEncoding.DecodeString(data)
-		require.NoError(t, err)
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(id)+".car")
-		_, err = w.Write(decoded)
-		require.NoError(t, err)
-	})
-
-	ts := httptest.NewServer(mux)
-	t.Cleanup(func() {
-		ts.Close()
-	})
-	return ts.URL
 }

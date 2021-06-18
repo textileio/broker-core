@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/textileio/broker-core/broker"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
@@ -27,10 +26,8 @@ type Service interface {
 // NewServer returns a new http server for bidbot commands.
 func NewServer(listenAddr string, service Service) (*http.Server, error) {
 	httpServer := &http.Server{
-		Addr:              listenAddr,
-		ReadHeaderTimeout: time.Second * 5,
-		WriteTimeout:      time.Second * 10,
-		Handler:           createMux(service),
+		Addr:    listenAddr,
+		Handler: createMux(service),
 	}
 
 	go func() {
@@ -115,7 +112,7 @@ func dataURIRequestHandler(service Service) func(w http.ResponseWriter, r *http.
 		}
 		uri, err := url.QueryUnescape(query)
 		if err != nil {
-			httpError(w, fmt.Sprintf("parsing queury: %s", err), http.StatusBadRequest)
+			httpError(w, fmt.Sprintf("parsing query: %s", err), http.StatusBadRequest)
 			return
 		}
 
