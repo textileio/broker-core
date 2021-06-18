@@ -43,6 +43,7 @@ func (c *Client) ReadyToAuction(
 		DealReplication: uint32(dealReplication),
 		DealVerified:    dealVerified,
 		ExcludedMiners:  excludedMiners,
+		DataUri:         sources.CARURL.URL.String(), // TODO(sander/merlin): This is a temporay fix.
 		// FilEpochDeadline: filEpochDeadline, // TODO(sander/merlin): pending wiring. [if nil, the constraint doesn't apply]
 		// Sources: sources, // TODO(sander/merlin): pending wiring.
 	})

@@ -166,7 +166,7 @@ func TestCreatePrepared(t *testing.T) {
 
 	// 5- Check that we made the call to create the auction.
 	require.Equal(t, b.conf.dealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, sd.PieceSize, auctioneer.calledPieceSize)
+	require.Equal(t, int(sd.PieceSize), auctioneer.calledPieceSize)
 	require.Equal(t, sd.ID, auctioneer.calledStorageDealID)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, pc.RepFactor, auctioneer.calledDealReplication)
@@ -241,7 +241,7 @@ func TestStorageDealPrepared(t *testing.T) {
 
 	// 4- Verify that Auctioneer was called to auction the data.
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
+	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
@@ -457,7 +457,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	//    was called to create a new auction with rep factor 1.
 	require.Equal(t, 2, auctioneer.calledCount)
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
+	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, 1, auctioneer.calledDealReplication)
