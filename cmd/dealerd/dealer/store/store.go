@@ -440,7 +440,7 @@ func areAllExpectedFieldsSet(ad AuctionDeal) error {
 		if !ad.ProposalCid.Defined() {
 			return errors.New("proposal cid should be set to transition to WaitingConfirmation")
 		}
-	case PendingReportFinalized:
+	case ExecutingReportFinalized:
 		if ad.ErrorCause == "" { // Success
 			if ad.DealID == 0 {
 				return errors.New("a success status should have a defined deal-id")
@@ -503,7 +503,7 @@ func (ads AuctionDealStatus) String() string {
 	case PendingReportFinalized:
 		return "PendingReportFinalized"
 	case ExecutingReportFinalized:
-		return "ExecutingReportFinalied"
+		return "ExecutingReportFinalized"
 	default:
 		panic("unknown deal status")
 	}
