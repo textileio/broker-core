@@ -87,6 +87,7 @@ func (u *Updater) run() {
 			if u.blockHeight >= nodeStatus.SyncInfo.LatestBlockHeight {
 				continue
 			}
+			time.Sleep(time.Millisecond * 2500)
 			for i := u.blockHeight + 1; i <= nodeStatus.SyncInfo.LatestBlockHeight; i++ {
 				log.Errorf("getting changes for height: %v", i)
 				ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
@@ -94,9 +95,9 @@ func (u *Updater) run() {
 				cancel()
 				if err != nil {
 					if strings.Contains(err.Error(), "Block not found") {
-						u.blockHeight = 0
+						// u.blockHeight = 0
 						log.Warnf("%v -- resetting state", err)
-						log.Error("RESETTING STATE!")
+						log.Errorf("RESETTING STATE! %v", err)
 					} else {
 						u.config.Delegate.HandleError(fmt.Errorf("getting changes: %v", err))
 						updateFrequency *= 2

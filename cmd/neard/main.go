@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
+	"github.com/textileio/broker-core/cmd/neard/metrics"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
@@ -76,9 +77,8 @@ var rootCmd = &cobra.Command{
 		updateFrequency := v.GetDuration("update-frequency")
 		requestTimeout := v.GetDuration("request-timeout")
 
-		if err := common.SetupInstrumentation(metricsAddr); err != nil {
-			log.Fatalf("booting instrumentation: %s", err)
-		}
+		err = common.SetupInstrumentation(metricsAddr)
+		common.CheckErrf("booting instrumentation: %v", err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), endpointTimeout)
 		defer cancel()
@@ -111,6 +111,8 @@ var rootCmd = &cobra.Command{
 			RequestTimeout:  requestTimeout,
 			Delegate:        sc,
 		})
+
+		metrics.New(cc)
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)

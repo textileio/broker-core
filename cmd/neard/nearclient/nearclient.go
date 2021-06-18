@@ -59,6 +59,8 @@ type DataChangesResponse struct {
 type SyncInfo struct {
 	LatestBlockHash   string `json:"latest_block_hash"`
 	LatestBlockHeight int    `json:"latest_block_height"`
+	// TODO: make this time.Time and use custom json conversion.
+	LatestBlockTime string `json:"latest_block_time"`
 }
 
 // NodeStatusResponse holds information about node status.
