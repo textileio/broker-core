@@ -23,6 +23,10 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const (
+	filecoinGenesisUnixEpoch = 1598306400
+)
+
 var (
 	// ErrNotFound is returned when the broker request doesn't exist.
 	ErrNotFound = fmt.Errorf("broker request not found")
@@ -164,12 +168,17 @@ func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc brok
 		pc.RepFactor = int(b.conf.dealReplication)
 	}
 
+	filEpochDeadline, err := timeToFilEpoch(pc.Deadline)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
+	}
 	sd := broker.StorageDeal{
 		RepFactor:        int(pc.RepFactor),
 		DealDuration:     int(b.conf.dealDuration),
-		Status:           broker.StorageDealPreparing,
+		Status:           broker.StorageDealAuctioning,
 		BrokerRequestIDs: []broker.BrokerRequestID{br.ID},
 		Sources:          pc.Sources,
+		FilEpochDeadline: &filEpochDeadline,
 
 		// We fill what packer+piecer usually do.
 		PayloadCid: payloadCid,
@@ -194,6 +203,7 @@ func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc brok
 		sd.RepFactor,
 		b.conf.verifiedDeals,
 		nil,
+		sd.FilEpochDeadline,
 		sd.Sources,
 	)
 	if err != nil {
@@ -250,6 +260,7 @@ func (b *Broker) CreateStorageDeal(
 		BrokerRequestIDs: brids,
 		CreatedAt:        now,
 		UpdatedAt:        now,
+		FilEpochDeadline: nil,
 		Sources: broker.Sources{
 			CARURL: &broker.CARURL{
 				URL: *b.conf.carExportURL.ResolveReference(cidURL),
@@ -305,6 +316,7 @@ func (b *Broker) StorageDealPrepared(
 		sd.RepFactor,
 		b.conf.verifiedDeals,
 		nil,
+		sd.FilEpochDeadline,
 		sd.Sources,
 	)
 	if err != nil {
@@ -453,6 +465,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 			deltaRepFactor,
 			b.conf.verifiedDeals,
 			excludedMiners,
+			sd.FilEpochDeadline,
 			sd.Sources,
 		)
 		if err != nil {
@@ -494,6 +507,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 			1,
 			b.conf.verifiedDeals,
 			excludedMiners,
+			sd.FilEpochDeadline,
 			sd.Sources,
 		)
 		if err != nil {
@@ -569,4 +583,13 @@ func (b *Broker) Close() error {
 		<-b.daemonClosed
 	})
 	return nil
+}
+
+func timeToFilEpoch(t time.Time) (int64, error) {
+	deadline := (t.Unix() - filecoinGenesisUnixEpoch) / 30
+	if deadline <= 0 {
+		return 0, fmt.Errorf("the provided deadline %s is before genesis", t)
+	}
+
+	return deadline, nil
 }

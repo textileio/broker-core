@@ -50,6 +50,7 @@ type StorageDeal struct {
 	RepFactor        int
 	DealDuration     int
 	Sources          Sources
+	FilEpochDeadline *int64
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Error            string

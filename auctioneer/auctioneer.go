@@ -20,6 +20,7 @@ type Auctioneer interface {
 		dealReplication int,
 		dealVerified bool,
 		excludedMiners []string,
+		filEpochDeadline *int64,
 		sources broker.Sources,
 	) (broker.AuctionID, error)
 

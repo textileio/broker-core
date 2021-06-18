@@ -71,6 +71,7 @@ type storageDeal struct {
 	BrokerRequestIDs []broker.BrokerRequestID
 	RepFactor        int
 	DealDuration     int
+	FilEpochDeadline *int64
 	Sources          sources
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
@@ -114,6 +115,7 @@ func castToStorageDeal(isd storageDeal) (broker.StorageDeal, error) {
 		BrokerRequestIDs: make([]broker.BrokerRequestID, len(isd.BrokerRequestIDs)),
 		RepFactor:        isd.RepFactor,
 		DealDuration:     isd.DealDuration,
+		FilEpochDeadline: isd.FilEpochDeadline,
 		CreatedAt:        isd.CreatedAt,
 		UpdatedAt:        isd.UpdatedAt,
 		Error:            isd.Error,

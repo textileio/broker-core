@@ -102,7 +102,14 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 
 		// 2- Link all BrokerRequests with the StorageDeal, and change their status
 		// to `Preparing`, since they should mirror the StorageDeal status.
-		br.Status = broker.RequestPreparing
+		switch sd.Status {
+		case broker.StorageDealPreparing:
+			br.Status = broker.RequestPreparing
+		case broker.StorageDealAuctioning:
+			br.Status = broker.RequestAuctioning
+		default:
+			return fmt.Errorf("unexpected storage deal initial status %d", sd.Status)
+		}
 		br.UpdatedAt = now
 		br.StorageDealID = sd.ID
 
@@ -120,8 +127,8 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 			Cid:        sd.Sources.CARIPFS.Cid.String(),
 			Multiaddrs: make([]string, len(sd.Sources.CARIPFS.Multiaddrs)),
 		}
-		for _, maddr := range sd.Sources.CARIPFS.Multiaddrs {
-			dsources.CARIPFS.Multiaddrs = append(dsources.CARIPFS.Multiaddrs, maddr.String())
+		for i, maddr := range sd.Sources.CARIPFS.Multiaddrs {
+			dsources.CARIPFS.Multiaddrs[i] = maddr.String()
 		}
 	}
 	isd := storageDeal{
@@ -131,6 +138,9 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 		RepFactor:        sd.RepFactor,
 		DealDuration:     sd.DealDuration,
 		PayloadCid:       sd.PayloadCid,
+		PieceCid:         sd.PieceCid,
+		PieceSize:        sd.PieceSize,
+		FilEpochDeadline: sd.FilEpochDeadline,
 		Sources:          dsources,
 		CreatedAt:        sd.CreatedAt,
 		UpdatedAt:        sd.UpdatedAt,

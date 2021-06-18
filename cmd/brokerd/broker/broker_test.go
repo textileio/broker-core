@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
@@ -94,6 +96,86 @@ func TestCreateStorageDeal(t *testing.T) {
 	require.Len(t, sd2.BrokerRequestIDs, 2)
 	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
 	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
+	require.NotNil(t, sd2.Sources.CARURL)
+	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), sd2.Sources.CARURL.URL.String())
+	require.Nil(t, sd2.Sources.CARIPFS)
+	require.Nil(t, sd2.FilEpochDeadline)
+}
+
+func TestCreatePrepared(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	b, packer, piecer, auctioneer, _, _ := createBroker(t)
+
+	// 1- Create some prepared data setup.
+	deadline, _ := time.Parse(time.RFC3339, "2021-06-18T12:51:00+00:00")
+	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+	carURLStr := "https://duke.dog/car/" + payloadCid.String()
+	carURL, _ := url.Parse(carURLStr)
+	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	pc := broker.PreparedCAR{
+		PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize: 1024,
+		RepFactor: 3,
+		Deadline:  deadline,
+		Sources: broker.Sources{
+			CARURL: &broker.CARURL{
+				URL: *carURL,
+			},
+			CARIPFS: &broker.CARIPFS{
+				Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+				Multiaddrs: []multiaddr.Multiaddr{maddr},
+			},
+		},
+	}
+	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc)
+	require.NoError(t, err)
+
+	// 2- Check that packer and piecer were *NOT* called, this data is already prepared.
+	require.Len(t, packer.calledBrokerRequestIDs, 0)
+	require.Equal(t, cid.Undef, piecer.calledCid)
+
+	// 3- Check that the created BrokerRequest moved directly to Auctioning.
+	br, err := b.Get(ctx, createdBr.ID)
+	require.NoError(t, err)
+	require.Equal(t, broker.RequestAuctioning, br.Status)
+	require.NotEmpty(t, br.StorageDealID)
+
+	// 4- Check that the storage deal was created correctly, in particular:
+	//    - The download sources URL and IPFS.
+	//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
+	//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
+	sd, err := b.GetStorageDeal(ctx, br.StorageDealID)
+	require.NoError(t, err)
+	require.Equal(t, pc.RepFactor, sd.RepFactor)
+	require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
+	require.Equal(t, broker.StorageDealAuctioning, sd.Status)
+	require.Len(t, sd.BrokerRequestIDs, 1)
+	require.Contains(t, sd.BrokerRequestIDs, br.ID)
+	require.NotNil(t, sd.Sources.CARURL)
+	require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
+	require.NotNil(t, sd.Sources.CARIPFS)
+	require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
+	require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
+	require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
+	require.Equal(t, int64(857142), *sd.FilEpochDeadline)
+	require.Equal(t, payloadCid, sd.PayloadCid)
+	require.Equal(t, pc.PieceCid, sd.PieceCid)
+	require.Equal(t, pc.PieceSize, sd.PieceSize)
+
+	// 5- Check that we made the call to create the auction.
+	require.Equal(t, b.conf.dealDuration, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, sd.PieceSize, uint64(auctioneer.calledPieceSize))
+	require.Equal(t, sd.ID, auctioneer.calledStorageDealID)
+	require.Equal(t, payloadCid, auctioneer.calledDataCid)
+	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
+	require.Equal(t, int(pc.RepFactor), auctioneer.calledDealReplication)
+	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
+	require.NotNil(t, auctioneer.calledFilEpochDeadline)
+	require.Equal(t, int64(857142), *auctioneer.calledFilEpochDeadline)
+	require.NotNil(t, auctioneer.calledSources.CARURL)
+	require.Equal(t, pc.Sources.CARIPFS.Cid, auctioneer.calledSources.CARIPFS.Cid)
+	require.Len(t, auctioneer.calledSources.CARIPFS.Multiaddrs, 1)
 }
 
 func TestCreateStorageDealFail(t *testing.T) {
@@ -165,6 +247,9 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
+	require.Nil(t, auctioneer.calledFilEpochDeadline)
+	require.NotNil(t, auctioneer.calledSources.CARURL)
+	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), auctioneer.calledSources.CARURL.URL.String())
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
@@ -586,7 +671,7 @@ func createBroker(t *testing.T) (
 		dealer,
 		chainAPI,
 		nil,
-		WithCARExportURL("http://duke.web3"),
+		WithCARExportURL("http://duke.web3/car/"),
 	)
 	require.NoError(t, err)
 
@@ -625,15 +710,16 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 }
 
 type dumbAuctioneer struct {
-	calledStorageDealID   broker.StorageDealID
-	calledDataURI         string
-	calledPieceSize       int
-	calledDealDuration    int
-	calledDealReplication int
-	calledDealVerified    bool
-	calledExcludedMiners  []string
-	calledCount           int
-	calledSources         broker.Sources
+	calledStorageDealID    broker.StorageDealID
+	calledDataURI          string
+	calledPieceSize        int
+	calledDealDuration     int
+	calledDealReplication  int
+	calledDealVerified     bool
+	calledExcludedMiners   []string
+	calledCount            int
+	calledSources          broker.Sources
+	calledFilEpochDeadline *int64
 }
 
 func (dp *dumbAuctioneer) ReadyToAuction(
@@ -643,6 +729,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
+	filEpochDeadline *int64,
 	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
@@ -654,6 +741,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dp.calledExcludedMiners = excludedMiners
 	dp.calledCount++
 	dp.calledSources = sources
+	dp.calledFilEpochDeadline = filEpochDeadline
 	return broker.AuctionID("AUCTION1"), nil
 }
 
@@ -695,4 +783,9 @@ func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID stri
 }
 
 func (dr *dumbChainAPI) clean() {
+}
+
+func castCid(cidStr string) cid.Cid {
+	c, _ := cid.Decode(cidStr)
+	return c
 }
