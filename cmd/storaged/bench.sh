@@ -41,7 +41,7 @@ while ((i<=$COUNT)); do
   head -c ${SIZE} < /dev/urandom > $TMPFILE
 
   echo "Uploading file of size $SIZE..."
-  OUT=$(curl -H "Authorization: $TOKEN" -F "region=europe" -F "file=@$TMPFILE" $TARGET 2>/dev/null)
+  OUT=$(curl -H "Authorization: $TOKEN" -F "file=@$TMPFILE" $TARGET 2>/dev/null)
   if [[ $OUT == *"account doesn't have deposited funds"* ]]; then
 	  lockFunds
   fi
