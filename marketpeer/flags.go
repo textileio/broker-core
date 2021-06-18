@@ -25,7 +25,7 @@ var Flags = []common.Flag{
 	{
 		Name:        "private-key",
 		DefValue:    "",
-		Description: "Libp2p private key; required",
+		Description: "Libp2p private key",
 	},
 	{
 		Name: "listen-multiaddr",
@@ -39,17 +39,17 @@ var Flags = []common.Flag{
 		Name: "bootstrap-multiaddr",
 		DefValue: []string{
 			// staging auctioneer 0
-			"/ip4/34.83.3.108/tcp/4001/p2p/12D3KooWDfrwmm798fDM2wSthRbMLMiT1smrpNUn22zFQii1qYoX",
-			"/ip4/34.83.3.108/udp/4001/quic/p2p/12D3KooWDfrwmm798fDM2wSthRbMLMiT1smrpNUn22zFQii1qYoX",
+			"/ip4/34.83.3.108/tcp/4001/p2p/12D3KooWGDBaVz45c5d9VEtF4eM7Pgj71DSzB3HHAfpjc8fb5EGe",
+			"/ip4/34.83.3.108/udp/4001/quic/p2p/12D3KooWGDBaVz45c5d9VEtF4eM7Pgj71DSzB3HHAfpjc8fb5EGe",
 			// staging auctioneer 1
-			"/ip4/34.105.101.67/tcp/4001/p2p/12D3KooWAVW2PQjBFHUMtixBUYRcUeAV71kjwnPxcPwa21fcV4Fj",
-			"/ip4/34.105.101.67/udp/4001/quic/p2p/12D3KooWAVW2PQjBFHUMtixBUYRcUeAV71kjwnPxcPwa21fcV4Fj",
+			"/ip4/34.105.101.67/tcp/4001/p2p/12D3KooW9wsxrkCx6CnsWb1gBxZWAjzVK5Hif9FLXKoQZYLewXoD",
+			"/ip4/34.105.101.67/udp/4001/quic/p2p/12D3KooW9wsxrkCx6CnsWb1gBxZWAjzVK5Hif9FLXKoQZYLewXoD",
 			// staging ipfs node 0
-			"/ip4/34.83.36.118/tcp/4001/p2p/12D3KooWKHosviDKxPeXoyZjgomBXYoNKgjh8R7B2LrGVtwh222w",
+			"/ip4/34.83.36.118/tcp/4001/p2p/12D3KooWQSf4SMyWPSqLN23KxhcLWYhshWb34pYv65cr85jGpNrR",
 			// staging ipfs node 1
-			"/ip4/34.82.221.249/tcp/4001/p2p/12D3KooWJdCEUxrjS1uQZQFtzCcSSFMc9F8tZJCHCuRc1TVazgrR",
+			"/ip4/34.82.221.249/tcp/4001/p2p/12D3KooWBGyJbDmjjvEzfsgb3nE9JsfcYRqPxpnQagxbb1PyxBrb",
 			// staging ipfs node 2
-			"/ip4/34.83.88.62/tcp/4001/p2p/12D3KooWJtXyjyk5kAZibvYEpsnmDUY9SwofhtjUJMMVVA6MuSwr",
+			"/ip4/34.83.88.62/tcp/4001/p2p/12D3KooWHpxr8BTd3R6kAqvtfn77PKW7WRqJ4cbnrT59K2rU44WM",
 		},
 		Description: "Libp2p bootstrap peer multiaddr",
 	},
