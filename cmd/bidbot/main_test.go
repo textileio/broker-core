@@ -1,9 +1,11 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/broker-core/cmd/bidbot/service/store"
 )
 
 func TestParseRunningBytesLimit(t *testing.T) {
@@ -25,5 +27,13 @@ func TestParseRunningBytesLimit(t *testing.T) {
 	for _, s := range validCases {
 		_, err := parseRunningBytesLimit(s)
 		require.NoError(t, err)
+	}
+}
+
+func TestDealsListFields(t *testing.T) {
+	value := reflect.ValueOf(store.Bid{})
+	// make sure the field names are up-to-date with the struct definition.
+	for _, field := range dealsListFields {
+		require.True(t, value.FieldByName(field).IsValid())
 	}
 }

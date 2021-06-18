@@ -42,6 +42,9 @@ var (
 	defaultConfigPath = filepath.Join(os.Getenv("HOME"), "."+cliName)
 	log               = golog.Logger(cliName)
 	v                 = viper.New()
+
+	dealsListFields = []string{"ID", "DealSize", "DealDuration", "Status", "AskPrice", "VerifiedAskPrice",
+		"StartEpoch", "DataURIFetchAttempts", "CreatedAt", "ErrorCause"}
 )
 
 func init() {
@@ -354,11 +357,9 @@ var dealsListCmd = &cobra.Command{
 			return
 		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.DiscardEmptyColumns)
-		fields := []string{"ID", "DealSize", "DealDuration", "Status", "AskPrice", "VerifiedAskPrice",
-			"StartEpoch", "DataCidFetchAttempts", "CreatedAt", "ErrorCause"}
 		for i, bid := range bids {
 			if i == 0 {
-				for _, field := range fields {
+				for _, field := range dealsListFields {
 					_, err := fmt.Fprintf(w, "%s\t", field)
 					common.CheckErr(err)
 				}
@@ -366,7 +367,7 @@ var dealsListCmd = &cobra.Command{
 				common.CheckErr(err)
 			}
 			value := reflect.ValueOf(bid)
-			for _, field := range fields {
+			for _, field := range dealsListFields {
 				_, err := fmt.Fprintf(w, "%v\t", value.FieldByName(field))
 				common.CheckErr(err)
 			}
