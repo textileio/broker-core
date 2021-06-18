@@ -117,7 +117,11 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 
 // GetChanges gets the state changes for a block height.
 func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
-	res, err := c.NearClient.DataChanges(ctx, []string{c.contractAccountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
+	res, err := c.NearClient.DataChanges(
+		ctx,
+		[]string{c.contractAccountID},
+		nearclient.DataChangesWithBlockHeight(blockHeight),
+	)
 	if err != nil {
 		return nil, "", fmt.Errorf("calling data changes: %v", err)
 	}

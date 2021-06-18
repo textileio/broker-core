@@ -16,8 +16,6 @@ import (
 	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/service"
-	"github.com/textileio/broker-core/cmd/neard/statecache"
-	"github.com/textileio/broker-core/cmd/neard/updater"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -42,8 +40,6 @@ var flags = []common.Flag{
 		Description: "The NEAR account id of the user of this client",
 	},
 	{Name: "client-private-key", DefValue: "", Description: "The NEAR private key string of the client account"},
-	{Name: "update-frequency", DefValue: time.Millisecond * 500, Description: "How often to query the contract state"},
-	{Name: "request-timeout", DefValue: time.Minute, Description: "Timeout to use when calling endpoint-url API calls"},
 	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 	{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 	{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -74,8 +70,6 @@ var rootCmd = &cobra.Command{
 		contractAccountID := v.GetString("contract-account")
 		clientAccountID := v.GetString("client-account")
 		clientPrivateKey := v.GetString("client-private-key")
-		updateFrequency := v.GetDuration("update-frequency")
-		requestTimeout := v.GetDuration("request-timeout")
 
 		err = common.SetupInstrumentation(metricsAddr)
 		common.CheckErrf("booting instrumentation: %v", err)
@@ -102,23 +96,13 @@ var rootCmd = &cobra.Command{
 		cc, err := contractclient.NewClient(nc, contractAccountID, clientAccountID)
 		common.CheckErr(err)
 
-		sc, err := statecache.NewStateCache()
-		common.CheckErr(err)
-
-		u := updater.NewUpdater(updater.Config{
-			Contract:        cc,
-			UpdateFrequency: updateFrequency,
-			RequestTimeout:  requestTimeout,
-			Delegate:        sc,
-		})
-
 		metrics.New(cc)
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)
 		common.CheckErr(err)
 
-		service, err := service.NewService(listener, sc, cc)
+		service, err := service.NewService(listener, cc)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
@@ -127,7 +111,6 @@ var rootCmd = &cobra.Command{
 			log.Info("Gracefully stopping... (press Ctrl+C again to force)")
 			common.CheckErr(service.Close())
 			common.CheckErr(listener.Close())
-			common.CheckErr(u.Close())
 			log.Info("Closed.")
 		})
 
