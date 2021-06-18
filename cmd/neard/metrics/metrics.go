@@ -6,6 +6,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
+	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
@@ -22,11 +23,12 @@ var meter = metric.Must(global.Meter(prefix))
 // Metrics creates metrics about the NEAR smart contract and API node.
 type Metrics struct {
 	cc *contractclient.Client
+	nc *nearclient.Client
 }
 
 // New creates a new Metrics.
-func New(cc *contractclient.Client) *Metrics {
-	m := &Metrics{cc: cc}
+func New(cc *contractclient.Client, nc *nearclient.Client) *Metrics {
+	m := &Metrics{cc: cc, nc: nc}
 	m.initMetrics()
 	return m
 }
@@ -63,7 +65,7 @@ func (m *Metrics) initMetrics() {
 		}
 
 		// Account info metrics.
-		acc, err := m.cc.NearClient.Account("filecoin-bridge.testnet").State(ctx)
+		acc, err := m.cc.GetAccount(ctx)
 		if err != nil {
 			log.Errorf("getting account info: %v", err)
 		} else {
@@ -85,7 +87,7 @@ func (m *Metrics) initMetrics() {
 		}
 
 		// Node status metrics.
-		nodeStatus, err := m.cc.NearClient.NodeStatus(ctx)
+		nodeStatus, err := m.nc.NodeStatus(ctx)
 		if err != nil {
 			log.Errorf("getting node status: %v", err)
 		} else {

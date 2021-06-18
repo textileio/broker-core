@@ -96,7 +96,7 @@ var rootCmd = &cobra.Command{
 		cc, err := contractclient.NewClient(nc, contractAccountID, clientAccountID)
 		common.CheckErr(err)
 
-		metrics.New(cc)
+		metrics.New(cc, nc)
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)

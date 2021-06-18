@@ -76,19 +76,19 @@ func (u *Updater) run() {
 				continue
 			}
 			ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
-			nodeStatus, err := u.config.Contract.NearClient.NodeStatus(ctx)
+			account, err := u.config.Contract.GetAccount(ctx)
 			cancel()
 			if err != nil {
 				u.config.Delegate.HandleError(fmt.Errorf("getting node status: %v", err))
 				updateFrequency *= 2
 				continue
 			}
-			log.Errorf("account block height: %v", nodeStatus.SyncInfo.LatestBlockHeight)
-			if u.blockHeight >= nodeStatus.SyncInfo.LatestBlockHeight {
+			log.Errorf("account block height: %v", account.BlockHeight)
+			if u.blockHeight >= account.BlockHeight {
 				continue
 			}
 			time.Sleep(time.Millisecond * 2500)
-			for i := u.blockHeight + 1; i <= nodeStatus.SyncInfo.LatestBlockHeight; i++ {
+			for i := u.blockHeight + 1; i <= account.BlockHeight; i++ {
 				log.Errorf("getting changes for height: %v", i)
 				ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
 				changes, blockHash, err := u.config.Contract.GetChanges(ctx, i)

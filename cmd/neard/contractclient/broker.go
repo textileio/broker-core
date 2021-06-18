@@ -18,7 +18,7 @@ type BrokerInfo struct {
 
 // DeleteBroker deletes the specified broker from the state.
 func (c *Client) DeleteBroker(ctx context.Context, brokerID string) error {
-	if _, err := c.NearClient.Account(c.clientAccountID).FunctionCall(
+	if _, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
 		c.contractAccountID,
 		"deleteBroker",
@@ -35,7 +35,7 @@ func (c *Client) SetBroker(ctx context.Context, brokerID string, addrs []string)
 		"brokerId": brokerID,
 		"addrs":    addrs,
 	}
-	res, err := c.NearClient.Account(c.clientAccountID).FunctionCall(
+	res, err := c.nc.Account(c.clientAccountID).FunctionCall(
 		ctx,
 		c.contractAccountID,
 		"setBroker",
@@ -61,7 +61,7 @@ func (c *Client) SetBroker(ctx context.Context, brokerID string, addrs []string)
 
 // GetBroker gets a broker by id.
 func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, error) {
-	res, err := c.NearClient.CallFunction(
+	res, err := c.nc.CallFunction(
 		ctx,
 		c.contractAccountID,
 		"getBroker",
@@ -83,7 +83,7 @@ func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, e
 
 // ListBrokers lists all brokers.
 func (c *Client) ListBrokers(ctx context.Context) ([]BrokerInfo, error) {
-	res, err := c.NearClient.CallFunction(
+	res, err := c.nc.CallFunction(
 		ctx,
 		c.contractAccountID,
 		"listBrokers",

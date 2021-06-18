@@ -65,7 +65,7 @@ type BrokerValue struct {
 
 // Client communicates with the contract API.
 type Client struct {
-	NearClient        *nearclient.Client
+	nc                *nearclient.Client
 	contractAccountID string
 	clientAccountID   string
 }
@@ -73,7 +73,7 @@ type Client struct {
 // NewClient creates a new Client.
 func NewClient(nc *nearclient.Client, contractAccountID, clientAccountID string) (*Client, error) {
 	return &Client{
-		NearClient:        nc,
+		nc:                nc,
 		contractAccountID: contractAccountID,
 		clientAccountID:   clientAccountID,
 	}, nil
@@ -81,12 +81,12 @@ func NewClient(nc *nearclient.Client, contractAccountID, clientAccountID string)
 
 // GetAccount gets information about the account.
 func (c *Client) GetAccount(ctx context.Context) (*account.AccountView, error) {
-	return c.NearClient.Account(c.contractAccountID).State(ctx, account.StateWithFinality("final"))
+	return c.nc.Account(c.contractAccountID).State(ctx, account.StateWithFinality("final"))
 }
 
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.NearClient.Account(c.contractAccountID).ViewState(
+	res, err := c.nc.Account(c.contractAccountID).ViewState(
 		ctx,
 		account.ViewStateWithFinality("final"),
 	)
@@ -117,7 +117,7 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 
 // GetChanges gets the state changes for a block height.
 func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
-	res, err := c.NearClient.DataChanges(
+	res, err := c.nc.DataChanges(
 		ctx,
 		[]string{c.contractAccountID},
 		nearclient.DataChangesWithBlockHeight(blockHeight),
