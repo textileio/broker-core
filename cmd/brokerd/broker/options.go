@@ -97,7 +97,7 @@ func WithExportPinCountFrequency(freq time.Duration) Option {
 	}
 }
 
-// WithCAR configures the frequency of exporting the pin count metric.
+// WithCARExportURL configures the frequency of exporting the pin count metric.
 func WithCARExportURL(rawURL string) Option {
 	return func(c *config) error {
 		u, err := url.Parse(rawURL)

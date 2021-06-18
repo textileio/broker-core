@@ -144,7 +144,11 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, e
 	return br, nil
 }
 
-func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+// CreatePrepared creates a broker request for prepared data.
+func (b *Broker) CreatePrepared(
+	ctx context.Context,
+	payloadCid cid.Cid,
+	pc broker.PreparedCAR) (broker.BrokerRequest, error) {
 	log.Debugf("creating prepared car broker request")
 	if !payloadCid.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
@@ -173,7 +177,7 @@ func (b *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc brok
 		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
 	}
 	sd := broker.StorageDeal{
-		RepFactor:        int(pc.RepFactor),
+		RepFactor:        pc.RepFactor,
 		DealDuration:     int(b.conf.dealDuration),
 		Status:           broker.StorageDealAuctioning,
 		BrokerRequestIDs: []broker.BrokerRequestID{br.ID},

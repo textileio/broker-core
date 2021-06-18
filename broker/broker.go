@@ -66,6 +66,7 @@ type StorageDeal struct {
 	Deals []MinerDeal
 }
 
+// Sources contains information about download sources for prepared data.
 type Sources struct {
 	CARURL  *CARURL
 	CARIPFS *CARIPFS

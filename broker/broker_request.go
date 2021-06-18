@@ -9,8 +9,10 @@ import (
 )
 
 const (
+	// CodecFilCommitmentUnsealed is the IPLD codec for PieceCid cids.
 	CodecFilCommitmentUnsealed = 0xf101
-	MaxPieceSize               = 32 << 30
+	// MaxPieceSize is the maximum piece size accepted for prepared data.
+	MaxPieceSize = 32 << 30
 )
 
 // BrokerRequestID is the type used for broker request identity.
@@ -26,6 +28,7 @@ type BrokerRequest struct {
 	UpdatedAt     time.Time
 }
 
+// PreparedCAR contains information about prepared data.
 type PreparedCAR struct {
 	PieceCid  cid.Cid
 	PieceSize uint64

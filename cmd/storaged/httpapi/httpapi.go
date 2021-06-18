@@ -72,7 +72,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func wrapMiddlewares(s storage.Requester, skipAuth bool, h http.HandlerFunc, name string) http.Handler {
 	handler := corsHandler(h)
-	handler = instrumentHandler(h, name)
+	handler = instrumentHandler(handler, name)
 	if !skipAuth {
 		handler = authenticateHandler(handler, s)
 	}

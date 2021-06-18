@@ -102,7 +102,10 @@ func (bs *BrokerStorage) CreateFromReader(
 	}, nil
 }
 
-func (bs *BrokerStorage) CreateFromExternalSource(ctx context.Context, adr storage.AuctionDataRequest) (storage.Request, error) {
+// CreateFromExternalSource creates a broker request for prepared data.
+func (bs *BrokerStorage) CreateFromExternalSource(
+	ctx context.Context,
+	adr storage.AuctionDataRequest) (storage.Request, error) {
 	// Validate PayloadCid.
 	payloadCid, err := cid.Decode(adr.PayloadCid)
 	if err != nil {

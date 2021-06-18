@@ -54,7 +54,11 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequ
 	return br, nil
 }
 
-func (c *Client) CreatePrepared(ctx context.Context, dataCid cid.Cid, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+// CreatePrepared creates a broker request for prepared data.
+func (c *Client) CreatePrepared(
+	ctx context.Context,
+	dataCid cid.Cid,
+	pc broker.PreparedCAR) (broker.BrokerRequest, error) {
 	req := &pb.CreatePreparedBrokerRequestRequest{
 		Cid: dataCid.String(),
 	}

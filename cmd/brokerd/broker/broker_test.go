@@ -113,6 +113,7 @@ func TestCreatePrepared(t *testing.T) {
 	carURLStr := "https://duke.dog/car/" + payloadCid.String()
 	carURL, _ := url.Parse(carURLStr)
 	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	require.NoError(t, err)
 	pc := broker.PreparedCAR{
 		PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
 		PieceSize: 1024,
@@ -165,11 +166,11 @@ func TestCreatePrepared(t *testing.T) {
 
 	// 5- Check that we made the call to create the auction.
 	require.Equal(t, b.conf.dealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, sd.PieceSize, uint64(auctioneer.calledPieceSize))
+	require.Equal(t, sd.PieceSize, auctioneer.calledPieceSize)
 	require.Equal(t, sd.ID, auctioneer.calledStorageDealID)
 	require.Equal(t, payloadCid, auctioneer.calledDataCid)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
-	require.Equal(t, int(pc.RepFactor), auctioneer.calledDealReplication)
+	require.Equal(t, pc.RepFactor, auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
 	require.NotNil(t, auctioneer.calledFilEpochDeadline)
 	require.Equal(t, int64(857142), *auctioneer.calledFilEpochDeadline)
@@ -241,7 +242,7 @@ func TestStorageDealPrepared(t *testing.T) {
 
 	// 4- Verify that Auctioneer was called to auction the data.
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
+	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 	require.Equal(t, createCidURI(brgCid), auctioneer.calledDataURI)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
@@ -458,7 +459,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	//    was called to create a new auction with rep factor 1.
 	require.Equal(t, 2, auctioneer.calledCount)
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, dpr.PieceSize, uint64(auctioneer.calledPieceSize))
+	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 	require.Equal(t, createCidURI(brgCid), auctioneer.calledDataURI)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)

@@ -247,5 +247,4 @@ func (um *uploaderMock) CreateFromExternalSource(
 	args := um.Called(ctx, adr)
 
 	return args.Get(0).(storage.Request), args.Error(1)
-
 }
