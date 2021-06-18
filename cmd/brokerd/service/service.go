@@ -409,6 +409,7 @@ func (s *Service) StorageDealFinalizedDeal(
 	return &pb.StorageDealFinalizedDealResponse{}, nil
 }
 
+// StorageDealProposalAccepted notifies the auctioneer that the miner accepted the deal.
 func (s *Service) StorageDealProposalAccepted(
 	ctx context.Context,
 	r *pb.StorageDealProposalAcceptedRequest) (*pb.StorageDealProposalAcceptedResponse, error) {
@@ -421,7 +422,10 @@ func (s *Service) StorageDealProposalAccepted(
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid %s: %s", r.ProposalCid, err)
 	}
 
-	if err := s.broker.StorageDealProposalAccepted(ctx, broker.StorageDealID(r.StorageDealId), r.Miner, proposalCid); err != nil {
+	if err := s.broker.StorageDealProposalAccepted(
+		ctx,
+		broker.StorageDealID(r.StorageDealId),
+		r.Miner, proposalCid); err != nil {
 		return nil, status.Errorf(codes.Internal, "notifying proposal accepted: %s", err)
 	}
 
