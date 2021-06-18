@@ -58,7 +58,7 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c := newClient(t, 1)
+	c, dag := newClient(t, 1)
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
 
