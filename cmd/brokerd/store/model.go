@@ -3,9 +3,11 @@ package store
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -43,12 +45,9 @@ func (m metadata) validate() error {
 
 func castToInternalBrokerRequest(br broker.BrokerRequest) brokerRequest {
 	return brokerRequest{
-		ID:      br.ID,
-		DataCid: br.DataCid,
-		Status:  br.Status,
-		Metadata: metadata{
-			Region: br.Metadata.Region,
-		},
+		ID:            br.ID,
+		DataCid:       br.DataCid,
+		Status:        br.Status,
 		StorageDealID: br.StorageDealID,
 		CreatedAt:     br.CreatedAt,
 		UpdatedAt:     br.UpdatedAt,
@@ -57,12 +56,9 @@ func castToInternalBrokerRequest(br broker.BrokerRequest) brokerRequest {
 
 func castToBrokerRequest(ibr brokerRequest) broker.BrokerRequest {
 	return broker.BrokerRequest{
-		ID:      ibr.ID,
-		DataCid: ibr.DataCid,
-		Status:  ibr.Status,
-		Metadata: broker.Metadata{
-			Region: ibr.Metadata.Region,
-		},
+		ID:            ibr.ID,
+		DataCid:       ibr.DataCid,
+		Status:        ibr.Status,
 		StorageDealID: ibr.StorageDealID,
 		CreatedAt:     ibr.CreatedAt,
 		UpdatedAt:     ibr.UpdatedAt,
@@ -75,6 +71,8 @@ type storageDeal struct {
 	BrokerRequestIDs []broker.BrokerRequestID
 	RepFactor        int
 	DealDuration     int
+	FilEpochDeadline *int64
+	Sources          sources
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Error            string
@@ -85,6 +83,16 @@ type storageDeal struct {
 	PieceSize uint64
 
 	Deals []minerDeal
+}
+
+type sources struct {
+	CARURL  *string
+	CARIPFS *carIPFS
+}
+
+type carIPFS struct {
+	Cid        string
+	Multiaddrs []string
 }
 
 type minerDeal struct {
@@ -100,13 +108,14 @@ type minerDeal struct {
 	ErrorCause     string
 }
 
-func castToStorageDeal(isd storageDeal) broker.StorageDeal {
+func castToStorageDeal(isd storageDeal) (broker.StorageDeal, error) {
 	bd := broker.StorageDeal{
 		ID:               isd.ID,
 		Status:           isd.Status,
 		BrokerRequestIDs: make([]broker.BrokerRequestID, len(isd.BrokerRequestIDs)),
 		RepFactor:        isd.RepFactor,
 		DealDuration:     isd.DealDuration,
+		FilEpochDeadline: isd.FilEpochDeadline,
 		CreatedAt:        isd.CreatedAt,
 		UpdatedAt:        isd.UpdatedAt,
 		Error:            isd.Error,
@@ -135,5 +144,31 @@ func castToStorageDeal(isd storageDeal) broker.StorageDeal {
 		}
 	}
 
-	return bd
+	if isd.Sources.CARURL != nil {
+		u, err := url.Parse(*isd.Sources.CARURL)
+		if err != nil {
+			return broker.StorageDeal{}, fmt.Errorf("parsing url: %s", err)
+		}
+		bd.Sources.CARURL = &broker.CARURL{URL: *u}
+	}
+	if isd.Sources.CARIPFS != nil {
+		carCID, err := cid.Parse(isd.Sources.CARIPFS.Cid)
+		if err != nil {
+			return broker.StorageDeal{}, fmt.Errorf("parsing cid: %s", err)
+		}
+		multiaddrs := make([]multiaddr.Multiaddr, len(isd.Sources.CARIPFS.Multiaddrs))
+		for i, strmaddr := range isd.Sources.CARIPFS.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(strmaddr)
+			if err != nil {
+				return broker.StorageDeal{}, fmt.Errorf("parsing multiaddr: %s", err)
+			}
+			multiaddrs[i] = maddr
+		}
+		bd.Sources.CARIPFS = &broker.CARIPFS{
+			Cid:        carCID,
+			Multiaddrs: multiaddrs,
+		}
+	}
+
+	return bd, nil
 }

@@ -14,12 +14,13 @@ type Auctioneer interface {
 	ReadyToAuction(
 		ctx context.Context,
 		id broker.StorageDealID,
-		dataURI string,
 		dealSize int,
 		dealDuration int,
 		dealReplication int,
 		dealVerified bool,
 		excludedMiners []string,
+		filEpochDeadline *int64,
+		sources broker.Sources,
 	) (broker.AuctionID, error)
 
 	// GetAuction returns an auction by broker.AuctionID.

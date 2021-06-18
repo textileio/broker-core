@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -50,6 +51,8 @@ type Config struct {
 	DealDuration    uint64
 	DealReplication uint32
 	VerifiedDeals   bool
+
+	CARExportURL string
 }
 
 // Service provides an implementation of the broker API.
@@ -125,6 +128,7 @@ func New(config Config) (*Service, error) {
 		brokeri.WithDealDuration(config.DealDuration),
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
+		brokeri.WithCARExportURL(config.CARExportURL),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
@@ -147,6 +151,104 @@ func New(config Config) (*Service, error) {
 	return s, nil
 }
 
+// CreatePreparedBrokerRequest creates a new prepared BrokerRequest.
+func (s *Service) CreatePreparedBrokerRequest(
+	ctx context.Context,
+	r *pb.CreatePreparedBrokerRequestRequest) (*pb.CreatePreparedBrokerRequestResponse, error) {
+	log.Debugf("received prepared broker request")
+	if r == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+	if r.PreparedCAR == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty prepared car information")
+	}
+
+	c, err := cid.Decode(r.Cid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
+	}
+
+	var pc broker.PreparedCAR
+	// Validate PieceCid.
+	pc.PieceCid, err = cid.Decode(r.PreparedCAR.PieceCid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "piece-cid is invalid: %s", err)
+	}
+	if pc.PieceCid.Prefix().Codec != broker.CodecFilCommitmentUnsealed {
+		return nil, status.Error(codes.InvalidArgument, "piece-cid must be have fil-commitment-unsealed codec")
+	}
+
+	// Validate PieceSize.
+	if r.PreparedCAR.PieceSize <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "piece-size must be greater than zero")
+	}
+	if r.PreparedCAR.PieceSize&(r.PreparedCAR.PieceSize-1) != 0 {
+		return nil, status.Error(codes.InvalidArgument, "piece-size must be a power of two")
+	}
+	if r.PreparedCAR.PieceSize > broker.MaxPieceSize {
+		return nil, status.Errorf(codes.InvalidArgument, "piece-size can't be greater than %d", broker.MaxPieceSize)
+	}
+
+	// Validate rep factor.
+	if r.PreparedCAR.RepFactor < 0 {
+		return nil, status.Error(codes.InvalidArgument, "rep-factor can't be negative")
+	}
+
+	pc.Deadline = r.PreparedCAR.Deadline.AsTime()
+
+	if r.PreparedCAR.CarUrl != nil {
+		url, err := url.Parse(r.PreparedCAR.CarUrl.Url)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "parsing CAR URL: %s", err)
+		}
+		if url.Scheme != "http" && url.Scheme != "https" {
+			return nil, status.Error(codes.InvalidArgument, "CAR URL scheme should be http(s)")
+		}
+
+		pc.Sources.CARURL = &broker.CARURL{
+			URL: *url,
+		}
+	}
+
+	if r.PreparedCAR.CarIpfs != nil {
+		carCid, err := cid.Decode(r.PreparedCAR.CarIpfs.Cid)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "car cid isn't valid: %s", err)
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCAR.CarIpfs.Multiaddrs))
+		for i, smaddr := range r.PreparedCAR.CarIpfs.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(smaddr)
+			if err != nil {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid multiaddr %s: %s", smaddr, err)
+			}
+			maddrs[i] = maddr
+		}
+		pc.Sources.CARIPFS = &broker.CARIPFS{
+			Cid:        carCid,
+			Multiaddrs: maddrs,
+		}
+	}
+
+	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
+		return nil, status.Error(codes.InvalidArgument, "at least one download source must be specified")
+	}
+
+	br, err := s.broker.CreatePrepared(ctx, c, pc)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
+	}
+
+	pbr, err := cast.BrokerRequestToProto(br)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
+	}
+	res := &pb.CreatePreparedBrokerRequestResponse{
+		Request: pbr,
+	}
+
+	return res, nil
+}
+
 // CreateBrokerRequest creates a new BrokerRequest.
 func (s *Service) CreateBrokerRequest(
 	ctx context.Context,
@@ -161,12 +263,7 @@ func (s *Service) CreateBrokerRequest(
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
 
-	meta := broker.Metadata{}
-	if r.Meta != nil {
-		meta.Region = r.Meta.Region
-	}
-
-	br, err := s.broker.Create(ctx, c, meta)
+	br, err := s.broker.Create(ctx, c)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}

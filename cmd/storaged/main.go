@@ -27,6 +27,7 @@ func init() {
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "skip-auth", DefValue: false, Description: "Disabled authorization check"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
+		{Name: "bearer-tokens", DefValue: []string{}, Description: "Raw accepted bearer tokens"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -44,7 +45,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
+		settings, err := marshalConfig(v)
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -66,6 +67,7 @@ var rootCmd = &cobra.Command{
 			AuthAddr:              v.GetString("auth-addr"),
 			SkipAuth:              v.GetBool("skip-auth"),
 			IpfsMultiaddrs:        ipfsMultiaddrs,
+			BearerTokens:          common.ParseStringSlice(v, "berer-tokens"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
@@ -82,4 +84,12 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	common.CheckErr(rootCmd.Execute())
+}
+
+func marshalConfig(v *viper.Viper) ([]byte, error) {
+	all := v.AllSettings()
+	if all["bearer-tokens"].(string) != "" {
+		all["bearer-tokens"] = "***"
+	}
+	return json.MarshalIndent(all, "", "  ")
 }

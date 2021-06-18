@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 )
 
-func TestSuccess(t *testing.T) {
+func TestCreateSuccess(t *testing.T) {
 	t.Parallel()
 
 	req, res := makeRequestWithFile(t)
@@ -24,7 +25,42 @@ func TestSuccess(t *testing.T) {
 	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
 	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
 	usm := &uploaderMock{}
-	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("CreateFromReader", mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
+	usm.On("Get", mock.Anything, mock.Anything).Return(expectedSR, nil)
+
+	mux := createMux(usm, false)
+	mux.ServeHTTP(res, req)
+	require.Equal(t, http.StatusOK, res.Code)
+
+	var responseSR storage.Request
+	err := json.Unmarshal(res.Body.Bytes(), &responseSR)
+	require.NoError(t, err)
+
+	require.Equal(t, expectedSR, responseSR)
+
+	// Call Get(..)
+	req = httptest.NewRequest("GET", "/storagerequest/"+responseSR.ID, nil)
+	req.Header.Add("Authorization", "Bearer foo")
+	res = httptest.NewRecorder()
+	mux.ServeHTTP(res, req)
+	require.Equal(t, http.StatusOK, res.Code)
+	err = json.Unmarshal(res.Body.Bytes(), &responseSR)
+	require.NoError(t, err)
+	require.Equal(t, expectedSR, responseSR)
+
+	usm.AssertExpectations(t)
+}
+
+func TestCreatePreparedSuccess(t *testing.T) {
+	t.Parallel()
+
+	req, res := makeRequestPrepared(t)
+
+	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
+	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
+	usm := &uploaderMock{}
+	usm.On("CreateFromExternalSource", mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
 	usm.On("Get", mock.Anything, mock.Anything).Return(expectedSR, nil)
 
@@ -135,8 +171,6 @@ func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 	go func() {
 		defer func() { _ = writer.Close() }()
 
-		err := writer.WriteField("region", "asia")
-		require.NoError(t, err)
 		w, err := writer.CreateFormFile("file", "something.jpg")
 		require.NoError(t, err)
 		_, err = w.Write(make([]byte, 100))
@@ -151,6 +185,31 @@ func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 	return req, res
 }
 
+func makeRequestPrepared(t *testing.T) (*http.Request, *httptest.ResponseRecorder) {
+	adr := storage.AuctionDataRequest{
+		PayloadCid: "bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq",
+		PieceCid:   "baga6ea4seaqecjuu654vrpfi5ekfiequcfwgeuhiqflxo2e7nq6bfpb4ilxoqci",
+		PieceSize:  64,
+		RepFactor:  3,
+		Deadline:   "2021-06-17",
+		CARURL: &storage.CARURL{
+			URL: "https://hello.com/world.car",
+		},
+		CARIPFS: &storage.CARIPFS{
+			Cid:        "QmcCpRyHhCPNaKLVC3eMgS14L5wNfXBM6NyJafD22af5AE",
+			Multiaddrs: []string{"/ip4/127.0.0.1/tcp/9999/p2p/12D3KooWA8o5KiBQew75GKWhZcpJdBKrfWjp2Zhyp7X5thxw41TE"},
+		},
+	}
+	body, err := json.Marshal(adr)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("POST", "/auction-data", bytes.NewReader(body))
+	req.Header.Add("Authorization", "Bearer foo")
+	res := httptest.NewRecorder()
+
+	return req, res
+}
+
 type uploaderMock struct {
 	mock.Mock
 }
@@ -158,9 +217,8 @@ type uploaderMock struct {
 func (um *uploaderMock) CreateFromReader(
 	ctx context.Context,
 	r io.Reader,
-	meta storage.Metadata,
 ) (storage.Request, error) {
-	args := um.Called(ctx, r, meta)
+	args := um.Called(ctx, r)
 
 	return args.Get(0).(storage.Request), args.Error(1)
 }
@@ -181,4 +239,12 @@ func (um *uploaderMock) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) erro
 	args := um.Called(ctx, c, w)
 
 	return args.Error(0)
+}
+
+func (um *uploaderMock) CreateFromExternalSource(
+	ctx context.Context,
+	adr storage.AuctionDataRequest) (storage.Request, error) {
+	args := um.Called(ctx, adr)
+
+	return args.Get(0).(storage.Request), args.Error(1)
 }

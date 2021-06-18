@@ -2,9 +2,11 @@ package brokerstorage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
+	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -30,7 +32,7 @@ var (
 type BrokerStorage struct {
 	auth     auth.Authorizer
 	up       uploader.Uploader
-	broker   broker.BrokerRequestor
+	broker   broker.Broker
 	ipfsApis []ipfsAPI
 }
 
@@ -45,7 +47,7 @@ var _ storage.Requester = (*BrokerStorage)(nil)
 func New(
 	auth auth.Authorizer,
 	up uploader.Uploader,
-	broker broker.BrokerRequestor,
+	broker broker.Broker,
 	ipfsEndpoints []multiaddr.Multiaddr,
 ) (*BrokerStorage, error) {
 	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
@@ -69,7 +71,7 @@ func New(
 }
 
 // IsAuthorized resolves if the provided identity is authorized to use the
-// service. If that isn't the case, a string is also return to exply why.
+// service. If it isn't authorized, the second return parameter explains the cause.
 func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {
 	return bs.auth.IsAuthorized(ctx, identity)
 }
@@ -78,17 +80,13 @@ func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (boo
 func (bs *BrokerStorage) CreateFromReader(
 	ctx context.Context,
 	r io.Reader,
-	meta storage.Metadata,
 ) (storage.Request, error) {
 	c, err := bs.up.Store(ctx, r)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("storing stream: %s", err)
 	}
 
-	brokerMeta := broker.Metadata{
-		Region: meta.Region,
-	}
-	sr, err := bs.broker.Create(ctx, c, brokerMeta)
+	sr, err := bs.broker.Create(ctx, c)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
@@ -100,6 +98,106 @@ func (bs *BrokerStorage) CreateFromReader(
 	return storage.Request{
 		ID:         string(sr.ID),
 		Cid:        c,
+		StatusCode: status,
+	}, nil
+}
+
+// CreateFromExternalSource creates a broker request for prepared data.
+func (bs *BrokerStorage) CreateFromExternalSource(
+	ctx context.Context,
+	adr storage.AuctionDataRequest) (storage.Request, error) {
+	// Validate PayloadCid.
+	payloadCid, err := cid.Decode(adr.PayloadCid)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("payload-cid is invalid: %s", err)
+	}
+
+	// Validate PieceCid.
+	pieceCid, err := cid.Decode(adr.PieceCid)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("piece-cid is invalid: %s", err)
+	}
+	if pieceCid.Prefix().Codec != broker.CodecFilCommitmentUnsealed {
+		return storage.Request{}, fmt.Errorf("piece-cid must be have fil-commitment-unsealed codec")
+	}
+
+	// Validate PieceSize.
+	if adr.PieceSize&(adr.PieceSize-1) != 0 {
+		return storage.Request{}, errors.New("piece-size must be a power of two")
+	}
+	if adr.PieceSize > broker.MaxPieceSize {
+		return storage.Request{}, fmt.Errorf("piece-size can't be greater than %d", broker.MaxPieceSize)
+	}
+
+	// Validate rep factor.
+	if adr.RepFactor < 0 {
+		return storage.Request{}, errors.New("rep-factor should can't be negative")
+	}
+
+	deadline := time.Now().Add(broker.DefaultDealDeadline)
+	if adr.Deadline != "" {
+		deadline, err = time.Parse(time.RFC3339, adr.Deadline)
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("deadline should be in RFC3339 format: %s", err)
+		}
+	}
+
+	pc := broker.PreparedCAR{
+		PieceCid:  pieceCid,
+		PieceSize: adr.PieceSize,
+		RepFactor: adr.RepFactor,
+		Deadline:  deadline,
+	}
+
+	if adr.CARURL != nil {
+		url, err := url.Parse(adr.CARURL.URL)
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("parsing CAR URL: %s", err)
+		}
+		if url.Scheme != "http" && url.Scheme != "https" {
+			return storage.Request{}, fmt.Errorf("CAR URL scheme should be http(s)")
+		}
+
+		pc.Sources.CARURL = &broker.CARURL{
+			URL: *url,
+		}
+	}
+
+	if adr.CARIPFS != nil {
+		carCid, err := cid.Decode(adr.CARIPFS.Cid)
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("car cid isn't valid: %s", err)
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(adr.CARIPFS.Multiaddrs))
+		for i, smaddr := range adr.CARIPFS.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(smaddr)
+			if err != nil {
+				return storage.Request{}, fmt.Errorf("invalid multiaddr %s: %s", smaddr, err)
+			}
+			maddrs[i] = maddr
+		}
+		pc.Sources.CARIPFS = &broker.CARIPFS{
+			Cid:        carCid,
+			Multiaddrs: maddrs,
+		}
+	}
+
+	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
+		return storage.Request{}, fmt.Errorf("at least one source must be specified: %s", err)
+	}
+
+	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
+	}
+	status, err := brokerRequestStatusToStorageRequestStatus(sr.Status)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
+	}
+
+	return storage.Request{
+		ID:         string(sr.ID),
+		Cid:        payloadCid,
 		StatusCode: status,
 	}, nil
 }

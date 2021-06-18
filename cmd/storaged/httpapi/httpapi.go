@@ -51,8 +51,11 @@ func createMux(s storage.Requester, skipAuth bool) *http.ServeMux {
 	uploadHandler := wrapMiddlewares(s, skipAuth, uploadHandler(s), "upload")
 	mux.Handle("/upload", uploadHandler)
 
-	storageRequest := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
-	mux.Handle("/storagerequest/", storageRequest)
+	storageRequestStatusHandler := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
+	mux.Handle("/storagerequest/", storageRequestStatusHandler)
+
+	auctionDataHandler := wrapMiddlewares(s, skipAuth, auctionDataHandler(s), "auction-data")
+	mux.Handle("/auction-data", auctionDataHandler)
 
 	mux.HandleFunc("/car/", carDownloadHandler(s))
 
@@ -68,7 +71,8 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func wrapMiddlewares(s storage.Requester, skipAuth bool, h http.HandlerFunc, name string) http.Handler {
-	handler := instrumentHandler(h, name)
+	handler := corsHandler(h)
+	handler = instrumentHandler(handler, name)
 	if !skipAuth {
 		handler = authenticateHandler(handler, s)
 	}
@@ -80,15 +84,20 @@ func instrumentHandler(h http.Handler, name string) http.Handler {
 	return otelhttp.NewHandler(h, name)
 }
 
-func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
+func corsHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Preflight OPTIONS request
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
 			return
 		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader, ok := r.Header["Authorization"]
 		if !ok || len(authHeader) == 0 {
 			httpError(w, "Authorization header is required", http.StatusUnauthorized)
@@ -120,23 +129,20 @@ func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
 
 func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 			return
 		}
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 
-		region, file, err := parseMultipart(r)
+		file, err := parseMultipart(r)
 		if err != nil {
 			httpError(w, fmt.Sprintf("parsing multipart: %s", err), http.StatusBadRequest)
 			return
 		}
 
-		meta := storage.Metadata{
-			Region: region,
-		}
-		storageRequest, err := s.CreateFromReader(r.Context(), file, meta)
+		storageRequest, err := s.CreateFromReader(r.Context(), file)
 		if err != nil {
 			httpError(w, fmt.Sprintf("upload data and create broker request: %s", err), http.StatusInternalServerError)
 			return
@@ -177,13 +183,12 @@ func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *h
 	}
 }
 
-func parseMultipart(r *http.Request) (string, io.Reader, error) {
+func parseMultipart(r *http.Request) (io.Reader, error) {
 	mr, err := r.MultipartReader()
 	if err != nil {
-		return "", nil, fmt.Errorf("opening multipart reader: %s", err)
+		return nil, fmt.Errorf("opening multipart reader: %s", err)
 	}
 
-	var region string
 	var file io.Reader
 Loop:
 	for {
@@ -192,27 +197,51 @@ Loop:
 			break
 		}
 		if err != nil {
-			return "", nil, fmt.Errorf("getting next part: %s", err)
+			return nil, fmt.Errorf("getting next part: %s", err)
 		}
 		switch part.FormName() {
-		case "region":
-			buf := &strings.Builder{}
-			if _, err := io.Copy(buf, part); err != nil {
-				return "", nil, fmt.Errorf("getting region part: %s", err)
-			}
-			region = buf.String()
 		case "file":
 			file = part
 			break Loop
 		default:
-			return "", nil, errors.New("malformed request")
+			return nil, errors.New("malformed request")
 		}
 	}
 	if file == nil {
-		return "", nil, fmt.Errorf("missing file part: %s", err)
+		return nil, fmt.Errorf("missing file part: %s", err)
 	}
 
-	return region, file, nil
+	return file, nil
+}
+
+func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			httpError(w, "only POST method is allowed", http.StatusBadRequest)
+			return
+		}
+		body := http.MaxBytesReader(w, r.Body, 1<<20)
+
+		jsonDecoder := json.NewDecoder(body)
+		jsonDecoder.DisallowUnknownFields()
+		var ad storage.AuctionDataRequest
+		if err := jsonDecoder.Decode(&ad); err != nil {
+			httpError(w, fmt.Sprintf("decoding auction-data request body: %s", err), http.StatusBadRequest)
+			return
+		}
+
+		sr, err := s.CreateFromExternalSource(r.Context(), ad)
+		if err != nil {
+			httpError(w, fmt.Sprintf("creating storage-request from external data: %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(sr); err != nil {
+			httpError(w, fmt.Sprintf("marshaling response: %s", err), http.StatusInternalServerError)
+			return
+		}
+	}
 }
 
 func httpError(w http.ResponseWriter, err string, status int) {

@@ -58,6 +58,7 @@ func (g *DataURIHTTPGateway) CreateURI(serve bool) (cid.Cid, string, error) {
 	if serve {
 		g.data[node.Cid()] = buff.Bytes()
 	}
+
 	return node.Cid(), fmt.Sprintf("%s/cid/%s", g.server.URL, node.Cid()), nil
 }
 

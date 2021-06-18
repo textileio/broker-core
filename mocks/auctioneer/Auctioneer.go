@@ -51,20 +51,20 @@ func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID broker.AuctionI
 	return r0
 }
 
-// ReadyToAuction provides a mock function with given fields: ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners
-func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dataUri string, dealSize int, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string) (broker.AuctionID, error) {
-	ret := _m.Called(ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+// ReadyToAuction provides a mock function with given fields: ctx, id, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources
+func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, dealSize int, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string, filEpochDeadline *int64, sources broker.Sources) (broker.AuctionID, error) {
+	ret := _m.Called(ctx, id, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources)
 
 	var r0 broker.AuctionID
-	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, string, int, int, int, bool, []string) broker.AuctionID); ok {
-		r0 = rf(ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, int, int, int, bool, []string, *int64, broker.Sources) broker.AuctionID); ok {
+		r0 = rf(ctx, id, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources)
 	} else {
 		r0 = ret.Get(0).(broker.AuctionID)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageDealID, string, int, int, int, bool, []string) error); ok {
-		r1 = rf(ctx, id, dataUri, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners)
+	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageDealID, int, int, int, bool, []string, *int64, broker.Sources) error); ok {
+		r1 = rf(ctx, id, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources)
 	} else {
 		r1 = ret.Error(1)
 	}

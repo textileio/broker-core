@@ -11,7 +11,6 @@ import (
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/brokerauth"
-	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/texbroker"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader/ipfsuploader"
 	"github.com/textileio/broker-core/rpc"
 )
@@ -30,13 +29,15 @@ type Config struct {
 	SkipAuth bool
 	// IpfsMultiaddrs provides a complete set of ipfs nodes APIs to make retrievals of pinned data.
 	IpfsMultiaddrs []multiaddr.Multiaddr
+	// BearerTokens contains a list of authentication tokens that are accepted for API calls.
+	BearerTokens []string
 }
 
 // Service provides an implementation of the Storage API.
 type Service struct {
 	config Config
 
-	httpAPIServer *http.Server
+	httpServer *http.Server
 }
 
 // New returns a new Service.
@@ -47,22 +48,22 @@ func New(config Config) (*Service, error) {
 	}
 
 	// Bootstrap HTTP API server.
-	httpAPIServer, err := httpapi.NewServer(config.HTTPListenAddr, config.SkipAuth, storage)
+	server, err := httpapi.NewServer(config.HTTPListenAddr, config.SkipAuth, storage)
 	if err != nil {
 		return nil, fmt.Errorf("creating http server: %s", err)
 	}
 
 	// Generate service.
 	s := &Service{
-		config: config,
-
-		httpAPIServer: httpAPIServer,
+		config:     config,
+		httpServer: server,
 	}
+
 	return s, nil
 }
 
 func createStorage(config Config) (storage.Requester, error) {
-	auth, err := brokerauth.New(config.AuthAddr)
+	auth, err := brokerauth.New(config.AuthAddr, config.BearerTokens)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker auth: %s", err)
 	}
@@ -72,17 +73,12 @@ func createStorage(config Config) (storage.Requester, error) {
 		return nil, fmt.Errorf("creating broker uploader: %s", err)
 	}
 
-	brokerdClient, err := client.New(config.BrokerAPIAddr, rpc.GetClientOpts(config.BrokerAPIAddr)...)
+	client, err := client.New(config.BrokerAPIAddr, rpc.GetClientOpts(config.BrokerAPIAddr)...)
 	if err != nil {
 		return nil, fmt.Errorf("creating brokerd gRPC client: %s", err)
 	}
 
-	brok, err := texbroker.New(brokerdClient)
-	if err != nil {
-		return nil, fmt.Errorf("creating broker service: %s", err)
-	}
-
-	bs, err := brokerstorage.New(auth, up, brok, config.IpfsMultiaddrs)
+	bs, err := brokerstorage.New(auth, up, client, config.IpfsMultiaddrs)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker storage: %s", err)
 	}
@@ -94,7 +90,7 @@ func createStorage(config Config) (storage.Requester, error) {
 func (s *Service) Close() error {
 	var errors []string
 
-	if err := s.httpAPIServer.Close(); err != nil {
+	if err := s.httpServer.Close(); err != nil {
 		errors = append(errors, fmt.Sprintf("closing http api server: %s", err))
 	}
 

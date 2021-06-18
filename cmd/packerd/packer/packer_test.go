@@ -173,7 +173,11 @@ func (bm *brokerMock) StorageDealProposalAccepted(context.Context, broker.Storag
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) Create(context.Context, cid.Cid, broker.Metadata) (broker.BrokerRequest, error) {
+func (bm *brokerMock) CreatePrepared(context.Context, cid.Cid, broker.PreparedCAR) (broker.BrokerRequest, error) {
+	panic("shouldn't be called")
+}
+
+func (bm *brokerMock) Create(context.Context, cid.Cid) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }
 

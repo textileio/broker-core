@@ -30,19 +30,22 @@ func New(cc *grpc.ClientConn) *Client {
 func (c *Client) ReadyToAuction(
 	ctx context.Context,
 	storageDealID broker.StorageDealID,
-	dataURI string,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
+	filEpochDeadline *int64,
+	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
 		StorageDealId:   string(storageDealID),
-		DataUri:         dataURI,
 		DealSize:        uint64(dealSize),
 		DealDuration:    uint64(dealDuration),
 		DealReplication: uint32(dealReplication),
 		DealVerified:    dealVerified,
 		ExcludedMiners:  excludedMiners,
+		DataUri:         sources.CARURL.URL.String(), // TODO(sander/merlin): This is a temporary fix.
+		// FilEpochDeadline: filEpochDeadline, // TODO(sander/merlin): pending wiring. [if nil, the constraint doesn't apply]
+		// Sources: sources, // TODO(sander/merlin): pending wiring.
 	})
 	if err != nil {
 		return "", fmt.Errorf("calling ready to auction api: %s", err)

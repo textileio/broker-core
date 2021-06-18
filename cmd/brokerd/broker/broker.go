@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -20,6 +21,10 @@ import (
 	"github.com/textileio/broker-core/piecer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
+)
+
+const (
+	filecoinGenesisUnixEpoch = 1598306400
 )
 
 var (
@@ -79,6 +84,9 @@ func New(
 			return nil, fmt.Errorf("applying config: %s", err)
 		}
 	}
+	if err := conf.validate(); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %s", err)
+	}
 
 	ctx, cls := context.WithCancel(context.Background())
 	b := &Broker{
@@ -107,7 +115,7 @@ var _ broker.Broker = (*Broker)(nil)
 
 // Create creates a new BrokerRequest with the provided Cid and
 // Metadata configuration.
-func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, error) {
 	if !c.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
 	}
@@ -117,11 +125,9 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 		ID:        broker.BrokerRequestID(uuid.New().String()),
 		DataCid:   c,
 		Status:    broker.RequestBatching,
-		Metadata:  meta,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-
 	log.Debugf("saving broker request in store")
 	if err := b.store.SaveBrokerRequest(ctx, br); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
@@ -134,6 +140,79 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (b
 	if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("notifying packer of ready broker request: %s", err)
 	}
+
+	return br, nil
+}
+
+// CreatePrepared creates a broker request for prepared data.
+func (b *Broker) CreatePrepared(
+	ctx context.Context,
+	payloadCid cid.Cid,
+	pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+	log.Debugf("creating prepared car broker request")
+	if !payloadCid.Defined() {
+		return broker.BrokerRequest{}, ErrInvalidCid
+	}
+
+	now := time.Now()
+	br := broker.BrokerRequest{
+		ID:        broker.BrokerRequestID(uuid.New().String()),
+		DataCid:   payloadCid,
+		Status:    broker.RequestAuctioning,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	log.Debugf("creating prepared broker request")
+	if err := b.store.SaveBrokerRequest(ctx, br); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
+	}
+
+	if pc.RepFactor == 0 {
+		pc.RepFactor = int(b.conf.dealReplication)
+	}
+
+	filEpochDeadline, err := timeToFilEpoch(pc.Deadline)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
+	}
+	sd := broker.StorageDeal{
+		RepFactor:        pc.RepFactor,
+		DealDuration:     int(b.conf.dealDuration),
+		Status:           broker.StorageDealAuctioning,
+		BrokerRequestIDs: []broker.BrokerRequestID{br.ID},
+		Sources:          pc.Sources,
+		FilEpochDeadline: &filEpochDeadline,
+
+		// We fill what packer+piecer usually do.
+		PayloadCid: payloadCid,
+		PieceCid:   pc.PieceCid,
+		PieceSize:  pc.PieceSize,
+
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	log.Debugf("creating prepared storage deal")
+	if err := b.store.CreateStorageDeal(ctx, &sd); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("creating storage deal: %w", err)
+	}
+
+	auctionID, err := b.auctioneer.ReadyToAuction(
+		ctx,
+		sd.ID,
+		int(sd.PieceSize),
+		sd.DealDuration,
+		sd.RepFactor,
+		b.conf.verifiedDeals,
+		nil,
+		sd.FilEpochDeadline,
+		sd.Sources,
+	)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("signaling auctioneer to create auction: %s", err)
+	}
+	log.Debugf("created prepared auction %s", auctionID)
 
 	return br, nil
 }
@@ -171,6 +250,10 @@ func (b *Broker) CreateStorageDeal(
 		}
 	}
 
+	cidURL, err := url.Parse(batchCid.String())
+	if err != nil {
+		return "", fmt.Errorf("creating cid url fragment: %s", err)
+	}
 	now := time.Now()
 	sd := broker.StorageDeal{
 		PayloadCid:       batchCid,
@@ -180,6 +263,12 @@ func (b *Broker) CreateStorageDeal(
 		BrokerRequestIDs: brids,
 		CreatedAt:        now,
 		UpdatedAt:        now,
+		FilEpochDeadline: nil,
+		Sources: broker.Sources{
+			CARURL: &broker.CARURL{
+				URL: *b.conf.carExportURL.ResolveReference(cidURL),
+			},
+		},
 	}
 
 	// Transactionally we:
@@ -225,12 +314,13 @@ func (b *Broker) StorageDealPrepared(
 	auctionID, err := b.auctioneer.ReadyToAuction(
 		ctx,
 		id,
-		fmt.Sprintf("https://todo.net/cid/%s", sd.PayloadCid),
 		int(dpr.PieceSize),
 		sd.DealDuration,
 		sd.RepFactor,
 		b.conf.verifiedDeals,
 		nil,
+		sd.FilEpochDeadline,
+		sd.Sources,
 	)
 	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
@@ -372,12 +462,13 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		_, err := b.auctioneer.ReadyToAuction(
 			ctx,
 			sd.ID,
-			fmt.Sprintf("https://todo.net/cid/%s", sd.PayloadCid),
 			int(sd.PieceSize),
 			sd.DealDuration,
 			deltaRepFactor,
 			b.conf.verifiedDeals,
 			excludedMiners,
+			sd.FilEpochDeadline,
+			sd.Sources,
 		)
 		if err != nil {
 			return fmt.Errorf("creating new auction for missing bids %d: %s", deltaRepFactor, err)
@@ -412,12 +503,13 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		_, err := b.auctioneer.ReadyToAuction(
 			ctx,
 			sd.ID,
-			fmt.Sprintf("https://todo.net/cid/%s", sd.PayloadCid),
 			int(sd.PieceSize),
 			sd.DealDuration,
 			1,
 			b.conf.verifiedDeals,
 			excludedMiners,
+			sd.FilEpochDeadline,
+			sd.Sources,
 		)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
@@ -492,4 +584,13 @@ func (b *Broker) Close() error {
 		<-b.daemonClosed
 	})
 	return nil
+}
+
+func timeToFilEpoch(t time.Time) (int64, error) {
+	deadline := (t.Unix() - filecoinGenesisUnixEpoch) / 30
+	if deadline <= 0 {
+		return 0, fmt.Errorf("the provided deadline %s is before genesis", t)
+	}
+
+	return deadline, nil
 }

@@ -2,17 +2,45 @@ syntax = "proto3";
 package broker.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
-import "google/protobuf/timestamp.proto";
 import "broker/auctioneer/v1/auctioneer.proto";
+import "google/protobuf/timestamp.proto";
 
 message CreateBrokerRequestRequest {
   string cid = 1;
-  BrokerRequest.Metadata meta = 2;
 }
 
 message CreateBrokerRequestResponse {
   BrokerRequest request = 1;
 }
+
+message CreatePreparedBrokerRequestRequest {
+  string cid = 1;
+  PreparedCAR preparedCAR = 2;
+
+  message PreparedCAR {
+    string piece_cid = 1;
+    uint64 piece_size = 2;
+    int64 rep_factor = 3;
+    google.protobuf.Timestamp deadline = 4;
+    CARURL car_url = 5;
+    CARIPFS car_ipfs = 6;
+
+    message CARURL {
+      string url = 1;
+    }
+
+    message CARIPFS {
+      string cid = 1;
+      repeated string multiaddrs = 2;
+    }
+  }
+}
+
+message CreatePreparedBrokerRequestResponse {
+  BrokerRequest request = 1;
+}
+
+
 
 message GetBrokerRequestRequest {
   string id = 1;
@@ -71,10 +99,9 @@ message BrokerRequest {
   string id = 1;
   string data_cid = 2;
   Status status = 3;
-  Metadata meta = 4;
-  string storage_deal_id = 5;
-  google.protobuf.Timestamp created_at = 6; 
-  google.protobuf.Timestamp updated_at = 7; 
+  string storage_deal_id = 4;
+  google.protobuf.Timestamp created_at = 5; 
+  google.protobuf.Timestamp updated_at = 6; 
 
   enum Status {
     UNSPECIFIED = 0;
@@ -84,14 +111,11 @@ message BrokerRequest {
     DEALMAKING = 4;
     SUCCESS = 5;
   }
-
-  message Metadata {
-    string region = 1;
-  }
 }
 
 service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
+  rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
   rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}
   rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}

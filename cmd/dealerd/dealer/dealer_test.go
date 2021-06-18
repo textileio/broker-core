@@ -296,10 +296,14 @@ func (b *brokerMock) StorageDealFinalizedDeal(ctx context.Context, res broker.Fi
 	return nil
 }
 
-func (b *brokerMock) Create(ctx context.Context, c cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (b *brokerMock) Create(context.Context, cid.Cid) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }
 
-func (b *brokerMock) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
+func (b *brokerMock) CreatePrepared(context.Context, cid.Cid, broker.PreparedCAR) (broker.BrokerRequest, error) {
+	panic("shouldn't be called")
+}
+
+func (b *brokerMock) Get(context.Context, broker.BrokerRequestID) (broker.BrokerRequest, error) {
 	panic("shouldn't be called")
 }

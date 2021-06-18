@@ -33,6 +33,7 @@ func init() {
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "car-export-url", DefValue: "", Description: "URL that generates CAR files for stored cids"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -75,6 +76,8 @@ var rootCmd = &cobra.Command{
 			DealDuration:    v.GetUint64("deal-duration"),
 			DealReplication: v.GetUint32("deal-replication"),
 			VerifiedDeals:   v.GetBool("verified-deals"),
+
+			CARExportURL: v.GetString("car-export-url"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

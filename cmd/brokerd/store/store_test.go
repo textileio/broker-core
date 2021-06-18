@@ -19,12 +19,9 @@ func TestSaveAndGetBrokerRequest(t *testing.T) {
 
 	now := time.Now()
 	br := broker.BrokerRequest{
-		ID:      "BR1",
-		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
-		Status:  broker.RequestBatching,
-		Metadata: broker.Metadata{
-			Region: "asia",
-		},
+		ID:            "BR1",
+		DataCid:       castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
+		Status:        broker.RequestBatching,
 		StorageDealID: broker.StorageDealID("SD1"),
 		CreatedAt:     now,
 		UpdatedAt:     now,
@@ -42,7 +39,6 @@ func TestSaveAndGetBrokerRequest(t *testing.T) {
 	require.Equal(t, br.ID, br2.ID)
 	require.Equal(t, br.DataCid, br2.DataCid)
 	require.Equal(t, br.Status, br2.Status)
-	require.Equal(t, br.Metadata.Region, br2.Metadata.Region)
 	require.Equal(t, br.StorageDealID, br2.StorageDealID)
 	require.Equal(t, now.Unix(), br2.CreatedAt.Unix())
 	require.Equal(t, now.Unix(), br2.UpdatedAt.Unix())
@@ -56,7 +52,6 @@ func TestSaveAndGetBrokerRequest(t *testing.T) {
 	require.Equal(t, br2.ID, br3.ID)
 	require.Equal(t, br2.DataCid, br3.DataCid)
 	require.Equal(t, br2.Status, br3.Status)
-	require.Equal(t, br2.Metadata.Region, br3.Metadata.Region)
 	require.Equal(t, br2.StorageDealID, br3.StorageDealID)
 	require.Equal(t, now.Unix(), br3.CreatedAt.Unix())
 }
@@ -74,22 +69,16 @@ func TestCreateStorageDeal(t *testing.T) {
 	// 1- Create two broker requests.
 	now := time.Now()
 	br1 := broker.BrokerRequest{
-		ID:      "BR1",
-		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
-		Status:  broker.RequestBatching,
-		Metadata: broker.Metadata{
-			Region: "asia",
-		},
+		ID:        "BR1",
+		DataCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
+		Status:    broker.RequestBatching,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 	br2 := broker.BrokerRequest{
-		ID:      "BR1",
-		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
-		Status:  broker.RequestBatching,
-		Metadata: broker.Metadata{
-			Region: "asia",
-		},
+		ID:        "BR1",
+		DataCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
+		Status:    broker.RequestBatching,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

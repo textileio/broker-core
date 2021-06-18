@@ -11,6 +11,7 @@ import (
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Client is a brokerd client.
@@ -36,14 +37,53 @@ func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 }
 
 // Create creates a new BrokerRequest.
-func (c *Client) Create(ctx context.Context, dataCid cid.Cid, meta broker.Metadata) (broker.BrokerRequest, error) {
+func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequest, error) {
 	req := &pb.CreateBrokerRequestRequest{
 		Cid: dataCid.String(),
-		Meta: &pb.BrokerRequest_Metadata{
-			Region: meta.Region,
-		},
 	}
 	res, err := c.c.CreateBrokerRequest(ctx, req)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
+	}
+
+	br, err := cast.FromProtoBrokerRequest(res.Request)
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
+	}
+
+	return br, nil
+}
+
+// CreatePrepared creates a broker request for prepared data.
+func (c *Client) CreatePrepared(
+	ctx context.Context,
+	dataCid cid.Cid,
+	pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+	req := &pb.CreatePreparedBrokerRequestRequest{
+		Cid: dataCid.String(),
+	}
+	req.PreparedCAR = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR{
+		PieceCid:  pc.PieceCid.String(),
+		PieceSize: pc.PieceSize,
+		RepFactor: int64(pc.RepFactor),
+		Deadline:  timestamppb.New(pc.Deadline),
+	}
+	if pc.Sources.CARURL != nil {
+		req.PreparedCAR.CarUrl = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL{
+			Url: pc.Sources.CARURL.URL.String(),
+		}
+	}
+	if pc.Sources.CARIPFS != nil {
+		req.PreparedCAR.CarIpfs = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS{
+			Cid:        pc.Sources.CARIPFS.Cid.String(),
+			Multiaddrs: make([]string, len(pc.Sources.CARIPFS.Multiaddrs)),
+		}
+		for i, ma := range pc.Sources.CARIPFS.Multiaddrs {
+			req.PreparedCAR.CarIpfs.Multiaddrs[i] = ma.String()
+		}
+	}
+
+	res, err := c.c.CreatePreparedBrokerRequest(ctx, req)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
 	}
