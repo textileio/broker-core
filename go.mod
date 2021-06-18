@@ -42,6 +42,7 @@ require (
 	github.com/libp2p/go-libp2p-quic-transport v0.11.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.3.2
+	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/multiformats/go-varint v0.0.6

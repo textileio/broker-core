@@ -372,7 +372,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 		if bid.MinerAddr == "" {
 			t.Errorf("AuctionDealsTarget has no corresponding Bid")
 		}
-		require.Equal(t, bid.AskPrice, tr.PricePerGiBPerEpoch)
+		require.Equal(t, bid.VerifiedAskPrice, tr.PricePerGiBPerEpoch)
 		require.Equal(t, bid.StartEpoch, tr.StartEpoch)
 		require.True(t, tr.Verified)
 		require.Equal(t, bid.FastRetrieval, tr.FastRetrieval)

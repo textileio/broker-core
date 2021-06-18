@@ -16,7 +16,6 @@ import (
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
-	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -24,6 +23,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
+	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	dsextensions "github.com/textileio/go-datastore-extensions"
 	golog "github.com/textileio/go-log/v2"
@@ -144,7 +144,7 @@ type Store struct {
 	store        txndswrap.TxnDatastore
 	host         host.Host
 	nodeGetter   format.NodeGetter
-	bootstrap    []peer.AddrInfo
+	lc           lotusclient.LotusClient
 	bytesLimiter limiter.Limiter
 
 	jobCh  chan *Bid
@@ -164,22 +164,17 @@ func NewStore(
 	store txndswrap.TxnDatastore,
 	host host.Host,
 	nodeGetter format.NodeGetter,
-	bootstrap []string,
+	lc lotusclient.LotusClient,
 	dealDataDirectory string,
 	dealDataFetchAttempts uint32,
 	bytesLimiter limiter.Limiter,
 ) (*Store, error) {
-	baddrs, err := ipfsconfig.ParseBootstrapPeers(bootstrap)
-	if err != nil {
-		return nil, fmt.Errorf("parsing bootstrap addrs: %v", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Store{
 		store:                 store,
 		host:                  host,
 		nodeGetter:            nodeGetter,
-		bootstrap:             baddrs,
+		lc:                    lc,
 		bytesLimiter:          bytesLimiter,
 		jobCh:                 make(chan *Bid, MaxDataURIFetchConcurrency),
 		tickCh:                make(chan struct{}, MaxDataURIFetchConcurrency),
@@ -535,17 +530,25 @@ func (s *Store) fetchWorker(num int) {
 				status BidStatus
 				logMsg string
 			)
-			if _, err := s.WriteDataURI(b.DataURI); err != nil {
+			file, err := s.WriteDataURI(b.DataURI)
+			if err != nil {
 				status = fail(b, err)
 				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
 			} else {
-				status = BidStatusFinalized
-				s.bytesLimiter.Commit(b.DealSize)
-				// Reset error
-				b.ErrorCause = ""
-				logMsg = fmt.Sprintf("status=%s", status)
+				log.Infof("importing %s to lotus with proposal cid %s", file, b.ProposalCid)
+
+				if err := s.lc.ImportData(b.ProposalCid, file); err != nil {
+					status = fail(b, err)
+					logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
+				} else {
+					status = BidStatusFinalized
+					s.bytesLimiter.Commit(b.DealSize)
+					// Reset error
+					b.ErrorCause = ""
+					logMsg = fmt.Sprintf("status=%s", status)
+				}
 			}
-			log.Infof("finished downloading data cid %s (%s)", b.ID, logMsg)
+			log.Infof("finished fetching data cid %s (%s)", b.ID, logMsg)
 
 			// Save and update status to "finalized"
 			if err := s.saveAndTransitionStatus(nil, b, status); err != nil {

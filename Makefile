@@ -84,7 +84,7 @@ down:
 .PHONY: down
 
 mocks: $(MOCKERY) clean-mocks
-	$(MOCKERY) --name="(ChainAPI|Broker|FilClient|Auctioneer|Dealer|Piecer|Packer)" --keeptree --recursive
+	$(MOCKERY) --name="(ChainAPI|Broker|FilClient|LotusClient|Auctioneer|Dealer|Piecer|Packer)" --keeptree --recursive
 .PHONY: mocks
 
 clean-mocks:
