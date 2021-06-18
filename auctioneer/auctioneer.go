@@ -14,7 +14,6 @@ type Auctioneer interface {
 	ReadyToAuction(
 		ctx context.Context,
 		id broker.StorageDealID,
-		dataURI cid.Cid,
 		dealSize int,
 		dealDuration int,
 		dealReplication int,

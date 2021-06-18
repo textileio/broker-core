@@ -30,7 +30,6 @@ func New(cc *grpc.ClientConn) *Client {
 func (c *Client) ReadyToAuction(
 	ctx context.Context,
 	storageDealID broker.StorageDealID,
-	dataURI string,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
@@ -39,7 +38,6 @@ func (c *Client) ReadyToAuction(
 ) (broker.AuctionID, error) {
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
 		StorageDealId:   string(storageDealID),
-		DataUri:         dataURI,
 		DealSize:        uint64(dealSize),
 		DealDuration:    uint64(dealDuration),
 		DealReplication: uint32(dealReplication),

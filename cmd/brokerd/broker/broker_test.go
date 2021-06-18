@@ -168,7 +168,6 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, b.conf.dealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, sd.PieceSize, auctioneer.calledPieceSize)
 	require.Equal(t, sd.ID, auctioneer.calledStorageDealID)
-	require.Equal(t, payloadCid, auctioneer.calledDataCid)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, pc.RepFactor, auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
@@ -244,7 +243,6 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, createCidURI(brgCid), auctioneer.calledDataURI)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
@@ -461,7 +459,6 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, dpr.PieceSize, auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, createCidURI(brgCid), auctioneer.calledDataURI)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, 1, auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
@@ -712,7 +709,6 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 
 type dumbAuctioneer struct {
 	calledStorageDealID    broker.StorageDealID
-	calledDataURI          string
 	calledPieceSize        int
 	calledDealDuration     int
 	calledDealReplication  int
@@ -726,7 +722,6 @@ type dumbAuctioneer struct {
 func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
 	id broker.StorageDealID,
-	dataURI string,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
@@ -734,7 +729,6 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
-	dp.calledDataURI = dataURI
 	dp.calledPieceSize = dealSize
 	dp.calledDealDuration = dealDuration
 	dp.calledDealReplication = dealReplication
