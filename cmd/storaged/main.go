@@ -88,8 +88,10 @@ func main() {
 
 func marshalConfig(v *viper.Viper) ([]byte, error) {
 	all := v.AllSettings()
-	if all["bearer-tokens"].(string) != "" {
-		all["bearer-tokens"] = "***"
+	tokens := all["bearer-tokens"].([]string)
+	for i := range tokens {
+		tokens[i] = "***"
 	}
+	all["bearer-tokens"] = tokens
 	return json.MarshalIndent(all, "", "  ")
 }
