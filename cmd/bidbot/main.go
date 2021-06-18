@@ -14,8 +14,11 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"text/tabwriter"
+	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/joho/godotenv"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -25,6 +28,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/dshelper"
@@ -109,6 +113,14 @@ func init() {
 			Name:        "deal-size-max",
 			DefValue:    32 * 1000 * 1000 * 1000,
 			Description: "Maximum deal size to bid on in bytes",
+		},
+		{
+			Name:     "running-bytes-limit",
+			DefValue: "",
+			Description: `Maximum running total bytes in the deals to bid for a period of time.
+In the form of '10GiB/h', '500 tb/24h' or '5 PiB / 128h', etc.
+Default to no limit. Be aware that the bytes counter resets when bidbot restarts.
+Also take the file system overhead into consideration when calculating the limit.`,
 		},
 		{
 			Name:        "deal-data-fetch-attempts",
@@ -261,6 +273,14 @@ var daemonCmd = &cobra.Command{
 			dealDataDirectory = filepath.Join(defaultConfigPath, "deal_data")
 		}
 
+		var bytesLimiter limiter.Limiter = limiter.NopeLimiter{}
+
+		if limit := v.GetString("running-bytes-limit"); limit != "" {
+			lim, err := parseRunningBytesLimit(limit)
+			common.CheckErr(err)
+			bytesLimiter = lim
+		}
+
 		config := service.Config{
 			Peer: pconfig,
 			BidParams: service.BidParams{
@@ -283,6 +303,7 @@ var daemonCmd = &cobra.Command{
 					Max: v.GetUint64("deal-size-max"),
 				},
 			},
+			BytesLimiter:   bytesLimiter,
 			HTTPListenAddr: ":" + v.GetString("http-port"),
 		}
 		serv, err := service.New(config, store, fc)
@@ -427,4 +448,22 @@ Deal data is written to BIDBOT_DEAL_DATA_DIRECTORY in CAR format.
 
 func main() {
 	common.CheckErr(rootCmd.Execute())
+}
+
+func parseRunningBytesLimit(s string) (limiter.Limiter, error) {
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 {
+		return nil, errors.New("should be separated by forward slash (/)")
+	}
+	sBytes := strings.TrimSpace(parts[0])
+	nBytes, err := humanize.ParseBytes(sBytes)
+	if err != nil {
+		return nil, fmt.Errorf("'%s' is not a valid bytes representation: %w", sBytes, err)
+	}
+	ds := strings.TrimSpace(parts[1])
+	d, err := time.ParseDuration(ds)
+	if err != nil {
+		return nil, fmt.Errorf("'%s' is not a valid duration representation: %w", ds, err)
+	}
+	return limiter.NewRunningTotalLimiter(d, nBytes), nil
 }
