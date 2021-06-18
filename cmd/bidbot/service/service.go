@@ -274,8 +274,13 @@ func (s *Service) ID() peer.ID {
 }
 
 // ListBids lists bids by applying a store.Query.
-func (s *Service) ListBids(query bidstore.Query) ([]bidstore.Bid, error) {
+func (s *Service) ListBids(query bidstore.Query) ([]*bidstore.Bid, error) {
 	return s.store.ListBids(query)
+}
+
+// GetBid gets the bid with specific ID.
+func (s *Service) GetBid(id broker.BidID) (*bidstore.Bid, error) {
+	return s.store.GetBid(id)
 }
 
 // WriteCar writes a car file to the configured deal data directory.
@@ -346,8 +351,8 @@ func (s *Service) proposalHandler(from peer.ID, topic string, msg []byte) ([]byt
 }
 
 func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
-	if ok := s.filterAuction(auction); !ok {
-		log.Infof("not bidding in auction %s from %s", auction.Id, from)
+	if rejectReason := s.filterAuction(auction); rejectReason != "" {
+		log.Infof("not bidding in auction %s from %s: %s", auction.Id, from, rejectReason)
 		return nil
 	}
 
@@ -427,23 +432,24 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	return nil
 }
 
-func (s *Service) filterAuction(auction *pb.Auction) bool {
-	// Check if auction is still in progress
+func (s *Service) filterAuction(auction *pb.Auction) (rejectReason string) {
 	if !auction.EndsAt.IsValid() || auction.EndsAt.AsTime().Before(time.Now()) {
-		return false
+		return "auction ended or has an invalid end time"
 	}
 
-	// Check if deal size is within configured bounds
 	if auction.DealSize < s.auctionFilters.DealSize.Min ||
 		auction.DealSize > s.auctionFilters.DealSize.Max {
-		return false
+		return fmt.Sprintf("deal size falls outside of the range [%d, %d]",
+			s.auctionFilters.DealSize.Min,
+			s.auctionFilters.DealSize.Max)
 	}
 
-	// Check if deal duration is within configured bounds
 	if auction.DealDuration < s.auctionFilters.DealDuration.Min ||
 		auction.DealDuration > s.auctionFilters.DealDuration.Max {
-		return false
+		return fmt.Sprintf("deal duration falls outside of the range [%d, %d]",
+			s.auctionFilters.DealDuration.Min,
+			s.auctionFilters.DealDuration.Max)
 	}
 
-	return true
+	return ""
 }
