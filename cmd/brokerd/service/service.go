@@ -409,6 +409,25 @@ func (s *Service) StorageDealFinalizedDeal(
 	return &pb.StorageDealFinalizedDealResponse{}, nil
 }
 
+func (s *Service) StorageDealProposalAccepted(
+	ctx context.Context,
+	r *pb.StorageDealProposalAcceptedRequest) (*pb.StorageDealProposalAcceptedResponse, error) {
+	if r == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+
+	proposalCid, err := cid.Decode(r.ProposalCid)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid cid %s: %s", r.ProposalCid, err)
+	}
+
+	if err := s.broker.StorageDealProposalAccepted(ctx, broker.StorageDealID(r.StorageDealId), r.Miner, proposalCid); err != nil {
+		return nil, status.Errorf(codes.Internal, "notifying proposal accepted: %s", err)
+	}
+
+	return &pb.StorageDealProposalAcceptedResponse{}, nil
+}
+
 // Close gracefully closes the service.
 func (s *Service) Close() error {
 	defer log.Info("service closed")
