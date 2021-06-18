@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	log = golog.Logger("bidbot/getter")
+	log = golog.Logger("bidbot/datauri")
 
 	// ErrSchemeNotSupported indicates a given URI scheme is not supported.
 	ErrSchemeNotSupported = errors.New("scheme not supported")
@@ -86,6 +86,7 @@ func (u *HTTPURI) Validate(ctx context.Context) error {
 		return fmt.Errorf("http request returned bad status %d: %w", res.StatusCode, ErrCarFileUnavailable)
 	}
 
+	log.Debugf("validating car file uri: %s", u.uri)
 	if _, err := validateCarHeader(u.cid, res.Body); err != nil {
 		return fmt.Errorf("validating car header: %w", err)
 	}
@@ -108,6 +109,7 @@ func (u *HTTPURI) Write(ctx context.Context, writer io.Writer) error {
 		return fmt.Errorf("http request returned bad status %d: %w", res.StatusCode, ErrCarFileUnavailable)
 	}
 
+	log.Debugf("validating car file uri: %s", u.uri)
 	r, err := validateCarHeader(u.cid, res.Body)
 	if err != nil {
 		return fmt.Errorf("validating car header: %w", err)

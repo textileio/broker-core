@@ -214,6 +214,7 @@ var daemonCmd = &cobra.Command{
 			cliName,
 			"bidbot/service",
 			"bidbot/store",
+			"bidbot/datauri",
 			"bidbot/api",
 			"mpeer",
 			"mpeer/pubsub",
