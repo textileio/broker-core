@@ -121,7 +121,7 @@ func init() {
 			Name:     "running-bytes-limit",
 			DefValue: "",
 			Description: `Maximum running total bytes in the deals to bid for a period of time.
-In the form of '10GiB/h', '500 tb/24h' or '5 PiB / 128h', etc.
+In the form of '10MiB/1m', '500 tb/24h' or '5 PiB / 128h', etc.
 Default to no limit. Be aware that the bytes counter resets when bidbot restarts.
 Also take the file system overhead into consideration when calculating the limit.`,
 		},
@@ -280,7 +280,7 @@ var daemonCmd = &cobra.Command{
 
 		if limit := v.GetString("running-bytes-limit"); limit != "" {
 			lim, err := parseRunningBytesLimit(limit)
-			common.CheckErr(err)
+			common.CheckErrf(fmt.Sprintf("parsing '%s': %%w", limit), err)
 			bytesLimiter = lim
 		}
 
@@ -459,12 +459,12 @@ func parseRunningBytesLimit(s string) (limiter.Limiter, error) {
 	sBytes := strings.TrimSpace(parts[0])
 	nBytes, err := humanize.ParseBytes(sBytes)
 	if err != nil {
-		return nil, fmt.Errorf("'%s' is not a valid bytes representation: %w", sBytes, err)
+		return nil, err
 	}
 	ds := strings.TrimSpace(parts[1])
 	d, err := time.ParseDuration(ds)
 	if err != nil {
-		return nil, fmt.Errorf("'%s' is not a valid duration representation: %w", ds, err)
+		return nil, err
 	}
 	return limiter.NewRunningTotalLimiter(d, nBytes), nil
 }

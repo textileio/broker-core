@@ -15,7 +15,7 @@ func TestParseRunningBytesLimit(t *testing.T) {
 		"5/1y",
 	}
 	validCases := []string{
-		"5/1m",
+		"5kb/1m",
 		"5 PiB/ 128h",
 		"0 tib /128h",
 	}
