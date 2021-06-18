@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 message Auction {
     string id = 1;
-    string data_cid = 2;
+    string data_uri = 2;
     uint64 deal_size = 3;
     uint64 deal_duration = 4;
     google.protobuf.Timestamp ends_at = 5;

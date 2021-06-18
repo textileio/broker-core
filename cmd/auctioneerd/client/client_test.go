@@ -2,7 +2,6 @@ package client_test
 
 import (
 	"context"
-	"crypto/rand"
 	"net"
 	"path/filepath"
 	"testing"
@@ -11,11 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -24,6 +20,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
+	"github.com/textileio/broker-core/cmd/bidbot/service/datauri/apitest"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/finalizer"
@@ -59,19 +56,45 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c, _ := newClient(t, 1)
+	c, dag := newClient(t, 1)
+	gw := apitest.NewDataURIHTTPGateway(dag)
+	t.Cleanup(gw.Close)
 
-	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true, nil)
+	_, dataURI, err := gw.CreateURI(true)
+	require.NoError(t, err)
+
+	id, err := c.ReadyToAuction(
+		context.Background(),
+		newDealID(),
+		dataURI,
+		oneGiB,
+		sixMonthsEpochs,
+		1,
+		true,
+		nil,
+	)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	c, _ := newClient(t, 1)
+	c, dag := newClient(t, 1)
+	gw := apitest.NewDataURIHTTPGateway(dag)
+	t.Cleanup(gw.Close)
 
-	dataCid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dataCid, oneGiB, sixMonthsEpochs, 1, true, nil)
+	_, dataURI, err := gw.CreateURI(true)
+	require.NoError(t, err)
+
+	id, err := c.ReadyToAuction(
+		context.Background(),
+		newDealID(),
+		dataURI,
+		oneGiB,
+		sixMonthsEpochs,
+		1,
+		true,
+		nil,
+	)
 	require.NoError(t, err)
 
 	got, err := c.GetAuction(context.Background(), id)
@@ -91,15 +114,24 @@ func TestClient_GetAuction(t *testing.T) {
 func TestClient_RunAuction(t *testing.T) {
 	c, dag := newClient(t, 2)
 	bots := addBidbots(t, 10)
+	gw := apitest.NewDataURIHTTPGateway(dag)
+	t.Cleanup(gw.Close)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	dnode, err := cbor.WrapObject([]byte("lets make a deal"), multihash.SHA2_256, -1)
-	require.NoError(t, err)
-	err = dag.Add(context.Background(), dnode)
+	_, dataURI, err := gw.CreateURI(true)
 	require.NoError(t, err)
 
-	id, err := c.ReadyToAuction(context.Background(), newDealID(), dnode.Cid(), oneGiB, sixMonthsEpochs, 2, true, nil)
+	id, err := c.ReadyToAuction(
+		context.Background(),
+		newDealID(),
+		dataURI,
+		oneGiB,
+		sixMonthsEpochs,
+		2,
+		true,
+		nil,
+	)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 15) // Allow to finish
@@ -196,16 +228,12 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
-		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
-		require.NoError(t, err)
-
 		store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "bidstore"))
 		require.NoError(t, err)
 		fin.Add(store)
 
 		config := bidbotsrv.Config{
 			Peer: marketpeer.Config{
-				PrivKey:    priv,
 				RepoPath:   dir,
 				EnableMDNS: true,
 			},

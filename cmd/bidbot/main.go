@@ -54,8 +54,8 @@ func init() {
 
 	commonFlags := []common.Flag{
 		{
-			Name:        "http-addr",
-			DefValue:    ":9999",
+			Name:        "http-port",
+			DefValue:    "9999",
 			Description: "HTTP API listen address",
 		},
 	}
@@ -214,6 +214,7 @@ var daemonCmd = &cobra.Command{
 			cliName,
 			"bidbot/service",
 			"bidbot/store",
+			"bidbot/datauri",
 			"bidbot/api",
 			"mpeer",
 			"mpeer/pubsub",
@@ -282,7 +283,7 @@ var daemonCmd = &cobra.Command{
 					Max: v.GetUint64("deal-size-max"),
 				},
 			},
-			HTTPListenAddr: v.GetString("http-addr"),
+			HTTPListenAddr: ":" + v.GetString("http-port"),
 		}
 		serv, err := service.New(config, store, fc)
 		common.CheckErrf("starting service: %v", err)
@@ -308,7 +309,11 @@ var dealsCmd = &cobra.Command{
 }
 
 func urlFor(parts ...string) string {
-	return "http://127.0.0.1" + v.GetString("http-addr") + "/" + path.Join(parts...)
+	u := "http://127.0.0.1:" + v.GetString("http-port")
+	if len(parts) > 0 {
+		u += "/" + path.Join(parts...)
+	}
+	return u
 }
 
 var dealsListCmd = &cobra.Command{
@@ -333,15 +338,19 @@ var dealsListCmd = &cobra.Command{
 		for i, bid := range bids {
 			if i == 0 {
 				for _, field := range fields {
-					fmt.Fprintf(w, "%s\t", field)
+					_, err := fmt.Fprintf(w, "%s\t", field)
+					common.CheckErr(err)
 				}
-				fmt.Fprintln(w, "")
+				_, err := fmt.Fprintln(w, "")
+				common.CheckErr(err)
 			}
 			value := reflect.ValueOf(bid)
 			for _, field := range fields {
-				fmt.Fprintf(w, "%v\t", value.FieldByName(field))
+				_, err := fmt.Fprintf(w, "%v\t", value.FieldByName(field))
+				common.CheckErr(err)
 			}
-			fmt.Fprintln(w, "")
+			_, err := fmt.Fprintln(w, "")
+			common.CheckErr(err)
 		}
 		_ = w.Flush()
 	},
@@ -368,7 +377,8 @@ var dealsShowCmd = &cobra.Command{
 		typ := reflect.TypeOf(bid)
 		value := reflect.ValueOf(bid)
 		for i := 0; i < typ.NumField(); i++ {
-			fmt.Fprintf(w, "%s:\t%v\n", typ.Field(i).Name, value.Field(i))
+			_, err := fmt.Fprintf(w, "%s:\t%v\n", typ.Field(i).Name, value.Field(i))
+			common.CheckErr(err)
 		}
 		_ = w.Flush()
 	},
@@ -393,14 +403,17 @@ func getBids(u string) (bids []store.Bid) {
 
 var downloadCmd = &cobra.Command{
 	Use:   "download",
-	Short: "Download and write to disk storage deal data",
-	Long: `Downloads and writes to disk storage deal data by cid.
+	Short: "Download and write storage deal data to disk",
+	Long: `Downloads and writes storage deal data to disk by uri.
 
 Deal data is written to BIDBOT_DEAL_DATA_DIRECTORY in CAR format.
 `,
 	Args: cobra.ExactArgs(1),
 	Run: func(c *cobra.Command, args []string) {
-		res, err := http.Get(urlFor("cid", args[0]))
+		base := urlFor("datauri") + "?"
+		params := url.Values{}
+		params.Add("uri", args[0])
+		res, err := http.Get(base + params.Encode())
 		common.CheckErr(err)
 		defer func() {
 			err := res.Body.Close()

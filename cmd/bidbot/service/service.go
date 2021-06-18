@@ -19,6 +19,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
+	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
@@ -33,6 +34,9 @@ var (
 
 	// bidsAckTimeout is the max duration bidbot will wait for an ack after bidding in an auction.
 	bidsAckTimeout = time.Second * 10
+
+	// dataURIValidateTimeout is the timeout used when validating a data uri.
+	dataURIValidateTimeout = time.Minute
 )
 
 // Config defines params for Service configuration.
@@ -145,6 +149,9 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	}
 	if err := conf.AuctionFilters.Validate(); err != nil {
 		return nil, fmt.Errorf("validating auction filters: %v", err)
+	}
+	if conf.HTTPListenAddr == "" {
+		conf.HTTPListenAddr = ":0"
 	}
 
 	fin := finalizer.NewFinalizer()
@@ -283,9 +290,9 @@ func (s *Service) GetBid(id broker.BidID) (*bidstore.Bid, error) {
 	return s.store.GetBid(id)
 }
 
-// WriteCar writes a car file to the configured deal data directory.
-func (s *Service) WriteCar(ctx context.Context, cid cid.Cid) (string, error) {
-	return s.store.WriteCar(ctx, cid)
+// WriteDataURI writes a data uri resource to the configured deal data directory.
+func (s *Service) WriteDataURI(uri string) (string, error) {
+	return s.store.WriteDataURI(uri)
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
@@ -356,9 +363,15 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return nil
 	}
 
-	dataCid, err := cid.Decode(auction.DataCid)
+	// Ensure we can fetch the data
+	dataURI, err := datauri.NewURI(auction.DataUri)
 	if err != nil {
-		return fmt.Errorf("decoding data cid: %v", err)
+		return fmt.Errorf("parsing data uri: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(s.ctx, dataURIValidateTimeout)
+	defer cancel()
+	if err := dataURI.Validate(ctx); err != nil {
+		return fmt.Errorf("validating data uri: %v", err)
 	}
 
 	// Get current chain height
@@ -400,9 +413,9 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(s.ctx, bidsAckTimeout)
-	defer cancel()
-	res, err := topic.Publish(ctx, msg)
+	ctx2, cancel2 := context.WithTimeout(s.ctx, bidsAckTimeout)
+	defer cancel2()
+	res, err := topic.Publish(ctx2, msg)
 	if err != nil {
 		return fmt.Errorf("publishing bid: %v", err)
 	}
@@ -417,7 +430,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		ID:               broker.BidID(id),
 		AuctionID:        broker.AuctionID(auction.Id),
 		AuctioneerID:     from,
-		DataCid:          dataCid,
+		DataURI:          dataURI.String(),
 		DealSize:         auction.DealSize,
 		DealDuration:     auction.DealDuration,
 		AskPrice:         bid.AskPrice,
