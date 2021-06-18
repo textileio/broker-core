@@ -55,6 +55,17 @@ type DataChangesResponse struct {
 	Changes   []ChangeData `json:"changes"`
 }
 
+// SyncInfo holds information about the sync status of a node.
+type SyncInfo struct {
+	LatestBlockHash   string `json:"latest_block_hash"`
+	LatestBlockHeight int    `json:"latest_block_height"`
+}
+
+// NodeStatusResponse holds information about node status.
+type NodeStatusResponse struct {
+	SyncInfo *SyncInfo `json:"sync_info"`
+}
+
 // Client communicates with the NEAR API.
 type Client struct {
 	config *types.Config
@@ -259,4 +270,13 @@ func (c *Client) ViewCode(ctx context.Context, accountID string, opts ...ViewCod
 		return nil, fmt.Errorf("calling query rpc: %v", util.MapRPCError(err))
 	}
 	return &viewCodeRes, nil
+}
+
+// NodeStatus returns the node status.
+func (c *Client) NodeStatus(ctx context.Context) (*NodeStatusResponse, error) {
+	var nodeStatusRes NodeStatusResponse
+	if err := c.config.RPCClient.CallContext(ctx, &nodeStatusRes, "status"); err != nil {
+		return nil, fmt.Errorf("calling status rpc: %v", util.MapRPCError(err))
+	}
+	return &nodeStatusRes, nil
 }

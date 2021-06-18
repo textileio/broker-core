@@ -16,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/service"
 	"github.com/textileio/broker-core/cmd/neard/statecache"
+	"github.com/textileio/broker-core/cmd/neard/updater"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -72,8 +73,8 @@ var rootCmd = &cobra.Command{
 		contractAccountID := v.GetString("contract-account")
 		clientAccountID := v.GetString("client-account")
 		clientPrivateKey := v.GetString("client-private-key")
-		// updateFrequency := v.GetDuration("update-frequency")
-		// requestTimeout := v.GetDuration("request-timeout")
+		updateFrequency := v.GetDuration("update-frequency")
+		requestTimeout := v.GetDuration("request-timeout")
 
 		if err := common.SetupInstrumentation(metricsAddr); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
@@ -98,24 +99,24 @@ var rootCmd = &cobra.Command{
 		})
 		common.CheckErr(err)
 
-		lc, err := contractclient.NewClient(nc, contractAccountID, clientAccountID)
+		cc, err := contractclient.NewClient(nc, contractAccountID, clientAccountID)
 		common.CheckErr(err)
 
 		sc, err := statecache.NewStateCache()
 		common.CheckErr(err)
 
-		// u := updater.NewUpdater(updater.Config{
-		// 	Lbc:             lc,
-		// 	UpdateFrequency: updateFrequency,
-		// 	RequestTimeout:  requestTimeout,
-		// 	Delegate:        sc,
-		// })
+		u := updater.NewUpdater(updater.Config{
+			Contract:        cc,
+			UpdateFrequency: updateFrequency,
+			RequestTimeout:  requestTimeout,
+			Delegate:        sc,
+		})
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)
 		common.CheckErr(err)
 
-		service, err := service.NewService(listener, sc, lc)
+		service, err := service.NewService(listener, sc, cc)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
@@ -124,7 +125,7 @@ var rootCmd = &cobra.Command{
 			log.Info("Gracefully stopping... (press Ctrl+C again to force)")
 			common.CheckErr(service.Close())
 			common.CheckErr(listener.Close())
-			// common.CheckErr(u.Close())
+			common.CheckErr(u.Close())
 			log.Info("Closed.")
 		})
 

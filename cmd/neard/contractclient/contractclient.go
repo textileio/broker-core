@@ -3,6 +3,7 @@ package contractclient
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -14,6 +15,8 @@ import (
 
 const (
 	nullStringValue = "null"
+	depositsPrefix  = "a"
+	brokersPrefix   = "b"
 )
 
 var (
@@ -25,7 +28,8 @@ var (
 
 // State models the contract state.
 type State struct {
-	LockedFunds map[string]DepositInfo
+	DepositMap  map[string]DepositInfo
+	BrokerMap   map[string]BrokerInfo
 	BlockHash   string
 	BlockHeight int
 }
@@ -42,14 +46,26 @@ const (
 
 // Change holds information about a state change.
 type Change struct {
-	Key      string
-	Type     ChangeType
-	LockInfo *DepositInfo
+	Type         ChangeType
+	BrokerValue  *BrokerValue
+	DepositValue *DepositValue
+}
+
+// DepositValue holds information about a DepositInfo.
+type DepositValue struct {
+	Key   string
+	Value *DepositInfo
+}
+
+// BrokerValue holds information about a BrokerInfo.
+type BrokerValue struct {
+	Key   string
+	Value *BrokerInfo
 }
 
 // Client communicates with the contract API.
 type Client struct {
-	nc                *nearclient.Client
+	NearClient        *nearclient.Client
 	contractAccountID string
 	clientAccountID   string
 }
@@ -57,7 +73,7 @@ type Client struct {
 // NewClient creates a new Client.
 func NewClient(nc *nearclient.Client, contractAccountID, clientAccountID string) (*Client, error) {
 	return &Client{
-		nc:                nc,
+		NearClient:        nc,
 		contractAccountID: contractAccountID,
 		clientAccountID:   clientAccountID,
 	}, nil
@@ -65,40 +81,35 @@ func NewClient(nc *nearclient.Client, contractAccountID, clientAccountID string)
 
 // GetAccount gets information about the account.
 func (c *Client) GetAccount(ctx context.Context) (*account.AccountView, error) {
-	return c.nc.Account(c.contractAccountID).State(ctx, account.StateWithFinality("final"))
+	return c.NearClient.Account(c.contractAccountID).State(ctx, account.StateWithFinality("final"))
 }
 
 // GetState returns the contract state.
 func (c *Client) GetState(ctx context.Context) (*State, error) {
-	res, err := c.nc.Account(c.contractAccountID).ViewState(
+	res, err := c.NearClient.Account(c.contractAccountID).ViewState(
 		ctx,
 		account.ViewStateWithFinality("final"),
-		account.ViewStateWithPrefix("u"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("calling view state: %v", err)
 	}
 
-	lockedFunds := make(map[string]DepositInfo)
+	deposits := make(map[string]DepositInfo)
+	brokers := make(map[string]BrokerInfo)
 
 	for _, val := range res.Values {
-		key, err := extractKey(val.Key)
-		if err != nil {
-			return nil, fmt.Errorf("extracting key: %v", err)
+		if err := extractNewEntry(
+			val.Key,
+			val.Value,
+			func(v BrokerValue) { brokers[v.Key] = *v.Value },
+			func(v DepositValue) { deposits[v.Key] = *v.Value },
+		); err != nil {
+			return nil, fmt.Errorf("extracting entry: %v", err)
 		}
-		valueBytes, err := base64.StdEncoding.DecodeString(val.Value)
-		if err != nil {
-			return nil, fmt.Errorf("decoding value base64: %v", err)
-		}
-		lockInfo, err := extractDepositInfo(valueBytes)
-		if err != nil {
-			return nil, fmt.Errorf("extracting lock info: %v", err)
-		}
-
-		lockedFunds[key] = *lockInfo
 	}
 	return &State{
-		LockedFunds: lockedFunds,
+		BrokerMap:   brokers,
+		DepositMap:  deposits,
 		BlockHash:   res.BlockHash,
 		BlockHeight: res.BlockHeight,
 	}, nil
@@ -106,49 +117,117 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 
 // GetChanges gets the state changes for a block height.
 func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, string, error) {
-	res, err := c.nc.DataChanges(ctx, []string{c.contractAccountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
+	res, err := c.NearClient.DataChanges(ctx, []string{c.contractAccountID}, nearclient.DataChangesWithBlockHeight(blockHeight))
 	if err != nil {
 		return nil, "", fmt.Errorf("calling data changes: %v", err)
 	}
 	var changes []Change
 	for _, item := range res.Changes {
-		var t ChangeType
+		c := Change{}
 		switch item.Type {
 		case "data_update":
-			t = Update
+			c.Type = Update
+			if err := extractNewEntry(
+				item.Change.KeyBase64,
+				item.Change.ValueBase64,
+				func(v BrokerValue) {
+					c.BrokerValue = &v
+				},
+				func(v DepositValue) {
+					c.DepositValue = &v
+				},
+			); err != nil {
+				return nil, "", fmt.Errorf("extracting entry: %v", err)
+			}
 		case "data_deletion":
-			t = Delete
+			c.Type = Delete
+			if err := extractDeletion(
+				item.Change.KeyBase64,
+				func(v BrokerValue) {
+					c.BrokerValue = &v
+				},
+				func(v DepositValue) {
+					c.DepositValue = &v
+				},
+			); err != nil {
+				return nil, "", fmt.Errorf("extracting deletion: %v", err)
+			}
 		default:
 			return nil, "", fmt.Errorf("unknown change type: %v", item.Type)
 		}
-		key, err := extractKey(item.Change.KeyBase64)
-		if err != nil {
-			return nil, "", fmt.Errorf("extracting key: %v", err)
-		}
-		var lockInfo *DepositInfo
-		if t == Update {
-			valueBytes, err := base64.StdEncoding.DecodeString(item.Change.ValueBase64)
-			if err != nil {
-				return nil, "", fmt.Errorf("decoding value base64: %v", err)
-			}
-			lockInfo, err = extractDepositInfo(valueBytes)
-			if err != nil {
-				return nil, "", fmt.Errorf("extracting lock info: %v", err)
-			}
-		}
-		changes = append(changes, Change{Key: key, Type: t, LockInfo: lockInfo})
+		changes = append(changes, c)
 	}
 	return changes, res.BlockHash, nil
 }
 
-func extractKey(encoded string) (string, error) {
+func extractNewEntry(
+	keyBase64 string,
+	valueBase64 string,
+	brokerHandler func(BrokerValue),
+	depositHandler func(DepositValue),
+) error {
+	prefix, meta, _, err := parseKey(keyBase64)
+	if err != nil {
+		return fmt.Errorf("parsing key: %v", err)
+	}
+	if len(meta) != 1 || meta[0] != "entries" {
+		return nil
+	}
+	valueBytes, err := base64.StdEncoding.DecodeString(valueBase64)
+	if err != nil {
+		return fmt.Errorf("decoding value base64: %v", err)
+	}
+	switch prefix {
+	case brokersPrefix:
+		var v BrokerValue
+		if err := json.Unmarshal(valueBytes, &v); err != nil {
+			return fmt.Errorf("unmarshaling value: %v", err)
+		}
+		brokerHandler(v)
+	case depositsPrefix:
+		var v DepositValue
+		if err := json.Unmarshal(valueBytes, &v); err != nil {
+			return fmt.Errorf("unmarshaling value: %v", err)
+		}
+		depositHandler(v)
+	}
+	return nil
+}
+
+func extractDeletion(keyBase64 string, brokerHandler func(BrokerValue), depositHandler func(DepositValue)) error {
+	prefix, meta, index, err := parseKey(keyBase64)
+	if err != nil {
+		return fmt.Errorf("parsing key: %v", err)
+	}
+	if len(meta) != 1 || meta[0] != "map" {
+		return nil
+	}
+	switch prefix {
+	case brokersPrefix:
+		brokerHandler(BrokerValue{Key: index})
+	case depositsPrefix:
+		depositHandler(DepositValue{Key: index})
+	}
+	return nil
+}
+
+func parseKey(encoded string) (string, []string, string, error) {
 	keyBytes, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		return "", err
+		return "", nil, "", err
 	}
-	parts := strings.Split(string(keyBytes), "::")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("unexpected key format: %s", string(keyBytes))
+	full := string(keyBytes)
+	parts := strings.Split(full, "::")
+	if len(parts) != 1 && len(parts) != 2 {
+		return "", nil, "", fmt.Errorf("unexpected key format: %s", full)
 	}
-	return parts[1], nil
+	index := ""
+	if len(parts) == 2 {
+		index = parts[1]
+	}
+	prefixParts := strings.Split(parts[0], ":")
+	if len(prefixParts) == 0 {
+		return "", nil, "", fmt.Errorf("unexpected prefix parts: %s", parts[0])
+	}
+	return prefixParts[0], prefixParts[1:], index, nil
 }

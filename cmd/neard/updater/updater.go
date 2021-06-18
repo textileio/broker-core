@@ -3,9 +3,15 @@ package updater
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
+	logging "github.com/textileio/go-log/v2"
+)
+
+var (
+	log = logging.Logger("neard/updater")
 )
 
 // UpdateDelegate describes an object that can be called back with a state update.
@@ -25,7 +31,7 @@ type Updater struct {
 
 // Config holds the configuration for creating a new Updater.
 type Config struct {
-	Lbc             *contractclient.Client
+	Contract        *contractclient.Client
 	UpdateFrequency time.Duration
 	RequestTimeout  time.Duration
 	Delegate        UpdateDelegate
@@ -57,35 +63,44 @@ func (u *Updater) run() {
 		case <-time.After(updateFrequency):
 			if u.blockHeight == 0 {
 				ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
-				initialState, err := u.config.Lbc.GetState(ctx)
+				initialState, err := u.config.Contract.GetState(ctx)
 				cancel()
 				if err != nil {
 					u.config.Delegate.HandleError(fmt.Errorf("getting initial state: %v", err))
 					updateFrequency *= 2
 					continue
 				}
+				log.Errorf("initial state height: %v", initialState.BlockHeight)
 				u.blockHeight = initialState.BlockHeight
 				u.config.Delegate.HandleIntialStateUpdate(initialState)
 				continue
 			}
 			ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
-			account, err := u.config.Lbc.GetAccount(ctx)
+			nodeStatus, err := u.config.Contract.NearClient.NodeStatus(ctx)
 			cancel()
 			if err != nil {
-				u.config.Delegate.HandleError(fmt.Errorf("getting account view: %v", err))
+				u.config.Delegate.HandleError(fmt.Errorf("getting node status: %v", err))
 				updateFrequency *= 2
 				continue
 			}
-			if u.blockHeight >= account.BlockHeight {
+			log.Errorf("account block height: %v", nodeStatus.SyncInfo.LatestBlockHeight)
+			if u.blockHeight >= nodeStatus.SyncInfo.LatestBlockHeight {
 				continue
 			}
-			for i := u.blockHeight + 1; i <= account.BlockHeight; i++ {
+			for i := u.blockHeight + 1; i <= nodeStatus.SyncInfo.LatestBlockHeight; i++ {
+				log.Errorf("getting changes for height: %v", i)
 				ctx, cancel := context.WithTimeout(u.mainCtx, u.config.RequestTimeout)
-				changes, blockHash, err := u.config.Lbc.GetChanges(ctx, i)
+				changes, blockHash, err := u.config.Contract.GetChanges(ctx, i)
 				cancel()
 				if err != nil {
-					u.config.Delegate.HandleError(fmt.Errorf("getting changes: %v", err))
-					updateFrequency *= 2
+					if strings.Contains(err.Error(), "Block not found") {
+						u.blockHeight = 0
+						log.Warnf("%v -- resetting state", err)
+						log.Error("RESETTING STATE!")
+					} else {
+						u.config.Delegate.HandleError(fmt.Errorf("getting changes: %v", err))
+						updateFrequency *= 2
+					}
 					break Loop
 				}
 				u.blockHeight = i

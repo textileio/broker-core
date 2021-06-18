@@ -14,21 +14,61 @@ import (
 
 // Deposit holds information about a deposit.
 type Deposit struct {
-	Sender     string
-	Expiration uint64
-	Amount     *big.Int
+	Sender     string   `json:"sender"`
+	Expiration uint64   `json:"expiration"`
+	Amount     *big.Int `json:"amount"`
+}
+
+// MarshalJSON implements MarshalJSON.
+func (d *Deposit) MarshalJSON() ([]byte, error) {
+	type Alias Deposit
+	return json.Marshal(&struct {
+		Expiration string `json:"expiration"`
+		Amount     string `json:"amount"`
+		*Alias
+	}{
+		Expiration: strconv.FormatUint(d.Expiration, 10),
+		Amount:     d.Amount.String(),
+		Alias:      (*Alias)(d),
+	})
+}
+
+// UnmarshalJSON implements UnmarshalJSON.
+func (d *Deposit) UnmarshalJSON(data []byte) error {
+	type Alias Deposit
+	aux := &struct {
+		Expiration string `json:"expiration"`
+		Amount     string `json:"amount"`
+		*Alias
+	}{
+		Alias: (*Alias)(d),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	expiration, err := strconv.ParseUint(aux.Expiration, 10, 64)
+	if err != nil {
+		return fmt.Errorf("parsing expiration: %v", err)
+	}
+	d.Expiration = expiration
+	a, success := (&big.Int{}).SetString(aux.Amount, 10)
+	if !success {
+		return fmt.Errorf("failed to create big int from value %s", aux.Amount)
+	}
+	d.Amount = a
+	return nil
 }
 
 // DepositInfo models user locked funds.
 type DepositInfo struct {
-	AccountID string
-	BrokerID  string
-	Deposit   Deposit
+	AccountID string  `json:"accountId"`
+	BrokerID  string  `json:"brokerId"`
+	Deposit   Deposit `json:"deposit"`
 }
 
 // HasDeposit calls the contract hasLocked function.
 func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
-	res, err := c.nc.CallFunction(
+	res, err := c.NearClient.CallFunction(
 		ctx,
 		c.contractAccountID,
 		"hasDeposit",
@@ -54,7 +94,7 @@ func (c *Client) AddDeposit(ctx context.Context, brokerID string) (*DepositInfo,
 	if !ok {
 		return nil, fmt.Errorf("creating depoist amount")
 	}
-	res, err := c.nc.Account(c.clientAccountID).FunctionCall(
+	res, err := c.NearClient.Account(c.clientAccountID).FunctionCall(
 		ctx,
 		c.contractAccountID,
 		"addDeposit",
@@ -73,55 +113,18 @@ func (c *Client) AddDeposit(ctx context.Context, brokerID string) (*DepositInfo,
 		return nil, fmt.Errorf("decoding status value string: %v", err)
 	}
 	log.Errorf("json: %s", string(bytes))
-	depositInfo, err := extractDepositInfo(bytes)
-	if err != nil {
+	var depositInfo DepositInfo
+	if err := json.Unmarshal(bytes, &depositInfo); err != nil {
 		return nil, fmt.Errorf("decoding lock info: %v", err)
 	}
-	return depositInfo, nil
+	return &depositInfo, nil
 }
 
 // ReleaseDeposits unlocks all funds from expired sessions in the contract.
 func (c *Client) ReleaseDeposits(ctx context.Context) error {
-	_, err := c.nc.Account(c.clientAccountID).FunctionCall(ctx, c.contractAccountID, "releaseDeposits")
+	_, err := c.NearClient.Account(c.clientAccountID).FunctionCall(ctx, c.contractAccountID, "releaseDeposits")
 	if err != nil {
 		return fmt.Errorf("calling rpc unlock funds: %v", err)
 	}
 	return nil
-}
-
-// TODO: convert to custom JSON decoding.
-func extractDepositInfo(bytes []byte) (*DepositInfo, error) {
-	var j struct {
-		AccountID string `json:"accountId"`
-		BrokerID  string `json:"brokerId"`
-		Deposit   struct {
-			Amount     string `json:"amount"`
-			Sender     string `json:"sender"`
-			Expiration string `json:"expiration"`
-		} `json:"deposit"`
-	}
-	err := json.Unmarshal(bytes, &j)
-	if err != nil {
-		return nil, err
-	}
-
-	depositAmount, ok := (&big.Int{}).SetString(j.Deposit.Amount, 10)
-	if !ok {
-		return nil, fmt.Errorf("error parsing string to big int: %s", j.Deposit.Amount)
-	}
-
-	expiration, err := strconv.ParseUint(j.Deposit.Expiration, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("parsing expiration: %v", err)
-	}
-
-	return &DepositInfo{
-		AccountID: j.AccountID,
-		BrokerID:  j.BrokerID,
-		Deposit: Deposit{
-			Amount:     depositAmount,
-			Sender:     j.Deposit.Sender,
-			Expiration: expiration,
-		},
-	}, nil
 }

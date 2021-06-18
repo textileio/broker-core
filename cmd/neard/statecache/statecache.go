@@ -1,6 +1,7 @@
 package statecache
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
@@ -21,7 +22,8 @@ type StateCache struct {
 func NewStateCache() (*StateCache, error) {
 	return &StateCache{
 		state: contractclient.State{
-			LockedFunds: make(map[string]contractclient.DepositInfo),
+			DepositMap: make(map[string]contractclient.DepositInfo),
+			BrokerMap:  make(map[string]contractclient.BrokerInfo),
 		},
 	}, nil
 }
@@ -32,6 +34,7 @@ func (sc *StateCache) HandleIntialStateUpdate(state *contractclient.State) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	sc.state = *state
+	sc.logState()
 }
 
 // HandleStateChanges handles state changes.
@@ -44,16 +47,27 @@ func (sc *StateCache) HandleStateChanges(changes []contractclient.Change, blockH
 	for _, change := range changes {
 		switch change.Type {
 		case contractclient.Update:
-			sc.state.LockedFunds[change.Key] = *change.LockInfo
+			if change.BrokerValue != nil {
+				sc.state.BrokerMap[change.BrokerValue.Key] = *change.BrokerValue.Value
+			} else if change.DepositValue != nil {
+				sc.state.DepositMap[change.DepositValue.Key] = *change.DepositValue.Value
+			}
 		case contractclient.Delete:
-			delete(sc.state.LockedFunds, change.Key)
+			if change.BrokerValue != nil {
+				delete(sc.state.BrokerMap, change.BrokerValue.Key)
+			} else if change.DepositValue != nil {
+				delete(sc.state.DepositMap, change.DepositValue.Key)
+			}
 		}
+	}
+	if len(changes) > 0 {
+		sc.logState()
 	}
 }
 
 // HandleError handles errors.
 func (sc *StateCache) HandleError(err error) {
-	log.Infof("handling error: %v", err)
+	log.Errorf("handling error: %v", err)
 }
 
 // GetState returns the current state.
@@ -61,4 +75,9 @@ func (sc *StateCache) GetState() contractclient.State {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	return sc.state
+}
+
+func (sc *StateCache) logState() {
+	bytes, _ := json.MarshalIndent(sc.state, "", "  ")
+	log.Errorf("\n%s", string(bytes))
 }
