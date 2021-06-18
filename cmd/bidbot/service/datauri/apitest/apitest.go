@@ -57,6 +57,22 @@ func (g *DataURIHTTPGateway) CreateURI(serve bool) (cid.Cid, string, error) {
 	return node.Cid(), fmt.Sprintf("%s/cid/%s", g.server.URL, node.Cid()), nil
 }
 
+func (g *DataURIHTTPGateway) CreateURIWithWrongRoot() (cid.Cid, string, error) {
+	c1, _, err := g.CreateURI(true)
+	if err != nil {
+		return cid.Cid{}, "", err
+	}
+	c2, uri2, err := g.CreateURI(false)
+	if err != nil {
+		return cid.Cid{}, "", err
+	}
+	// Swap data so that c2 points to c1's data
+	g.data[c2] = g.data[c1]
+	delete(g.data, c1)
+
+	return c2, uri2, nil
+}
+
 func handler(g *DataURIHTTPGateway) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		c, err := cid.Decode(path.Base(r.URL.Path))

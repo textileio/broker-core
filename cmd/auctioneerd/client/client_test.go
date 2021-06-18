@@ -2,7 +2,6 @@ package client_test
 
 import (
 	"context"
-	"crypto/rand"
 	"net"
 	"path/filepath"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -230,16 +228,12 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 	for i := 0; i < n; i++ {
 		dir := t.TempDir()
 
-		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
-		require.NoError(t, err)
-
 		store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "bidstore"))
 		require.NoError(t, err)
 		fin.Add(store)
 
 		config := bidbotsrv.Config{
 			Peer: marketpeer.Config{
-				PrivKey:    priv,
 				RepoPath:   dir,
 				EnableMDNS: true,
 			},

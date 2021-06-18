@@ -21,6 +21,9 @@ var (
 	// ErrSchemeNotSupported indicates a given URI scheme is not supported.
 	ErrSchemeNotSupported = errors.New("scheme not supported")
 
+	// ErrCarFileUnavailable indicates a given URI points to an unavailable car file.
+	ErrCarFileUnavailable = errors.New("car file unavailable")
+
 	// ErrInvalidCarFile indicates a given URI points to an invalid car file.
 	ErrInvalidCarFile = errors.New("invalid car file")
 )
@@ -76,16 +79,12 @@ func (u *HTTPURI) Validate(ctx context.Context) error {
 		}
 	}()
 
-	// Ensure cid is the one and only root of the car file
-	ch, _, err := car.ReadHeader(bufio.NewReader(res.Body))
-	if err != nil {
-		return fmt.Errorf("reading car header: %v", err)
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("http request returned bad status %d: %w", res.StatusCode, ErrCarFileUnavailable)
 	}
-	if len(ch.Roots) != 1 {
-		return fmt.Errorf("car file must have only one root: %w", ErrInvalidCarFile)
-	}
-	if !ch.Roots[0].Equals(u.cid) {
-		return fmt.Errorf("car file root does not match uri: %w", ErrInvalidCarFile)
+
+	if err := validateCarHeader(u.cid, res.Body); err != nil {
+		return fmt.Errorf("validating car header: %w", err)
 	}
 	return nil
 }
@@ -103,7 +102,11 @@ func (u *HTTPURI) Write(ctx context.Context, writer io.Writer) error {
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("http request returned bad status: %d", res.StatusCode)
+		return fmt.Errorf("http request returned bad status %d: %w", res.StatusCode, ErrCarFileUnavailable)
+	}
+
+	if err := validateCarHeader(u.cid, res.Body); err != nil {
+		return fmt.Errorf("validating car header: %v", err)
 	}
 
 	if _, err := io.Copy(writer, res.Body); err != nil {
@@ -128,4 +131,19 @@ func (u *HTTPURI) getRequest(ctx context.Context) (*http.Response, error) {
 		return nil, fmt.Errorf("sending http request: %v", err)
 	}
 	return res, nil
+}
+
+// validateCarHeader ensures cid is the one and only root of the car file.
+func validateCarHeader(root cid.Cid, reader io.Reader) error {
+	ch, _, err := car.ReadHeader(bufio.NewReader(reader))
+	if err != nil {
+		return fmt.Errorf("reading car header: %v", err)
+	}
+	if len(ch.Roots) != 1 {
+		return fmt.Errorf("car file must have only one root: %w", ErrInvalidCarFile)
+	}
+	if !ch.Roots[0].Equals(root) {
+		return fmt.Errorf("car file root does not match uri: %w", ErrInvalidCarFile)
+	}
+	return nil
 }

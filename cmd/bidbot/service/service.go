@@ -36,7 +36,7 @@ var (
 	bidsAckTimeout = time.Second * 10
 
 	// dataURIValidateTimeout is the timeout used when validating a data uri.
-	dataURIValidateTimeout = time.Second * 10
+	dataURIValidateTimeout = time.Minute
 )
 
 // Config defines params for Service configuration.
