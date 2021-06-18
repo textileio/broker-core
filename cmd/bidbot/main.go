@@ -54,8 +54,8 @@ func init() {
 
 	commonFlags := []common.Flag{
 		{
-			Name:        "http-addr",
-			DefValue:    ":9999",
+			Name:        "http-port",
+			DefValue:    "9999",
 			Description: "HTTP API listen address",
 		},
 	}
@@ -282,7 +282,7 @@ var daemonCmd = &cobra.Command{
 					Max: v.GetUint64("deal-size-max"),
 				},
 			},
-			HTTPListenAddr: v.GetString("http-addr"),
+			HTTPListenAddr: ":" + v.GetString("http-port"),
 		}
 		serv, err := service.New(config, store, fc)
 		common.CheckErrf("starting service: %v", err)
@@ -308,7 +308,11 @@ var dealsCmd = &cobra.Command{
 }
 
 func urlFor(parts ...string) string {
-	return "http://127.0.0.1" + v.GetString("http-addr") + "/" + path.Join(parts...)
+	u := "http://127.0.0.1:" + v.GetString("http-port")
+	if len(parts) > 0 {
+		u += "/" + path.Join(parts...)
+	}
+	return u
 }
 
 var dealsListCmd = &cobra.Command{
