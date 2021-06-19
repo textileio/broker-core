@@ -190,6 +190,7 @@ func (c *Client) StorageDealProposalAccepted(
 func (c *Client) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
 	req := &pb.StorageDealFinalizedDealRequest{
 		StorageDealId:  string(fad.StorageDealID),
+		MinerId:        fad.Miner,
 		DealId:         fad.DealID,
 		DealExpiration: fad.DealExpiration,
 		ErrorCause:     fad.ErrorCause,
