@@ -20,6 +20,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
+	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
@@ -44,6 +45,7 @@ type Config struct {
 	Peer           marketpeer.Config
 	BidParams      BidParams
 	AuctionFilters AuctionFilters
+	BytesLimiter   limiter.Limiter
 	HTTPListenAddr string
 }
 
@@ -136,6 +138,7 @@ type Service struct {
 
 	bidParams      BidParams
 	auctionFilters AuctionFilters
+	bytesLimiter   limiter.Limiter
 
 	ctx       context.Context
 	finalizer *finalizer.Finalizer
@@ -165,6 +168,7 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 	}
 	fin.Add(p)
 
+	bytesLimiter := limiter.NopeLimiter{}
 	// Create bid store
 	s, err := bidstore.NewStore(
 		store,
@@ -173,6 +177,7 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 		conf.Peer.BootstrapAddrs,
 		conf.BidParams.DealDataDirectory,
 		conf.BidParams.DealDataFetchAttempts,
+		bytesLimiter,
 	)
 	if err != nil {
 		return nil, fin.Cleanupf("creating bid store: %v", err)
@@ -197,6 +202,7 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 		store:          s,
 		bidParams:      conf.BidParams,
 		auctionFilters: conf.AuctionFilters,
+		bytesLimiter:   bytesLimiter,
 		ctx:            ctx,
 		finalizer:      fin,
 	}
@@ -360,6 +366,11 @@ func (s *Service) proposalHandler(from peer.ID, topic string, msg []byte) ([]byt
 func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if rejectReason := s.filterAuction(auction); rejectReason != "" {
 		log.Infof("not bidding in auction %s from %s: %s", auction.Id, from, rejectReason)
+		return nil
+	}
+
+	if !s.bytesLimiter.Request(auction.DealSize) {
+		log.Infof("not bidding in auction %s from %s: would exceed the running total bytes limit", auction.Id, from)
 		return nil
 	}
 

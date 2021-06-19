@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri/apitest"
+	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 	badger "github.com/textileio/go-ds-badger3"
@@ -262,7 +263,7 @@ func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
 		PrivKey:  sk,
 	})
 	require.NoError(t, err)
-	s, err := NewStore(ds, p.Host(), p.DAGService(), nil, t.TempDir(), 2)
+	s, err := NewStore(ds, p.Host(), p.DAGService(), nil, t.TempDir(), 2, limiter.NopeLimiter{})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, s.Close())

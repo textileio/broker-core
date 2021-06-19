@@ -23,6 +23,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
+	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	dsextensions "github.com/textileio/go-datastore-extensions"
 	golog "github.com/textileio/go-log/v2"
@@ -140,10 +141,11 @@ func BidStatusByString(s string) (BidStatus, error) {
 
 // Store stores miner auction deal bids.
 type Store struct {
-	store      txndswrap.TxnDatastore
-	host       host.Host
-	nodeGetter format.NodeGetter
-	bootstrap  []peer.AddrInfo
+	store        txndswrap.TxnDatastore
+	host         host.Host
+	nodeGetter   format.NodeGetter
+	bootstrap    []peer.AddrInfo
+	bytesLimiter limiter.Limiter
 
 	jobCh  chan *Bid
 	tickCh chan struct{}
@@ -165,6 +167,7 @@ func NewStore(
 	bootstrap []string,
 	dealDataDirectory string,
 	dealDataFetchAttempts uint32,
+	bytesLimiter limiter.Limiter,
 ) (*Store, error) {
 	baddrs, err := ipfsconfig.ParseBootstrapPeers(bootstrap)
 	if err != nil {
@@ -177,6 +180,7 @@ func NewStore(
 		host:                  host,
 		nodeGetter:            nodeGetter,
 		bootstrap:             baddrs,
+		bytesLimiter:          bytesLimiter,
 		jobCh:                 make(chan *Bid, MaxDataURIFetchConcurrency),
 		tickCh:                make(chan struct{}, MaxDataURIFetchConcurrency),
 		dealDataDirectory:     dealDataDirectory,
@@ -503,6 +507,7 @@ func (s *Store) fetchWorker(num int) {
 		b.ErrorCause = err.Error()
 		if b.DataURIFetchAttempts >= s.dealDataFetchAttempts {
 			status = BidStatusFinalized
+			s.bytesLimiter.Withdraw(b.DealSize)
 			log.Warnf("job %s exhausted all %d attempts with error: %v", b.ID, s.dealDataFetchAttempts, err)
 		} else {
 			status = BidStatusQueuedData
@@ -535,6 +540,7 @@ func (s *Store) fetchWorker(num int) {
 				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
 			} else {
 				status = BidStatusFinalized
+				s.bytesLimiter.Commit(b.DealSize)
 				// Reset error
 				b.ErrorCause = ""
 				logMsg = fmt.Sprintf("status=%s", status)
