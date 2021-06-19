@@ -122,6 +122,7 @@ func init() {
 			DefValue: "",
 			Description: `Maximum running total bytes in the deals to bid for a period of time.
 In the form of '10MiB/1m', '500 tb/24h' or '5 PiB / 128h', etc.
+See https://en.wikipedia.org/wiki/Byte#Multiple-byte_units for valid byte units.
 Default to no limit. Be aware that the bytes counter resets when bidbot restarts.
 Also take the file system overhead into consideration when calculating the limit.`,
 		},
