@@ -67,7 +67,7 @@ var rootCmd = &cobra.Command{
 			AuthAddr:              v.GetString("auth-addr"),
 			SkipAuth:              v.GetBool("skip-auth"),
 			IpfsMultiaddrs:        ipfsMultiaddrs,
-			BearerTokens:          common.ParseStringSlice(v, "berer-tokens"),
+			BearerTokens:          common.ParseStringSlice(v, "bearer-tokens"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
@@ -88,10 +88,8 @@ func main() {
 
 func marshalConfig(v *viper.Viper) ([]byte, error) {
 	all := v.AllSettings()
-	tokens := all["bearer-tokens"].([]string)
-	for i := range tokens {
-		tokens[i] = "***"
+	if _, exists := all["bearer-tokens"]; exists {
+		all["bearer-tokens"] = "<redacted>"
 	}
-	all["bearer-tokens"] = tokens
 	return json.MarshalIndent(all, "", "  ")
 }
