@@ -49,12 +49,22 @@ func (rl *RunningTotalLimiter) Request(n uint64) bool {
 	now := time.Now()
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	for e := rl.list.Front(); e != nil; e = e.Next() {
+	for e := rl.list.Front(); e != nil; {
 		item := e.Value.(elem)
-		if now.Sub(item.ts) > rl.period {
-			rl.total -= item.n
-			rl.list.Remove(e)
+		if now.Sub(item.ts) <= rl.period {
+			break
 		}
+		if rl.total < item.n {
+			// if the caller commits some tokens more than once,
+			// this could happen. Add a guard here just to prevent
+			// the total from wraping around to a gigantic number.
+			rl.total = 0
+		} else {
+			rl.total -= item.n
+		}
+		toRemove := e
+		e = e.Next()
+		rl.list.Remove(toRemove)
 	}
 	if rl.total+n > rl.limit {
 		return false

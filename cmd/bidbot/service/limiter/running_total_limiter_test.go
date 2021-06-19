@@ -36,4 +36,11 @@ func TestRunningTotalLimiter(t *testing.T) {
 	// 1 will be evicted, so we have a room for 1
 	require.False(t, rl.Request(2))
 	require.True(t, rl.Request(1))
+
+	// if the caller mistakenly commits tokens exceeding the limit, make
+	// sure they can be evicted and allow room for new requests.
+	rl.Commit(5)
+	rl.Commit(5)
+	time.Sleep(60 * time.Millisecond)
+	require.True(t, rl.Request(5))
 }
