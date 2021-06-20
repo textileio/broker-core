@@ -7,7 +7,6 @@ import (
 
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
-	"github.com/textileio/broker-core/cmd/neard/statecache"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
@@ -23,16 +22,14 @@ var (
 // Service implements the chainservice for NEAR.
 type Service struct {
 	chainapi.UnimplementedChainApiServiceServer
-	sc     *statecache.StateCache
-	lc     *contractclient.Client
+	cc     *contractclient.Client
 	server *grpc.Server
 }
 
 // NewService creates a new Service.
-func NewService(listener net.Listener, stateCache *statecache.StateCache, lc *contractclient.Client) (*Service, error) {
+func NewService(listener net.Listener, cc *contractclient.Client) (*Service, error) {
 	s := &Service{
-		sc:     stateCache,
-		lc:     lc,
+		cc:     cc,
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 	}
 	go func() {
@@ -51,7 +48,7 @@ func (s *Service) HasDeposit(
 	ctx context.Context,
 	req *chainapi.HasDepositRequest,
 ) (*chainapi.HasDepositResponse, error) {
-	res, err := s.lc.HasDeposit(ctx, req.BrokerId, req.AccountId)
+	res, err := s.cc.HasDeposit(ctx, req.BrokerId, req.AccountId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "calling has deposit: %v", err)
 	}
