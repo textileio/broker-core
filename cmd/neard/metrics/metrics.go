@@ -2,9 +2,9 @@ package metrics
 
 import (
 	"context"
+	"math/big"
 	"time"
 
-	"github.com/filecoin-project/go-state-types/big"
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	logging "github.com/textileio/go-log/v2"
@@ -52,7 +52,7 @@ func (m *Metrics) initMetrics() {
 			log.Errorf("getting contract state: %v", err)
 		} else {
 			// Calc sum of deposits.
-			sumDeposits := big.Zero().Int
+			sumDeposits := big.NewInt(0)
 			for _, deposit := range state.DepositMap {
 				sumDeposits.Add(sumDeposits, deposit.Deposit.Amount)
 			}
