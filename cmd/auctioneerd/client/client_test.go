@@ -30,6 +30,7 @@ import (
 	"github.com/textileio/broker-core/marketpeer"
 	brokermocks "github.com/textileio/broker-core/mocks/broker"
 	auctioneermocks "github.com/textileio/broker-core/mocks/cmd/auctioneerd/auctioneer"
+	lotusclientmocks "github.com/textileio/broker-core/mocks/cmd/bidbot/service/lotusclient"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -282,7 +283,7 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 			},
 		}
 
-		s, err := bidbotsrv.New(config, store, newFilClientMock())
+		s, err := bidbotsrv.New(config, store, newLotusClientMock(), newFilClientMock())
 		require.NoError(t, err)
 		fin.Add(s)
 		err = s.Subscribe(false)
@@ -295,6 +296,17 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 
 func newDealID() core.StorageDealID {
 	return core.StorageDealID(uuid.New().String())
+}
+
+func newLotusClientMock() *lotusclientmocks.LotusClient {
+	lc := &lotusclientmocks.LotusClient{}
+	lc.On(
+		"ImportData",
+		mock.Anything,
+		mock.Anything,
+	).Return(nil)
+	lc.On("Close").Return(nil)
+	return lc
 }
 
 func newFilClientMock() *auctioneermocks.FilClient {

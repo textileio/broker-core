@@ -17,12 +17,14 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri/apitest"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
+	lotusclientmocks "github.com/textileio/broker-core/mocks/cmd/bidbot/service/lotusclient"
 	badger "github.com/textileio/go-ds-badger3"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -263,11 +265,22 @@ func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
 		PrivKey:  sk,
 	})
 	require.NoError(t, err)
-	s, err := NewStore(ds, p.Host(), p.DAGService(), nil, t.TempDir(), 2, limiter.NopeLimiter{})
+	s, err := NewStore(ds, p.Host(), p.DAGService(), newLotusClientMock(), t.TempDir(), 2, limiter.NopeLimiter{})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, s.Close())
 		require.NoError(t, ds.Close())
 	})
 	return s, p.DAGService(), p.BlockStore()
+}
+
+func newLotusClientMock() *lotusclientmocks.LotusClient {
+	lc := &lotusclientmocks.LotusClient{}
+	lc.On(
+		"ImportData",
+		mock.Anything,
+		mock.Anything,
+	).Return(nil)
+	lc.On("Close").Return(nil)
+	return lc
 }

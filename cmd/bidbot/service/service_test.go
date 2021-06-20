@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	core "github.com/textileio/broker-core/broker"
@@ -14,6 +13,8 @@ import (
 	"github.com/textileio/broker-core/dshelper"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
+	auctioneermocks "github.com/textileio/broker-core/mocks/cmd/auctioneerd/auctioneer"
+	lotusclientmocks "github.com/textileio/broker-core/mocks/cmd/bidbot/service/lotusclient"
 	golog "github.com/textileio/go-log/v2"
 )
 
@@ -69,6 +70,7 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = store.Close() }()
 
+	lc := newLotusClientMock()
 	fc := newFilClientMock()
 
 	config.AuctionFilters = auctionFilters
@@ -79,7 +81,7 @@ func TestNew(t *testing.T) {
 		DealDataFetchAttempts: 1,
 		DealDataDirectory:     t.TempDir(),
 	}
-	_, err = service.New(config, store, fc)
+	_, err = service.New(config, store, lc, fc)
 	require.Error(t, err)
 
 	// Bad DealDataFetchAttempts
@@ -88,7 +90,7 @@ func TestNew(t *testing.T) {
 		DealDataFetchAttempts: 0,
 		DealDataDirectory:     t.TempDir(),
 	}
-	_, err = service.New(config, store, fc)
+	_, err = service.New(config, store, lc, fc)
 	require.Error(t, err)
 
 	// Bad DealDataDirectory
@@ -97,7 +99,7 @@ func TestNew(t *testing.T) {
 		DealDataFetchAttempts: 1,
 		DealDataDirectory:     "",
 	}
-	_, err = service.New(config, store, fc)
+	_, err = service.New(config, store, lc, fc)
 	require.Error(t, err)
 
 	config.BidParams = bidParams
@@ -113,57 +115,50 @@ func TestNew(t *testing.T) {
 			Max: 20,
 		},
 	}
-	_, err = service.New(config, store, fc)
+	_, err = service.New(config, store, lc, fc)
 	require.Error(t, err)
 
 	config.AuctionFilters = auctionFilters
 
 	// Good config
-	s, err := service.New(config, store, fc)
+	s, err := service.New(config, store, lc, fc)
 	require.NoError(t, err)
 	err = s.Subscribe(false)
 	require.NoError(t, err)
 	require.NoError(t, s.Close())
 
 	// Ensure verify bidder can lead to error
-	fc2 := &fcMock{}
+	fc2 := &auctioneermocks.FilClient{}
 	fc2.On(
 		"VerifyBidder",
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 	).Return(false, nil)
-	_, err = service.New(config, store, fc2)
+	_, err = service.New(config, store, lc, fc2)
 	require.Error(t, err)
 }
 
-func newFilClientMock() *fcMock {
-	cm := &fcMock{}
-	cm.On(
+func newLotusClientMock() *lotusclientmocks.LotusClient {
+	lc := &lotusclientmocks.LotusClient{}
+	lc.On(
+		"ImportData",
+		mock.Anything,
+		mock.Anything,
+	).Return(nil)
+	lc.On("Close").Return(nil)
+	return lc
+}
+
+func newFilClientMock() *auctioneermocks.FilClient {
+	fc := &auctioneermocks.FilClient{}
+	fc.On(
 		"VerifyBidder",
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 	).Return(true, nil)
-	cm.On("GetChainHeight").Return(uint64(0), nil)
-	return cm
-}
-
-type fcMock struct {
-	mock.Mock
-}
-
-func (fc *fcMock) Close() error {
-	args := fc.Called()
-	return args.Error(0)
-}
-
-func (fc *fcMock) VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error) {
-	args := fc.Called(bidderSig, bidderID, minerAddr)
-	return args.Bool(0), args.Error(1)
-}
-
-func (fc *fcMock) GetChainHeight() (uint64, error) {
-	args := fc.Called()
-	return args.Get(0).(uint64), args.Error(1)
+	fc.On("GetChainHeight").Return(uint64(0), nil)
+	fc.On("Close").Return(nil)
+	return fc
 }

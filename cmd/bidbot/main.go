@@ -29,6 +29,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
+	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/dshelper"
@@ -79,12 +80,12 @@ func init() {
 		},
 		{
 			Name:        "ask-price",
-			DefValue:    100000000000,
+			DefValue:    0,
 			Description: "Bid ask price for deals in attoFIL per GiB per epoch; default is 100 nanoFIL",
 		},
 		{
 			Name:        "verified-ask-price",
-			DefValue:    100000000000,
+			DefValue:    0,
 			Description: "Bid ask price for verified deals in attoFIL per GiB per epoch; default is 100 nanoFIL",
 		},
 		{
@@ -131,6 +132,9 @@ Also take the file system overhead into consideration when calculating the limit
 			DefValue:    3,
 			Description: "Number of times fetching deal data will be attempted before failing",
 		},
+		{Name: "lotus-api-maddr", DefValue: "/ip4/0.0.0.0/tcp/1234/http", Description: "Lotus API multiaddress"},
+		{Name: "lotus-api-token", DefValue: "", Description: "Lotus API authorization token"},
+		{Name: "lotus-api-conn-retries", DefValue: "2", Description: "Lotus API connection retries"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level log"},
@@ -232,6 +236,7 @@ var daemonCmd = &cobra.Command{
 			"bidbot/store",
 			"bidbot/datauri",
 			"bidbot/api",
+			"bidbot/lotus",
 			"mpeer",
 			"mpeer/pubsub",
 			"mpeer/mdns",
@@ -267,6 +272,15 @@ var daemonCmd = &cobra.Command{
 
 		walletAddrSig, err := hex.DecodeString(v.GetString("wallet-addr-sig"))
 		common.CheckErrf("decoding wallet address signature: %v", err)
+
+		lc, err := lotusclient.New(
+			v.GetString("lotus-api-addr"),
+			v.GetString("lotus-api-token"),
+			v.GetInt("lotus-api-conn-retries"),
+			v.GetBool("fake-mode"),
+		)
+		common.CheckErrf("creating lotus client: %v", err)
+		fin.Add(lc)
 
 		fc, err := filclient.New(v.GetString("lotus-gateway-url"), v.GetBool("fake-mode"))
 		common.CheckErrf("creating chain client: %v", err)
@@ -310,7 +324,7 @@ var daemonCmd = &cobra.Command{
 			BytesLimiter:   bytesLimiter,
 			HTTPListenAddr: ":" + v.GetString("http-port"),
 		}
-		serv, err := service.New(config, store, fc)
+		serv, err := service.New(config, store, lc, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 

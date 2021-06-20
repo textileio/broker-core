@@ -21,6 +21,7 @@ import (
 	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
+	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
@@ -146,7 +147,12 @@ type Service struct {
 }
 
 // New returns a new Service.
-func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*Service, error) {
+func New(
+	conf Config,
+	store txndswrap.TxnDatastore,
+	lc lotusclient.LotusClient,
+	fc auctioneer.FilClient,
+) (*Service, error) {
 	if err := conf.BidParams.Validate(); err != nil {
 		return nil, fmt.Errorf("validating bid parameters: %v", err)
 	}
@@ -174,7 +180,7 @@ func New(conf Config, store txndswrap.TxnDatastore, fc auctioneer.FilClient) (*S
 		store,
 		p.Host(),
 		p.DAGService(),
-		conf.Peer.BootstrapAddrs,
+		lc,
 		conf.BidParams.DealDataDirectory,
 		conf.BidParams.DealDataFetchAttempts,
 		bytesLimiter,

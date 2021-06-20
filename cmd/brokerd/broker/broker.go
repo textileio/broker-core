@@ -422,9 +422,15 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		if !ok {
 			return fmt.Errorf("winning bid %s wasn't found in bid map", wbid)
 		}
+		var price int64
+		if au.DealVerified {
+			price = bid.VerifiedAskPrice
+		} else {
+			price = bid.AskPrice
+		}
 		ads.Targets[i] = dealer.AuctionDealsTarget{
 			Miner:               bid.MinerAddr,
-			PricePerGiBPerEpoch: bid.AskPrice,
+			PricePerGiBPerEpoch: price,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            au.DealVerified,
 			FastRetrieval:       bid.FastRetrieval,
