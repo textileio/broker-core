@@ -37,7 +37,7 @@ func (m *Metrics) initMetrics() {
 	var (
 		providerCount     metric.Int64ValueObserver
 		depositCount      metric.Int64ValueObserver
-		depositSum        metric.Int64SumObserver
+		depositSum        metric.Int64ValueObserver
 		accountBal        metric.Int64ValueObserver
 		lockedAccountBal  metric.Int64ValueObserver
 		latestBlocktime   metric.Int64ValueObserver
@@ -98,7 +98,6 @@ func (m *Metrics) initMetrics() {
 			} else {
 				obs = append(obs, latestBlocktime.Observation(latestBlockTime.Unix()))
 			}
-
 			obs = append(obs, latestBlockHeight.Observation(int64(nodeStatus.SyncInfo.LatestBlockHeight)))
 		}
 
@@ -106,7 +105,7 @@ func (m *Metrics) initMetrics() {
 	})
 	providerCount = batchObs.NewInt64ValueObserver(prefix + ".provider_count")
 	depositCount = batchObs.NewInt64ValueObserver(prefix + ".deposit_count")
-	depositSum = batchObs.NewInt64SumObserver(prefix + "deposits_sum")
+	depositSum = batchObs.NewInt64ValueObserver(prefix + "deposits_sum")
 	accountBal = batchObs.NewInt64ValueObserver(prefix + "account_bal")
 	lockedAccountBal = batchObs.NewInt64ValueObserver(prefix + "locked_account_bal")
 	latestBlocktime = batchObs.NewInt64ValueObserver(prefix + "latest_block_time")
