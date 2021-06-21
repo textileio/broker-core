@@ -388,11 +388,19 @@ func (s *Service) StorageDealFinalizedDeal(
 	if r.StorageDealId == "" {
 		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
 	}
-	if r.DealId <= 0 {
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"deal id is %d and should be positive",
-			r.DealId)
+	if r.ErrorCause == "" {
+		if r.DealId <= 0 {
+			return nil, status.Errorf(
+				codes.InvalidArgument,
+				"deal id is %d and should be positive",
+				r.DealId)
+		}
+		if r.DealExpiration <= 0 {
+			return nil, status.Errorf(
+				codes.InvalidArgument,
+				"deal expiration is %d and should be positive",
+				r.DealExpiration)
+		}
 	}
 	fad := broker.FinalizedAuctionDeal{
 		StorageDealID:  broker.StorageDealID(r.StorageDealId),
