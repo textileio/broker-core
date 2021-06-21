@@ -214,7 +214,7 @@ The change the deal data directory, set the $BIDBOT_DEAL_DATA_DIRECTORY environm
 
 2. Start listening for deal auctions using the wallet address and signature from step 1:
 
-    bidbot daemon --miner-addr [address] --wallet-addr-sig [signature]
+    bidbot daemon --miner-addr [address] --wallet-addr-sig [signature] --lotus-api-addr [lotus-api-addr] --lotus-api-token [lotus-api-token]
 
 Note: In the event you win an auction, you must use this wallet address to make the deal(s).
 
