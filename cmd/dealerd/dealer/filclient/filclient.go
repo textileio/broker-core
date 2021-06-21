@@ -85,7 +85,7 @@ func New(api v0api.FullNode, opts ...Option) (*FilClient, error) {
 func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
-	aud store.AuctionDeal) (propCid cid.Cid, ok bool, err error) {
+	aud store.AuctionDeal) (propCid cid.Cid, retriable bool, err error) {
 	log.Debugf(
 		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
 		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
