@@ -99,6 +99,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), sd2.Sources.CARURL.URL.String())
 	require.Nil(t, sd2.Sources.CARIPFS)
 	require.Nil(t, sd2.FilEpochDeadline)
+	require.False(t, sd2.DisallowRebatching)
 }
 
 func TestCreatePrepared(t *testing.T) {
@@ -148,6 +149,7 @@ func TestCreatePrepared(t *testing.T) {
 	sd, err := b.GetStorageDeal(ctx, br.StorageDealID)
 	require.NoError(t, err)
 	require.Equal(t, pc.RepFactor, sd.RepFactor)
+	require.True(t, sd.DisallowRebatching)
 	require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
 	require.Equal(t, broker.StorageDealAuctioning, sd.Status)
 	require.Len(t, sd.BrokerRequestIDs, 1)
@@ -328,6 +330,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Greater(t, sd2.DealDuration, 0)
 	require.Greater(t, sd2.CreatedAt.Unix(), int64(0))
 	require.Greater(t, sd2.UpdatedAt.Unix(), int64(0))
+	require.Equal(t, sd2.AuctionRetries, 0)
 	require.Empty(t, sd2.Error)
 	require.Equal(t, brgCid, sd2.PayloadCid)
 	require.Equal(t, dpr.PieceCid, sd2.PieceCid)
@@ -452,7 +455,12 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)
 
-	// 3- We received two winning bids instead of three. Check that the Auctioneer
+	// 3- Check that the broker deal has bumped the auction retry counter.
+	sd2, err := b.GetStorageDeal(ctx, sd)
+	require.NoError(t, err)
+	require.Equal(t, 1, sd2.AuctionRetries)
+
+	// 4- We received two winning bids instead of three. Check that the Auctioneer
 	//    was called to create a new auction with rep factor 1.
 	require.Equal(t, 2, auctioneer.calledCount)
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))

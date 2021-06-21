@@ -177,12 +177,13 @@ func (b *Broker) CreatePrepared(
 		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
 	}
 	sd := broker.StorageDeal{
-		RepFactor:        pc.RepFactor,
-		DealDuration:     int(b.conf.dealDuration),
-		Status:           broker.StorageDealAuctioning,
-		BrokerRequestIDs: []broker.BrokerRequestID{br.ID},
-		Sources:          pc.Sources,
-		FilEpochDeadline: &filEpochDeadline,
+		RepFactor:          pc.RepFactor,
+		DealDuration:       int(b.conf.dealDuration),
+		Status:             broker.StorageDealAuctioning,
+		BrokerRequestIDs:   []broker.BrokerRequestID{br.ID},
+		Sources:            pc.Sources,
+		DisallowRebatching: true,
+		FilEpochDeadline:   &filEpochDeadline,
 
 		// We fill what packer+piecer usually do.
 		PayloadCid: payloadCid,
@@ -256,14 +257,15 @@ func (b *Broker) CreateStorageDeal(
 	}
 	now := time.Now()
 	sd := broker.StorageDeal{
-		PayloadCid:       batchCid,
-		RepFactor:        int(b.conf.dealReplication),
-		DealDuration:     int(b.conf.dealDuration),
-		Status:           broker.StorageDealPreparing,
-		BrokerRequestIDs: brids,
-		CreatedAt:        now,
-		UpdatedAt:        now,
-		FilEpochDeadline: nil,
+		PayloadCid:         batchCid,
+		RepFactor:          int(b.conf.dealReplication),
+		DealDuration:       int(b.conf.dealDuration),
+		Status:             broker.StorageDealPreparing,
+		BrokerRequestIDs:   brids,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		DisallowRebatching: false,
+		FilEpochDeadline:   nil,
 		Sources: broker.Sources{
 			CARURL: &broker.CARURL{
 				URL: *b.conf.carExportURL.ResolveReference(cidURL),
@@ -478,6 +480,10 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		)
 		if err != nil {
 			return fmt.Errorf("creating new auction for missing bids %d: %s", deltaRepFactor, err)
+		}
+
+		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
+			return fmt.Errorf("increasing auction retry: %s", err)
 		}
 	}
 

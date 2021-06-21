@@ -132,18 +132,20 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 		}
 	}
 	isd := storageDeal{
-		ID:               sd.ID,
-		Status:           sd.Status,
-		BrokerRequestIDs: make([]broker.BrokerRequestID, len(brs)),
-		RepFactor:        sd.RepFactor,
-		DealDuration:     sd.DealDuration,
-		PayloadCid:       sd.PayloadCid,
-		PieceCid:         sd.PieceCid,
-		PieceSize:        sd.PieceSize,
-		FilEpochDeadline: sd.FilEpochDeadline,
-		Sources:          dsources,
-		CreatedAt:        sd.CreatedAt,
-		UpdatedAt:        sd.UpdatedAt,
+		ID:                 sd.ID,
+		Status:             sd.Status,
+		BrokerRequestIDs:   make([]broker.BrokerRequestID, len(brs)),
+		RepFactor:          sd.RepFactor,
+		DealDuration:       sd.DealDuration,
+		PayloadCid:         sd.PayloadCid,
+		PieceCid:           sd.PieceCid,
+		PieceSize:          sd.PieceSize,
+		DisallowRebatching: sd.DisallowRebatching,
+		AuctionRetries:     sd.AuctionRetries,
+		FilEpochDeadline:   sd.FilEpochDeadline,
+		Sources:            dsources,
+		CreatedAt:          sd.CreatedAt,
+		UpdatedAt:          sd.UpdatedAt,
 	}
 	copy(isd.BrokerRequestIDs, sd.BrokerRequestIDs)
 	if err := saveStorageDeal(txn, isd); err != nil {
@@ -389,9 +391,42 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 	return nil
 }
 
+// CountAuctionRetry increases the number of auction retries counter for a storage deal.
+func (s *Store) CountAuctionRetry(ctx context.Context, sdID broker.StorageDealID) error {
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating transaction: %s", err)
+	}
+	defer txn.Discard()
+
+	sd, err := getStorageDeal(txn, sdID)
+	if err != nil {
+		return fmt.Errorf("get storage deal: %s", err)
+	}
+
+	sd.AuctionRetries++
+	sd.UpdatedAt = time.Now()
+
+	if err := saveStorageDeal(txn, sd); err != nil {
+		return fmt.Errorf("save storage deal: %s", err)
+	}
+
+	if err := txn.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %s", err)
+	}
+
+	return nil
+}
+
 // AddMinerDeals includes new deals from a finalized auction.
 func (s *Store) AddMinerDeals(ctx context.Context, auction broker.Auction) error {
-	sd, err := getStorageDeal(s.ds, auction.StorageDealID)
+	txn, err := s.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("creating transaction: %s", err)
+	}
+	defer txn.Discard()
+
+	sd, err := getStorageDeal(txn, auction.StorageDealID)
 	if err != nil {
 		return fmt.Errorf("get storage deal: %s", err)
 	}
@@ -400,12 +435,6 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.Auction) error
 	if sd.Status != broker.StorageDealAuctioning && sd.Status != broker.StorageDealDealMaking {
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
-
-	txn, err := s.ds.NewTransaction(false)
-	if err != nil {
-		return fmt.Errorf("creating transaction: %s", err)
-	}
-	defer txn.Discard()
 
 	now := time.Now()
 	// Add winning bids to list of deals.
