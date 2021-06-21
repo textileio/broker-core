@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"math"
 	"math/big"
 	"time"
 
@@ -36,10 +37,11 @@ func New(cc *contractclient.Client, nc *nearclient.Client) *Metrics {
 func (m *Metrics) initMetrics() {
 	var (
 		providerCount     metric.Int64ValueObserver
-		depositCount      metric.Int64ValueObserver
-		depositSum        metric.Int64ValueObserver
-		accountBal        metric.Int64ValueObserver
-		lockedAccountBal  metric.Int64ValueObserver
+		depositsCount     metric.Int64ValueObserver
+		depositsSum       metric.Float64ValueObserver
+		accountBal        metric.Float64ValueObserver
+		lockedAccountBal  metric.Float64ValueObserver
+		storageUsage      metric.Int64ValueObserver
 		latestBlocktime   metric.Int64ValueObserver
 		latestBlockHeight metric.Int64ValueObserver
 	)
@@ -52,15 +54,17 @@ func (m *Metrics) initMetrics() {
 			log.Errorf("getting contract state: %v", err)
 		} else {
 			// Calc sum of deposits.
-			sumDeposits := big.NewInt(0)
+			sumDeposits := big.NewFloat(0)
 			for _, deposit := range state.DepositMap {
-				sumDeposits.Add(sumDeposits, deposit.Deposit.Amount)
+				sumDeposits.Add(sumDeposits, (&big.Float{}).SetInt(deposit.Deposit.Amount))
 			}
+			sumDeposits.Mul(sumDeposits, big.NewFloat(math.Pow(10, -24)))
+			sumDepositsF, _ := sumDeposits.Float64()
 			obs = append(
 				obs,
 				providerCount.Observation(int64(len(state.BrokerMap))),
-				depositCount.Observation(int64(len(state.DepositMap))),
-				depositSum.Observation(sumDeposits.Int64()),
+				depositsCount.Observation(int64(len(state.DepositMap))),
+				depositsSum.Observation(sumDepositsF),
 			)
 		}
 
@@ -70,20 +74,26 @@ func (m *Metrics) initMetrics() {
 			log.Errorf("getting account info: %v", err)
 		} else {
 			// Parse account balance.
-			bal, ok := (&big.Int{}).SetString(acc.Amount, 10)
+			bal, ok := (&big.Float{}).SetString(acc.Amount)
 			if !ok {
 				log.Errorf("unable to parse account balance: %s", acc.Amount)
 			} else {
-				obs = append(obs, accountBal.Observation(bal.Int64()))
+				bal.Mul(bal, big.NewFloat(math.Pow(10, -24)))
+				balF, _ := bal.Float64()
+				obs = append(obs, accountBal.Observation(balF))
 			}
 
 			// Parse account locked balance.
-			lockedBal, ok := (&big.Int{}).SetString(acc.Locked, 10)
+			lockedBal, ok := (&big.Float{}).SetString(acc.Locked)
 			if !ok {
 				log.Errorf("unable to parse locked account balance: %s", acc.Locked)
 			} else {
-				obs = append(obs, lockedAccountBal.Observation(lockedBal.Int64()))
+				lockedBal.Mul(lockedBal, big.NewFloat(math.Pow(10, -24)))
+				lockedBalF, _ := bal.Float64()
+				obs = append(obs, lockedAccountBal.Observation(lockedBalF))
 			}
+
+			obs = append(obs, storageUsage.Observation(int64(acc.StorageUsage)))
 		}
 
 		// Node status metrics.
@@ -104,10 +114,11 @@ func (m *Metrics) initMetrics() {
 		result.Observe(nil, obs...)
 	})
 	providerCount = batchObs.NewInt64ValueObserver(prefix + ".provider_count")
-	depositCount = batchObs.NewInt64ValueObserver(prefix + ".deposit_count")
-	depositSum = batchObs.NewInt64ValueObserver(prefix + "deposits_sum")
-	accountBal = batchObs.NewInt64ValueObserver(prefix + "account_bal")
-	lockedAccountBal = batchObs.NewInt64ValueObserver(prefix + "locked_account_bal")
-	latestBlocktime = batchObs.NewInt64ValueObserver(prefix + "latest_block_time")
-	latestBlockHeight = batchObs.NewInt64ValueObserver(prefix + "latest_block_height")
+	depositsCount = batchObs.NewInt64ValueObserver(prefix + ".deposits_count")
+	depositsSum = batchObs.NewFloat64ValueObserver(prefix + ".deposits_sum")
+	accountBal = batchObs.NewFloat64ValueObserver(prefix + ".account_bal")
+	lockedAccountBal = batchObs.NewFloat64ValueObserver(prefix + ".locked_account_bal")
+	storageUsage = batchObs.NewInt64ValueObserver(prefix + ".storage_usage")
+	latestBlocktime = batchObs.NewInt64ValueObserver(prefix + ".latest_block_time")
+	latestBlockHeight = batchObs.NewInt64ValueObserver(prefix + ".latest_block_height")
 }
