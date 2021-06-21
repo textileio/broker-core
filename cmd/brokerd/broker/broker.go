@@ -551,6 +551,9 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
+		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
+			return fmt.Errorf("increasing auction retry: %s", err)
+		}
 		return nil
 	}
 
