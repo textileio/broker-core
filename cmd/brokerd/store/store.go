@@ -491,11 +491,6 @@ func (s *Store) SaveFinalizedDeal(fad broker.FinalizedAuctionDeal) error {
 
 	idx := -1
 	for i := range sd.Deals {
-		if sd.Deals[i].DealID == fad.DealID {
-			// Shouldn't happen in general conditions besides being re-reported.
-			// In that case, nothing to do.
-			return nil
-		}
 		if sd.Deals[i].Miner == fad.Miner {
 			idx = i
 			break
