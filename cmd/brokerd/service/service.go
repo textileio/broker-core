@@ -188,11 +188,13 @@ func (s *Service) CreatePreparedBrokerRequest(
 	if r.PreparedCAR.PieceSize > broker.MaxPieceSize {
 		return nil, status.Errorf(codes.InvalidArgument, "piece-size can't be greater than %d", broker.MaxPieceSize)
 	}
+	pc.PieceSize = r.PreparedCAR.PieceSize
 
 	// Validate rep factor.
 	if r.PreparedCAR.RepFactor < 0 {
 		return nil, status.Error(codes.InvalidArgument, "rep-factor can't be negative")
 	}
+	pc.RepFactor = int(r.PreparedCAR.RepFactor)
 
 	pc.Deadline = r.PreparedCAR.Deadline.AsTime()
 
