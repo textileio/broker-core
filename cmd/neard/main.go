@@ -15,6 +15,7 @@ import (
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/keys"
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
+	"github.com/textileio/broker-core/cmd/neard/releaser"
 	"github.com/textileio/broker-core/cmd/neard/service"
 	logging "github.com/textileio/go-log/v2"
 )
@@ -40,6 +41,12 @@ var flags = []common.Flag{
 		Description: "The NEAR account id of the user of this client",
 	},
 	{Name: "client-private-key", DefValue: "", Description: "The NEAR private key string of the client account"},
+	{Name: "release-deposits-freq", DefValue: time.Minute, Description: "How often to call releaseDeposits"},
+	{
+		Name:        "release-deposits-timeout",
+		DefValue:    time.Second * 30,
+		Description: "Request timeout when calling releaseDeposits",
+	},
 	{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 	{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 	{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -70,6 +77,8 @@ var rootCmd = &cobra.Command{
 		contractAccountID := v.GetString("contract-account")
 		clientAccountID := v.GetString("client-account")
 		clientPrivateKey := v.GetString("client-private-key")
+		releaseDepositsFreq := v.GetDuration("release-deposits-freq")
+		releaseDepositsTimeout := v.GetDuration("release-deposits-timeout")
 
 		err = common.SetupInstrumentation(metricsAddr)
 		common.CheckErrf("booting instrumentation: %v", err)
@@ -98,6 +107,8 @@ var rootCmd = &cobra.Command{
 
 		metrics.New(cc, nc)
 
+		releaser := releaser.New(cc, releaseDepositsFreq, releaseDepositsTimeout)
+
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)
 		common.CheckErr(err)
@@ -108,6 +119,7 @@ var rootCmd = &cobra.Command{
 		common.HandleInterrupt(func() {
 			// common.CheckErr(u.Close())
 			rpcClient.Close()
+			common.CheckErr(releaser.Close())
 			log.Info("Gracefully stopping... (press Ctrl+C again to force)")
 			common.CheckErr(service.Close())
 			common.CheckErr(listener.Close())
