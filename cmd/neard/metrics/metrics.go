@@ -89,7 +89,7 @@ func (m *Metrics) initMetrics() {
 				log.Errorf("unable to parse locked account balance: %s", acc.Locked)
 			} else {
 				lockedBal.Mul(lockedBal, big.NewFloat(math.Pow(10, -24)))
-				lockedBalF, _ := bal.Float64()
+				lockedBalF, _ := lockedBal.Float64()
 				obs = append(obs, lockedAccountBal.Observation(lockedBalF))
 			}
 
