@@ -115,7 +115,7 @@ func (m *Metrics) initMetrics() {
 	})
 	providerCount = batchObs.NewInt64ValueObserver(prefix + ".provider_count")
 	depositsCount = batchObs.NewInt64ValueObserver(prefix + ".deposits_count")
-	depositsSum = batchObs.NewFloat64ValueObserver(prefix + ".deposits_sum")
+	depositsSum = batchObs.NewFloat64ValueObserver(prefix + ".sum_deposits")
 	accountBal = batchObs.NewFloat64ValueObserver(prefix + ".account_bal")
 	lockedAccountBal = batchObs.NewFloat64ValueObserver(prefix + ".locked_account_bal")
 	storageUsage = batchObs.NewInt64ValueObserver(prefix + ".storage_usage")
