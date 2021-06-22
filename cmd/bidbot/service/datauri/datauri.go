@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -48,7 +49,9 @@ func NewURI(uri string) (URI, error) {
 	}
 	switch parsed.Scheme {
 	case "http", "https":
-		id, err := cid.Decode(path.Base(parsed.Path))
+		carRef := path.Base(parsed.Path)
+		carRef = strings.TrimSuffix(carRef, ".car")
+		id, err := cid.Decode(carRef)
 		if err != nil {
 			return nil, fmt.Errorf("parsing uri cid '%s': %v", uri, err)
 		}

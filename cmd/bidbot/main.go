@@ -115,7 +115,7 @@ func init() {
 		},
 		{
 			Name:        "deal-size-max",
-			DefValue:    32 * 1000 * 1000 * 1000,
+			DefValue:    32 * 1024 * 1024 * 1024,
 			Description: "Maximum deal size to bid on in bytes",
 		},
 		{
