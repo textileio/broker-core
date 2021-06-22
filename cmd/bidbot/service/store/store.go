@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -184,6 +185,9 @@ func NewStore(
 		cancel:                cancel,
 	}
 
+	if err := s.HealthCheck(); err != nil {
+		return nil, fmt.Errorf("fails health check: %w", err)
+	}
 	// Create data fetch workers
 	s.wg.Add(MaxDataURIFetchConcurrency)
 	for i := 0; i < MaxDataURIFetchConcurrency; i++ {
@@ -192,7 +196,7 @@ func NewStore(
 
 	// Re-enqueue jobs that may have been orphaned during an forced shutdown
 	if err := s.getOrphaned(); err != nil {
-		return nil, fmt.Errorf("getting orphaned jobs: %v", err)
+		return nil, fmt.Errorf("getting orphaned jobs: %w", err)
 	}
 
 	go s.startFetching()
@@ -465,6 +469,16 @@ func (s *Store) WriteDataURI(uri string) (string, error) {
 		return "", fmt.Errorf("writing data uri %s: %w", uri, err)
 	}
 	return f.Name(), nil
+}
+
+// HealthCheck checks if the store is healthy enough to participate in bidding.
+func (s *Store) HealthCheck() error {
+	// make sure the directory is writable
+	f, err := ioutil.TempFile(s.dealDataDirectory, ".touch")
+	if err != nil {
+		return err
+	}
+	return os.Remove(f.Name())
 }
 
 // enqueueDataURI queues a data uri fetch.
