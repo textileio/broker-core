@@ -90,7 +90,7 @@ func init() {
 		},
 		{
 			Name:        "fast-retrieval",
-			DefValue:    false,
+			DefValue:    true,
 			Description: "Offer deals with fast retrieval",
 		},
 		{
