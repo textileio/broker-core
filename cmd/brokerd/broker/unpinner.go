@@ -67,11 +67,14 @@ func (b *Broker) unpinCid(ctx context.Context, uj store.UnpinJob) (err error) {
 func (b *Broker) exportIPFSMetrics() {
 	for {
 		<-time.After(b.conf.exportPinCountFrequency)
-		ch, err := b.ipfsClient.Pin().Ls(context.Background(), options.Pin.Ls.Recursive())
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		ch, err := b.ipfsClient.Pin().Ls(ctx, options.Pin.Ls.Recursive())
 		if err != nil {
 			log.Error("getting total pin count: %s", err)
+			cancel()
 			continue
 		}
+		cancel()
 		var total int64
 		for range ch {
 			total++

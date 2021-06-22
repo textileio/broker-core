@@ -177,12 +177,13 @@ func (b *Broker) CreatePrepared(
 		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
 	}
 	sd := broker.StorageDeal{
-		RepFactor:        pc.RepFactor,
-		DealDuration:     int(b.conf.dealDuration),
-		Status:           broker.StorageDealAuctioning,
-		BrokerRequestIDs: []broker.BrokerRequestID{br.ID},
-		Sources:          pc.Sources,
-		FilEpochDeadline: &filEpochDeadline,
+		RepFactor:          pc.RepFactor,
+		DealDuration:       int(b.conf.dealDuration),
+		Status:             broker.StorageDealAuctioning,
+		BrokerRequestIDs:   []broker.BrokerRequestID{br.ID},
+		Sources:            pc.Sources,
+		DisallowRebatching: true,
+		FilEpochDeadline:   &filEpochDeadline,
 
 		// We fill what packer+piecer usually do.
 		PayloadCid: payloadCid,
@@ -256,14 +257,15 @@ func (b *Broker) CreateStorageDeal(
 	}
 	now := time.Now()
 	sd := broker.StorageDeal{
-		PayloadCid:       batchCid,
-		RepFactor:        int(b.conf.dealReplication),
-		DealDuration:     int(b.conf.dealDuration),
-		Status:           broker.StorageDealPreparing,
-		BrokerRequestIDs: brids,
-		CreatedAt:        now,
-		UpdatedAt:        now,
-		FilEpochDeadline: nil,
+		PayloadCid:         batchCid,
+		RepFactor:          int(b.conf.dealReplication),
+		DealDuration:       int(b.conf.dealDuration),
+		Status:             broker.StorageDealPreparing,
+		BrokerRequestIDs:   brids,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		DisallowRebatching: false,
+		FilEpochDeadline:   nil,
 		Sources: broker.Sources{
 			CARURL: &broker.CARURL{
 				URL: *b.conf.carExportURL.ResolveReference(cidURL),
@@ -377,24 +379,49 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		return errors.New("auction status should be final")
 	}
 
-	// If the auction returned status is error, we switch the storage deal to error status,
-	// and also signal the store to liberate the underlying broker requests to Pending.
-	// This way they can be signaled to be re-batched.
+	sd, err := b.store.GetStorageDeal(ctx, au.StorageDealID)
+	if err != nil {
+		return fmt.Errorf("storage deal not found: %s", err)
+	}
+
+	// If the auction failed, we didn't have at least 1 bid.
 	if au.ErrorCause != "" {
-		log.Debugf("the auction %s finaliezed with error %s, rebatching...", au.ID, au.ErrorCause)
-		if err := b.errorStorageDealAndRebatch(ctx, au.StorageDealID, au.ErrorCause); err != nil {
-			return fmt.Errorf("erroring storage deal and rebatching: %s", err)
+		switch sd.DisallowRebatching {
+		case false:
+			// The batch can be rebatched. We switch the storage deal to error status,
+			// and also signal the store to liberate the underlying broker requests to Pending.
+			// This way they can be signaled to be re-batched.
+			log.Debugf("the auction %s finalized with error %s, rebatching...", au.ID, au.ErrorCause)
+			if err := b.errorStorageDealAndRebatch(ctx, au.StorageDealID, au.ErrorCause); err != nil {
+				return fmt.Errorf("erroring storage deal and rebatching: %s", err)
+			}
+		case true:
+			// The batch can't be rebatched, since it's a prepared CAR file.
+			// We simply foce to create a new auction.
+			auctionID, err := b.auctioneer.ReadyToAuction(
+				ctx,
+				sd.ID,
+				int(sd.PieceSize),
+				sd.DealDuration,
+				sd.RepFactor,
+				b.conf.verifiedDeals,
+				nil,
+				sd.FilEpochDeadline,
+				sd.Sources,
+			)
+			if err != nil {
+				return fmt.Errorf("signaling auctioneer to re-create auction for prepared data: %s", err)
+			}
+			log.Debugf("re-created new auction for prepared prepared data: %s", auctionID)
+			if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
+				return fmt.Errorf("increasing auction retry: %s", err)
+			}
 		}
 		return nil
 	}
 
 	if len(au.WinningBids) == 0 {
 		return fmt.Errorf("winning bids list is empty")
-	}
-
-	sd, err := b.store.GetStorageDeal(ctx, au.StorageDealID)
-	if err != nil {
-		return fmt.Errorf("storage deal not found: %s", err)
 	}
 
 	if len(au.WinningBids) > sd.RepFactor {
@@ -479,6 +506,10 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		if err != nil {
 			return fmt.Errorf("creating new auction for missing bids %d: %s", deltaRepFactor, err)
 		}
+
+		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
+			return fmt.Errorf("increasing auction retry: %s", err)
+		}
 	}
 
 	return nil
@@ -519,6 +550,9 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
+		}
+		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
+			return fmt.Errorf("increasing auction retry: %s", err)
 		}
 		return nil
 	}

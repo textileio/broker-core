@@ -183,7 +183,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	}
 
 	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
-		return storage.Request{}, fmt.Errorf("at least one source must be specified: %s", err)
+		return storage.Request{}, errors.New("at least one source must be specified")
 	}
 
 	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc)

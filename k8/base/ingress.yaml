@@ -10,21 +10,28 @@ spec:
     - http:
         paths:
           - path: /upload
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: storage
                 port:
                   number: 8888
           - path: /car/*
-            pathType: Prefix
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: storage
+                port:
+                  number: 8888
+          - path: /auction-data
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: storage
                 port:
                   number: 8888
           - path: /storagerequest/*
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: storage

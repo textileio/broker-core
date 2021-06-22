@@ -44,16 +44,18 @@ type Broker interface {
 // store data in the Filecoin network. It groups one or multiple
 // BrokerRequests.
 type StorageDeal struct {
-	ID               StorageDealID
-	Status           StorageDealStatus
-	BrokerRequestIDs []BrokerRequestID
-	RepFactor        int
-	DealDuration     int
-	Sources          Sources
-	FilEpochDeadline *int64
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Error            string
+	ID                 StorageDealID
+	Status             StorageDealStatus
+	BrokerRequestIDs   []BrokerRequestID
+	RepFactor          int
+	DealDuration       int
+	Sources            Sources
+	DisallowRebatching bool
+	AuctionRetries     int
+	FilEpochDeadline   *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Error              string
 
 	// Packer calculates this field after batching storage requests.
 	PayloadCid cid.Cid

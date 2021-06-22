@@ -66,16 +66,18 @@ func castToBrokerRequest(ibr brokerRequest) broker.BrokerRequest {
 }
 
 type storageDeal struct {
-	ID               broker.StorageDealID
-	Status           broker.StorageDealStatus
-	BrokerRequestIDs []broker.BrokerRequestID
-	RepFactor        int
-	DealDuration     int
-	FilEpochDeadline *int64
-	Sources          sources
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Error            string
+	ID                 broker.StorageDealID
+	Status             broker.StorageDealStatus
+	BrokerRequestIDs   []broker.BrokerRequestID
+	RepFactor          int
+	DealDuration       int
+	AuctionRetries     int
+	DisallowRebatching bool
+	FilEpochDeadline   *int64
+	Sources            sources
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Error              string
 
 	PayloadCid cid.Cid
 
@@ -110,15 +112,17 @@ type minerDeal struct {
 
 func castToStorageDeal(isd storageDeal) (broker.StorageDeal, error) {
 	bd := broker.StorageDeal{
-		ID:               isd.ID,
-		Status:           isd.Status,
-		BrokerRequestIDs: make([]broker.BrokerRequestID, len(isd.BrokerRequestIDs)),
-		RepFactor:        isd.RepFactor,
-		DealDuration:     isd.DealDuration,
-		FilEpochDeadline: isd.FilEpochDeadline,
-		CreatedAt:        isd.CreatedAt,
-		UpdatedAt:        isd.UpdatedAt,
-		Error:            isd.Error,
+		ID:                 isd.ID,
+		Status:             isd.Status,
+		BrokerRequestIDs:   make([]broker.BrokerRequestID, len(isd.BrokerRequestIDs)),
+		RepFactor:          isd.RepFactor,
+		DealDuration:       isd.DealDuration,
+		DisallowRebatching: isd.DisallowRebatching,
+		AuctionRetries:     isd.AuctionRetries,
+		FilEpochDeadline:   isd.FilEpochDeadline,
+		CreatedAt:          isd.CreatedAt,
+		UpdatedAt:          isd.UpdatedAt,
+		Error:              isd.Error,
 
 		PayloadCid: isd.PayloadCid,
 
