@@ -41,7 +41,7 @@ var flags = []common.Flag{
 		Description: "The NEAR account id of the user of this client",
 	},
 	{Name: "client-private-key", DefValue: "", Description: "The NEAR private key string of the client account"},
-	{Name: "release-deposits-freq", DefValue: time.Minute, Description: "How often to call releaseDeposits"},
+	{Name: "release-deposits-freq", DefValue: time.Minute * 10, Description: "How often to call releaseDeposits"},
 	{
 		Name:        "release-deposits-timeout",
 		DefValue:    time.Second * 30,
