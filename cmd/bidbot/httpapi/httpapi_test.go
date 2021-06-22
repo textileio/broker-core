@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -146,6 +147,10 @@ func TestAPI_WriteDataURI(t *testing.T) {
 
 type mockService struct {
 	mock.Mock
+}
+
+func (s *mockService) Host() host.Host {
+	panic("not implemented")
 }
 
 func (s *mockService) GetBid(id broker.BidID) (*bidstore.Bid, error) {

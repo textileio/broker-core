@@ -56,7 +56,7 @@ func init() {
 	}
 	_ = godotenv.Load(filepath.Join(configPath, ".env"))
 
-	rootCmd.AddCommand(initCmd, daemonCmd, dealsCmd, downloadCmd)
+	rootCmd.AddCommand(initCmd, daemonCmd, idCmd, dealsCmd, downloadCmd)
 	dealsCmd.AddCommand(dealsListCmd)
 	dealsCmd.AddCommand(dealsShowCmd)
 
@@ -337,6 +337,25 @@ var daemonCmd = &cobra.Command{
 	},
 }
 
+var idCmd = &cobra.Command{
+	Use:   "id",
+	Short: "shows the id, public key and addresses of the bidbot",
+	Args:  cobra.ExactArgs(0),
+	Run: func(c *cobra.Command, args []string) {
+		res, err := http.Get(urlFor("id"))
+		common.CheckErr(err)
+		defer func() {
+			err := res.Body.Close()
+			common.CheckErr(err)
+		}()
+		b, _ := ioutil.ReadAll(res.Body)
+		if res.StatusCode != http.StatusOK {
+			log.Fatalf("%s: %s", res.Status, string(b))
+		}
+		fmt.Println(string(b))
+	},
+}
+
 var dealsCmd = &cobra.Command{
 	Use: "deals",
 	Aliases: []string{
@@ -345,14 +364,6 @@ var dealsCmd = &cobra.Command{
 	Short: "Interact with storage deals",
 	Long:  "Interact with storage deals.",
 	Args:  cobra.ExactArgs(0),
-}
-
-func urlFor(parts ...string) string {
-	u := "http://127.0.0.1:" + v.GetString("http-port")
-	if len(parts) > 0 {
-		u += "/" + path.Join(parts...)
-	}
-	return u
 }
 
 var dealsListCmd = &cobra.Command{
@@ -421,23 +432,6 @@ var dealsShowCmd = &cobra.Command{
 	},
 }
 
-func getBids(u string) (bids []store.Bid) {
-	res, err := http.Get(u)
-	common.CheckErr(err)
-	defer func() {
-		err := res.Body.Close()
-		common.CheckErr(err)
-	}()
-	if res.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(res.Body)
-		log.Fatalf("%s: %s", res.Status, string(b))
-	}
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&bids)
-	common.CheckErr(err)
-	return
-}
-
 var downloadCmd = &cobra.Command{
 	Use:   "download",
 	Short: "Download and write storage deal data to disk",
@@ -464,6 +458,31 @@ Deal data is written to BIDBOT_DEAL_DATA_DIRECTORY in CAR format.
 
 func main() {
 	common.CheckErr(rootCmd.Execute())
+}
+
+func urlFor(parts ...string) string {
+	u := "http://127.0.0.1:" + v.GetString("http-port")
+	if len(parts) > 0 {
+		u += "/" + path.Join(parts...)
+	}
+	return u
+}
+
+func getBids(u string) (bids []store.Bid) {
+	res, err := http.Get(u)
+	common.CheckErr(err)
+	defer func() {
+		err := res.Body.Close()
+		common.CheckErr(err)
+	}()
+	if res.StatusCode != http.StatusOK {
+		b, _ := ioutil.ReadAll(res.Body)
+		log.Fatalf("%s: %s", res.Status, string(b))
+	}
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(&bids)
+	common.CheckErr(err)
+	return
 }
 
 func parseRunningBytesLimit(s string) (limiter.Limiter, error) {

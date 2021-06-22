@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
@@ -287,9 +288,9 @@ func (s *Service) Subscribe(bootstrap bool) error {
 	return nil
 }
 
-// ID returns the underlying peer.ID.
-func (s *Service) ID() peer.ID {
-	return s.peer.Host().ID()
+// Host returns the underlying host.
+func (s *Service) Host() host.Host {
+	return s.peer.Host()
 }
 
 // ListBids lists bids by applying a store.Query.
