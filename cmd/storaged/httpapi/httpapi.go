@@ -71,11 +71,11 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func wrapMiddlewares(s storage.Requester, skipAuth bool, h http.HandlerFunc, name string) http.Handler {
-	handler := corsHandler(h)
-	handler = instrumentHandler(handler, name)
+	handler := instrumentHandler(h, name)
 	if !skipAuth {
 		handler = authenticateHandler(handler, s)
 	}
+	handler = corsHandler(handler)
 
 	return handler
 }
@@ -90,8 +90,11 @@ func corsHandler(h http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
+			fmt.Println("HAHA")
 			return
 		}
+
+		fmt.Println("WHAT")
 		h.ServeHTTP(w, r)
 	})
 }
