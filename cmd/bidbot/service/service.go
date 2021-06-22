@@ -397,6 +397,11 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return fmt.Errorf("getting chain height: %v", err)
 	}
 
+	// make sure we have write permission and enough space to cache the data
+	if err := s.store.PreallocateDataURI(dataURI, auction.DealSize); err != nil {
+		return fmt.Errorf("allocating space for deal data: %v", err)
+	}
+
 	// Create bids topic
 	topic, err := s.peer.NewTopic(s.ctx, broker.BidsTopic(broker.AuctionID(auction.Id)), false)
 	if err != nil {

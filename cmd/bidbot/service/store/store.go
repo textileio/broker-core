@@ -447,6 +447,23 @@ func (s *Store) ListBids(query Query) ([]*Bid, error) {
 	return list, nil
 }
 
+// PreallocateDataURI preallocate the file space for the uri resource under the configured deal data directory.
+func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
+	f, err := os.Create(filepath.Join(s.dealDataDirectory, duri.Cid().String()))
+	if err != nil {
+		return fmt.Errorf("opening file: %v", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("closing data file: %v", err)
+		}
+	}()
+	if err := f.Truncate(int64(size)); err != nil {
+		return err
+	}
+	return nil
+}
+
 // WriteDataURI writes the uri resource to the configured deal data directory.
 func (s *Store) WriteDataURI(uri string) (string, error) {
 	duri, err := datauri.NewURI(uri)
@@ -463,6 +480,9 @@ func (s *Store) WriteDataURI(uri string) (string, error) {
 		}
 	}()
 
+	if _, err := f.Seek(0, 0); err != nil {
+		return "", fmt.Errorf("seeking file to the beginning: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(s.ctx, DataURIFetchTimeout)
 	defer cancel()
 	if err := duri.Write(ctx, f); err != nil {
