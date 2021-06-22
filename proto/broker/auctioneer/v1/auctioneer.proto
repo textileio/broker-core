@@ -7,20 +7,21 @@ import "google/protobuf/timestamp.proto";
 message Auction {
     string id = 1;
     string storage_deal_id = 2;
-    string data_uri = 3;
-    uint64 deal_size = 4;
-    uint64 deal_duration = 5;
-    uint32 deal_replication = 6;
-    bool deal_verified = 7;
-    Status status = 8;
-    map<string, Bid> bids = 9;
-    map<string, WinningBid> winning_bids = 10;
-    google.protobuf.Timestamp started_at = 11;
-    google.protobuf.Timestamp updated_at = 12;
-    int64 duration = 13;
-    uint32 attempts = 14;
-    string error = 15;
-
+    string payload_cid = 3;
+    string data_uri = 4;
+    uint64 deal_size = 5;
+    uint64 deal_duration = 6;
+    uint32 deal_replication = 7;
+    bool deal_verified = 8;
+    Status status = 9;
+    map<string, Bid> bids = 10;
+    map<string, WinningBid> winning_bids = 11;
+    google.protobuf.Timestamp started_at = 12;
+    google.protobuf.Timestamp updated_at = 13;
+    int64 duration = 14;
+    uint32 attempts = 15;
+    string error = 16;
+                               
     enum Status {
         STATUS_UNSPECIFIED = 0;
         STATUS_QUEUED = 1;

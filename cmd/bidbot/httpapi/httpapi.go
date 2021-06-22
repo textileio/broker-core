@@ -22,7 +22,7 @@ var (
 type Service interface {
 	ListBids(query bidstore.Query) ([]*bidstore.Bid, error)
 	GetBid(id broker.BidID) (*bidstore.Bid, error)
-	WriteDataURI(uri string) (string, error)
+	WriteDataURI(payloadCid, uri string) (string, error)
 }
 
 // NewServer returns a new http server for bidbot commands.
@@ -137,23 +137,28 @@ func listBids(w http.ResponseWriter, service Service, statusFilters []string) (b
 
 func dataURIRequestHandler(service Service) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			httpError(w, "only GET method is allowed", http.StatusBadRequest)
+		getQueryParam := func(key string) (string, string) {
+			query := r.URL.Query().Get(key)
+			if query == "" {
+				return "", fmt.Sprintf("missing '%s' query param", key)
+			}
+			raw, err := url.QueryUnescape(query)
+			if err != nil {
+				return "", fmt.Sprintf("parsing '%s': %s", key, err)
+			}
+			return raw, ""
+		}
+		uri, errstring := getQueryParam("uri")
+		if errstring != "" {
+			httpError(w, errstring, http.StatusBadRequest)
 			return
 		}
-
-		query := r.URL.Query().Get("uri")
-		if query == "" {
-			httpError(w, "missing 'uri' query param", http.StatusBadRequest)
+		payloadCid, errstring := getQueryParam("cid")
+		if errstring != "" {
+			httpError(w, errstring, http.StatusBadRequest)
 			return
 		}
-		uri, err := url.QueryUnescape(query)
-		if err != nil {
-			httpError(w, fmt.Sprintf("parsing query: %s", err), http.StatusBadRequest)
-			return
-		}
-
-		dest, err := service.WriteDataURI(uri)
+		dest, err := service.WriteDataURI(payloadCid, uri)
 		if errors.Is(err, datauri.ErrSchemeNotSupported) ||
 			errors.Is(err, datauri.ErrCarFileUnavailable) ||
 			errors.Is(err, datauri.ErrInvalidCarFile) {

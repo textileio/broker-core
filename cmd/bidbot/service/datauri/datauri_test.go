@@ -13,27 +13,28 @@ import (
 	"github.com/textileio/broker-core/marketpeer"
 )
 
-const testCid = "bafybeic6xu6afw5lg6a6h6uk27twq3bmzxjg346nhsyenuhxwzfv6yhu5y"
+var testCid = "bafybeic6xu6afw5lg6a6h6uk27twq3bmzxjg346nhsyenuhxwzfv6yhu5y"
 
 func TestNewURI(t *testing.T) {
 	// http
-	_, err := NewURI("http://foo.com/cid/" + testCid)
-	require.NoError(t, err)
-	// https
-	_, err = NewURI("https://foo.com/cid/" + testCid)
-	require.NoError(t, err)
-	// not supported
-	_, err = NewURI("s3://foo.com/notsupported")
-	require.ErrorIs(t, err, ErrSchemeNotSupported)
-	// bad cid
-	_, err = NewURI("https://foo.com/cid/123")
-	require.Error(t, err)
-}
-
-func TestURI_Cid(t *testing.T) {
-	u, err := NewURI("https://foo.com/cid/" + testCid)
+	u, err := NewURI(testCid, "http://foo.com/cid/"+testCid)
 	require.NoError(t, err)
 	assert.Equal(t, testCid, u.Cid().String())
+	// https
+	_, err = NewURI(testCid, "https://foo.com/cid/"+testCid)
+	require.NoError(t, err)
+	// not supported
+	_, err = NewURI(testCid, "s3://foo.com/notsupported")
+	require.ErrorIs(t, err, ErrSchemeNotSupported)
+	// no cid in url
+	_, err = NewURI(testCid, "https://foo.com/123")
+	require.NoError(t, err)
+
+	// invalid cid
+	_, err = NewURI("malformed-cid", "https://foo.com/123")
+	require.Error(t, err)
+	_, err = NewURI("", "https://foo.com/123")
+	require.Error(t, err)
 }
 
 func TestURI_Validate(t *testing.T) {
@@ -41,25 +42,25 @@ func TestURI_Validate(t *testing.T) {
 	t.Cleanup(gw.Close)
 
 	// Validate good car file
-	_, dataURI, err := gw.CreateURI(true)
+	payloadCid, dataURI, err := gw.CreateURI(true)
 	require.NoError(t, err)
-	u, err := NewURI(dataURI)
+	u, err := NewURI(payloadCid.String(), dataURI)
 	require.NoError(t, err)
 	err = u.Validate(context.Background())
 	require.NoError(t, err)
 
 	// Validate car file not found
-	_, dataURI, err = gw.CreateURI(false)
+	payloadCid, dataURI, err = gw.CreateURI(false)
 	require.NoError(t, err)
-	u, err = NewURI(dataURI)
+	u, err = NewURI(payloadCid.String(), dataURI)
 	require.NoError(t, err)
 	err = u.Validate(context.Background())
 	require.ErrorIs(t, err, ErrCarFileUnavailable)
 
 	// Validate bad car file
-	_, dataURI, err = gw.CreateURIWithWrongRoot()
+	payloadCid, dataURI, err = gw.CreateURIWithWrongRoot()
 	require.NoError(t, err)
-	u, err = NewURI(dataURI)
+	u, err = NewURI(payloadCid.String(), dataURI)
 	require.NoError(t, err)
 	err = u.Validate(context.Background())
 	require.ErrorIs(t, err, ErrInvalidCarFile)

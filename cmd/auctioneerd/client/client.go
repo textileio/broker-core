@@ -39,7 +39,7 @@ func (c *Client) ReadyToAuction(
 ) (broker.AuctionID, error) {
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
 		StorageDealId:   string(storageDealID),
-		PayloadCid:      payloadCid.String(), // TODO(merlin): continue with this downstream.
+		PayloadCid:      payloadCid.String(),
 		DealSize:        uint64(dealSize),
 		DealDuration:    uint64(dealDuration),
 		DealReplication: uint32(dealReplication),

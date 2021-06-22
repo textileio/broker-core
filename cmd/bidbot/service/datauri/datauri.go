@@ -10,8 +10,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
-	"strings"
 
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -42,19 +40,17 @@ type URI interface {
 
 // NewURI returns a new URI for the given string uri.
 // ErrSchemeNotSupported is returned if the scheme is not supported.
-func NewURI(uri string) (URI, error) {
+func NewURI(payloadCid string, uri string) (URI, error) {
+	id, err := cid.Parse(payloadCid)
+	if err != nil {
+		return nil, fmt.Errorf("parsing data cid: %v", err)
+	}
 	parsed, err := url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("parsing uri '%s': %v", uri, err)
 	}
 	switch parsed.Scheme {
 	case "http", "https":
-		carRef := path.Base(parsed.Path)
-		carRef = strings.TrimSuffix(carRef, ".car")
-		id, err := cid.Decode(carRef)
-		if err != nil {
-			return nil, fmt.Errorf("parsing uri cid '%s': %v", uri, err)
-		}
 		return &HTTPURI{uri: uri, cid: id}, nil
 	default:
 		return nil, fmt.Errorf("parsing uri '%s': %w", uri, ErrSchemeNotSupported)

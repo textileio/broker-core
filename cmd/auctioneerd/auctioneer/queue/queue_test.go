@@ -20,12 +20,16 @@ import (
 	golog "github.com/textileio/go-log/v2"
 )
 
+var testCid cid.Cid
+
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
 		"auctioneer/queue": golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
+
+	testCid, _ = cid.Parse("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1")
 }
 
 func TestQueue_newID(t *testing.T) {
@@ -56,6 +60,7 @@ func TestQueue_ListAuctions(t *testing.T) {
 		now = now.Add(time.Millisecond)
 		id, err := q.CreateAuction(broker.Auction{
 			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+			PayloadCid:      testCid,
 			DataURI:         "https://foo.com/cid/123",
 			DealSize:        1024,
 			DealDuration:    1,
@@ -99,6 +104,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	id, err := q.CreateAuction(broker.Auction{
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+		PayloadCid:      testCid,
 		DataURI:         "https://foo.com/cid/123",
 		DealSize:        1024,
 		DealDuration:    1,
@@ -134,6 +140,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 
 	id, err := q.CreateAuction(broker.Auction{
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+		PayloadCid:      testCid,
 		DataURI:         "https://foo.com/cid/123",
 		DealSize:        1024,
 		DealDuration:    1,

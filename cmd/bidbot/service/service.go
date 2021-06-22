@@ -303,8 +303,8 @@ func (s *Service) GetBid(id broker.BidID) (*bidstore.Bid, error) {
 }
 
 // WriteDataURI writes a data uri resource to the configured deal data directory.
-func (s *Service) WriteDataURI(uri string) (string, error) {
-	return s.store.WriteDataURI(uri)
+func (s *Service) WriteDataURI(payloadCid, uri string) (string, error) {
+	return s.store.WriteDataURI(payloadCid, uri)
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
@@ -381,7 +381,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	}
 
 	// Ensure we can fetch the data
-	dataURI, err := datauri.NewURI(auction.DataUri)
+	dataURI, err := datauri.NewURI(auction.PayloadCid, auction.DataUri)
 	if err != nil {
 		return fmt.Errorf("parsing data uri: %v", err)
 	}
@@ -442,11 +442,16 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	}
 	id := r.Data
 
+	payloadCid, err := cid.Parse(auction.PayloadCid)
+	if err != nil {
+		return fmt.Errorf("parsing payload cid: %v", err)
+	}
 	// Save bid locally
 	if err := s.store.SaveBid(bidstore.Bid{
 		ID:               broker.BidID(id),
 		AuctionID:        broker.AuctionID(auction.Id),
 		AuctioneerID:     from,
+		PayloadCid:       payloadCid,
 		DataURI:          dataURI.String(),
 		DealSize:         auction.DealSize,
 		DealDuration:     auction.DealDuration,

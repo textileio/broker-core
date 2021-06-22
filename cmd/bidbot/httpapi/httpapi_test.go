@@ -100,12 +100,13 @@ func TestAPI_Deals(t *testing.T) {
 func TestAPI_WriteDataURI(t *testing.T) {
 	ms := &mockService{}
 	mux := createMux(ms)
+	cid := "QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"
+	cid2 := "QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"
 	uri1 := "s3://foo.com/cid/123"
-	uri2 := "https://foo.com/cid/QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"
-	uri3 := "https://foo.com/cid/QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"
-	ms.On("WriteDataURI", uri1).Return("", datauri.ErrSchemeNotSupported)
-	ms.On("WriteDataURI", uri2).Return("foo/bar", nil)
-	ms.On("WriteDataURI", uri3).Return("", errors.New("some error"))
+	uri2 := "https://foo.com/abc"
+	ms.On("WriteDataURI", cid, uri1).Return("", datauri.ErrSchemeNotSupported)
+	ms.On("WriteDataURI", cid, uri2).Return("foo/bar", nil)
+	ms.On("WriteDataURI", cid2, uri2).Return("", errors.New("some error"))
 	for _, tc := range []struct {
 		name               string
 		url                string
@@ -115,19 +116,19 @@ func TestAPI_WriteDataURI(t *testing.T) {
 		{"unsupported scheme", "/datauri?uri=s3%3A%2F%2Ffoo.com%2Fcid%2F123", http.StatusBadRequest, ""},
 		{
 			"success",
-			"/datauri?uri=https%3A%2F%2Ffoo.com%2Fcid%2FQmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1",
+			"/datauri?uri=https%3A%2F%2Ffoo.com%2Fabc&cid=QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1",
 			http.StatusOK,
 			"wrote to foo/bar",
 		},
 		{
 			"success with trailing slash",
-			"/datauri/?uri=https%3A%2F%2Ffoo.com%2Fcid%2FQmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1",
+			"/datauri/?uri=https%3A%2F%2Ffoo.com%2Fabc&cid=QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1",
 			http.StatusOK,
 			"wrote to foo/bar",
 		},
 		{
 			"error",
-			"/datauri?uri=https%3A%2F%2Ffoo.com%2Fcid%2FQmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2",
+			"/datauri?uri=https%3A%2F%2Ffoo.com%2Fabc&cid=QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2",
 			http.StatusInternalServerError,
 			"",
 		},
@@ -161,7 +162,7 @@ func (s *mockService) ListBids(query bidstore.Query) ([]*bidstore.Bid, error) {
 	return args.Get(0).([]*bidstore.Bid), args.Error(1)
 }
 
-func (s *mockService) WriteDataURI(uri string) (string, error) {
-	args := s.Called(uri)
+func (s *mockService) WriteDataURI(payloadCid, uri string) (string, error) {
+	args := s.Called(payloadCid, uri)
 	return args.String(0), args.Error(1)
 }
