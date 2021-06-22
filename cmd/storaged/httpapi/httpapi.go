@@ -90,11 +90,9 @@ func corsHandler(h http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
-			fmt.Println("HAHA")
 			return
 		}
 
-		fmt.Println("WHAT")
 		h.ServeHTTP(w, r)
 	})
 }
