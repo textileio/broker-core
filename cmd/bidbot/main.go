@@ -132,8 +132,8 @@ Also take the file system overhead into consideration when calculating the limit
 			DefValue:    3,
 			Description: "Number of times fetching deal data will be attempted before failing",
 		},
-		{Name: "lotus-api-maddr", DefValue: "/ip4/0.0.0.0/tcp/1234/http", Description: "Lotus API multiaddress"},
-		{Name: "lotus-api-token", DefValue: "", Description: "Lotus API authorization token"},
+		{Name: "lotus-miner-api-maddr", DefValue: "/ip4/0.0.0.0/tcp/1234/http", Description: "Lotus miner API multiaddress"},
+		{Name: "lotus-miner-api-token", DefValue: "", Description: "Lotus miner API authorization token"},
 		{Name: "lotus-api-conn-retries", DefValue: "2", Description: "Lotus API connection retries"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -216,8 +216,8 @@ The change the deal data directory, set the $BIDBOT_DEAL_DATA_DIRECTORY environm
 
     bidbot daemon --miner-addr [address] 
                   --wallet-addr-sig [signature] 
-		  --lotus-api-addr [lotus-api-addr] 
-		  --lotus-api-token [lotus-api-token]
+		  --lotus-miner-api-maddr [lotus-miner-api-maddr] 
+		  --lotus-miner-api-token [lotus-miner-api-token]
 
 Note: In the event you win an auction, you must use this wallet address to make the deal(s).
 
@@ -277,8 +277,8 @@ var daemonCmd = &cobra.Command{
 		common.CheckErrf("decoding wallet address signature: %v", err)
 
 		lc, err := lotusclient.New(
-			v.GetString("lotus-api-addr"),
-			v.GetString("lotus-api-token"),
+			v.GetString("lotus-miner-api-maddr"),
+			v.GetString("lotus-miner-api-token"),
 			v.GetInt("lotus-api-conn-retries"),
 			v.GetBool("fake-mode"),
 		)
