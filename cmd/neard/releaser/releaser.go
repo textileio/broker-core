@@ -47,7 +47,7 @@ func (r *Releaser) start() {
 				cancel()
 				needsRelease := false
 				for _, info := range state.DepositMap {
-					if info.Deposit.Expiration > uint64(state.BlockHeight) {
+					if uint64(state.BlockHeight) > info.Deposit.Expiration {
 						needsRelease = true
 						break
 					}
