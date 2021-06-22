@@ -38,10 +38,28 @@ func (r *Releaser) start() {
 			select {
 			case <-r.t.C:
 				ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
-				if err := r.cc.ReleaseDeposits(ctx); err != nil {
-					log.Errorf("calling release deposits: %v", err)
+				state, err := r.cc.GetState(ctx)
+				if err != nil {
+					log.Errorf("calling get state: %v", err)
+					cancel()
+					continue
 				}
 				cancel()
+				needsRelease := false
+				for _, info := range state.DepositMap {
+					if info.Deposit.Expiration > uint64(state.BlockHeight) {
+						needsRelease = true
+						break
+					}
+				}
+				if needsRelease {
+					log.Info("calling release deposits")
+					ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+					if err := r.cc.ReleaseDeposits(ctx); err != nil {
+						log.Errorf("calling release deposits: %v", err)
+					}
+					cancel()
+				}
 			case <-r.close:
 				r.t.Stop()
 				return
