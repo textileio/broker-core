@@ -130,7 +130,7 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		req.DealDuration,
 		req.DealReplication,
 		req.DealVerified,
-		// req.ExcludedMiners, // TODO(sander): wire this.
+		// req.ExcludedMiners, // TODO(sander/merlin): wire this.
 	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "%v", err)

@@ -49,12 +49,13 @@ message Auction {
 
 message ReadyToAuctionRequest {
     string storage_deal_id = 1;
-    string data_uri = 2;
-    uint64 deal_size = 3;
-    uint64 deal_duration = 4;
-    uint32 deal_replication = 5;
-    bool deal_verified = 6;
-    repeated string excluded_miners = 7;
+    string payload_cid = 2;
+    string data_uri = 3;
+    uint64 deal_size = 4;
+    uint64 deal_duration = 5;
+    uint32 deal_replication = 6;
+    bool deal_verified = 7;
+    repeated string excluded_miners = 8;
 }
 
 message ReadyToAuctionResponse {
