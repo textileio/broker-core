@@ -82,7 +82,7 @@ func idHandler(service Service) http.HandlerFunc {
 		if pk := host.Peerstore().PubKey(host.ID()); pk != nil {
 			pkb, err := crypto.MarshalPublicKey(pk)
 			if err != nil {
-				httpError(w, fmt.Sprintf("marshalling public key: %s", err), http.StatusInternalServerError)
+				httpError(w, fmt.Sprintf("marshaling public key: %s", err), http.StatusInternalServerError)
 				return
 			}
 			pkey = base64.StdEncoding.EncodeToString(pkb)
@@ -99,9 +99,12 @@ func idHandler(service Service) http.HandlerFunc {
 		}
 		data, err := json.MarshalIndent(v, "", "\t")
 		if err != nil {
-			httpError(w, fmt.Sprintf("marshalling id: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("marshaling id: %s", err), http.StatusInternalServerError)
 		}
-		w.Write(data)
+		_, err = w.Write(data)
+		if err != nil {
+			log.Errorf("write failed: %v", err)
+		}
 	}
 }
 
@@ -131,7 +134,7 @@ func dealsHandler(service Service) http.HandlerFunc {
 		}
 		_, err = w.Write(data)
 		if err != nil {
-			log.Errorf("write failed: %+v", err)
+			log.Errorf("write failed: %v", err)
 		}
 	}
 }
