@@ -132,7 +132,7 @@ Also take the file system overhead into consideration when calculating the limit
 			DefValue:    3,
 			Description: "Number of times fetching deal data will be attempted before failing",
 		},
-		{Name: "lotus-miner-api-maddr", DefValue: "/ip4/0.0.0.0/tcp/1234/http", Description: "Lotus miner API multiaddress"},
+		{Name: "lotus-miner-api-maddr", DefValue: "/ip4/127.0.0.1/tcp/2345/http", Description: "Lotus miner API multiaddress"},
 		{Name: "lotus-miner-api-token", DefValue: "", Description: "Lotus miner API authorization token"},
 		{Name: "lotus-api-conn-retries", DefValue: "2", Description: "Lotus API connection retries"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
