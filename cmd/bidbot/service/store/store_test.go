@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri/apitest"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/logging"
@@ -254,6 +255,18 @@ func TestStore_StatusProgression(t *testing.T) {
 		assert.NotEmpty(t, got.ErrorCause)
 		assert.Equal(t, 2, int(got.DataURIFetchAttempts))
 	})
+}
+
+func TestStore_PreallocateDataURI(t *testing.T) {
+	store := &Store{dealDataDirectory: t.TempDir()}
+	id := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))).String()
+	uri, err := datauri.NewURI(id, "http://foo.com/bar")
+	require.NoError(t, err)
+	err = store.PreallocateDataURI(uri, 1000)
+	require.NoError(t, err)
+	fi, err := os.Stat(filepath.Join(store.dealDataDirectory, id))
+	require.NoError(t, err)
+	assert.EqualValues(t, 1000, fi.Size())
 }
 
 func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {

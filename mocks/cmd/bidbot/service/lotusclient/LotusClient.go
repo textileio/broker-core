@@ -27,6 +27,20 @@ func (_m *LotusClient) Close() error {
 	return r0
 }
 
+// HealthCheck provides a mock function with given fields:
+func (_m *LotusClient) HealthCheck() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // ImportData provides a mock function with given fields: pcid, file
 func (_m *LotusClient) ImportData(pcid cid.Cid, file string) error {
 	ret := _m.Called(pcid, file)

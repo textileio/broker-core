@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/detailyang/go-fallocate"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
@@ -185,6 +187,9 @@ func NewStore(
 		cancel:                cancel,
 	}
 
+	if err := s.HealthCheck(); err != nil {
+		return nil, fmt.Errorf("fails health check: %w", err)
+	}
 	// Create data fetch workers
 	s.wg.Add(MaxDataURIFetchConcurrency)
 	for i := 0; i < MaxDataURIFetchConcurrency; i++ {
@@ -193,7 +198,7 @@ func NewStore(
 
 	// Re-enqueue jobs that may have been orphaned during an forced shutdown
 	if err := s.getOrphaned(); err != nil {
-		return nil, fmt.Errorf("getting orphaned jobs: %v", err)
+		return nil, fmt.Errorf("getting orphaned jobs: %w", err)
 	}
 
 	go s.startFetching()
@@ -444,6 +449,23 @@ func (s *Store) ListBids(query Query) ([]*Bid, error) {
 	return list, nil
 }
 
+// PreallocateDataURI preallocate the file space for the uri resource under the configured deal data directory.
+func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
+	f, err := os.Create(filepath.Join(s.dealDataDirectory, duri.Cid().String()))
+	if err != nil {
+		return fmt.Errorf("opening file: %v", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("closing data file: %v", err)
+		}
+	}()
+	if err := fallocate.Fallocate(f, 0, int64(size)); err != nil {
+		return err
+	}
+	return nil
+}
+
 // WriteDataURI writes the uri resource to the configured deal data directory.
 func (s *Store) WriteDataURI(payloadCid, uri string) (string, error) {
 	duri, err := datauri.NewURI(payloadCid, uri)
@@ -460,12 +482,25 @@ func (s *Store) WriteDataURI(payloadCid, uri string) (string, error) {
 		}
 	}()
 
+	if _, err := f.Seek(0, 0); err != nil {
+		return "", fmt.Errorf("seeking file to the beginning: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(s.ctx, DataURIFetchTimeout)
 	defer cancel()
 	if err := duri.Write(ctx, f); err != nil {
 		return "", fmt.Errorf("writing data uri %s: %w", uri, err)
 	}
 	return f.Name(), nil
+}
+
+// HealthCheck checks if the store is healthy enough to participate in bidding.
+func (s *Store) HealthCheck() error {
+	// make sure the directory is writable
+	f, err := ioutil.TempFile(s.dealDataDirectory, ".touch")
+	if err != nil {
+		return err
+	}
+	return os.Remove(f.Name())
 }
 
 // enqueueDataURI queues a data uri fetch.

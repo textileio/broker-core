@@ -26,6 +26,7 @@ var (
 type LotusClient interface {
 	io.Closer
 
+	HealthCheck() error
 	ImportData(pcid cid.Cid, file string) error
 }
 
@@ -55,25 +56,41 @@ func New(maddr string, authToken string, connRetries int, fakeMode bool) (*Clien
 
 	builder, err := newBuilder(maddr, authToken, connRetries)
 	if err != nil {
-		return nil, fmt.Errorf("building lotus client: %v", err)
+		return nil, fmt.Errorf("building lotus client: %w", err)
 	}
 	c, closer, err := builder(lc.ctx)
 	if err != nil {
-		return nil, fmt.Errorf("starting lotus client: %v", err)
+		return nil, fmt.Errorf("starting lotus client: %w", err)
 	}
 	fin.AddFn(closer)
 
-	return &Client{
+	client := &Client{
 		c:         c,
 		fakeMode:  fakeMode,
 		ctx:       ctx,
 		finalizer: fin,
-	}, nil
+	}
+	if err := client.HealthCheck(); err != nil {
+		return nil, fmt.Errorf("lotus client fails health check: %w", err)
+	}
+	return client, nil
 }
 
 // Close the client.
 func (c *Client) Close() error {
 	return c.finalizer.Cleanup(nil)
+}
+
+// HealthCheck checks if the lotus client is healthy enough so bidbot can
+// participate in bidding.
+func (c *Client) HealthCheck() error {
+	if c.fakeMode {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, requestTimeout)
+	defer cancel()
+	_, err := c.c.DealsList(ctx)
+	return err
 }
 
 // ImportData imports deal data into Lotus.
@@ -84,7 +101,7 @@ func (c *Client) ImportData(pcid cid.Cid, file string) error {
 	ctx, cancel := context.WithTimeout(c.ctx, requestTimeout)
 	defer cancel()
 	if err := c.c.DealsImportData(ctx, pcid, file); err != nil {
-		return fmt.Errorf("calling storage miner deals import data: %v", err)
+		return fmt.Errorf("calling storage miner deals import data: %w", err)
 	}
 	return nil
 }
@@ -94,11 +111,11 @@ type clientBuilder func(ctx context.Context) (*v0api.StorageMinerStruct, func(),
 func newBuilder(maddrs string, authToken string, connRetries int) (clientBuilder, error) {
 	maddr, err := ma.NewMultiaddr(maddrs)
 	if err != nil {
-		return nil, fmt.Errorf("parsing multiaddress: %v", err)
+		return nil, fmt.Errorf("parsing multiaddress: %w", err)
 	}
 	addr, err := tcpAddrFromMultiAddr(maddr)
 	if err != nil {
-		return nil, fmt.Errorf("getting tcp address from multiaddress: %v", err)
+		return nil, fmt.Errorf("getting tcp address from multiaddress: %w", err)
 	}
 	headers := http.Header{
 		"Authorization": []string{"Bearer " + authToken},
