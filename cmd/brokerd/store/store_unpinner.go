@@ -69,6 +69,7 @@ func (s *Store) UnpinJobGetNext() (UnpinJob, bool, error) {
 		found bool
 	)
 	for item := range res.Next() {
+		uj = UnpinJob{}
 		if item.Error != nil {
 			return UnpinJob{}, false, fmt.Errorf("get item result from query: %s", item.Error)
 		}

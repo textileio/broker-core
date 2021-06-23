@@ -348,6 +348,7 @@ func getOpenBatch(w datastore.Txn, candidateSize, maxAllowedSize int64) (Batch, 
 	var b Batch
 	var found bool
 	for item := range res.Next() {
+		b = Batch{}
 		if item.Error != nil {
 			return Batch{}, false, fmt.Errorf("get query item result: %s", item.Error)
 		}

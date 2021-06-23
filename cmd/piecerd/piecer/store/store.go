@@ -134,6 +134,7 @@ func (s *Store) GetNext() (UnpreparedStorageDeal, bool, error) {
 		found bool
 	)
 	for item := range res.Next() {
+		usd = UnpreparedStorageDeal{}
 		if item.Error != nil {
 			return UnpreparedStorageDeal{}, false, fmt.Errorf("get item result from query: %s", item.Error)
 		}
