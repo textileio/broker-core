@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/detailyang/go-fallocate"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
@@ -458,7 +459,7 @@ func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
 			log.Errorf("closing data file: %v", err)
 		}
 	}()
-	if err := f.Truncate(int64(size)); err != nil {
+	if err := fallocate.Fallocate(f, 0, int64(size)); err != nil {
 		return err
 	}
 	return nil

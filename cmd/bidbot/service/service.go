@@ -397,7 +397,8 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return fmt.Errorf("getting chain height: %v", err)
 	}
 
-	// make sure we have write permission and enough space to cache the data
+	// Make sure we have write permission and enough space to cache the data.
+	// This needs to be the last step before bidding to avoid allocating unnecessarily.
 	if err := s.store.PreallocateDataURI(dataURI, auction.DealSize); err != nil {
 		return fmt.Errorf("allocating space for deal data: %v", err)
 	}
