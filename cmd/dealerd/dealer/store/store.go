@@ -189,6 +189,7 @@ func (s *Store) GetNext(status AuctionDealStatus) (AuctionDeal, bool, error) {
 	var ad AuctionDeal
 	var oldKey datastore.Key
 	for item := range res.Next() {
+		ad = AuctionDeal{}
 		if item.Error != nil {
 			return AuctionDeal{}, false, fmt.Errorf("get query item: %s", item.Error)
 		}
