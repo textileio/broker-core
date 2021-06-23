@@ -128,7 +128,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 
 		// If the miner still has time, let's check later again.
 		if aud.StartEpoch > currentChainHeight {
-			log.Debugf("%s deal-id %d with miner %s not active on chain, but we have time...", aud.ProposalCid, aud.DealID, aud.Miner)
+			log.Debugf("%s/%d/%s not active, we have time...", aud.ProposalCid, aud.DealID, aud.Miner)
 			aud.ReadyAt = time.Now().Add(d.config.dealWatchingCheckChainRetryDelay)
 			if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingConfirmation); err != nil {
 				return fmt.Errorf("saving auction deal: %s", err)
@@ -137,7 +137,7 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 		}
 
 		// The miner lost the race, it's game-over.
-		log.Warnf("%s deal-id %d with miner %s not active on chain and reached deadline; it's over", aud.ProposalCid, aud.DealID, aud.Miner)
+		log.Warnf("%s/%d/%s not active, reached deadline, gameover", aud.ProposalCid, aud.DealID, aud.Miner)
 		aud.ErrorCause = failureUnfulfilledStartEpoch
 		aud.ReadyAt = time.Unix(0, 0)
 		if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
