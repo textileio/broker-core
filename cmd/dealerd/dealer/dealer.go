@@ -9,6 +9,7 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
+	"github.com/textileio/broker-core/logging"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -74,6 +75,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 		PieceSize:     ad.PieceSize,
 		Duration:      ad.Duration,
 	}
+	log.Debugf("ready to create deals auction data: %s", logging.MustJSONIndent(auctionData))
 	auctionDeals := make([]*store.AuctionDeal, len(ad.Targets))
 	for i, t := range ad.Targets {
 		auctionDeal := &store.AuctionDeal{
@@ -84,6 +86,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 			FastRetrieval:       t.FastRetrieval,
 		}
 		auctionDeals[i] = auctionDeal
+		log.Debugf("%s auction deal: %s", auctionData.StorageDealID, logging.MustJSONIndent(auctionDeal))
 	}
 	if err := d.store.Create(auctionData, auctionDeals); err != nil {
 		return fmt.Errorf("creating auction deals: %s", err)
