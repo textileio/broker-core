@@ -260,7 +260,7 @@ func TestStore_StatusProgression(t *testing.T) {
 func TestStore_PreallocateDataURI(t *testing.T) {
 	store := &Store{dealDataDirectory: t.TempDir()}
 	id := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy"))).String()
-	uri, err := datauri.NewURI("http://foo.com/" + id)
+	uri, err := datauri.NewURI(id, "http://foo.com/bar")
 	require.NoError(t, err)
 	err = store.PreallocateDataURI(uri, 1000)
 	require.NoError(t, err)
