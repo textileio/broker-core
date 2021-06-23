@@ -66,7 +66,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		return fmt.Errorf("get auction data %s: %s", aud.AuctionDataID, err)
 	}
 
-	log.Debugf("executing deal for %s with miner %s", ad.PayloadCid, aud.Miner)
+	log.Debugf("%s executing deal from SD %s for %s with miner %s", aud.ID, ad.StorageDealID, ad.PayloadCid, aud.Miner)
 	proposalCid, retry, err := d.filclient.ExecuteAuctionDeal(d.daemonCtx, ad, aud)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
