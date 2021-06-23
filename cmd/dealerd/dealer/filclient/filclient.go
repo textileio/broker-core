@@ -375,7 +375,6 @@ func (fc *FilClient) streamToMiner(
 }
 
 func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) (peer.ID, error) {
-	log.Debugf("getting miner %s info...", maddr)
 	minfo, err := fc.api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
 	if err != nil {
 		return "", fmt.Errorf("state miner info call: %s", err)
@@ -386,7 +385,6 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 		return "", fmt.Errorf("miner %s has no peer ID set", maddr)
 	}
 
-	log.Debugf("resolving multiaddresses of miner %s", maddr)
 	addrInfo, err := fc.api.NetFindPeer(ctx, *minfo.PeerId)
 	if err != nil {
 		log.Warnf("net-find-peer api call failed: %s", err)
@@ -410,7 +408,6 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 		return "", fmt.Errorf("no available multiaddresses for miner %s", maddr)
 	}
 
-	log.Debugf("found %d multiaddreses for miner %s", len(maddrs), maddr)
 	if err := fc.host.Connect(ctx, peer.AddrInfo{
 		ID:    *minfo.PeerId,
 		Addrs: maddrs,
@@ -418,8 +415,6 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 		log.Warnf("failed connecting with miner %s", maddr)
 		return "", fmt.Errorf("connecting to miner: %s", err)
 	}
-
-	log.Debugf("connected with miner %s!", maddr)
 
 	return *minfo.PeerId, nil
 }
