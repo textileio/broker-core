@@ -167,6 +167,7 @@ func TestCreatePrepared(t *testing.T) {
 
 	// 5- Check that we made the call to create the auction.
 	require.Equal(t, b.conf.dealDuration, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, payloadCid, auctioneer.calledPayloadCid)
 	require.Equal(t, int(sd.PieceSize), auctioneer.calledPieceSize)
 	require.Equal(t, sd.ID, auctioneer.calledStorageDealID)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
@@ -242,6 +243,7 @@ func TestStorageDealPrepared(t *testing.T) {
 
 	// 4- Verify that Auctioneer was called to auction the data.
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, brgCid, auctioneer.calledPayloadCid)
 	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
@@ -464,6 +466,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	//    was called to create a new auction with rep factor 1.
 	require.Equal(t, 2, auctioneer.calledCount)
 	require.Equal(t, broker.MaxDealDuration, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, brgCid, auctioneer.calledPayloadCid)
 	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
 	require.Equal(t, sd, auctioneer.calledStorageDealID)
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
@@ -716,6 +719,7 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealI
 
 type dumbAuctioneer struct {
 	calledStorageDealID    broker.StorageDealID
+	calledPayloadCid       cid.Cid
 	calledPieceSize        int
 	calledDealDuration     int
 	calledDealReplication  int
@@ -729,6 +733,7 @@ type dumbAuctioneer struct {
 func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
 	id broker.StorageDealID,
+	payloadCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
@@ -736,6 +741,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id
+	dp.calledPayloadCid = payloadCid
 	dp.calledPieceSize = dealSize
 	dp.calledDealDuration = dealDuration
 	dp.calledDealReplication = dealReplication

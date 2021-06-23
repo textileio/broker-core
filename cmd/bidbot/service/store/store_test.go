@@ -170,6 +170,7 @@ func TestStore_StatusProgression(t *testing.T) {
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
+			PayloadCid:       dataCid,
 			DataURI:          dataURI,
 			DealSize:         1024,
 			DealDuration:     1000,

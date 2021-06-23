@@ -71,6 +71,7 @@ type Bid struct {
 	ID                   broker.BidID
 	AuctionID            broker.AuctionID
 	AuctioneerID         peer.ID
+	PayloadCid           cid.Cid
 	DataURI              string
 	DealSize             uint64
 	DealDuration         uint64
@@ -466,8 +467,8 @@ func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
 }
 
 // WriteDataURI writes the uri resource to the configured deal data directory.
-func (s *Store) WriteDataURI(uri string) (string, error) {
-	duri, err := datauri.NewURI(uri)
+func (s *Store) WriteDataURI(payloadCid, uri string) (string, error) {
+	duri, err := datauri.NewURI(payloadCid, uri)
 	if err != nil {
 		return "", fmt.Errorf("parsing data uri: %w", err)
 	}
@@ -565,7 +566,7 @@ func (s *Store) fetchWorker(num int) {
 				status BidStatus
 				logMsg string
 			)
-			file, err := s.WriteDataURI(b.DataURI)
+			file, err := s.WriteDataURI(b.PayloadCid.String(), b.DataURI)
 			if err != nil {
 				status = fail(b, err)
 				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
