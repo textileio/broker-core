@@ -202,6 +202,7 @@ func (b *Broker) CreatePrepared(
 	auctionID, err := b.auctioneer.ReadyToAuction(
 		ctx,
 		sd.ID,
+		sd.PayloadCid,
 		int(sd.PieceSize),
 		sd.DealDuration,
 		sd.RepFactor,
@@ -316,6 +317,7 @@ func (b *Broker) StorageDealPrepared(
 	auctionID, err := b.auctioneer.ReadyToAuction(
 		ctx,
 		id,
+		sd.PayloadCid,
 		int(dpr.PieceSize),
 		sd.DealDuration,
 		sd.RepFactor,
@@ -401,6 +403,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 			auctionID, err := b.auctioneer.ReadyToAuction(
 				ctx,
 				sd.ID,
+				sd.PayloadCid,
 				int(sd.PieceSize),
 				sd.DealDuration,
 				sd.RepFactor,
@@ -495,6 +498,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		_, err := b.auctioneer.ReadyToAuction(
 			ctx,
 			sd.ID,
+			sd.PayloadCid,
 			int(sd.PieceSize),
 			sd.DealDuration,
 			deltaRepFactor,
@@ -540,6 +544,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		_, err := b.auctioneer.ReadyToAuction(
 			ctx,
 			sd.ID,
+			sd.PayloadCid,
 			int(sd.PieceSize),
 			sd.DealDuration,
 			1,

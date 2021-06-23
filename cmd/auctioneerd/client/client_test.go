@@ -63,7 +63,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
 
-	_, dataURI, err := gw.CreateURI(true)
+	payloadCid, dataURI, err := gw.CreateURI(true)
 	require.NoError(t, err)
 
 	u, err := url.Parse(dataURI)
@@ -71,6 +71,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 	id, err := c.ReadyToAuction(
 		context.Background(),
 		newDealID(),
+		payloadCid,
 		oneGiB,
 		sixMonthsEpochs,
 		1,
@@ -92,7 +93,7 @@ func TestClient_GetAuction(t *testing.T) {
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
 
-	_, dataURI, err := gw.CreateURI(true)
+	payloadCid, dataURI, err := gw.CreateURI(true)
 	require.NoError(t, err)
 
 	u, err := url.Parse(dataURI)
@@ -100,6 +101,7 @@ func TestClient_GetAuction(t *testing.T) {
 	id, err := c.ReadyToAuction(
 		context.Background(),
 		newDealID(),
+		payloadCid,
 		oneGiB,
 		sixMonthsEpochs,
 		1,
@@ -136,7 +138,7 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	_, dataURI, err := gw.CreateURI(true)
+	payloadCid, dataURI, err := gw.CreateURI(true)
 	require.NoError(t, err)
 
 	u, err := url.Parse(dataURI)
@@ -144,6 +146,7 @@ func TestClient_RunAuction(t *testing.T) {
 	id, err := c.ReadyToAuction(
 		context.Background(),
 		newDealID(),
+		payloadCid,
 		oneGiB,
 		sixMonthsEpochs,
 		2,

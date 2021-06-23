@@ -397,7 +397,7 @@ var dealsListCmd = &cobra.Command{
 }
 
 var dealsShowCmd = &cobra.Command{
-	Use:   "show",
+	Use:   "show <id>",
 	Short: "Show details of one deal",
 	Long:  `Show details of one deal, specified by the bid ID, which can be obtained by 'bidbot deals list'`,
 	Args:  cobra.ExactArgs(1),
@@ -442,17 +442,18 @@ func getBids(u string) (bids []store.Bid) {
 }
 
 var downloadCmd = &cobra.Command{
-	Use:   "download",
+	Use:   "download <cid> <uri>",
 	Short: "Download and write storage deal data to disk",
-	Long: `Downloads and writes storage deal data to disk by uri.
+	Long: `Downloads and writes storage deal data to disk by cid and uri.
 
 Deal data is written to BIDBOT_DEAL_DATA_DIRECTORY in CAR format.
 `,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.ExactArgs(2),
 	Run: func(c *cobra.Command, args []string) {
 		base := urlFor("datauri") + "?"
 		params := url.Values{}
-		params.Add("uri", args[0])
+		params.Add("cid", args[0])
+		params.Add("uri", args[1])
 		res, err := http.Get(base + params.Encode())
 		common.CheckErr(err)
 		defer func() {

@@ -110,6 +110,13 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	if req.StorageDealId == "" {
 		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
 	}
+	if req.PayloadCid == "" {
+		return nil, status.Error(codes.InvalidArgument, "payload cid is empty")
+	}
+	payloadCid, err := cid.Parse(req.PayloadCid)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "payload cid unparseable")
+	}
 	if req.DataUri == "" {
 		return nil, status.Error(codes.InvalidArgument, "data uri is empty")
 	}
@@ -125,12 +132,13 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 
 	id, err := s.lib.CreateAuction(
 		broker.StorageDealID(req.StorageDealId),
+		payloadCid,
 		req.DataUri,
 		req.DealSize,
 		req.DealDuration,
 		req.DealReplication,
 		req.DealVerified,
-		// req.ExcludedMiners, // TODO(sander): wire this.
+		// req.ExcludedMiners, // TODO(sander/merlin): wire this.
 	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "%v", err)
