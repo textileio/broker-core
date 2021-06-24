@@ -370,7 +370,6 @@ func (fc *FilClient) streamToMiner(
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
 	}
-	log.Debugf("stream with miner %s created", maddr)
 
 	return s, nil
 }

@@ -2,10 +2,11 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
+	cmds "github.com/ipfs/go-ipfs-cmds"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
@@ -39,7 +40,7 @@ func (b *Broker) daemonUnpinner() {
 				if err := b.store.UnpinJobMoveToPending(uj.ID, b.conf.unpinnerRetryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
-				break
+				continue
 			}
 
 			if err := b.store.DeleteExecuting(uj.ID); err != nil {
@@ -47,7 +48,6 @@ func (b *Broker) daemonUnpinner() {
 				if err := b.store.UnpinJobMoveToPending(uj.ID, b.conf.unpinnerRetryDelay); err != nil {
 					log.Errorf("unpin job moving again to pending: %s", err)
 				}
-				break
 			}
 		}
 	}
@@ -63,7 +63,8 @@ func (b *Broker) unpinCid(ctx context.Context, uj store.UnpinJob) (err error) {
 		//          https://github.com/ipfs/ipfs-cluster/issues/1366. For now we'll assume this error
 		//          is always that the data was already unpinned most probably due to some retry.
 		//          We should change this whenever the bug is resolved.
-		if strings.Contains(err.Error(), "not of type error") {
+		var ctmErr *cmds.Error
+		if ok := errors.As(err, &ctmErr); ok && ctmErr.Code == 0 {
 			log.Warnf("%s unpinning was skipped due to ipfs-cluster known bug", uj.Cid)
 			return nil
 		}
@@ -76,10 +77,10 @@ func (b *Broker) unpinCid(ctx context.Context, uj store.UnpinJob) (err error) {
 func (b *Broker) exportIPFSMetrics() {
 	for {
 		<-time.After(b.conf.exportPinCountFrequency)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 		ch, err := b.ipfsClient.Pin().Ls(ctx, options.Pin.Ls.Recursive())
 		if err != nil {
-			log.Error("getting total pin count: %s", err)
+			log.Errorf("getting total pin count: %s", err)
 			cancel()
 			continue
 		}

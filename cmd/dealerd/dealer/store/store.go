@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -88,9 +89,10 @@ type AuctionDeal struct {
 	UpdatedAt time.Time
 	ReadyAt   time.Time
 
-	ProposalCid    cid.Cid
-	DealID         int64
-	DealExpiration uint64
+	ProposalCid      cid.Cid
+	DealID           int64
+	DealExpiration   uint64
+	DealMarketStatus uint64
 }
 
 // Store provides persistent storage for Bids.
@@ -352,6 +354,45 @@ func (s *Store) RemoveAuctionDeal(aud AuctionDeal) error {
 	}
 
 	return nil
+}
+
+// GetAuctionDealStatusCounts returns a summary of in which deal statuses are watched deals.
+func (s *Store) GetAuctionDealStatusCounts() (map[storagemarket.StorageDealStatus]int64, error) {
+	statuses := []AuctionDealStatus{PendingConfirmation, ExecutingConfirmation}
+	ret := map[storagemarket.StorageDealStatus]int64{}
+	for _, status := range statuses {
+		dsPrefix, err := getAuctionDealDSPrefix(status)
+		if err != nil {
+			return nil, fmt.Errorf("get auction deal datastore prefix: %s", err)
+		}
+		q := query.Query{
+			Prefix: dsPrefix.String(),
+		}
+		res, err := s.ds.Query(q)
+		if err != nil {
+			return nil, fmt.Errorf("executing query: %s", err)
+		}
+		defer func() {
+			if err := res.Close(); err != nil {
+				log.Errorf("closing get auction deal status counts query: %s", err)
+			}
+		}()
+		for item := range res.Next() {
+			if item.Error != nil {
+				return nil, fmt.Errorf("getting item: %s", item.Error)
+			}
+
+			var ad AuctionDeal
+			d := gob.NewDecoder(bytes.NewReader(item.Value))
+			if err := d.Decode(&ad); err != nil {
+				return nil, fmt.Errorf("unmarshaling gob: %s", err)
+			}
+			log.Debugf("woot: %s %d", ad.ProposalCid, ad.DealMarketStatus)
+			ret[ad.DealMarketStatus]++
+		}
+	}
+
+	return ret, nil
 }
 
 func get(dsRead datastore.Read, key datastore.Key, b interface{}) error {

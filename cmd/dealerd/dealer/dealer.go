@@ -61,7 +61,7 @@ func New(
 		daemonClosed:    make(chan struct{}),
 	}
 
-	go d.daemon()
+	go d.daemons()
 
 	return d, nil
 }
@@ -105,9 +105,10 @@ func (d *Dealer) Close() error {
 	return nil
 }
 
-func (d *Dealer) daemon() {
+func (d *Dealer) daemons() {
 	defer close(d.daemonClosed)
 
+	// We don't count the metrics daemon since we don't need to wait for it.
 	d.daemonWg.Add(3)
 
 	// daemonDealMaker makes status transitions:
@@ -119,6 +120,8 @@ func (d *Dealer) daemon() {
 	// daemonDealWatcher takes records in PendingReportFinalized and reports back the
 	// result to the broker. If the broker ACKs correctly, then it deletes them.
 	go d.daemonDealReporter()
+
+	go d.daemonExportMetrics()
 
 	<-d.daemonCtx.Done()
 	log.Info("closing dealer daemons")

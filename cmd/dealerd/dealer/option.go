@@ -18,6 +18,8 @@ type config struct {
 
 	dealReportingFreq       time.Duration
 	dealReportingRetryDelay time.Duration
+
+	exportStatusesCountFrequency time.Duration
 }
 
 var defaultConfig = config{
@@ -33,6 +35,8 @@ var defaultConfig = config{
 
 	dealReportingFreq:       time.Second * 10,
 	dealReportingRetryDelay: time.Second * 15,
+
+	exportStatusesCountFrequency: time.Minute * 5,
 }
 
 // Option applies a configuration change.
