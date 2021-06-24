@@ -495,7 +495,6 @@ func (q *Queue) saveAndFinalizeAuction(a *broker.Auction, status broker.AuctionS
 			}
 		}
 	}
-
 }
 
 func (q *Queue) addBid(a *broker.Auction, bid broker.Bid) (broker.BidID, error) {
