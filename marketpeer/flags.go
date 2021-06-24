@@ -185,6 +185,7 @@ func WriteConfig(v *viper.Viper, repoPathEnv, defaultRepoPath string) (string, e
 func MarshalConfig(v *viper.Viper, pretty bool) ([]byte, error) {
 	all := v.AllSettings()
 	all["private-key"] = "***"
+	all["wallet-address-sig"] = "***"
 	if pretty {
 		return json.MarshalIndent(all, "", "  ")
 	}
