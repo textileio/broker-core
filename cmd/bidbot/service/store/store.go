@@ -101,10 +101,10 @@ const (
 	BidStatusQueuedData
 	// BidStatusFetchingData indicates the bid data uri is being fetched.
 	BidStatusFetchingData
-	// BidStatusFinalized indicates the bid has reached a final state.
-	// If ErrorCause is empty, the bid has been accepted and the data uri fetched.
-	// If ErrorCause is not empty, a fatal error has occurred and the bid should be considered abandoned.
+	// BidStatusFinalized indicates the bid has been accepted and the data uri fetched.
 	BidStatusFinalized
+	// BidStatusErrored indicates a fatal error has occurred and the bid should be considered abandoned.
+	BidStatusErrored
 )
 
 var bidStatusStrings = map[BidStatus]string{
@@ -114,6 +114,7 @@ var bidStatusStrings = map[BidStatus]string{
 	BidStatusQueuedData:       "queued_data",
 	BidStatusFetchingData:     "fetching_data",
 	BidStatusFinalized:        "finalized",
+	BidStatusErrored:          "errored",
 }
 
 var bidStatusByString map[string]BidStatus
@@ -537,7 +538,7 @@ func (s *Store) fetchWorker(num int) {
 	fail := func(b *Bid, err error) (status BidStatus) {
 		b.ErrorCause = err.Error()
 		if b.DataURIFetchAttempts >= s.dealDataFetchAttempts {
-			status = BidStatusFinalized
+			status = BidStatusErrored
 			s.bytesLimiter.Withdraw(b.DealSize)
 			log.Warnf("job %s exhausted all %d attempts with error: %v", b.ID, s.dealDataFetchAttempts, err)
 		} else {
