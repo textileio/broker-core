@@ -34,20 +34,19 @@ func (c *Client) ReadyToAuction(
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
-	filEpochDeadline *int64,
+	filEpochDeadline uint64,
 	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	res, err := c.c.ReadyToAuction(ctx, &pb.ReadyToAuctionRequest{
-		StorageDealId:   string(storageDealID),
-		PayloadCid:      payloadCid.String(),
-		DealSize:        uint64(dealSize),
-		DealDuration:    uint64(dealDuration),
-		DealReplication: uint32(dealReplication),
-		DealVerified:    dealVerified,
-		ExcludedMiners:  excludedMiners,              // TODO(sander/merlin): continue with this downstream.
-		DataUri:         sources.CARURL.URL.String(), // TODO(sander/merlin): This is a temporary fix.
-		// FilEpochDeadline: filEpochDeadline, // TODO(sander/merlin): pending wiring. [if nil, the constraint doesn't apply]
-		// Sources: sources, // TODO(sander/merlin): pending wiring.
+		StorageDealId:    string(storageDealID),
+		PayloadCid:       payloadCid.String(),
+		DealSize:         uint64(dealSize),
+		DealDuration:     uint64(dealDuration),
+		DealReplication:  uint32(dealReplication),
+		DealVerified:     dealVerified,
+		ExcludedMiners:   excludedMiners,
+		FilEpochDeadline: filEpochDeadline,
+		Sources:          cast.SourcesToPb(sources),
 	})
 	if err != nil {
 		return "", fmt.Errorf("calling ready to auction api: %s", err)

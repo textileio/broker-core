@@ -3,6 +3,7 @@ package broker.auctioneer.v1.message;
 option go_package = "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message";
 
 import "google/protobuf/timestamp.proto";
+import "broker/auctioneer/v1/auctioneer.proto";
 
 message Auction {
     string id = 1;
@@ -10,7 +11,8 @@ message Auction {
     string data_uri = 3;
     uint64 deal_size = 4;
     uint64 deal_duration = 5;
-    google.protobuf.Timestamp ends_at = 6;
+    broker.auctioneer.v1.Sources sources = 6;
+    google.protobuf.Timestamp ends_at = 7;
 }
 
 message Bid {

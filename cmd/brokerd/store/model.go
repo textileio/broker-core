@@ -73,7 +73,7 @@ type storageDeal struct {
 	DealDuration       int
 	AuctionRetries     int
 	DisallowRebatching bool
-	FilEpochDeadline   *int64
+	FilEpochDeadline   uint64
 	Sources            sources
 	CreatedAt          time.Time
 	UpdatedAt          time.Time

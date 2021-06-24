@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -52,7 +53,7 @@ type StorageDeal struct {
 	Sources            Sources
 	DisallowRebatching bool
 	AuctionRetries     int
-	FilEpochDeadline   *int64
+	FilEpochDeadline   uint64
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 	Error              string
@@ -72,6 +73,29 @@ type StorageDeal struct {
 type Sources struct {
 	CARURL  *CARURL
 	CARIPFS *CARIPFS
+}
+
+// Validate ensures Sources are valid.
+func (s *Sources) Validate() error {
+	if s.CARURL == nil && s.CARIPFS == nil {
+		return errors.New("should contain at least one source")
+	}
+	if s.CARURL != nil {
+		switch s.CARURL.URL.Scheme {
+		case "http", "https":
+		default:
+			return fmt.Errorf("unsupported scheme %s", s.CARURL.URL.Scheme)
+		}
+	}
+	if s.CARIPFS != nil {
+		if !s.CARIPFS.Cid.Defined() {
+			return errors.New("cid undefined")
+		}
+		if len(s.CARIPFS.Multiaddrs) == 0 {
+			return errors.New("no multiaddr")
+		}
+	}
+	return nil
 }
 
 // StorageDealID is the type of a StorageDeal identifier.

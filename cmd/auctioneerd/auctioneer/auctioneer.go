@@ -14,6 +14,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
@@ -77,6 +78,7 @@ type Auctioneer struct {
 	metricNewAuction          metric.Int64Counter
 	metricNewFinalizedAuction metric.Int64Counter
 	metricNewBid              metric.Int64Counter
+	metricAcceptedBid         metric.Int64Counter
 	metricLastCreatedAuction  metric.Int64ValueObserver
 }
 
@@ -161,25 +163,9 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queud if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(
-	storageDealID core.StorageDealID,
-	payloadCid cid.Cid,
-	dataURI string,
-	dealSize, dealDuration uint64,
-	dealReplication uint32,
-	dealVerified bool,
-) (core.AuctionID, error) {
-	auction := core.Auction{
-		StorageDealID:   storageDealID,
-		PayloadCid:      payloadCid,
-		DataURI:         dataURI,
-		DealSize:        dealSize,
-		DealDuration:    dealDuration,
-		DealReplication: dealReplication,
-		DealVerified:    dealVerified,
-		Status:          broker.AuctionStatusUnspecified,
-		Duration:        a.auctionConf.Duration,
-	}
+func (a *Auctioneer) CreateAuction(auction core.Auction) (core.AuctionID, error) {
+	auction.Status = broker.AuctionStatusUnspecified
+	auction.Duration = a.auctionConf.Duration
 	id, err := a.queue.CreateAuction(auction)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
@@ -301,15 +287,18 @@ func (a *Auctioneer) processAuction(
 			price = bid.AskPrice
 		}
 		log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
+		a.metricNewBid.Add(ctx, 1)
 
+		if !a.acceptBid(&auction, &bid) {
+			return nil, errors.New("bid rejected")
+		}
 		id, err := addBid(bid)
 		if err != nil {
 			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
 		}
-
 		bidders[bid.BidderID] = struct{}{}
 		bids[id] = bid
-		a.metricNewBid.Add(ctx, 1)
+		a.metricAcceptedBid.Add(ctx, 1)
 
 		return []byte(id), nil
 	}
@@ -325,6 +314,7 @@ func (a *Auctioneer) processAuction(
 		DataUri:      auction.DataURI,
 		DealSize:     auction.DealSize,
 		DealDuration: auction.DealDuration,
+		Sources:      cast.SourcesToPb(auction.Sources),
 		EndsAt:       timestamppb.New(deadline),
 	})
 	if err != nil {
@@ -384,6 +374,21 @@ func (a *Auctioneer) validateBid(b core.Bid) error {
 		return fmt.Errorf("invalid miner address or signature")
 	}
 	return nil
+}
+
+func (a *Auctioneer) acceptBid(auction *core.Auction, bid *core.Bid) bool {
+	if auction.FilEpochDeadline > 0 && auction.FilEpochDeadline < bid.StartEpoch {
+		log.Debugf("miner %s start epoch %d doesn't meet the deadline %d of auction %s",
+			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
+		return false
+	}
+	for _, addr := range auction.ExcludedMiners {
+		if bid.MinerAddr == addr {
+			log.Debugf("miner %s is explicitly excluded from auction %s", bid.MinerAddr, auction.ID)
+			return false
+		}
+	}
+	return true
 }
 
 func (a *Auctioneer) finalizeAuction(ctx context.Context, auction core.Auction) error {

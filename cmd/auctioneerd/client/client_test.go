@@ -77,7 +77,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 		1,
 		true,
 		nil,
-		nil,
+		0,
 		broker.Sources{
 			CARURL: &broker.CARURL{
 				URL: *u,
@@ -107,7 +107,7 @@ func TestClient_GetAuction(t *testing.T) {
 		1,
 		true,
 		nil,
-		nil,
+		0,
 		broker.Sources{
 			CARURL: &broker.CARURL{
 				URL: *u,
@@ -152,7 +152,7 @@ func TestClient_RunAuction(t *testing.T) {
 		2,
 		true,
 		nil,
-		nil,
+		0,
 		broker.Sources{
 			CARURL: &broker.CARURL{
 				URL: *u,

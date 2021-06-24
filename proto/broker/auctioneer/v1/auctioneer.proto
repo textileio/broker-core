@@ -57,18 +57,37 @@ message ReadyToAuctionRequest {
     uint32 deal_replication = 6;
     bool deal_verified = 7;
     repeated string excluded_miners = 8;
+    uint64 fil_epoch_deadline = 9;
+    Sources sources = 10;
+}
+
+
+message Sources {
+  CARURL car_url = 1;
+  CARIPFS car_ipfs = 2;
+
+  message CARURL {
+    string URL = 1;
+  }
+
+  message CARIPFS {
+    string cid = 1;
+    repeated string multiaddrs = 2;
+  }
+
+
 }
 
 message ReadyToAuctionResponse {
-    string id = 1;
+  string id = 1;
 }
 
 message GetAuctionRequest {
-    string id = 1;
+  string id = 1;
 }
 
 message GetAuctionResponse {
-    Auction auction = 1;
+  Auction auction = 1;
 }
 
 message ProposalAcceptedRequest {

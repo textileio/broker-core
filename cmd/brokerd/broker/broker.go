@@ -183,7 +183,7 @@ func (b *Broker) CreatePrepared(
 		BrokerRequestIDs:   []broker.BrokerRequestID{br.ID},
 		Sources:            pc.Sources,
 		DisallowRebatching: true,
-		FilEpochDeadline:   &filEpochDeadline,
+		FilEpochDeadline:   filEpochDeadline,
 
 		// We fill what packer+piecer usually do.
 		PayloadCid: payloadCid,
@@ -266,7 +266,7 @@ func (b *Broker) CreateStorageDeal(
 		CreatedAt:          now,
 		UpdatedAt:          now,
 		DisallowRebatching: false,
-		FilEpochDeadline:   nil,
+		FilEpochDeadline:   0,
 		Sources: broker.Sources{
 			CARURL: &broker.CARURL{
 				URL: *b.conf.carExportURL.ResolveReference(cidURL),
@@ -631,11 +631,11 @@ func (b *Broker) Close() error {
 	return nil
 }
 
-func timeToFilEpoch(t time.Time) (int64, error) {
+func timeToFilEpoch(t time.Time) (uint64, error) {
 	deadline := (t.Unix() - filecoinGenesisUnixEpoch) / 30
 	if deadline <= 0 {
 		return 0, fmt.Errorf("the provided deadline %s is before genesis", t)
 	}
 
-	return deadline, nil
+	return uint64(deadline), nil
 }
