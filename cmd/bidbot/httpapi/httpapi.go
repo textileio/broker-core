@@ -100,6 +100,7 @@ func idHandler(service Service) http.HandlerFunc {
 		data, err := json.MarshalIndent(v, "", "\t")
 		if err != nil {
 			httpError(w, fmt.Sprintf("marshaling id: %s", err), http.StatusInternalServerError)
+			return
 		}
 		_, err = w.Write(data)
 		if err != nil {
