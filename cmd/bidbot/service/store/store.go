@@ -45,7 +45,7 @@ var (
 	DataURIFetchStartDelay = time.Second * 10
 
 	// DataURIFetchTimeout is the timeout used when fetching data uris.
-	DataURIFetchTimeout = time.Hour
+	DataURIFetchTimeout = time.Hour * 3
 
 	// MaxDataURIFetchConcurrency is the maximum number of data uri fetches that will be handled concurrently.
 	MaxDataURIFetchConcurrency = 10
