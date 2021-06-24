@@ -451,6 +451,7 @@ func (s *Store) ListBids(query Query) ([]*Bid, error) {
 
 // PreallocateDataURI preallocate the file space for the uri resource under the configured deal data directory.
 func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
+	// shortcut it as it does not work on some FS like ZFS
 	return nil
 
 	f, err := os.Create(filepath.Join(s.dealDataDirectory, duri.Cid().String()))
