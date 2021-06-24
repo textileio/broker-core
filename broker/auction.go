@@ -43,6 +43,10 @@ type Auction struct {
 	Duration        time.Duration
 	Attempts        uint32
 	ErrorCause      string
+	// Ugly trick: a workaround to avoid calling Auctioneer.finalizeAuction
+	// twice, because auctions are enqueued to the Queue again indirectly
+	// by Auctioneer.DeliverProposal.
+	BrokerAlreadyNotifiedByClosedAuction bool
 }
 
 // AuctionStatus is the status of an auction.
