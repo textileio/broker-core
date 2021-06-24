@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
-	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/ratelim"
 )
 
@@ -169,7 +169,7 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uin
 		log.Errorf("checking deal status with miner: %s", err)
 		return 0, true
 	}
-	log.Debugf("%s check-deal-status: %s", aud.ID, logging.MustJSONIndent(pds))
+	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[pds.State])
 
 	if pds.PublishCid != nil {
 		log.Debugf("%s miner published the deal in message %s, trying to resolve on-chain...", aud.ID, pds.PublishCid)
