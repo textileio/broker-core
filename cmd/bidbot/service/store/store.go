@@ -451,8 +451,6 @@ func (s *Store) ListBids(query Query) ([]*Bid, error) {
 
 // PreallocateDataURI preallocate the file space for the uri resource under the configured deal data directory.
 func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
-	return nil
-
 	f, err := os.Create(filepath.Join(s.dealDataDirectory, duri.Cid().String()))
 	if err != nil {
 		return fmt.Errorf("opening file: %v", err)
@@ -463,7 +461,7 @@ func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
 		}
 	}()
 	if err := fallocate.Fallocate(f, 0, int64(size)); err != nil {
-		return err
+		log.Infof("fail to fallocate, ignoring: %v", err)
 	}
 	return nil
 }

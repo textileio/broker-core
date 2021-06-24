@@ -59,6 +59,7 @@ var rootCmd = &cobra.Command{
 			daemonName,
 			"dealer/service",
 			"dealer",
+			"dealermock",
 			"dealer/filclient",
 		})
 		common.CheckErrf("setting log levels: %v", err)

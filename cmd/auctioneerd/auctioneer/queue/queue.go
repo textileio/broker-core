@@ -407,38 +407,6 @@ func (q *Queue) enqueue(commitTxn ds.Txn, a *broker.Auction) error {
 func (q *Queue) worker(num int) {
 	defer q.wg.Done()
 
-	addBid := func(a *broker.Auction, bid broker.Bid) (broker.BidID, error) {
-		if a.Status != broker.AuctionStatusStarted {
-			return "", errors.New("auction has not started")
-		}
-		id, err := q.newID(bid.ReceivedAt)
-		if err != nil {
-			return "", fmt.Errorf("generating bid id: %v", err)
-		}
-		if a.Bids == nil {
-			a.Bids = make(map[broker.BidID]broker.Bid)
-		}
-		a.Bids[broker.BidID(id)] = bid
-
-		// Save auction data
-		if err := q.saveAndTransitionStatus(nil, a, a.Status); err != nil {
-			return "", fmt.Errorf("saving bid: %v", err)
-		}
-		return broker.BidID(id), nil
-	}
-
-	fail := func(a *broker.Auction, err error) (status broker.AuctionStatus) {
-		a.ErrorCause = err.Error()
-		if a.Attempts >= q.handleAttempts {
-			status = broker.AuctionStatusFinalized
-			log.Warnf("job %s exhausted all %d attempts with error: %v", a.ID, q.handleAttempts, err)
-		} else {
-			status = broker.AuctionStatusQueued
-			log.Debugf("retrying job %s with error: %v", a.ID, err)
-		}
-		return status
-	}
-
 	for {
 		select {
 		case <-q.ctx.Done():
@@ -455,7 +423,7 @@ func (q *Queue) worker(num int) {
 			// Handle the auction with the handler func
 			var status broker.AuctionStatus
 			wbs, err := q.handler(q.ctx, *a, func(bid broker.Bid) (broker.BidID, error) {
-				return addBid(a, bid)
+				return q.addBid(a, bid)
 			})
 			// Update winning bid state; some bids may have been processed even if there was an error
 			if len(wbs) > 0 {
@@ -468,7 +436,7 @@ func (q *Queue) worker(num int) {
 			}
 			var logMsg string
 			if err != nil {
-				status = fail(a, err)
+				status = q.fail(a, err)
 				logMsg = fmt.Sprintf("status=%s error=%s", status, a.ErrorCause)
 			} else {
 				status = broker.AuctionStatusFinalized
@@ -478,27 +446,7 @@ func (q *Queue) worker(num int) {
 			}
 			log.Infof("handled auction %s (%s)", a.ID, logMsg)
 
-			// Save and update status to "finalized" or "queued"
-			if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
-				log.Errorf("updating handler status (%s): %v", status, err)
-			} else if status != broker.AuctionStatusQueued {
-				// Finish auction with the finalizer func
-				if err := q.finalizer(q.ctx, *a); err != nil {
-					status = fail(a, err)
-
-					// Save and update status to "finalized" or "queued"
-					if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
-						log.Errorf("updating finalizer status (%s): %v", status, err)
-					}
-				} else if allProposalsDelivered(a) {
-					// Nothing left to do; delete the auction
-					if err := q.delete(a); err != nil {
-						log.Errorf("deleting auction: %v", err)
-					}
-					log.Infof("deleting auction %s", a.ID)
-				}
-			}
-
+			q.saveAndFinalizeAuction(a, status)
 			log.Debugf("worker %d finished job %s", num, a.ID)
 			select {
 			case q.tickCh <- struct{}{}:
@@ -506,6 +454,79 @@ func (q *Queue) worker(num int) {
 			}
 		}
 	}
+}
+
+func (q *Queue) saveAndFinalizeAuction(a *broker.Auction, status broker.AuctionStatus) {
+	// Save and update status to "finalized" or "queued"
+	if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
+		log.Errorf("updating handler status (%s): %v", status, err)
+	} else if status != broker.AuctionStatusQueued {
+		// Ugly trick! See the declaration of this field for details
+		if !a.BrokerAlreadyNotifiedByClosedAuction {
+			// Finish auction with the finalizer func
+			if err := q.finalizer(q.ctx, *a); err != nil {
+				status = q.fail(a, err)
+
+				// Save and update status to "finalized" or "queued"
+				if err := q.saveAndTransitionStatus(nil, a, status); err != nil {
+					log.Errorf("updating finalizer status (%s): %v", status, err)
+				}
+				return
+			}
+		}
+		if allProposalsDelivered(a) {
+			// Nothing left to do; delete the auction
+			if err := q.delete(a); err != nil {
+				log.Errorf("deleting auction: %v", err)
+			}
+			log.Infof("deleting auction %s", a.ID)
+			return
+		}
+		if status == broker.AuctionStatusFinalized {
+			// Set and save the flag to DB, to avoid finalizing twice.
+			a.BrokerAlreadyNotifiedByClosedAuction = true
+			val, err := encode(a)
+			if err != nil {
+				log.Errorf("encoding auction: %v", err)
+				return
+			}
+			if err := q.store.Put(dsPrefix.ChildString(string(a.ID)), val); err != nil {
+				log.Errorf("saving auction: %v", err)
+			}
+		}
+	}
+}
+
+func (q *Queue) addBid(a *broker.Auction, bid broker.Bid) (broker.BidID, error) {
+	if a.Status != broker.AuctionStatusStarted {
+		return "", errors.New("auction has not started")
+	}
+	id, err := q.newID(bid.ReceivedAt)
+	if err != nil {
+		return "", fmt.Errorf("generating bid id: %v", err)
+	}
+	if a.Bids == nil {
+		a.Bids = make(map[broker.BidID]broker.Bid)
+	}
+	a.Bids[broker.BidID(id)] = bid
+
+	// Save auction data
+	if err := q.saveAndTransitionStatus(nil, a, a.Status); err != nil {
+		return "", fmt.Errorf("saving bid: %v", err)
+	}
+	return broker.BidID(id), nil
+}
+
+func (q *Queue) fail(a *broker.Auction, err error) (status broker.AuctionStatus) {
+	a.ErrorCause = err.Error()
+	if a.Attempts >= q.handleAttempts {
+		status = broker.AuctionStatusFinalized
+		log.Warnf("job %s exhausted all %d attempts with error: %v", a.ID, q.handleAttempts, err)
+	} else {
+		status = broker.AuctionStatusQueued
+		log.Debugf("retrying job %s with error: %v", a.ID, err)
+	}
+	return status
 }
 
 func allProposalsDelivered(a *broker.Auction) bool {
