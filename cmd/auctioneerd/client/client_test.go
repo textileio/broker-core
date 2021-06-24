@@ -3,7 +3,6 @@ package client_test
 import (
 	"context"
 	"net"
-	"net/url"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
@@ -63,11 +61,9 @@ func TestClient_ReadyToAuction(t *testing.T) {
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
 
-	payloadCid, dataURI, err := gw.CreateURI(true)
+	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	u, err := url.Parse(dataURI)
-	require.NoError(t, err)
 	id, err := c.ReadyToAuction(
 		context.Background(),
 		newDealID(),
@@ -78,11 +74,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 		true,
 		nil,
 		0,
-		broker.Sources{
-			CARURL: &broker.CARURL{
-				URL: *u,
-			},
-		},
+		sources,
 	)
 	require.NoError(t, err)
 	assert.NotEmpty(t, id)
@@ -93,11 +85,9 @@ func TestClient_GetAuction(t *testing.T) {
 	gw := apitest.NewDataURIHTTPGateway(dag)
 	t.Cleanup(gw.Close)
 
-	payloadCid, dataURI, err := gw.CreateURI(true)
+	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	u, err := url.Parse(dataURI)
-	require.NoError(t, err)
 	id, err := c.ReadyToAuction(
 		context.Background(),
 		newDealID(),
@@ -108,11 +98,7 @@ func TestClient_GetAuction(t *testing.T) {
 		true,
 		nil,
 		0,
-		broker.Sources{
-			CARURL: &broker.CARURL{
-				URL: *u,
-			},
-		},
+		sources,
 	)
 	require.NoError(t, err)
 
@@ -138,11 +124,9 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
 
-	payloadCid, dataURI, err := gw.CreateURI(true)
+	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	u, err := url.Parse(dataURI)
-	require.NoError(t, err)
 	id, err := c.ReadyToAuction(
 		context.Background(),
 		newDealID(),
@@ -153,11 +137,7 @@ func TestClient_RunAuction(t *testing.T) {
 		true,
 		nil,
 		0,
-		broker.Sources{
-			CARURL: &broker.CARURL{
-				URL: *u,
-			},
-		},
+		sources,
 	)
 	require.NoError(t, err)
 

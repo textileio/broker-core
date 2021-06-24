@@ -311,7 +311,6 @@ func (a *Auctioneer) processAuction(
 	msg, err := proto.Marshal(&pb.Auction{
 		Id:           string(auction.ID),
 		PayloadCid:   auction.PayloadCid.String(),
-		DataUri:      auction.DataURI,
 		DealSize:     auction.DealSize,
 		DealDuration: auction.DealDuration,
 		Sources:      cast.SourcesToPb(auction.Sources),

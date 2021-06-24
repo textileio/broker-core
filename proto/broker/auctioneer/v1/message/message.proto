@@ -8,11 +8,10 @@ import "broker/auctioneer/v1/auctioneer.proto";
 message Auction {
     string id = 1;
     string payload_cid = 2;
-    string data_uri = 3;
-    uint64 deal_size = 4;
-    uint64 deal_duration = 5;
-    broker.auctioneer.v1.Sources sources = 6;
-    google.protobuf.Timestamp ends_at = 7;
+    uint64 deal_size = 3;
+    uint64 deal_duration = 4;
+    broker.auctioneer.v1.Sources sources = 5;
+    google.protobuf.Timestamp ends_at = 6;
 }
 
 message Bid {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -96,6 +97,20 @@ func (s *Sources) Validate() error {
 		}
 	}
 	return nil
+}
+
+// String returns the string representation of the sources.
+func (s *Sources) String() string {
+	var b strings.Builder
+	_, _ = b.WriteString("{")
+	if s.CARURL != nil {
+		fmt.Fprintf(&b, "url: %s,", s.CARURL.URL.String())
+	}
+	if s.CARIPFS != nil {
+		fmt.Fprintf(&b, "cid: %s,", s.CARIPFS.Cid.String())
+	}
+	_, _ = b.WriteString("}")
+	return b.String()
 }
 
 // StorageDealID is the type of a StorageDeal identifier.

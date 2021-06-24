@@ -117,9 +117,6 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "payload cid unparseable")
 	}
-	if req.DataUri == "" {
-		return nil, status.Error(codes.InvalidArgument, "data uri is empty")
-	}
 	if req.DealSize == 0 {
 		return nil, status.Error(codes.InvalidArgument, "deal size must be greater than zero")
 	}
@@ -137,7 +134,6 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	id, err := s.lib.CreateAuction(broker.Auction{
 		StorageDealID:    broker.StorageDealID(req.StorageDealId),
 		PayloadCid:       payloadCid,
-		DataURI:          req.DataUri,
 		DealSize:         req.DealSize,
 		DealDuration:     req.DealDuration,
 		DealReplication:  req.DealReplication,

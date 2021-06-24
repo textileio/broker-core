@@ -58,16 +58,16 @@ func TestStore_ListBids(t *testing.T) {
 		now = now.Add(time.Millisecond)
 		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Timestamp(now), rand.Reader).String()))
 		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-		_, dataURI, err := gw.CreateURI(true)
+		_, sources, err := gw.CreateHTTPSources(true)
 		require.NoError(t, err)
 
 		err = s.SaveBid(Bid{
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataURI:          dataURI,
 			DealSize:         1024,
 			DealDuration:     1000,
+			Sources:          sources,
 			AskPrice:         100,
 			VerifiedAskPrice: 100,
 			StartEpoch:       2000,
@@ -113,16 +113,16 @@ func TestStore_SaveBid(t *testing.T) {
 
 	id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 	aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-	_, dataURI, err := gw.CreateURI(true)
+	_, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
 	err = s.SaveBid(Bid{
 		ID:               id,
 		AuctionID:        aid,
 		AuctioneerID:     auctioneerID,
-		DataURI:          dataURI,
 		DealSize:         1024,
 		DealDuration:     1000,
+		Sources:          sources,
 		AskPrice:         100,
 		VerifiedAskPrice: 100,
 		StartEpoch:       2000,
@@ -134,7 +134,7 @@ func TestStore_SaveBid(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, aid, got.AuctionID)
 	assert.True(t, got.AuctioneerID.MatchesPrivateKey(sk))
-	assert.Equal(t, dataURI, got.DataURI)
+	assert.Equal(t, sources, got.Sources)
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1000, int(got.DealDuration))
 	assert.Equal(t, BidStatusSubmitted, got.Status)
@@ -163,7 +163,7 @@ func TestStore_StatusProgression(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-		dataCid, dataURI, err := gw.CreateURI(true)
+		dataCid, sources, err := gw.CreateHTTPSources(true)
 		require.NoError(t, err)
 
 		err = s.SaveBid(Bid{
@@ -171,9 +171,9 @@ func TestStore_StatusProgression(t *testing.T) {
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
 			PayloadCid:       dataCid,
-			DataURI:          dataURI,
 			DealSize:         1024,
 			DealDuration:     1000,
+			Sources:          sources,
 			AskPrice:         100,
 			VerifiedAskPrice: 100,
 			StartEpoch:       2000,
@@ -217,16 +217,16 @@ func TestStore_StatusProgression(t *testing.T) {
 	t.Run("unreachable data uri", func(t *testing.T) {
 		id := broker.BidID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
 		aid := broker.AuctionID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()))
-		_, dataURI, err := gw.CreateURI(false)
+		_, sources, err := gw.CreateHTTPSources(false)
 		require.NoError(t, err)
 
 		err = s.SaveBid(Bid{
 			ID:               id,
 			AuctionID:        aid,
 			AuctioneerID:     auctioneerID,
-			DataURI:          dataURI,
 			DealSize:         1024,
 			DealDuration:     1000,
+			Sources:          sources,
 			AskPrice:         100,
 			VerifiedAskPrice: 100,
 			StartEpoch:       2000,

@@ -18,7 +18,6 @@ func AuctionToPb(a broker.Auction) *pb.Auction {
 	pba := &pb.Auction{
 		Id:              string(a.ID),
 		StorageDealId:   string(a.StorageDealID),
-		DataUri:         a.DataURI,
 		DealSize:        a.DealSize,
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
@@ -100,7 +99,6 @@ func AuctionFromPb(pba *pb.Auction) (broker.Auction, error) {
 	a := broker.Auction{
 		ID:              broker.AuctionID(pba.Id),
 		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
-		DataURI:         pba.DataUri,
 		DealSize:        pba.DealSize,
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,

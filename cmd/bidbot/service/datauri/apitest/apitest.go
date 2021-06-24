@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path"
 	"strconv"
 
@@ -15,6 +16,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multihash"
+	"github.com/textileio/broker-core/broker"
 )
 
 // DataURIHTTPGateway is a test http server for bidbot data uris.
@@ -39,6 +41,20 @@ func NewDataURIHTTPGateway(dag format.DAGService) *DataURIHTTPGateway {
 // Close it.
 func (g *DataURIHTTPGateway) Close() {
 	g.server.Close()
+}
+
+// CreateHTTPSources creates a uri and wraps it into broker.Sources.
+func (g *DataURIHTTPGateway) CreateHTTPSources(serve bool) (cid.Cid, broker.Sources, error) {
+	cid, s, err := g.CreateURI(serve)
+	if err != nil {
+		return cid, broker.Sources{}, err
+	}
+	u, _ := url.Parse(s)
+	return cid, broker.Sources{
+		CARURL: &broker.CARURL{
+			URL: *u,
+		},
+	}, nil
 }
 
 // CreateURI creates a uri that will be served over the gateway if serve is true.

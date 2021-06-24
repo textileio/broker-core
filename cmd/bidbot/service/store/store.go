@@ -72,9 +72,9 @@ type Bid struct {
 	AuctionID            broker.AuctionID
 	AuctioneerID         peer.ID
 	PayloadCid           cid.Cid
-	DataURI              string
 	DealSize             uint64
 	DealDuration         uint64
+	Sources              broker.Sources
 	Status               BidStatus
 	AskPrice             int64 // attoFIL per GiB per epoch
 	VerifiedAskPrice     int64 // attoFIL per GiB per epoch
@@ -236,8 +236,8 @@ func validate(b Bid) error {
 	if err := b.AuctioneerID.Validate(); err != nil {
 		return fmt.Errorf("auctioneer id is not a valid peer id: %v", err)
 	}
-	if b.DataURI == "" {
-		return errors.New("data uri is not defined")
+	if err := b.Sources.Validate(); err != nil {
+		return err
 	}
 	if b.DealSize == 0 {
 		return errors.New("deal size must be greater than zero")
@@ -352,7 +352,7 @@ func (s *Store) SetProposalCid(id broker.BidID, pcid cid.Cid) error {
 		return fmt.Errorf("enqueueing data uri: %v", err)
 	}
 
-	log.Infof("set proposal cid for bid %s; enqueued data uri %s for fetch", b.ID, b.DataURI)
+	log.Infof("set proposal cid for bid %s; enqueued sources %s for fetch", b.ID, b.Sources)
 	return nil
 }
 
@@ -466,6 +466,14 @@ func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
 	return nil
 }
 
+// WriteSources writes the sources to the configured deal data directory.
+func (s *Store) WriteSources(payloadCid string, sources broker.Sources) (string, error) {
+	if sources.CARURL != nil {
+		return s.WriteDataURI(payloadCid, sources.CARURL.URL.String())
+	}
+	return "", errors.New("not implemented")
+}
+
 // WriteDataURI writes the uri resource to the configured deal data directory.
 func (s *Store) WriteDataURI(payloadCid, uri string) (string, error) {
 	duri, err := datauri.NewURI(payloadCid, uri)
@@ -556,7 +564,7 @@ func (s *Store) fetchWorker(num int) {
 			if s.ctx.Err() != nil {
 				return
 			}
-			log.Infof("fetching data uri %s", b.DataURI)
+			log.Infof("fetching sources %s", b.Sources)
 			b.DataURIFetchAttempts++
 			log.Debugf(
 				"worker %d got job %s (attempt=%d/%d)", num, b.ID, b.DataURIFetchAttempts, s.dealDataFetchAttempts)
@@ -566,7 +574,7 @@ func (s *Store) fetchWorker(num int) {
 				status BidStatus
 				logMsg string
 			)
-			file, err := s.WriteDataURI(b.PayloadCid.String(), b.DataURI)
+			file, err := s.WriteSources(b.PayloadCid.String(), b.Sources)
 			if err != nil {
 				status = fail(b, err)
 				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)
