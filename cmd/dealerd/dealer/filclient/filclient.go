@@ -275,7 +275,8 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
-	log.Debugf("miner %s replied proposal %s status check: %s", minerAddr, propCid, storagemarket.DealStates[resp.DealState.State])
+	log.Debugf("miner %s replied proposal %s status check: %s",
+		minerAddr, propCid, storagemarket.DealStates[resp.DealState.State])
 
 	return &resp.DealState, nil
 }
