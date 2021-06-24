@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/host"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
@@ -20,6 +24,7 @@ var (
 
 // Service provides scoped access to the bidbot service.
 type Service interface {
+	Host() host.Host
 	ListBids(query bidstore.Query) ([]*bidstore.Bid, error)
 	GetBid(id broker.BidID) (*bidstore.Bid, error)
 	WriteDataURI(payloadCid, uri string) (string, error)
@@ -45,6 +50,7 @@ func NewServer(listenAddr string, service Service) (*http.Server, error) {
 func createMux(service Service) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", getOnly(healthHandler))
+	mux.HandleFunc("/id", getOnly(idHandler(service)))
 	// allow both with and without trailing slash
 	deals := getOnly(dealsHandler(service))
 	mux.HandleFunc("/deals", deals)
@@ -67,6 +73,40 @@ func getOnly(f http.HandlerFunc) http.HandlerFunc {
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func idHandler(service Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		host := service.Host()
+		var pkey string
+		if pk := host.Peerstore().PubKey(host.ID()); pk != nil {
+			pkb, err := crypto.MarshalPublicKey(pk)
+			if err != nil {
+				httpError(w, fmt.Sprintf("marshaling public key: %s", err), http.StatusInternalServerError)
+				return
+			}
+			pkey = base64.StdEncoding.EncodeToString(pkb)
+		}
+
+		v := struct {
+			ID        string
+			PublicKey string
+			Addresses []ma.Multiaddr
+		}{
+			host.ID().String(),
+			pkey,
+			host.Addrs(),
+		}
+		data, err := json.MarshalIndent(v, "", "\t")
+		if err != nil {
+			httpError(w, fmt.Sprintf("marshaling id: %s", err), http.StatusInternalServerError)
+			return
+		}
+		_, err = w.Write(data)
+		if err != nil {
+			log.Errorf("write failed: %v", err)
+		}
+	}
 }
 
 func dealsHandler(service Service) http.HandlerFunc {
@@ -95,7 +135,7 @@ func dealsHandler(service Service) http.HandlerFunc {
 		}
 		_, err = w.Write(data)
 		if err != nil {
-			log.Errorf("write failed: %+v", err)
+			log.Errorf("write failed: %v", err)
 		}
 	}
 }
