@@ -17,6 +17,7 @@ import (
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/metric/prometheus"
+	"go.opentelemetry.io/otel/metric/global"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
@@ -154,6 +155,7 @@ func SetupInstrumentation(prometheusAddr string) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize prometheus exporter %v", err)
 	}
+	global.SetMeterProvider(exporter.MeterProvider())
 	http.HandleFunc("/metrics", exporter.ServeHTTP)
 	go func() {
 		_ = http.ListenAndServe(prometheusAddr, nil)
