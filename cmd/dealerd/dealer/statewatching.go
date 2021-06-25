@@ -165,7 +165,9 @@ func (d *Dealer) executeWaitingConfirmation(aud store.AuctionDeal, currentChainH
 // It asks the miner for the message Cid that published the deal. If a DealID is returned,
 // we can be sure is the correct one for AuctionDeal, since this method checks that the miner
 // isn't playing tricks reporting a DealID from other data.
-func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, currentChainEpoch uint64) (int64, storagemarket.StorageDealStatus, bool) {
+func (d *Dealer) tryResolvingDealID(
+	aud store.AuctionDeal,
+	currentChainEpoch uint64) (int64, storagemarket.StorageDealStatus, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	pds, err := d.filclient.CheckDealStatusWithMiner(ctx, aud.Miner, aud.ProposalCid)
