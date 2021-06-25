@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -32,6 +33,8 @@ import (
 )
 
 const (
+	// gcInterval specifies how often to run the periodical garbage collector.
+	gcInterval = time.Hour
 	// defaultListLimit is the default list page size.
 	defaultListLimit = 10
 	// maxListLimit is the max list page size.
@@ -171,6 +174,7 @@ func NewStore(
 	lc lotusclient.LotusClient,
 	dealDataDirectory string,
 	dealDataFetchAttempts uint32,
+	discardOrphanDealsAfter time.Duration,
 	bytesLimiter limiter.Limiter,
 ) (*Store, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -203,6 +207,7 @@ func NewStore(
 	}
 
 	go s.startFetching()
+	go s.periodicalGC(discardOrphanDealsAfter)
 	return s, nil
 }
 
@@ -622,6 +627,65 @@ func (s *Store) startFetching() {
 			s.getNext()
 		}
 	}
+}
+
+func (s *Store) periodicalGC(discardOrphanDealsAfter time.Duration) {
+	tk := time.NewTicker(gcInterval)
+	for range tk.C {
+		if s.ctx.Err() != nil {
+			return
+		}
+		start := time.Now()
+		bidsRemoved, filesRemoved := s.GC(discardOrphanDealsAfter)
+		log.Infof("GC finished in %v: %d orphan deals cleaned, %d deal data files cleaned",
+			time.Since(start), bidsRemoved, filesRemoved)
+	}
+}
+
+// GC cleans up deal data files, if discardOrphanDealsAfter is not zero, it
+// also removes bids staying at BidStatusAwaitingProposal for that longer.
+func (s *Store) GC(discardOrphanDealsAfter time.Duration) (bidsRemoved, filesRemoved int) {
+	bids, err := s.ListBids(Query{})
+	if err != nil {
+		log.Errorf("listing bids: %v", err)
+		return
+	}
+	keepCids := make(map[string]struct{})
+	for _, bid := range bids {
+		if discardOrphanDealsAfter > 0 &&
+			bid.Status == BidStatusAwaitingProposal &&
+			time.Since(bid.UpdatedAt) > discardOrphanDealsAfter {
+			log.Debugf("discard deal %s for it has no progress for %v: %+v",
+				bid.ID, time.Since(bid.UpdatedAt), *bid)
+			_ = s.store.Delete(dsPrefix.ChildString(string(bid.ID)))
+			bidsRemoved++
+		} else {
+			keepCids[bid.PayloadCid.String()] = struct{}{}
+		}
+	}
+	walk := func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			log.Errorf("error walking into %s: %v", path, err)
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if _, exists := keepCids[d.Name()]; !exists {
+			if err := os.Remove(filepath.Join(s.dealDataDirectory, path)); err != nil {
+				log.Errorf("error removing %s: %v", path, err)
+				return nil
+			}
+			log.Debugf("removed %s", path)
+			filesRemoved++
+		}
+		return nil
+	}
+	err = fs.WalkDir(os.DirFS(s.dealDataDirectory), ".", walk)
+	if err != nil {
+		log.Errorf("error walking deal data directory: %v", err)
+	}
+	return
 }
 
 func (s *Store) getNext() {
