@@ -77,7 +77,7 @@ type Sources struct {
 }
 
 // Validate ensures Sources are valid.
-func (s *Sources) Validate() error {
+func (s Sources) Validate() error {
 	if s.CARURL == nil && s.CARIPFS == nil {
 		return errors.New("should contain at least one source")
 	}
@@ -100,7 +100,7 @@ func (s *Sources) Validate() error {
 }
 
 // String returns the string representation of the sources.
-func (s *Sources) String() string {
+func (s Sources) String() string {
 	var b strings.Builder
 	_, _ = b.WriteString("{")
 	if s.CARURL != nil {
