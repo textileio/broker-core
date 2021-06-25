@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -657,22 +656,26 @@ func (s *Store) GC(discardOrphanDealsAfter time.Duration) (bidsRemoved, filesRem
 			time.Since(bid.UpdatedAt) > discardOrphanDealsAfter {
 			log.Debugf("discard deal %s for it has no progress for %v: %+v",
 				bid.ID, time.Since(bid.UpdatedAt), *bid)
-			_ = s.store.Delete(dsPrefix.ChildString(string(bid.ID)))
-			bidsRemoved++
+			err = s.store.Delete(dsPrefix.ChildString(string(bid.ID)))
+			if err != nil {
+				log.Errorf("failed to remove deal %s: %v", bid.ID, err)
+			} else {
+				bidsRemoved++
+			}
 		} else {
 			keepCids[bid.PayloadCid.String()] = struct{}{}
 		}
 	}
-	walk := func(path string, d fs.DirEntry, err error) error {
+	walk := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Errorf("error walking into %s: %v", path, err)
 			return nil
 		}
-		if d.IsDir() {
+		if info.IsDir() {
 			return nil
 		}
-		if _, exists := keepCids[d.Name()]; !exists {
-			if err := os.Remove(filepath.Join(s.dealDataDirectory, path)); err != nil {
+		if _, exists := keepCids[info.Name()]; !exists {
+			if err := os.Remove(path); err != nil {
 				log.Errorf("error removing %s: %v", path, err)
 				return nil
 			}
@@ -681,7 +684,7 @@ func (s *Store) GC(discardOrphanDealsAfter time.Duration) (bidsRemoved, filesRem
 		}
 		return nil
 	}
-	err = fs.WalkDir(os.DirFS(s.dealDataDirectory), ".", walk)
+	err = filepath.Walk(s.dealDataDirectory, walk)
 	if err != nil {
 		log.Errorf("error walking deal data directory: %v", err)
 	}
