@@ -119,6 +119,11 @@ func init() {
 			Description: "Maximum deal size to bid on in bytes",
 		},
 		{
+			Name:        "discard-orphan-deals-after",
+			DefValue:    24 * time.Hour,
+			Description: "The timeout before discarding deal with no progress",
+		},
+		{
 			Name:     "running-bytes-limit",
 			DefValue: "",
 			Description: `Maximum running total bytes in the deals to bid for a period of time.
@@ -306,14 +311,15 @@ var daemonCmd = &cobra.Command{
 		config := service.Config{
 			Peer: pconfig,
 			BidParams: service.BidParams{
-				MinerAddr:             v.GetString("miner-addr"),
-				WalletAddrSig:         walletAddrSig,
-				AskPrice:              v.GetInt64("ask-price"),
-				VerifiedAskPrice:      v.GetInt64("verified-ask-price"),
-				FastRetrieval:         v.GetBool("fast-retrieval"),
-				DealStartWindow:       v.GetUint64("deal-start-window"),
-				DealDataFetchAttempts: v.GetUint32("deal-data-fetch-attempts"),
-				DealDataDirectory:     dealDataDirectory,
+				MinerAddr:               v.GetString("miner-addr"),
+				WalletAddrSig:           walletAddrSig,
+				AskPrice:                v.GetInt64("ask-price"),
+				VerifiedAskPrice:        v.GetInt64("verified-ask-price"),
+				FastRetrieval:           v.GetBool("fast-retrieval"),
+				DealStartWindow:         v.GetUint64("deal-start-window"),
+				DealDataDirectory:       dealDataDirectory,
+				DealDataFetchAttempts:   v.GetUint32("deal-data-fetch-attempts"),
+				DiscardOrphanDealsAfter: v.GetDuration("discard-orphan-deals-after"),
 			},
 			AuctionFilters: service.AuctionFilters{
 				DealDuration: service.MinMaxFilter{

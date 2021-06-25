@@ -72,6 +72,8 @@ type BidParams struct {
 	DealDataDirectory string
 	// DealDataFetchAttempts is the number of times fetching deal data cid will be attempted.
 	DealDataFetchAttempts uint32
+	// DiscardOrphanDealsAfter is the time after which deals with no progress will be removed.
+	DiscardOrphanDealsAfter time.Duration
 }
 
 // Validate ensures BidParams are valid.
@@ -185,6 +187,7 @@ func New(
 		lc,
 		conf.BidParams.DealDataDirectory,
 		conf.BidParams.DealDataFetchAttempts,
+		conf.BidParams.DiscardOrphanDealsAfter,
 		bytesLimiter,
 	)
 	if err != nil {
