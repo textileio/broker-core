@@ -16,7 +16,13 @@ import (
 	"github.com/textileio/broker-core/logging"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
-	"go.opentelemetry.io/otel/exporters/metric/prometheus"
+	"go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/metric/global"
+	export "go.opentelemetry.io/otel/sdk/export/metric"
+	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
+	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
+	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
+	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -133,12 +139,23 @@ func ParseStringSlice(v *viper.Viper, key string) []string {
 
 // SetupInstrumentation starts a metrics endpoint.
 func SetupInstrumentation(prometheusAddr string) error {
-	exporter, err := prometheus.InstallNewPipeline(prometheus.Config{
+	config := prometheus.Config{
 		DefaultHistogramBoundaries: []float64{1e-3, 1e-2, 1e-1, 1},
-	})
+	}
+	c := controller.New(
+		processor.New(
+			selector.NewWithHistogramDistribution(
+				histogram.WithExplicitBoundaries(config.DefaultHistogramBoundaries),
+			),
+			export.CumulativeExportKindSelector(),
+			processor.WithMemory(true),
+		),
+	)
+	exporter, err := prometheus.New(config, c)
 	if err != nil {
 		return fmt.Errorf("failed to initialize prometheus exporter %v", err)
 	}
+	global.SetMeterProvider(exporter.MeterProvider())
 	http.HandleFunc("/metrics", exporter.ServeHTTP)
 	go func() {
 		_ = http.ListenAndServe(prometheusAddr, nil)

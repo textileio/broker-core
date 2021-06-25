@@ -16,7 +16,7 @@ var defaultConfig = config{
 
 	unpinnerFrequency:       time.Minute * 5,
 	unpinnerRetryDelay:      time.Minute,
-	exportPinCountFrequency: time.Minute * 15,
+	exportPinCountFrequency: time.Minute * 30,
 }
 
 type config struct {
