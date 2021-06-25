@@ -3,6 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
+	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/detailyang/go-fallocate v0.0.0-20180908115635-432fa640bd2e
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
@@ -23,6 +24,7 @@ require (
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-blockstore v1.0.3
+	github.com/ipfs/go-ipfs-cmds v0.3.0
 	github.com/ipfs/go-ipfs-config v0.14.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
@@ -42,7 +44,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210517161200-e6ad80cf4782
 	github.com/libp2p/go-libp2p-quic-transport v0.11.0
 	github.com/mr-tron/base58 v1.2.0
-	github.com/multiformats/go-multiaddr v0.3.2
+	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.15
@@ -50,23 +52,25 @@ require (
 	github.com/near/borsh-go v0.3.0
 	github.com/ockam-network/did v0.1.3
 	github.com/oklog/ulid/v2 v2.0.2
-	github.com/ory/dockertest/v3 v3.6.3
+	github.com/ory/dockertest/v3 v3.7.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.7.1
+	github.com/spf13/viper v1.8.0
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
 	github.com/textileio/go-ds-mongo v0.1.4
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
 	github.com/textileio/jwt-go-eddsa v0.2.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.19.0
-	go.opentelemetry.io/contrib/instrumentation/runtime v0.19.0
-	go.opentelemetry.io/otel v0.19.0
-	go.opentelemetry.io/otel/exporters/metric/prometheus v0.19.0
-	go.opentelemetry.io/otel/metric v0.19.0
-	go.uber.org/zap v1.16.0
-	google.golang.org/grpc v1.37.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.21.0
+	go.opentelemetry.io/otel v1.0.0-RC1
+	go.opentelemetry.io/otel/exporters/prometheus v0.21.0
+	go.opentelemetry.io/otel/metric v0.21.0
+	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
+	go.opentelemetry.io/otel/sdk/metric v0.21.0
+	go.uber.org/zap v1.17.0
+	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 )
 
