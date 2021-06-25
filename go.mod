@@ -3,6 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
+	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/detailyang/go-fallocate v0.0.0-20180908115635-432fa640bd2e
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
@@ -51,7 +52,7 @@ require (
 	github.com/near/borsh-go v0.3.0
 	github.com/ockam-network/did v0.1.3
 	github.com/oklog/ulid/v2 v2.0.2
-	github.com/ory/dockertest/v3 v3.6.3
+	github.com/ory/dockertest/v3 v3.7.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.8.0
