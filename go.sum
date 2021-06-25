@@ -800,6 +800,8 @@ github.com/ipfs/go-ipfs-chunker v0.0.5/go.mod h1:jhgdF8vxRHycr00k13FM8Y0E+6BoalY
 github.com/ipfs/go-ipfs-cmds v0.1.0/go.mod h1:TiK4e7/V31tuEb8YWDF8lN3qrnDH+BS7ZqWIeYJlAs8=
 github.com/ipfs/go-ipfs-cmds v0.3.0 h1:mi9oYrSCox5aBhutqAYqw6/9crlyGbw4E/aJtwS4zI4=
 github.com/ipfs/go-ipfs-cmds v0.3.0/go.mod h1:ZgYiWVnCk43ChwoH8hAmI1IRbuVtq3GSTHwtRB/Kqhk=
+github.com/ipfs/go-ipfs-cmds v0.6.0 h1:yAxdowQZzoFKjcLI08sXVNnqVj3jnABbf9smrPQmBsw=
+github.com/ipfs/go-ipfs-cmds v0.6.0/go.mod h1:ZgYiWVnCk43ChwoH8hAmI1IRbuVtq3GSTHwtRB/Kqhk=
 github.com/ipfs/go-ipfs-config v0.0.11/go.mod h1:wveA8UT5ywN26oKStByzmz1CO6cXwLKKM6Jn/Hfw08I=
 github.com/ipfs/go-ipfs-config v0.5.3/go.mod h1:nSLCFtlaL+2rbl3F+9D4gQZQbT1LjRKx7TJg/IHz6oM=
 github.com/ipfs/go-ipfs-config v0.14.0 h1:KijwGU788UycqPWv4GxzyfyN6EtfJjjDRzd/wSA86VU=
