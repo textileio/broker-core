@@ -16,7 +16,7 @@ import (
 	"github.com/textileio/broker-core/logging"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
-	"go.opentelemetry.io/otel/exporters/metric/prometheus"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric/global"
 	export "go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
