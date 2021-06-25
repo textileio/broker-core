@@ -37,7 +37,7 @@ require (
 	github.com/ipld/go-car v0.1.1-0.20201119040415-11b6074b6d4d
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.2.0
-	github.com/libp2p/go-libp2p v0.14.1
+	github.com/libp2p/go-libp2p v0.14.3
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5
 	github.com/libp2p/go-libp2p-peerstore v0.2.7
