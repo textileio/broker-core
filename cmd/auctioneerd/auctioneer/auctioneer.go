@@ -276,7 +276,7 @@ func (a *Auctioneer) processAuction(
 			FastRetrieval:    pbid.FastRetrieval,
 			ReceivedAt:       time.Now(),
 		}
-		if err := a.validateBid(bid); err != nil {
+		if err := a.validateBid(&bid); err != nil {
 			return nil, fmt.Errorf("invalid bid: %v", err)
 		}
 
@@ -289,7 +289,7 @@ func (a *Auctioneer) processAuction(
 		log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
 		a.metricNewBid.Add(ctx, 1)
 
-		if !a.acceptBid(&auction, &bid) {
+		if !acceptBid(&auction, &bid) {
 			return nil, errors.New("bid rejected")
 		}
 		id, err := addBid(bid)
@@ -345,7 +345,7 @@ func (a *Auctioneer) processAuction(
 	return notifiedWinners, nil
 }
 
-func (a *Auctioneer) validateBid(b core.Bid) error {
+func (a *Auctioneer) validateBid(b *core.Bid) error {
 	if b.MinerAddr == "" {
 		return errors.New("miner address must not be empty")
 	}
@@ -375,21 +375,6 @@ func (a *Auctioneer) validateBid(b core.Bid) error {
 	return nil
 }
 
-func (a *Auctioneer) acceptBid(auction *core.Auction, bid *core.Bid) bool {
-	if auction.FilEpochDeadline > 0 && auction.FilEpochDeadline < bid.StartEpoch {
-		log.Debugf("miner %s start epoch %d doesn't meet the deadline %d of auction %s",
-			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
-		return false
-	}
-	for _, addr := range auction.ExcludedMiners {
-		if bid.MinerAddr == addr {
-			log.Debugf("miner %s is explicitly excluded from auction %s", bid.MinerAddr, auction.ID)
-			return false
-		}
-	}
-	return true
-}
-
 func (a *Auctioneer) finalizeAuction(ctx context.Context, auction core.Auction) error {
 	switch auction.Status {
 	case broker.AuctionStatusFinalized:
@@ -412,6 +397,21 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	if topic == core.AuctionTopic && string(msg) == "JOINED" {
 		a.peer.Host().ConnManager().Protect(from, "auctioneer:<bidder>")
 	}
+}
+
+func acceptBid(auction *core.Auction, bid *core.Bid) bool {
+	if auction.FilEpochDeadline > 0 && (bid.StartEpoch <= 0 || auction.FilEpochDeadline < bid.StartEpoch) {
+		log.Debugf("miner %s start epoch %d doesn't meet the deadline %d of auction %s",
+			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
+		return false
+	}
+	for _, addr := range auction.ExcludedMiners {
+		if bid.MinerAddr == addr {
+			log.Debugf("miner %s is explicitly excluded from auction %s", bid.MinerAddr, auction.ID)
+			return false
+		}
+	}
+	return true
 }
 
 type rankedBid struct {
