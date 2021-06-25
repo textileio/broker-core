@@ -2,10 +2,12 @@ package cast
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -16,7 +18,6 @@ func AuctionToPb(a broker.Auction) *pb.Auction {
 	pba := &pb.Auction{
 		Id:              string(a.ID),
 		StorageDealId:   string(a.StorageDealID),
-		DataUri:         a.DataURI,
 		DealSize:        a.DealSize,
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
@@ -98,7 +99,6 @@ func AuctionFromPb(pba *pb.Auction) (broker.Auction, error) {
 	a := broker.Auction{
 		ID:              broker.AuctionID(pba.Id),
 		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
-		DataURI:         pba.DataUri,
 		DealSize:        pba.DealSize,
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,
@@ -177,4 +177,57 @@ func AuctionWinningBidsFromPb(pbbids map[string]*pb.Auction_WinningBid) (map[bro
 		}
 	}
 	return wbids, nil
+}
+
+// SourcesToPb converts Sources to pb.
+func SourcesToPb(sources broker.Sources) *pb.Sources {
+	var carIPFS *pb.Sources_CARIPFS
+	if sources.CARIPFS != nil {
+		var multiaddrs []string
+		for _, addr := range sources.CARIPFS.Multiaddrs {
+			multiaddrs = append(multiaddrs, addr.String())
+		}
+		carIPFS = &pb.Sources_CARIPFS{
+			Cid:        sources.CARIPFS.Cid.String(),
+			Multiaddrs: multiaddrs,
+		}
+	}
+	var carURL *pb.Sources_CARURL
+	if sources.CARURL != nil {
+		carURL = &pb.Sources_CARURL{
+			URL: sources.CARURL.URL.String(),
+		}
+	}
+	return &pb.Sources{
+		CarUrl:  carURL,
+		CarIpfs: carIPFS,
+	}
+}
+
+// SourcesFromPb converts Sources back from pb.
+func SourcesFromPb(pbs *pb.Sources) (sources broker.Sources, err error) {
+	if pbs.CarUrl != nil {
+		u, err := url.Parse(pbs.CarUrl.URL)
+		if err != nil {
+			return broker.Sources{}, err
+		}
+		sources.CARURL = &broker.CARURL{URL: *u}
+	}
+
+	if pbs.CarIpfs != nil {
+		id, err := cid.Parse(pbs.CarIpfs.Cid)
+		if err != nil {
+			return broker.Sources{}, err
+		}
+		var multiaddrs []ma.Multiaddr
+		for _, s := range pbs.CarIpfs.Multiaddrs {
+			addr, err := ma.NewMultiaddr(s)
+			if err != nil {
+				return broker.Sources{}, err
+			}
+			multiaddrs = append(multiaddrs, addr)
+		}
+		sources.CARIPFS = &broker.CARIPFS{Cid: id, Multiaddrs: multiaddrs}
+	}
+	return
 }

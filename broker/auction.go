@@ -27,22 +27,24 @@ type AuctionID string
 
 // Auction defines the core auction model.
 type Auction struct {
-	ID              AuctionID
-	StorageDealID   StorageDealID
-	PayloadCid      cid.Cid
-	DataURI         string
-	DealSize        uint64
-	DealDuration    uint64
-	DealReplication uint32
-	DealVerified    bool
-	Status          AuctionStatus
-	Bids            map[BidID]Bid
-	WinningBids     map[BidID]WinningBid
-	StartedAt       time.Time
-	UpdatedAt       time.Time
-	Duration        time.Duration
-	Attempts        uint32
-	ErrorCause      string
+	ID               AuctionID
+	StorageDealID    StorageDealID
+	PayloadCid       cid.Cid
+	DealSize         uint64
+	DealDuration     uint64
+	DealReplication  uint32
+	DealVerified     bool
+	ExcludedMiners   []string
+	FilEpochDeadline uint64
+	Sources          Sources
+	Status           AuctionStatus
+	Bids             map[BidID]Bid
+	WinningBids      map[BidID]WinningBid
+	StartedAt        time.Time
+	UpdatedAt        time.Time
+	Duration         time.Duration
+	Attempts         uint32
+	ErrorCause       string
 	// Ugly trick: a workaround to avoid calling Auctioneer.finalizeAuction
 	// twice, because auctions are enqueued to the Queue again indirectly
 	// by Auctioneer.DeliverProposal.

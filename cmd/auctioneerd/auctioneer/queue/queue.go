@@ -147,9 +147,6 @@ func validate(a broker.Auction) error {
 	if !a.PayloadCid.Defined() {
 		return errors.New("payload cid is empty")
 	}
-	if a.DataURI == "" {
-		return errors.New("data uri is empty")
-	}
 	if a.DealSize == 0 {
 		return errors.New("deal size must be greater than zero")
 	}
@@ -158,6 +155,9 @@ func validate(a broker.Auction) error {
 	}
 	if a.DealReplication == 0 {
 		return errors.New("deal replication must be greater than zero")
+	}
+	if err := a.Sources.Validate(); err != nil {
+		return err
 	}
 	if a.Status != broker.AuctionStatusUnspecified {
 		return errors.New("invalid initial auction status")

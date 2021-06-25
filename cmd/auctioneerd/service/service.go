@@ -117,9 +117,6 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "payload cid unparseable")
 	}
-	if req.DataUri == "" {
-		return nil, status.Error(codes.InvalidArgument, "data uri is empty")
-	}
 	if req.DealSize == 0 {
 		return nil, status.Error(codes.InvalidArgument, "deal size must be greater than zero")
 	}
@@ -129,17 +126,22 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	if req.DealReplication == 0 {
 		return nil, status.Error(codes.InvalidArgument, "deal replication must be greater than zero")
 	}
+	sources, err := cast.SourcesFromPb(req.Sources)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "decoding sources: %v", err)
+	}
 
-	id, err := s.lib.CreateAuction(
-		broker.StorageDealID(req.StorageDealId),
-		payloadCid,
-		req.DataUri,
-		req.DealSize,
-		req.DealDuration,
-		req.DealReplication,
-		req.DealVerified,
-		// req.ExcludedMiners, // TODO(sander/merlin): wire this.
-	)
+	id, err := s.lib.CreateAuction(broker.Auction{
+		StorageDealID:    broker.StorageDealID(req.StorageDealId),
+		PayloadCid:       payloadCid,
+		DealSize:         req.DealSize,
+		DealDuration:     req.DealDuration,
+		DealReplication:  req.DealReplication,
+		DealVerified:     req.DealVerified,
+		ExcludedMiners:   req.ExcludedMiners,
+		FilEpochDeadline: req.FilEpochDeadline,
+		Sources:          sources,
+	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}

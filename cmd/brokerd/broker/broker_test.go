@@ -98,7 +98,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	require.NotNil(t, sd2.Sources.CARURL)
 	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), sd2.Sources.CARURL.URL.String())
 	require.Nil(t, sd2.Sources.CARIPFS)
-	require.Nil(t, sd2.FilEpochDeadline)
+	require.Zero(t, sd2.FilEpochDeadline)
 	require.False(t, sd2.DisallowRebatching)
 }
 
@@ -160,7 +160,7 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
 	require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
 	require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
-	require.Equal(t, int64(857142), *sd.FilEpochDeadline)
+	require.Equal(t, uint64(857142), sd.FilEpochDeadline)
 	require.Equal(t, payloadCid, sd.PayloadCid)
 	require.Equal(t, pc.PieceCid, sd.PieceCid)
 	require.Equal(t, pc.PieceSize, sd.PieceSize)
@@ -174,7 +174,7 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, pc.RepFactor, auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
 	require.NotNil(t, auctioneer.calledFilEpochDeadline)
-	require.Equal(t, int64(857142), *auctioneer.calledFilEpochDeadline)
+	require.Equal(t, uint64(857142), auctioneer.calledFilEpochDeadline)
 	require.NotNil(t, auctioneer.calledSources.CARURL)
 	require.Equal(t, pc.Sources.CARIPFS.Cid, auctioneer.calledSources.CARIPFS.Cid)
 	require.Len(t, auctioneer.calledSources.CARIPFS.Multiaddrs, 1)
@@ -249,7 +249,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
 	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
-	require.Nil(t, auctioneer.calledFilEpochDeadline)
+	require.Zero(t, auctioneer.calledFilEpochDeadline)
 	require.NotNil(t, auctioneer.calledSources.CARURL)
 	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), auctioneer.calledSources.CARURL.URL.String())
 
@@ -727,7 +727,7 @@ type dumbAuctioneer struct {
 	calledExcludedMiners   []string
 	calledCount            int
 	calledSources          broker.Sources
-	calledFilEpochDeadline *int64
+	calledFilEpochDeadline uint64
 }
 
 func (dp *dumbAuctioneer) ReadyToAuction(
@@ -737,7 +737,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
 	excludedMiners []string,
-	filEpochDeadline *int64,
+	filEpochDeadline uint64,
 	sources broker.Sources,
 ) (broker.AuctionID, error) {
 	dp.calledStorageDealID = id

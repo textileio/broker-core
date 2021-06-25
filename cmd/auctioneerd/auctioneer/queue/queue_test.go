@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"crypto/rand"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 )
 
 var testCid cid.Cid
+var testSources broker.Sources
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
@@ -30,6 +32,8 @@ func init() {
 	}
 
 	testCid, _ = cid.Parse("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1")
+	carURL, _ := url.Parse("https://foo.com/cid/123")
+	testSources = broker.Sources{CARURL: &broker.CARURL{URL: *carURL}}
 }
 
 func TestQueue_newID(t *testing.T) {
@@ -55,16 +59,17 @@ func TestQueue_ListAuctions(t *testing.T) {
 
 	limit := 100
 	now := time.Now()
+
 	ids := make([]broker.AuctionID, limit)
 	for i := 0; i < limit; i++ {
 		now = now.Add(time.Millisecond)
 		id, err := q.CreateAuction(broker.Auction{
 			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 			PayloadCid:      testCid,
-			DataURI:         "https://foo.com/cid/123",
 			DealSize:        1024,
 			DealDuration:    1,
 			DealReplication: 1,
+			Sources:         testSources,
 			Duration:        time.Second,
 		})
 		require.NoError(t, err)
@@ -105,10 +110,10 @@ func TestQueue_CreateAuction(t *testing.T) {
 	id, err := q.CreateAuction(broker.Auction{
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
-		DataURI:         "https://foo.com/cid/123",
 		DealSize:        1024,
 		DealDuration:    1,
 		DealReplication: 1,
+		Sources:         testSources,
 		Duration:        time.Millisecond,
 	})
 	require.NoError(t, err)
@@ -121,7 +126,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	assert.NotEmpty(t, got.ID)
 	assert.NotEmpty(t, got.StorageDealID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
-	assert.NotEmpty(t, got.DataURI)
+	assert.Equal(t, "https://foo.com/cid/123", got.Sources.CARURL.URL.String())
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1, int(got.DealDuration))
 	assert.Equal(t, 1, int(got.DealReplication))
@@ -141,7 +146,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	id, err := q.CreateAuction(broker.Auction{
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
-		DataURI:         "https://foo.com/cid/123",
+		Sources:         testSources,
 		DealSize:        1024,
 		DealDuration:    1,
 		DealReplication: 2,

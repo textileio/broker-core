@@ -19,6 +19,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
@@ -381,8 +382,12 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return nil
 	}
 
+	sources, err := cast.SourcesFromPb(auction.Sources)
+	if err != nil {
+		return err
+	}
 	// Ensure we can fetch the data
-	dataURI, err := datauri.NewURI(auction.PayloadCid, auction.DataUri)
+	dataURI, err := datauri.NewFromSources(auction.PayloadCid, sources)
 	if err != nil {
 		return fmt.Errorf("parsing data uri: %v", err)
 	}
@@ -459,9 +464,9 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		AuctionID:        broker.AuctionID(auction.Id),
 		AuctioneerID:     from,
 		PayloadCid:       payloadCid,
-		DataURI:          dataURI.String(),
 		DealSize:         auction.DealSize,
 		DealDuration:     auction.DealDuration,
+		Sources:          sources,
 		AskPrice:         bid.AskPrice,
 		VerifiedAskPrice: bid.VerifiedAskPrice,
 		StartEpoch:       bid.StartEpoch,

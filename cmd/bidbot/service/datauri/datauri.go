@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipld/go-car"
+	"github.com/textileio/broker-core/broker"
 	golog "github.com/textileio/go-log/v2"
 )
 
@@ -36,6 +37,14 @@ type URI interface {
 	Cid() cid.Cid
 	Write(context.Context, io.Writer) error
 	Validate(ctx context.Context) error
+}
+
+// NewFromSources returns a new URI from the given sources.
+func NewFromSources(payloadCid string, sources broker.Sources) (URI, error) {
+	if sources.CARURL != nil {
+		return NewURI(payloadCid, sources.CARURL.URL.String())
+	}
+	return nil, errors.New("not implemented")
 }
 
 // NewURI returns a new URI for the given string uri.
