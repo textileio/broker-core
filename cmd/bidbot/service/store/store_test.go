@@ -251,7 +251,7 @@ func TestStore_StatusProgression(t *testing.T) {
 
 		got, err = s.GetBid(id)
 		require.NoError(t, err)
-		assert.Equal(t, BidStatusFinalized, got.Status)
+		assert.Equal(t, BidStatusErrored, got.Status)
 		assert.NotEmpty(t, got.ErrorCause)
 		assert.Equal(t, 2, int(got.DataURIFetchAttempts))
 	})
