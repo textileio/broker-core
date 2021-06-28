@@ -236,7 +236,8 @@ func (s *Store) StorageDealToAuctioning(
 func (s *Store) StorageDealError(
 	ctx context.Context,
 	id broker.StorageDealID,
-	errorCause string) ([]broker.BrokerRequestID, error) {
+	errorCause string,
+	rebatch bool) ([]broker.BrokerRequestID, error) {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {
 		return nil, fmt.Errorf("creating transaction: %s", err)
@@ -279,7 +280,12 @@ func (s *Store) StorageDealError(
 		if err != nil {
 			return nil, fmt.Errorf("getting broker request: %s", err)
 		}
-		br.Status = broker.RequestBatching
+		br.Status = broker.RequestError
+		if rebatch {
+			br.Status = broker.RequestBatching
+			br.RebatchCount++
+			br.ErrCause = errorCause
+		}
 		br.UpdatedAt = now
 		if err := saveBrokerRequest(txn, br); err != nil {
 			return nil, fmt.Errorf("saving broker request: %s", err)

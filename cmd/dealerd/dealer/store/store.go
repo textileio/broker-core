@@ -387,7 +387,6 @@ func (s *Store) GetAuctionDealStatusCounts() (map[storagemarket.StorageDealStatu
 			if err := d.Decode(&ad); err != nil {
 				return nil, fmt.Errorf("unmarshaling gob: %s", err)
 			}
-			log.Debugf("woot: %s %d", ad.ProposalCid, ad.DealMarketStatus)
 			ret[ad.DealMarketStatus]++
 		}
 	}

@@ -17,6 +17,8 @@ type brokerRequest struct {
 	Status        broker.BrokerRequestStatus
 	Metadata      metadata
 	StorageDealID broker.StorageDealID
+	RebatchCount  int
+	ErrCause      string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }

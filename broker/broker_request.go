@@ -61,10 +61,12 @@ const (
 	RequestPreparing
 	// RequestAuctioning indicates that a broker request is in bidding stage.
 	RequestAuctioning
-	// RequestDealMaking indicates that the storage deal deals are being executed.
+	// RequestDealMaking indicates that the broker request deals are being executed.
 	RequestDealMaking
-	// RequestSuccess indicates that the storage deal was successfully stored in Filecoin.
+	// RequestSuccess indicates that the broker request was successfully stored in Filecoin.
 	RequestSuccess
+	// RequestError indicates that the broker request storage errored.
+	RequestError
 )
 
 // String returns a string-encoded status.

@@ -53,6 +53,8 @@ type Config struct {
 	VerifiedDeals   bool
 
 	CARExportURL string
+
+	AuctionMaxRetries int
 }
 
 // Service provides an implementation of the broker API.
@@ -129,6 +131,7 @@ func New(config Config) (*Service, error) {
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
 		brokeri.WithCARExportURL(config.CARExportURL),
+		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)

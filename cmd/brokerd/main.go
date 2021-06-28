@@ -31,6 +31,7 @@ func init() {
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
 		{Name: "deal-duration", DefValue: broker.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
+		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "car-export-url", DefValue: "", Description: "URL that generates CAR files for stored cids"},
@@ -78,6 +79,8 @@ var rootCmd = &cobra.Command{
 			VerifiedDeals:   v.GetBool("verified-deals"),
 
 			CARExportURL: v.GetString("car-export-url"),
+
+			AuctionMaxRetries: v.GetInt("auction-max-retries"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
