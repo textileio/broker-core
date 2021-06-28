@@ -309,12 +309,13 @@ func (a *Auctioneer) processAuction(
 
 	// Publish the auction
 	msg, err := proto.Marshal(&pb.Auction{
-		Id:           string(auction.ID),
-		PayloadCid:   auction.PayloadCid.String(),
-		DealSize:     auction.DealSize,
-		DealDuration: auction.DealDuration,
-		Sources:      cast.SourcesToPb(auction.Sources),
-		EndsAt:       timestamppb.New(deadline),
+		Id:               string(auction.ID),
+		PayloadCid:       auction.PayloadCid.String(),
+		DealSize:         auction.DealSize,
+		DealDuration:     auction.DealDuration,
+		FilEpochDeadline: auction.FilEpochDeadline,
+		Sources:          cast.SourcesToPb(auction.Sources),
+		EndsAt:           timestamppb.New(deadline),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message: %v", err)
