@@ -87,6 +87,28 @@ type storageDeal struct {
 	Deals []minerDeal
 }
 
+type storageDeal2 struct {
+	ID                 broker.StorageDealID
+	Status             broker.StorageDealStatus
+	BrokerRequestIDs   []broker.BrokerRequestID
+	RepFactor          int
+	DealDuration       int
+	AuctionRetries     int
+	DisallowRebatching bool
+	FilEpochDeadline   *int64
+	Sources            sources
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Error              string
+
+	PayloadCid cid.Cid
+
+	PieceCid  cid.Cid
+	PieceSize uint64
+
+	Deals []minerDeal
+}
+
 type sources struct {
 	CARURL  *string
 	CARIPFS *carIPFS

@@ -357,7 +357,6 @@ func (b *Broker) StorageDealProposalAccepted(
 		if deal.Miner == miner {
 			auctionID = deal.AuctionID
 			bidID = deal.BidID
-			break
 		}
 	}
 
