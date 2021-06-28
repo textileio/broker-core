@@ -405,6 +405,12 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	if err != nil {
 		return fmt.Errorf("getting chain height: %v", err)
 	}
+	startEpoch := s.bidParams.DealStartWindow + currentEpoch
+	if auction.FilEpochDeadline > 0 && auction.FilEpochDeadline < startEpoch {
+		log.Infof("auction %s from %s requires epoch no later than %d, but I can only promise epoch %d, skip bidding",
+			auction.Id, from, auction.FilEpochDeadline, startEpoch)
+		return nil
+	}
 
 	// Make sure we have write permission and enough space to cache the data.
 	// This needs to be the last step before bidding to avoid allocating unnecessarily.
@@ -431,7 +437,7 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		WalletAddrSig:    s.bidParams.WalletAddrSig,
 		AskPrice:         s.bidParams.AskPrice,
 		VerifiedAskPrice: s.bidParams.VerifiedAskPrice,
-		StartEpoch:       s.bidParams.DealStartWindow + currentEpoch,
+		StartEpoch:       startEpoch,
 		FastRetrieval:    s.bidParams.FastRetrieval,
 	}
 	bidj, err := json.MarshalIndent(bid, "", "  ")

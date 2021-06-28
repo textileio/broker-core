@@ -10,8 +10,9 @@ message Auction {
     string payload_cid = 2;
     uint64 deal_size = 3;
     uint64 deal_duration = 4;
-    broker.auctioneer.v1.Sources sources = 5;
-    google.protobuf.Timestamp ends_at = 6;
+    uint64 fil_epoch_deadline = 5;
+    broker.auctioneer.v1.Sources sources = 6;
+    google.protobuf.Timestamp ends_at = 7;
 }
 
 message Bid {
