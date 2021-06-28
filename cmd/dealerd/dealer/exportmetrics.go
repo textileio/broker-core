@@ -13,8 +13,7 @@ import (
 func (d *Dealer) daemonExportMetrics() {
 	var (
 		metricStatusCounter metric.Int64ValueObserver
-		countMap            map[storagemarket.StorageDealStatus]int64
-		err                 error
+		countMap            = map[storagemarket.StorageDealStatus]int64{}
 	)
 	attrStatus := attribute.Key("status")
 
@@ -30,11 +29,18 @@ func (d *Dealer) daemonExportMetrics() {
 
 	for {
 		start := time.Now()
-		countMap, err = d.store.GetAuctionDealStatusCounts()
+		newCountMap, err := d.store.GetAuctionDealStatusCounts()
 		if err != nil {
 			log.Errorf("metrics count statuses: %s", err)
 			continue
 		}
+		for status := range countMap {
+			countMap[status] = 0
+		}
+		for status, val := range newCountMap {
+			countMap[status] = val
+		}
+
 		log.Debugf("get auction deal status counts took %dms", time.Since(start).Milliseconds())
 		<-time.After(d.config.exportStatusesCountFrequency)
 	}
