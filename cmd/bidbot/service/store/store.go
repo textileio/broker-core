@@ -453,26 +453,22 @@ func (s *Store) ListBids(query Query) ([]*Bid, error) {
 	return list, nil
 }
 
-// PreallocateDataURI preallocate the file space for the uri resource under the configured deal data directory.
-func (s *Store) PreallocateDataURI(duri datauri.URI, size uint64) error {
-	return nil
-}
-
-// WriteSources writes the sources to the configured deal data directory.
-func (s *Store) WriteSources(payloadCid string, sources broker.Sources) (string, error) {
-	if sources.CARURL != nil {
-		return s.WriteDataURI(payloadCid, sources.CARURL.URL.String())
+// WriteDealData writes the deal data to the configured deal data directory.
+func (s *Store) WriteDealData(b *Bid) (string, error) {
+	if b.Sources.CARURL != nil {
+		return s.WriteDataURI(b.ID, b.PayloadCid.String(), b.Sources.CARURL.URL.String())
 	}
 	return "", errors.New("not implemented")
 }
 
 // WriteDataURI writes the uri resource to the configured deal data directory.
-func (s *Store) WriteDataURI(payloadCid, uri string) (string, error) {
+func (s *Store) WriteDataURI(bidID broker.BidID, payloadCid, uri string) (string, error) {
 	duri, err := datauri.NewURI(payloadCid, uri)
 	if err != nil {
 		return "", fmt.Errorf("parsing data uri: %w", err)
 	}
-	f, err := os.Create(filepath.Join(s.dealDataDirectory, duri.Cid().String()))
+	filePath := filepath.Join(s.dealDataDirectory, fmt.Sprintf("%s_%s", payloadCid, bidID))
+	f, err := os.Create(filePath)
 	if err != nil {
 		return "", fmt.Errorf("opening file for deal data: %v", err)
 	}
@@ -566,7 +562,7 @@ func (s *Store) fetchWorker(num int) {
 				status BidStatus
 				logMsg string
 			)
-			file, err := s.WriteSources(b.PayloadCid.String(), b.Sources)
+			file, err := s.WriteDealData(b)
 			if err != nil {
 				status = fail(b, err)
 				logMsg = fmt.Sprintf("status=%s error=%s", status, b.ErrorCause)

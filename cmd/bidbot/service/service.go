@@ -309,7 +309,7 @@ func (s *Service) GetBid(id broker.BidID) (*bidstore.Bid, error) {
 
 // WriteDataURI writes a data uri resource to the configured deal data directory.
 func (s *Service) WriteDataURI(payloadCid, uri string) (string, error) {
-	return s.store.WriteDataURI(payloadCid, uri)
+	return s.store.WriteDataURI(broker.BidID(""), payloadCid, uri)
 }
 
 func (s *Service) eventHandler(from peer.ID, topic string, msg []byte) {
@@ -404,12 +404,6 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 	currentEpoch, err := s.fc.GetChainHeight()
 	if err != nil {
 		return fmt.Errorf("getting chain height: %v", err)
-	}
-
-	// Make sure we have write permission and enough space to cache the data.
-	// This needs to be the last step before bidding to avoid allocating unnecessarily.
-	if err := s.store.PreallocateDataURI(dataURI, auction.DealSize); err != nil {
-		return fmt.Errorf("allocating space for deal data: %v", err)
 	}
 
 	// Create bids topic
