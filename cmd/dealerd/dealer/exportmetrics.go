@@ -13,7 +13,7 @@ import (
 func (d *Dealer) daemonExportMetrics() {
 	var (
 		metricStatusCounter metric.Int64ValueObserver
-		countMap            map[storagemarket.StorageDealStatus]int64
+		countMap            = map[storagemarket.StorageDealStatus]int64{}
 	)
 	attrStatus := attribute.Key("status")
 
