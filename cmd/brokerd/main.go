@@ -79,6 +79,8 @@ var rootCmd = &cobra.Command{
 			VerifiedDeals:   v.GetBool("verified-deals"),
 
 			CARExportURL: v.GetString("car-export-url"),
+
+			AuctionMaxRetries: v.GetInt("auction-max-retries"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
