@@ -28,7 +28,6 @@ func (d *Dealer) daemonExportMetrics() {
 	metricStatusCounter = batchObs.NewInt64ValueObserver(metrics.Prefix + ".deal_status_count")
 
 	for {
-
 		start := time.Now()
 		newCountMap, err := d.store.GetAuctionDealStatusCounts()
 		if err != nil {

@@ -639,7 +639,6 @@ func getStorageDeal(r datastore.Read, id broker.StorageDealID) (storageDeal, err
 		sd.PieceSize = sd2.PieceSize
 
 		sd.Deals = sd2.Deals
-
 	}
 
 	return sd, nil
