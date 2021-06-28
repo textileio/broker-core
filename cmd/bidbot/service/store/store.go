@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/detailyang/go-fallocate"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
