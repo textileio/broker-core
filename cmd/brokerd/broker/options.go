@@ -113,7 +113,7 @@ func WithCARExportURL(rawURL string) Option {
 	}
 }
 
-// WithAuctionMaxRetires indicates the maximum number of auctions that can be created
+// WithAuctionMaxRetries indicates the maximum number of auctions that can be created
 // for a storage deal.
 func WithAuctionMaxRetries(max int) Option {
 	return func(c *config) error {

@@ -36,8 +36,6 @@ var (
 	// ErrEmptyGroup is returned when an empty storage deal group
 	// is received.
 	ErrEmptyGroup = fmt.Errorf("the storage deal group is empty")
-	// ErrMaxAuctionRetries indicates that an auction has re-auction for the max
-	// allowed number of times.
 
 	log = logger.Logger("broker")
 )
