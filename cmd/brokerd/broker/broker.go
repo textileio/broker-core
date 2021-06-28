@@ -25,6 +25,7 @@ import (
 
 const (
 	filecoinGenesisUnixEpoch = 1598306400
+	causeMaxAuctionRetries   = "reached max number of retries"
 )
 
 var (
@@ -35,6 +36,8 @@ var (
 	// ErrEmptyGroup is returned when an empty storage deal group
 	// is received.
 	ErrEmptyGroup = fmt.Errorf("the storage deal group is empty")
+	// ErrMaxAuctionRetries indicates that an auction has re-auction for the max
+	// allowed number of times.
 
 	log = logger.Logger("broker")
 )
@@ -357,7 +360,6 @@ func (b *Broker) StorageDealProposalAccepted(
 		if deal.Miner == miner {
 			auctionID = deal.AuctionID
 			bidID = deal.BidID
-			break
 		}
 	}
 
@@ -398,6 +400,15 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 				return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 			}
 		case true:
+			if sd.AuctionRetries > b.conf.auctionMaxRetries {
+				log.Warnf("stop prepared SD %s re-auctioning after %d retries", sd.ID, sd.AuctionRetries)
+				_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
+				if err != nil {
+					return fmt.Errorf("moving storage deal to error status: %s", err)
+				}
+				return nil
+			}
+
 			// The batch can't be rebatched, since it's a prepared CAR file.
 			// We simply foce to create a new auction.
 			auctionID, err := b.auctioneer.ReadyToAuction(
@@ -602,7 +613,7 @@ func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (b
 // - Move the underlying broker requests of the storage deal to Batching.
 // - Create an async job to unpin the Cid of the batch (since won't be relevant anymore).
 func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.StorageDealID, errCause string) error {
-	brs, err := b.store.StorageDealError(ctx, id, errCause)
+	brs, err := b.store.StorageDealError(ctx, id, errCause, true)
 	if err != nil {
 		return fmt.Errorf("moving storage deal to error status: %s", err)
 	}

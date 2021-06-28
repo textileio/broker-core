@@ -17,6 +17,8 @@ type brokerRequest struct {
 	Status        broker.BrokerRequestStatus
 	Metadata      metadata
 	StorageDealID broker.StorageDealID
+	RebatchCount  int
+	ErrCause      string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -74,6 +76,28 @@ type storageDeal struct {
 	AuctionRetries     int
 	DisallowRebatching bool
 	FilEpochDeadline   uint64
+	Sources            sources
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Error              string
+
+	PayloadCid cid.Cid
+
+	PieceCid  cid.Cid
+	PieceSize uint64
+
+	Deals []minerDeal
+}
+
+type storageDeal2 struct {
+	ID                 broker.StorageDealID
+	Status             broker.StorageDealStatus
+	BrokerRequestIDs   []broker.BrokerRequestID
+	RepFactor          int
+	DealDuration       int
+	AuctionRetries     int
+	DisallowRebatching bool
+	FilEpochDeadline   *int64
 	Sources            sources
 	CreatedAt          time.Time
 	UpdatedAt          time.Time

@@ -17,6 +17,8 @@ var defaultConfig = config{
 	unpinnerFrequency:       time.Minute * 5,
 	unpinnerRetryDelay:      time.Minute,
 	exportPinCountFrequency: time.Minute * 30,
+
+	auctionMaxRetries: 5,
 }
 
 type config struct {
@@ -29,6 +31,8 @@ type config struct {
 	exportPinCountFrequency time.Duration
 
 	carExportURL *url.URL
+
+	auctionMaxRetries int
 }
 
 // Option provides configuration for Broker.
@@ -105,6 +109,18 @@ func WithCARExportURL(rawURL string) Option {
 			return fmt.Errorf("parsing url: %s", err)
 		}
 		c.carExportURL = u
+		return nil
+	}
+}
+
+// WithAuctionMaxRetires indicates the maximum number of auctions that can be created
+// for a storage deal.
+func WithAuctionMaxRetries(max int) Option {
+	return func(c *config) error {
+		if max <= 0 {
+			return errors.New("auction max number of retries should be positive")
+		}
+		c.auctionMaxRetries = max
 		return nil
 	}
 }

@@ -236,7 +236,8 @@ func (s *Store) StorageDealToAuctioning(
 func (s *Store) StorageDealError(
 	ctx context.Context,
 	id broker.StorageDealID,
-	errorCause string) ([]broker.BrokerRequestID, error) {
+	errorCause string,
+	rebatch bool) ([]broker.BrokerRequestID, error) {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {
 		return nil, fmt.Errorf("creating transaction: %s", err)
@@ -279,7 +280,12 @@ func (s *Store) StorageDealError(
 		if err != nil {
 			return nil, fmt.Errorf("getting broker request: %s", err)
 		}
-		br.Status = broker.RequestBatching
+		br.Status = broker.RequestError
+		if rebatch {
+			br.Status = broker.RequestBatching
+			br.RebatchCount++
+			br.ErrCause = errorCause
+		}
 		br.UpdatedAt = now
 		if err := saveBrokerRequest(txn, br); err != nil {
 			return nil, fmt.Errorf("saving broker request: %s", err)
@@ -611,7 +617,34 @@ func getStorageDeal(r datastore.Read, id broker.StorageDealID) (storageDeal, err
 	}
 	dec := gob.NewDecoder(bytes.NewReader(buf))
 	if err := dec.Decode(&sd); err != nil {
-		return storageDeal{}, fmt.Errorf("unmarshaling storage deal: %s", err)
+		var sd2 storageDeal2
+		dec = gob.NewDecoder(bytes.NewReader(buf))
+		if err := dec.Decode(&sd2); err != nil {
+			return storageDeal{}, fmt.Errorf("unmarshaling storage deal: %s", err)
+		}
+		sd.ID = sd2.ID
+		sd.Status = sd2.Status
+		sd.BrokerRequestIDs = sd2.BrokerRequestIDs
+		sd.RepFactor = sd2.RepFactor
+		sd.DealDuration = sd2.DealDuration
+		sd.AuctionRetries = sd2.AuctionRetries
+		sd.DisallowRebatching = sd2.DisallowRebatching
+
+		sd.FilEpochDeadline = 0
+		if sd2.FilEpochDeadline != nil {
+			sd.FilEpochDeadline = uint64(*sd2.FilEpochDeadline)
+		}
+		sd.Sources = sd2.Sources
+		sd.CreatedAt = sd2.CreatedAt
+		sd.UpdatedAt = sd2.UpdatedAt
+		sd.Error = sd2.Error
+
+		sd.PayloadCid = sd2.PayloadCid
+
+		sd.PieceCid = sd2.PieceCid
+		sd.PieceSize = sd2.PieceSize
+
+		sd.Deals = sd2.Deals
 	}
 
 	return sd, nil
