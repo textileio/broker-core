@@ -358,6 +358,7 @@ func (b *Broker) StorageDealProposalAccepted(
 		if deal.Miner == miner {
 			auctionID = deal.AuctionID
 			bidID = deal.BidID
+			break
 		}
 	}
 
@@ -398,7 +399,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 				return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 			}
 		case true:
-			if sd.AuctionRetries > b.conf.auctionMaxRetries {
+			if sd.AuctionRetries == b.conf.auctionMaxRetries {
 				log.Warnf("stop prepared SD %s re-auctioning after %d retries", sd.ID, sd.AuctionRetries)
 				_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
 				if err != nil {
@@ -445,6 +446,18 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 		return fmt.Errorf("storage-deal isn't in expected status: %s", sd.Status)
 	}
 
+	deltaRepFactor := sd.RepFactor - len(au.WinningBids)
+	// If we have less than expected winning bids, and we already auctioned max amount of times
+	// we error.
+	if deltaRepFactor > 0 && sd.AuctionRetries >= b.conf.auctionMaxRetries {
+		log.Warnf("stop partial winning auction for %s re-auctioning after %d retries", sd.ID, sd.AuctionRetries)
+		_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
+		if err != nil {
+			return fmt.Errorf("moving storage deal to error status: %s", err)
+		}
+		return nil
+	}
+
 	// 1. We tell dealerd to start making deals with the miners from winning bids.
 	ads := dealer.AuctionDeals{
 		StorageDealID: sd.ID,
@@ -488,7 +501,6 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 
 	// 2. There's a chance that the winning bids from the auction are less than what we specified
 	//    in the replication factor.
-	deltaRepFactor := sd.RepFactor - len(au.WinningBids)
 	if deltaRepFactor > 0 {
 		// We exclude all previous/currently miners involved with this data, this includes:
 		// - Miners that already confirmed a deal on-chain.
