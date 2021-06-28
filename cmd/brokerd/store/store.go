@@ -617,34 +617,7 @@ func getStorageDeal(r datastore.Read, id broker.StorageDealID) (storageDeal, err
 	}
 	dec := gob.NewDecoder(bytes.NewReader(buf))
 	if err := dec.Decode(&sd); err != nil {
-		var sd2 storageDeal2
-		dec = gob.NewDecoder(bytes.NewReader(buf))
-		if err := dec.Decode(&sd2); err != nil {
-			return storageDeal{}, fmt.Errorf("unmarshaling storage deal: %s", err)
-		}
-		sd.ID = sd2.ID
-		sd.Status = sd2.Status
-		sd.BrokerRequestIDs = sd2.BrokerRequestIDs
-		sd.RepFactor = sd2.RepFactor
-		sd.DealDuration = sd2.DealDuration
-		sd.AuctionRetries = sd2.AuctionRetries
-		sd.DisallowRebatching = sd2.DisallowRebatching
-
-		sd.FilEpochDeadline = 0
-		if sd2.FilEpochDeadline != nil {
-			sd.FilEpochDeadline = uint64(*sd2.FilEpochDeadline)
-		}
-		sd.Sources = sd2.Sources
-		sd.CreatedAt = sd2.CreatedAt
-		sd.UpdatedAt = sd2.UpdatedAt
-		sd.Error = sd2.Error
-
-		sd.PayloadCid = sd2.PayloadCid
-
-		sd.PieceCid = sd2.PieceCid
-		sd.PieceSize = sd2.PieceSize
-
-		sd.Deals = sd2.Deals
+		return storageDeal{}, fmt.Errorf("unmarshaling storage deal: %s", err)
 	}
 
 	return sd, nil
