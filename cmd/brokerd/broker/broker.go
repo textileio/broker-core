@@ -399,7 +399,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 				return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 			}
 		case true:
-			if sd.AuctionRetries == b.conf.auctionMaxRetries {
+			if sd.AuctionRetries >= b.conf.auctionMaxRetries {
 				log.Warnf("stop prepared SD %s re-auctioning after %d retries", sd.ID, sd.AuctionRetries)
 				_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
 				if err != nil {
