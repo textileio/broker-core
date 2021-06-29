@@ -467,8 +467,7 @@ func (s *Store) WriteDataURI(bidID broker.BidID, payloadCid, uri string) (string
 	if err != nil {
 		return "", fmt.Errorf("parsing data uri: %w", err)
 	}
-	filePath := filepath.Join(s.dealDataDirectory, fmt.Sprintf("%s_%s", payloadCid, bidID))
-	f, err := os.Create(filePath)
+	f, err := os.Create(s.dealDataFilePathFor(bidID, payloadCid))
 	if err != nil {
 		return "", fmt.Errorf("opening file for deal data: %v", err)
 	}
@@ -497,6 +496,10 @@ func (s *Store) HealthCheck() error {
 		return err
 	}
 	return os.Remove(f.Name())
+}
+
+func (s *Store) dealDataFilePathFor(bidID broker.BidID, payloadCid string) string {
+	return filepath.Join(s.dealDataDirectory, fmt.Sprintf("%s_%s", payloadCid, bidID))
 }
 
 // enqueueDataURI queues a data uri fetch.
@@ -632,7 +635,7 @@ func (s *Store) GC(discardOrphanDealsAfter time.Duration) (bidsRemoved, filesRem
 		log.Errorf("listing bids: %v", err)
 		return
 	}
-	keepCids := make(map[string]struct{})
+	keepFiles := make(map[string]struct{})
 	for _, bid := range bids {
 		if discardOrphanDealsAfter > 0 &&
 			bid.Status == BidStatusAwaitingProposal &&
@@ -646,7 +649,7 @@ func (s *Store) GC(discardOrphanDealsAfter time.Duration) (bidsRemoved, filesRem
 				bidsRemoved++
 			}
 		} else {
-			keepCids[bid.PayloadCid.String()] = struct{}{}
+			keepFiles[s.dealDataFilePathFor(bid.ID, bid.PayloadCid.String())] = struct{}{}
 		}
 	}
 	walk := func(path string, info os.FileInfo, err error) error {
@@ -657,7 +660,7 @@ func (s *Store) GC(discardOrphanDealsAfter time.Duration) (bidsRemoved, filesRem
 		if info.IsDir() {
 			return nil
 		}
-		if _, exists := keepCids[info.Name()]; !exists {
+		if _, exists := keepFiles[path]; !exists {
 			if err := os.Remove(path); err != nil {
 				log.Errorf("error removing %s: %v", path, err)
 				return nil
