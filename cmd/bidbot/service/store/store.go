@@ -102,7 +102,7 @@ const (
 	BidStatusQueuedData
 	// BidStatusFetchingData indicates the bid data uri is being fetched.
 	BidStatusFetchingData
-	// BidStatusFinalized indicates the bid has been accepted and the data uri fetched.
+	// BidStatusFinalized indicates the bid has been accepted and the data has been imported to Lotus.
 	BidStatusFinalized
 	// BidStatusErrored indicates a fatal error has occurred and the bid should be considered abandoned.
 	BidStatusErrored
@@ -648,6 +648,8 @@ func (s *Store) GC(discardOrphanDealsAfter time.Duration) (bidsRemoved, filesRem
 			} else {
 				bidsRemoved++
 			}
+		} else if bid.Status == BidStatusFinalized {
+			log.Debugf("will remove deal data for finalized deal %s", bid.ID)
 		} else {
 			keepFiles[s.dealDataFilePathFor(bid.ID, bid.PayloadCid.String())] = struct{}{}
 		}
