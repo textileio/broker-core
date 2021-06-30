@@ -6,29 +6,30 @@ import (
 )
 
 type config struct {
-	frequency    time.Duration
+	daemonFreq        time.Duration
+	exportMetricsFreq time.Duration
+
 	sectorSize   int64
 	batchMinSize uint
 }
 
 var defaultConfig = config{
-	frequency:    time.Second * 20,
-	sectorSize:   32 << 30,
-	batchMinSize: 10 << 20,
+	daemonFreq:        time.Second * 20,
+	exportMetricsFreq: time.Minute * 5,
+	sectorSize:        32 << 30,
+	batchMinSize:      10 << 20,
 }
 
 // Option applies a configuration change.
 type Option func(*config) error
 
-// WithFrequency indicates how much time should pass until a batch is
-// created. e.g: every 20 seconds as a maximum waiting time for the next batch
-// if data is available.
-func WithFrequency(frequency time.Duration) Option {
+// WithBatchFrequency indicates the frequency in which ready batches are processed.
+func WithDaemonFrequency(frequency time.Duration) Option {
 	return func(c *config) error {
 		if frequency <= 0 {
-			return fmt.Errorf("max wait should be positive")
+			return fmt.Errorf("daemon frequency should be positive")
 		}
-		c.frequency = frequency
+		c.daemonFreq = frequency
 		return nil
 	}
 }
@@ -53,6 +54,17 @@ func WithBatchMinSize(minSize uint) Option {
 			return fmt.Errorf("batch min size should be positive")
 		}
 		c.batchMinSize = minSize
+		return nil
+	}
+}
+
+// WithExportMetricsFrequency indicates the exporting metrics frequency of open batches.
+func WithExportMetricsFrequency(frequency time.Duration) Option {
+	return func(c *config) error {
+		if frequency <= 0 {
+			return fmt.Errorf("export metrics frequency should be positive")
+		}
+		c.exportMetricsFreq = frequency
 		return nil
 	}
 }

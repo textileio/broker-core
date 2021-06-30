@@ -115,7 +115,7 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 
 func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi, broker *brokerMock) *Packer {
 	ds := tests.NewTxMapDatastore()
-	packer, err := New(ds, ipfsClient, broker, WithFrequency(time.Hour), WithBatchMinSize(100*100))
+	packer, err := New(ds, ipfsClient, broker, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
 	require.NoError(t, err)
 
 	return packer
