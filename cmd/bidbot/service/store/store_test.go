@@ -271,6 +271,7 @@ func newStore(t *testing.T) (*Store, format.DAGService, blockstore.Blockstore) {
 
 func newLotusClientMock() *lotusclientmocks.LotusClient {
 	lc := &lotusclientmocks.LotusClient{}
+	lc.On("HealthCheck").Return(nil)
 	lc.On(
 		"ImportData",
 		mock.Anything,

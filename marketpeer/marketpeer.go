@@ -206,6 +206,11 @@ func (p *Peer) Info() (*PeerInfo, error) {
 	}, nil
 }
 
+// ListPeers returns the peers the market peer currently connects to.
+func (p *Peer) ListPeers() []peer.ID {
+	return p.ps.ListPeers("")
+}
+
 // Bootstrap the market peer against Config.Bootstrap network peers.
 // Some well-known network peers are included by default.
 func (p *Peer) Bootstrap() {

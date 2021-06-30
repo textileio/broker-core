@@ -270,8 +270,9 @@ func (s *Service) Subscribe(bootstrap bool) error {
 	s.finalizer.Add(auctions, wins, props)
 
 	log.Info("subscribed to the deal auction feed")
-
 	s.subscribed = true
+
+	s.finalizer.AddFn(s.printStats())
 	return nil
 }
 
@@ -383,6 +384,10 @@ func (s *Service) makeBid(auction *pb.Auction, from peer.ID) error {
 		return fmt.Errorf("validating data uri: %v", err)
 	}
 
+	if err := s.store.HealthCheck(); err != nil {
+		return fmt.Errorf("store not ready to bid: %v", err)
+	}
+
 	// Get current chain height
 	currentEpoch, err := s.fc.GetChainHeight()
 	if err != nil {
@@ -485,4 +490,25 @@ func (s *Service) filterAuction(auction *pb.Auction) (rejectReason string) {
 	}
 
 	return ""
+}
+
+func (s *Service) printStats() func() {
+	startAt := time.Now()
+	tk := time.NewTicker(10 * time.Minute)
+	stop := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-stop:
+				return
+			case <-tk.C:
+				if err := s.store.HealthCheck(); err != nil {
+					log.Errorf("store not healthy: %v", err)
+				}
+				log.Infof("bidbot up %v, %d connected peers",
+					time.Since(startAt), len(s.peer.ListPeers()))
+			}
+		}
+	}()
+	return func() { close(stop) }
 }

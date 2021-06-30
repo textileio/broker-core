@@ -141,6 +141,7 @@ func TestNew(t *testing.T) {
 
 func newLotusClientMock() *lotusclientmocks.LotusClient {
 	lc := &lotusclientmocks.LotusClient{}
+	lc.On("HealthCheck").Return(nil)
 	lc.On(
 		"ImportData",
 		mock.Anything,

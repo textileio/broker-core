@@ -493,9 +493,15 @@ func (s *Store) HealthCheck() error {
 	// make sure the directory is writable
 	f, err := ioutil.TempFile(s.dealDataDirectory, ".touch")
 	if err != nil {
-		return err
+		return fmt.Errorf("deal data directory: %v", err)
 	}
-	return os.Remove(f.Name())
+	if err = os.Remove(f.Name()); err != nil {
+		log.Errorf("removing temp file: %v", err)
+	}
+	if err := s.lc.HealthCheck(); err != nil {
+		return fmt.Errorf("lotus client: %v", err)
+	}
+	return nil
 }
 
 func (s *Store) dealDataFilePathFor(bidID broker.BidID, payloadCid string) string {
