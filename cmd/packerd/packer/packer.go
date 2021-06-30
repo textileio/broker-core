@@ -29,7 +29,8 @@ var (
 // Packer provides batching strategies to bundle multiple
 // BrokerRequest into a StorageDeal.
 type Packer struct {
-	batchFrequency time.Duration
+	batchFreq         time.Duration
+	exportMetricsFreq time.Duration
 
 	store  *store.Store
 	ipfs   *httpapi.HttpApi
@@ -78,7 +79,7 @@ func New(
 
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
-		batchFrequency: cfg.frequency,
+		batchFreq: cfg.frequency,
 
 		store:  store,
 		ipfs:   ipfsClient,
@@ -91,6 +92,7 @@ func New(
 	p.initMetrics()
 
 	go p.daemon()
+	go p.daemonExportMetrics()
 
 	return p, nil
 }
@@ -144,7 +146,7 @@ func (p *Packer) daemon() {
 		case <-p.daemonCtx.Done():
 			log.Info("packer closed")
 			return
-		case <-time.After(p.batchFrequency):
+		case <-time.After(p.batchFreq):
 			for {
 				count, err := p.pack(p.daemonCtx)
 				if err != nil {

@@ -299,6 +299,39 @@ func (s *Store) DeleteBatch(bID BatchID) error {
 	return nil
 }
 
+// GetStats returns current statistics of open batches.
+func (s *Store) GetStats() (int64, int64, int64, error) {
+	q := query.Query{
+		Prefix: dsPrefixPendingBatch.String(),
+	}
+	res, err := s.ds.Query(q)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("get pending batches: %s", err)
+	}
+	defer func() {
+		if err := res.Close(); err != nil {
+			log.Errorf("pending batches stats query: %s", err)
+		}
+	}()
+
+	var openBatches, pendingBytes, pendingCount int64
+	for item := range res.Next() {
+		if item.Error != nil {
+			return 0, 0, 0, fmt.Errorf("get item result from stats: %s", item.Error)
+		}
+		b := Batch{}
+		dec := gob.NewDecoder(bytes.NewReader(item.Value))
+		if err := dec.Decode(&b); err != nil {
+			return 0, 0, 0, fmt.Errorf("decoding gob batch: %s", err)
+		}
+		openBatches++
+		pendingBytes += b.Size
+		pendingCount += b.Count
+	}
+
+	return pendingCount, pendingBytes, openBatches, nil
+}
+
 func (s *Store) newID() (string, error) {
 	s.lock.Lock()
 
