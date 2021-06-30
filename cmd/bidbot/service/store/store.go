@@ -24,8 +24,8 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
-	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
+	"github.com/textileio/broker-core/lotusclient"
 	dsextensions "github.com/textileio/go-datastore-extensions"
 	golog "github.com/textileio/go-log/v2"
 )

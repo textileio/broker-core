@@ -3,6 +3,7 @@ package filclient
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -18,7 +19,15 @@ import (
 var requestTimeout = time.Second * 10
 
 // FilClient provides functionalities to verify bidders.
-type FilClient struct {
+type FilClient interface {
+	io.Closer
+
+	VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddr string) (bool, error)
+	GetChainHeight() (uint64, error)
+}
+
+// LotusFilClient is a FilClient backed by Lotus.
+type LotusFilClient struct {
 	fullNode v0api.FullNode
 	fakeMode bool
 
@@ -26,8 +35,8 @@ type FilClient struct {
 	finalizer *finalizer.Finalizer
 }
 
-// New returns a new FilClient.
-func New(lotusGatewayURL string, fakeMode bool) (*FilClient, error) {
+// New returns a new LotusFilClient.
+func New(lotusGatewayURL string, fakeMode bool) (*LotusFilClient, error) {
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
@@ -39,7 +48,7 @@ func New(lotusGatewayURL string, fakeMode bool) (*FilClient, error) {
 	}
 	fin.AddFn(fncloser)
 
-	return &FilClient{
+	return &LotusFilClient{
 		fullNode:  &fn,
 		fakeMode:  fakeMode,
 		ctx:       ctx,
@@ -48,13 +57,13 @@ func New(lotusGatewayURL string, fakeMode bool) (*FilClient, error) {
 }
 
 // Close the client.
-func (fc *FilClient) Close() error {
+func (fc *LotusFilClient) Close() error {
 	return fc.finalizer.Cleanup(nil)
 }
 
 // VerifyBidder ensures that the wallet address authorized the use of bidder peer.ID to make bids.
 // Miner's authorize a bidding peer.ID by signing it with a wallet address private key.
-func (fc *FilClient) VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddrStr string) (bool, error) {
+func (fc *LotusFilClient) VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddrStr string) (bool, error) {
 	if fc.fakeMode {
 		return true, nil
 	}
@@ -89,7 +98,7 @@ func (fc *FilClient) VerifyBidder(bidderSig []byte, bidderID peer.ID, minerAddrS
 }
 
 // GetChainHeight returns the current chain height in epochs.
-func (fc *FilClient) GetChainHeight() (uint64, error) {
+func (fc *LotusFilClient) GetChainHeight() (uint64, error) {
 	ctx, cancel := context.WithTimeout(fc.ctx, requestTimeout)
 	defer cancel()
 	ts, err := fc.fullNode.ChainHead(ctx)

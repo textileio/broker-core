@@ -10,8 +10,8 @@ import (
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/multiformats/go-multiaddr"
+	auctioneercast "github.com/textileio/broker-core/auctioneer/cast"
 	"github.com/textileio/broker-core/broker"
-	auctioneercast "github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
@@ -19,7 +19,7 @@ import (
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
-	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/common"
 	logging "github.com/textileio/go-log/v2"
 
 	"github.com/textileio/broker-core/dshelper"

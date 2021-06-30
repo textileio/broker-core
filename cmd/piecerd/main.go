@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
-	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/dshelper"
 	logging "github.com/textileio/go-log/v2"
 )

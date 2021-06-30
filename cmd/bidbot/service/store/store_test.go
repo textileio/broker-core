@@ -23,7 +23,7 @@ import (
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
-	lotusclientmocks "github.com/textileio/broker-core/mocks/cmd/bidbot/service/lotusclient"
+	lotusclientmocks "github.com/textileio/broker-core/mocks/lotusclient"
 	badger "github.com/textileio/go-ds-badger3"
 	golog "github.com/textileio/go-log/v2"
 )

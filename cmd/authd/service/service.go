@@ -14,7 +14,7 @@ import (
 	varint "github.com/multiformats/go-varint"
 	"github.com/ockam-network/did"
 	"github.com/textileio/broker-core/chainapi"
-	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/common"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"

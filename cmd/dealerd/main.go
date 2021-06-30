@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/dealerd/service"
+	"github.com/textileio/broker-core/common"
 	logging "github.com/textileio/go-log/v2"
 )
 

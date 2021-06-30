@@ -5,8 +5,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
