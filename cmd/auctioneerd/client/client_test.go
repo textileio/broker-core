@@ -272,7 +272,9 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 		err = s.Subscribe(false)
 		require.NoError(t, err)
 
-		bots[s.Host().ID()] = s
+		pi, err := s.PeerInfo()
+		require.NoError(t, err)
+		bots[pi.ID] = s
 	}
 	return bots
 }
