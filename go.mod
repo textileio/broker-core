@@ -69,9 +69,9 @@ require (
 	go.opentelemetry.io/otel/metric v0.21.0
 	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
 	go.opentelemetry.io/otel/sdk/metric v0.21.0
-	go.uber.org/zap v1.17.0
+	go.uber.org/zap v1.18.1
 	google.golang.org/grpc v1.38.0
-	google.golang.org/protobuf v1.26.0
+	google.golang.org/protobuf v1.27.1
 )
 
 replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
