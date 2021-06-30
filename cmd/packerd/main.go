@@ -24,7 +24,8 @@ func init() {
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
-		{Name: "batch-frequency", DefValue: "20s", Description: "Frequency in which a new batch gets created"},
+		{Name: "daemon-frequency", DefValue: "20s", Description: "Frequency of polling ready batches"},
+		{Name: "export-metrics-frequency", DefValue: "5m", Description: "Frequency of metrics exporting"},
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -61,7 +62,9 @@ var rootCmd = &cobra.Command{
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),
 
-			BatchFrequency:   v.GetDuration("batch-frequency"),
+			DaemonFrequency:        v.GetDuration("daemon-frequency"),
+			ExportMetricsFrequency: v.GetDuration("export-metrics-frequency"),
+
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     v.GetSizeInBytes("batch-min-size"),
 		}

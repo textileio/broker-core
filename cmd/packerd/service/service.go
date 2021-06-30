@@ -36,7 +36,9 @@ type Config struct {
 	IpfsAPIMultiaddr string
 	BrokerAPIAddr    string
 
-	BatchFrequency   time.Duration
+	DaemonFrequency        time.Duration
+	ExportMetricsFrequency time.Duration
+
 	TargetSectorSize int64
 	BatchMinSize     uint
 }
@@ -79,7 +81,7 @@ func New(conf Config) (*Service, error) {
 		return nil, fmt.Errorf("creating broker client: %s", err)
 	}
 	opts := []packer.Option{
-		packer.WithFrequency(conf.BatchFrequency),
+		packer.WithDaemonFrequency(conf.DaemonFrequency),
 		packer.WithSectorSize(conf.TargetSectorSize),
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
