@@ -284,25 +284,22 @@ func (s *Service) CreateBrokerRequest(
 	return res, nil
 }
 
-// GetBrokerRequest gets an existing broker request.
-func (s *Service) GetBrokerRequest(
+// GetBrokerRequestInfo gets information about a broker request by id.
+func (s *Service) GetBrokerRequestInfo(
 	ctx context.Context,
-	r *pb.GetBrokerRequestRequest) (*pb.GetBrokerRequestResponse, error) {
+	r *pb.GetBrokerRequestInfoRequest) (*pb.GetBrokerRequestInfoResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
 
-	br, err := s.broker.Get(ctx, broker.BrokerRequestID(r.Id))
+	br, err := s.broker.GetBrokerRequestInfo(ctx, broker.BrokerRequestID(r.Id))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get broker request: %s", err)
 	}
 
-	pbr, err := cast.BrokerRequestToProto(br)
+	res, err := cast.BrokerRequestInfoToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
-	}
-	res := &pb.GetBrokerRequestResponse{
-		BrokerRequest: pbr,
 	}
 
 	return res, nil

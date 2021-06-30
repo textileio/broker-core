@@ -79,15 +79,15 @@ func (_m *Broker) CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids
 	return r0, r1
 }
 
-// Get provides a mock function with given fields: ctx, ID
-func (_m *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
+// GetBrokerRequestInfo provides a mock function with given fields: ctx, ID
+func (_m *Broker) GetBrokerRequestInfo(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
 	ret := _m.Called(ctx, ID)
 
-	var r0 broker.BrokerRequest
-	if rf, ok := ret.Get(0).(func(context.Context, broker.BrokerRequestID) broker.BrokerRequest); ok {
+	var r0 broker.BrokerRequestInfo
+	if rf, ok := ret.Get(0).(func(context.Context, broker.BrokerRequestID) broker.BrokerRequestInfo); ok {
 		r0 = rf(ctx, ID)
 	} else {
-		r0 = ret.Get(0).(broker.BrokerRequest)
+		r0 = ret.Get(0).(broker.BrokerRequestInfo)
 	}
 
 	var r1 error

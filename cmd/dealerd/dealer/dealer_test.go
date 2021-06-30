@@ -304,6 +304,6 @@ func (b *brokerMock) CreatePrepared(context.Context, cid.Cid, broker.PreparedCAR
 	panic("shouldn't be called")
 }
 
-func (b *brokerMock) Get(context.Context, broker.BrokerRequestID) (broker.BrokerRequest, error) {
+func (b *brokerMock) GetBrokerRequestInfo(context.Context, broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
 	panic("shouldn't be called")
 }

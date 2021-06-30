@@ -96,18 +96,20 @@ func (c *Client) CreatePrepared(
 	return br, nil
 }
 
-// Get gets a broker request from its ID.
-func (c *Client) Get(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	req := &pb.GetBrokerRequestRequest{
+// GetBrokerRequestInfo gets a broker request information by id.
+func (c *Client) GetBrokerRequestInfo(
+	ctx context.Context,
+	id broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
+	req := &pb.GetBrokerRequestInfoRequest{
 		Id: string(id),
 	}
-	res, err := c.c.GetBrokerRequest(ctx, req)
+	res, err := c.c.GetBrokerRequestInfo(ctx, req)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("calling get broker api: %s", err)
+		return broker.BrokerRequestInfo{}, fmt.Errorf("calling get broker api: %s", err)
 	}
-	br, err := cast.FromProtoBrokerRequest(res.BrokerRequest)
+	br, err := cast.FromProtoBrokerRequestInfo(res)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("converting broker request response: %s", err)
+		return broker.BrokerRequestInfo{}, fmt.Errorf("converting broker request response: %s", err)
 	}
 
 	return br, nil

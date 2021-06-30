@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"sort"
 	"testing"
 	"time"
 
@@ -77,14 +78,14 @@ func TestCreateStorageDeal(t *testing.T) {
 	// Check that all broker request:
 	// 1- Moved to StatusPreparing
 	// 2- Are linked to the StorageDeal they are now part of.
-	br1, err = b.Get(ctx, br1.ID)
+	bri1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestPreparing, br1.Status)
-	require.Equal(t, sd, br1.StorageDealID)
-	br2, err = b.Get(ctx, br2.ID)
+	require.Equal(t, broker.RequestPreparing, bri1.BrokerRequest.Status)
+	require.Equal(t, sd, bri1.BrokerRequest.StorageDealID)
+	bri2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestPreparing, br2.Status)
-	require.Equal(t, sd, br2.StorageDealID)
+	require.Equal(t, broker.RequestPreparing, bri2.BrokerRequest.Status)
+	require.Equal(t, sd, bri2.BrokerRequest.StorageDealID)
 
 	// Check that the StorageDeal was persisted correctly.
 	sd2, err := b.GetStorageDeal(ctx, sd)
@@ -137,23 +138,23 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, cid.Undef, piecer.calledCid)
 
 	// 3- Check that the created BrokerRequest moved directly to Auctioning.
-	br, err := b.Get(ctx, createdBr.ID)
+	br, err := b.GetBrokerRequestInfo(ctx, createdBr.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestAuctioning, br.Status)
-	require.NotEmpty(t, br.StorageDealID)
+	require.Equal(t, broker.RequestAuctioning, br.BrokerRequest.Status)
+	require.NotEmpty(t, br.BrokerRequest.StorageDealID)
 
 	// 4- Check that the storage deal was created correctly, in particular:
 	//    - The download sources URL and IPFS.
 	//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
 	//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
-	sd, err := b.GetStorageDeal(ctx, br.StorageDealID)
+	sd, err := b.GetStorageDeal(ctx, br.BrokerRequest.StorageDealID)
 	require.NoError(t, err)
 	require.Equal(t, pc.RepFactor, sd.RepFactor)
 	require.True(t, sd.DisallowRebatching)
 	require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
 	require.Equal(t, broker.StorageDealAuctioning, sd.Status)
 	require.Len(t, sd.BrokerRequestIDs, 1)
-	require.Contains(t, sd.BrokerRequestIDs, br.ID)
+	require.Contains(t, sd.BrokerRequestIDs, br.BrokerRequest.ID)
 	require.NotNil(t, sd.Sources.CARURL)
 	require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
 	require.NotNil(t, sd.Sources.CARIPFS)
@@ -255,12 +256,12 @@ func TestStorageDealPrepared(t *testing.T) {
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
-	mbr1, err := b.Get(ctx, br1.ID)
+	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestAuctioning, mbr1.Status)
-	mbr2, err := b.Get(ctx, br2.ID)
+	require.Equal(t, broker.RequestAuctioning, mbr1.BrokerRequest.Status)
+	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestAuctioning, mbr2.Status)
+	require.Equal(t, broker.RequestAuctioning, mbr2.BrokerRequest.Status)
 }
 
 func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
@@ -385,12 +386,12 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
-	mbr1, err := b.Get(ctx, br1.ID)
+	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr1.Status)
-	mbr2, err := b.Get(ctx, br2.ID)
+	require.Equal(t, broker.RequestDealMaking, mbr1.BrokerRequest.Status)
+	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
+	require.Equal(t, broker.RequestDealMaking, mbr2.BrokerRequest.Status)
 
 	// 6- Verify that the auctioneer wasn't called again for a new auction.
 	//    The replication factor was 2, and we had 2 winning bids so a new auction
@@ -528,12 +529,12 @@ func TestStorageDealFailedAuction(t *testing.T) {
 
 	// 5- Verify that the underlying broker requests were moved
 	//    to Batching again.
-	mbr1, err := b.Get(ctx, br1.ID)
+	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestBatching, mbr1.Status)
-	mbr2, err := b.Get(ctx, br2.ID)
+	require.Equal(t, broker.RequestBatching, mbr1.BrokerRequest.Status)
+	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestBatching, mbr2.Status)
+	require.Equal(t, broker.RequestBatching, mbr2.BrokerRequest.Status)
 
 	// 6- Verify that Packerd was called again with the new liberated broker requests
 	//    that can be batched again.
@@ -602,13 +603,13 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	// 2- Call StorageDealFinalizedDeals with the first deal having
 	//    success. We'll make a further call to the second one.
-	fad := broker.FinalizedAuctionDeal{
+	fad1 := broker.FinalizedAuctionDeal{
 		StorageDealID:  auction.StorageDealID,
 		DealID:         100,
 		DealExpiration: 200,
 		Miner:          "f0011",
 	}
-	err = b.StorageDealFinalizedDeal(ctx, fad)
+	err = b.StorageDealFinalizedDeal(ctx, fad1)
 	require.NoError(t, err)
 
 	// 3- Verify the storage deal and underlying broker request are still in deal making,
@@ -616,23 +617,22 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.StorageDealDealMaking, sd2.Status)
-	mbr1, err := b.Get(ctx, br1.ID)
+	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr1.Status)
-	mbr2, err := b.Get(ctx, br2.ID)
+	require.Equal(t, broker.RequestDealMaking, mbr1.BrokerRequest.Status)
+	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr2.Status)
+	require.Equal(t, broker.RequestDealMaking, mbr2.BrokerRequest.Status)
 
-	// 4- Let's finalize the other one but with error. This results in a storage deal
-	//    that had two winning bids, one of them succeeded and othe other failed deal making.
+	// 4- Let's finalize the other one.
 	chainAPI.clean() // clean the previous call stack
-	fad = broker.FinalizedAuctionDeal{
+	fad2 := broker.FinalizedAuctionDeal{
 		StorageDealID:  auction.StorageDealID,
 		Miner:          "f0012",
 		DealID:         101,
 		DealExpiration: 201,
 	}
-	err = b.StorageDealFinalizedDeal(ctx, fad)
+	err = b.StorageDealFinalizedDeal(ctx, fad2)
 	require.NoError(t, err)
 
 	// 5- Verify that the storage deal switched to Success, since at least one of the winning bids
@@ -640,12 +640,12 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	sd2, err = b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.StorageDealSuccess, sd2.Status)
-	mbr1, err = b.Get(ctx, br1.ID)
+	mbr1, err = b.GetBrokerRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestSuccess, mbr1.Status)
-	mbr2, err = b.Get(ctx, br2.ID)
+	require.Equal(t, broker.RequestSuccess, mbr1.BrokerRequest.Status)
+	mbr2, err = b.GetBrokerRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestSuccess, mbr2.Status)
+	require.Equal(t, broker.RequestSuccess, mbr2.BrokerRequest.Status)
 
 	// 6- Verify that we have 3 unpin jobs: the batch cid, and the two data cids in the batch.
 	for i := 0; i < 3; i++ {
@@ -656,6 +656,21 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	_, ok, err := b.store.UnpinJobGetNext()
 	require.NoError(t, err)
 	require.False(t, ok)
+
+	// 7- Verify that getting the broker request information shows the deals.
+	brs := []broker.BrokerRequest{br1, br2}
+	for _, br := range brs {
+		bri, err := b.GetBrokerRequestInfo(ctx, br.ID)
+		require.NoError(t, err)
+		require.Len(t, bri.Deals, 2)
+		sort.Slice(bri.Deals, func(i, j int) bool { return bri.Deals[i].Miner < bri.Deals[j].Miner })
+		require.Equal(t, bri.Deals[0].Miner, fad1.Miner)
+		require.Equal(t, bri.Deals[0].DealID, fad1.DealID)
+		require.Equal(t, bri.Deals[0].Expiration, fad1.DealExpiration)
+		require.Equal(t, bri.Deals[1].Miner, fad2.Miner)
+		require.Equal(t, bri.Deals[1].DealID, fad2.DealID)
+		require.Equal(t, bri.Deals[1].Expiration, fad2.DealExpiration)
+	}
 }
 
 func createBroker(t *testing.T) (

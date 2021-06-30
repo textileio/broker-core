@@ -24,10 +24,11 @@ func TestCreateSuccess(t *testing.T) {
 
 	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
 	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
+	expectedSRI := storage.RequestInfo{Request: expectedSR}
 	usm := &uploaderMock{}
 	usm.On("CreateFromReader", mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
-	usm.On("Get", mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
 	mux := createMux(usm, false)
 	mux.ServeHTTP(res, req)
@@ -45,9 +46,10 @@ func TestCreateSuccess(t *testing.T) {
 	res = httptest.NewRecorder()
 	mux.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
-	err = json.Unmarshal(res.Body.Bytes(), &responseSR)
+	var responseSRI storage.RequestInfo
+	err = json.Unmarshal(res.Body.Bytes(), &responseSRI)
 	require.NoError(t, err)
-	require.Equal(t, expectedSR, responseSR)
+	require.Equal(t, expectedSRI, responseSRI)
 
 	usm.AssertExpectations(t)
 }
@@ -59,10 +61,11 @@ func TestCreatePreparedSuccess(t *testing.T) {
 
 	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
 	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
+	expectedSRI := storage.RequestInfo{Request: expectedSR}
 	usm := &uploaderMock{}
 	usm.On("CreateFromExternalSource", mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything).Return(true, "", nil)
-	usm.On("Get", mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
 	mux := createMux(usm, false)
 	mux.ServeHTTP(res, req)
@@ -80,9 +83,10 @@ func TestCreatePreparedSuccess(t *testing.T) {
 	res = httptest.NewRecorder()
 	mux.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
-	err = json.Unmarshal(res.Body.Bytes(), &responseSR)
+	var responseSRI storage.RequestInfo
+	err = json.Unmarshal(res.Body.Bytes(), &responseSRI)
 	require.NoError(t, err)
-	require.Equal(t, expectedSR, responseSR)
+	require.Equal(t, expectedSRI, responseSRI)
 
 	usm.AssertExpectations(t)
 }
@@ -229,10 +233,10 @@ func (um *uploaderMock) IsAuthorized(ctx context.Context, identity string) (bool
 	return args.Bool(0), args.String(1), args.Error(2)
 }
 
-func (um *uploaderMock) Get(ctx context.Context, id string) (storage.Request, error) {
+func (um *uploaderMock) GetRequestInfo(ctx context.Context, id string) (storage.RequestInfo, error) {
 	args := um.Called(ctx, id)
 
-	return args.Get(0).(storage.Request), args.Error(1)
+	return args.Get(0).(storage.RequestInfo), args.Error(1)
 }
 
 func (um *uploaderMock) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error {

@@ -14,7 +14,7 @@ type Requester interface {
 	CreateFromReader(ctx context.Context, r io.Reader) (Request, error)
 	CreateFromExternalSource(ctx context.Context, adr AuctionDataRequest) (Request, error)
 	GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error
-	Get(ctx context.Context, id string) (Request, error)
+	GetRequestInfo(ctx context.Context, id string) (RequestInfo, error)
 }
 
 // Status is the status of a StorageRequest.
@@ -42,6 +42,19 @@ type Request struct {
 	ID         string  `json:"id"`
 	Cid        cid.Cid `json:"cid"`
 	StatusCode Status  `json:"status_code"`
+}
+
+// RequestInfo describes the current state of a request.
+type RequestInfo struct {
+	Request Request `json:"request"`
+	Deals   []Deal  `json:"deals"`
+}
+
+// Deal contains information of an on-chain deal.
+type Deal struct {
+	Miner      string `json:"miner"`
+	DealID     int64  `json:"deal_id"`
+	Expiration uint64 `json:"deal_expiration"`
 }
 
 // AuctionDataRequest contains information about a prepared dataset hosted externally.

@@ -143,7 +143,7 @@ func (bm *brokerMock) StorageDealFinalizedDeal(context.Context, broker.Finalized
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) Get(context.Context, broker.BrokerRequestID) (broker.BrokerRequest, error) {
+func (bm *brokerMock) GetBrokerRequestInfo(context.Context, broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
 	panic("shouldn't be called")
 }
 

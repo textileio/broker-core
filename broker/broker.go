@@ -22,8 +22,8 @@ type Broker interface {
 	// CreatePrepared creates a new BrokerRequest for prepared data.
 	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (BrokerRequest, error)
 
-	// Get returns a broker request from an id.
-	Get(ctx context.Context, ID BrokerRequestID) (BrokerRequest, error)
+	// GetBrokerRequestInfo returns a broker request information by id.
+	GetBrokerRequestInfo(ctx context.Context, ID BrokerRequestID) (BrokerRequestInfo, error)
 
 	// CreateStorageDeal creates a new StorageDeal. It is called
 	// by the Packer after batching a set of BrokerRequest properly.

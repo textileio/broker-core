@@ -170,9 +170,9 @@ func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *h
 		}
 		id := urlParts[2]
 
-		sr, err := s.Get(r.Context(), id)
+		sr, err := s.GetRequestInfo(r.Context(), id)
 		if err != nil {
-			httpError(w, fmt.Sprintf("get storagerequest: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("get request info: %s", err), http.StatusInternalServerError)
 			return
 		}
 
