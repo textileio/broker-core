@@ -102,6 +102,11 @@ func (s *Service) DAGService() format.DAGService {
 	return s.peer.DAGService()
 }
 
+// PeerInfo returns the peer's public information.
+func (s *Service) PeerInfo() (*marketpeer.PeerInfo, error) {
+	return s.peer.Info()
+}
+
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	if req == nil {

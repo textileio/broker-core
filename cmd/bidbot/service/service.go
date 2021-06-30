@@ -7,20 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
@@ -49,7 +46,6 @@ type Config struct {
 	BidParams      BidParams
 	AuctionFilters AuctionFilters
 	BytesLimiter   limiter.Limiter
-	HTTPListenAddr string
 }
 
 // BidParams defines how bids are made.
@@ -138,7 +134,6 @@ type Service struct {
 	peer       *marketpeer.Peer
 	fc         auctioneer.FilClient
 	store      *bidstore.Store
-	server     *http.Server
 	subscribed bool
 
 	bidParams      BidParams
@@ -163,10 +158,6 @@ func New(
 	if err := conf.AuctionFilters.Validate(); err != nil {
 		return nil, fmt.Errorf("validating auction filters: %v", err)
 	}
-	if conf.HTTPListenAddr == "" {
-		conf.HTTPListenAddr = ":0"
-	}
-
 	fin := finalizer.NewFinalizer()
 	ctx, cancel := context.WithCancel(context.Background())
 	fin.Add(finalizer.NewContextCloser(cancel))
@@ -217,14 +208,6 @@ func New(
 		ctx:            ctx,
 		finalizer:      fin,
 	}
-
-	// Bootstrap HTTP API server
-	srv.server, err = httpapi.NewServer(conf.HTTPListenAddr, srv)
-	if err != nil {
-		return nil, fmt.Errorf("creating http server: %s", err)
-	}
-	srv.finalizer.Add(srv.server)
-
 	log.Info("service started")
 
 	return srv, nil
@@ -292,9 +275,9 @@ func (s *Service) Subscribe(bootstrap bool) error {
 	return nil
 }
 
-// Host returns the underlying host.
-func (s *Service) Host() host.Host {
-	return s.peer.Host()
+// PeerInfo returns the public information of the market peer.
+func (s *Service) PeerInfo() (*marketpeer.PeerInfo, error) {
+	return s.peer.Info()
 }
 
 // ListBids lists bids by applying a store.Query.

@@ -9,13 +9,13 @@ import (
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
 	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
+	"github.com/textileio/broker-core/marketpeer"
 	golog "github.com/textileio/go-log/v2"
 )
 
@@ -150,7 +150,7 @@ type mockService struct {
 	mock.Mock
 }
 
-func (s *mockService) Host() host.Host {
+func (s *mockService) PeerInfo() (*marketpeer.PeerInfo, error) {
 	panic("not implemented")
 }
 

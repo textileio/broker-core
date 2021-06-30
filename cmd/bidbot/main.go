@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
+	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
 	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
@@ -331,8 +332,7 @@ var daemonCmd = &cobra.Command{
 					Max: v.GetUint64("deal-size-max"),
 				},
 			},
-			BytesLimiter:   bytesLimiter,
-			HTTPListenAddr: ":" + v.GetString("http-port"),
+			BytesLimiter: bytesLimiter,
 		}
 		serv, err := service.New(config, store, lc, fc)
 		common.CheckErrf("starting service: %v", err)
@@ -340,6 +340,10 @@ var daemonCmd = &cobra.Command{
 
 		err = serv.Subscribe(true)
 		common.CheckErrf("subscribing to deal auction feed: %v", err)
+
+		api, err := httpapi.NewServer(":"+v.GetString("http-port"), serv)
+		common.CheckErrf("creating http API server: %v", err)
+		fin.Add(api)
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

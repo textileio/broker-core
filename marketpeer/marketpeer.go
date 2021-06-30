@@ -2,6 +2,7 @@ package marketpeer
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -56,6 +57,13 @@ func setDefaults(conf *Config) {
 	if conf.MDNSIntervalSeconds <= 0 {
 		conf.MDNSIntervalSeconds = 1
 	}
+}
+
+// PeerInfo contains public information about the libp2p peer.
+type PeerInfo struct {
+	ID        peer.ID
+	PublicKey string
+	Addresses []multiaddr.Multiaddr
 }
 
 // Peer wraps libp2p peer components needed to partake in the broker market.
@@ -178,6 +186,24 @@ func (p *Peer) Close() error {
 // Host returns the peer host.
 func (p *Peer) Host() host.Host {
 	return p.host
+}
+
+// Info returns the peer's public information.
+func (p *Peer) Info() (*PeerInfo, error) {
+	var pkey string
+	if pk := p.host.Peerstore().PubKey(p.host.ID()); pk != nil {
+		pkb, err := crypto.MarshalPublicKey(pk)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling public key: %s", err)
+		}
+		pkey = base64.StdEncoding.EncodeToString(pkb)
+	}
+
+	return &PeerInfo{
+		p.host.ID(),
+		pkey,
+		p.host.Addrs(),
+	}, nil
 }
 
 // Bootstrap the market peer against Config.Bootstrap network peers.

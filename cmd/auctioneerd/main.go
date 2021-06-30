@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	_ "net/http/pprof"
@@ -148,9 +149,14 @@ var daemonCmd = &cobra.Command{
 		serv, err := service.New(config, store, broker, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
-
 		err = serv.Start(true)
 		common.CheckErrf("creating deal auction feed: %v", err)
+
+		info, err := serv.PeerInfo()
+		common.CheckErrf("getting peer information: %v", err)
+		b, err := json.MarshalIndent(info, "", "\t")
+		common.CheckErrf("marshaling peer information: %v", err)
+		log.Infof("peer information:: %s", string(b))
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))
