@@ -97,7 +97,7 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 	}, nil
 }
 
-// BrokerRequestInfoToProto maps a broker
+// BrokerRequestInfoToProto maps a broker.
 func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequestInfoResponse, error) {
 	protobr, err := BrokerRequestToProto(br.BrokerRequest)
 	if err != nil {

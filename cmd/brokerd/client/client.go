@@ -96,8 +96,10 @@ func (c *Client) CreatePrepared(
 	return br, nil
 }
 
-// GetBrokerRequestInfo gets a broker request infromation by id.
-func (c *Client) GetBrokerRequestInfo(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
+// GetBrokerRequestInfo gets a broker request information by id.
+func (c *Client) GetBrokerRequestInfo(
+	ctx context.Context,
+	id broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
 	req := &pb.GetBrokerRequestInfoRequest{
 		Id: string(id),
 	}

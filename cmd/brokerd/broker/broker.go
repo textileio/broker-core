@@ -221,7 +221,9 @@ func (b *Broker) CreatePrepared(
 }
 
 // GetBrokerRequestInfo gets a BrokerRequest by id. If doesn't exist, it returns ErrNotFound.
-func (b *Broker) GetBrokerRequestInfo(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
+func (b *Broker) GetBrokerRequestInfo(
+	ctx context.Context,
+	ID broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
 	br, err := b.store.GetBrokerRequest(ctx, ID)
 	if err == store.ErrNotFound {
 		return broker.BrokerRequestInfo{}, ErrNotFound

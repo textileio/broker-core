@@ -28,13 +28,13 @@ type BrokerRequest struct {
 	UpdatedAt     time.Time
 }
 
-// BrokerRequestInfo returns infromation about a broker request
+// BrokerRequestInfo returns information about a broker request.
 type BrokerRequestInfo struct {
 	BrokerRequest BrokerRequest
 	Deals         []BrokerRequestDeal
 }
 
-// BrokerRequestDeal describes on-chain deals of a broker-request
+// BrokerRequestDeal describes on-chain deals of a broker-request.
 type BrokerRequestDeal struct {
 	Miner      string
 	DealID     int64
