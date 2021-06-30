@@ -17,20 +17,14 @@ import (
 
 // Config provides configuration parameters for a service.
 type Config struct {
-	// HTTPListenAddr is the binding address for the public REST API.
-	HTTPListenAddr string
-	// UploaderIPFSMultiaddr is the multiaddress of the IPFS layer.
+	HTTPListenAddr        string
 	UploaderIPFSMultiaddr string
-	// BrokerAPIAddr is the Broker API address.
-	BrokerAPIAddr string
-	// AuthAddr is the address of authd.
-	AuthAddr string
-	// SkipAuth disables authorizations checks.
-	SkipAuth bool
-	// IpfsMultiaddrs provides a complete set of ipfs nodes APIs to make retrievals of pinned data.
-	IpfsMultiaddrs []multiaddr.Multiaddr
-	// BearerTokens contains a list of authentication tokens that are accepted for API calls.
-	BearerTokens []string
+	BrokerAPIAddr         string
+	AuthAddr              string
+	SkipAuth              bool
+	IpfsMultiaddrs        []multiaddr.Multiaddr
+	BearerTokens          []string
+	MaxUploadSize         uint
 }
 
 // Service provides an implementation of the Storage API.
@@ -48,7 +42,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	// Bootstrap HTTP API server.
-	server, err := httpapi.NewServer(config.HTTPListenAddr, config.SkipAuth, storage)
+	server, err := httpapi.NewServer(config.HTTPListenAddr, config.SkipAuth, storage, config.MaxUploadSize)
 	if err != nil {
 		return nil, fmt.Errorf("creating http server: %s", err)
 	}

@@ -16,21 +16,16 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-const (
-	gib         = 1024 * 1024 * 1024
-	maxBodySize = 32 * gib
-)
-
 var (
 	log = logging.Logger("http/api")
 )
 
 // NewServer returns a new http server exposing the storage API.
-func NewServer(listenAddr string, skipAuth bool, s storage.Requester) (*http.Server, error) {
+func NewServer(listenAddr string, skipAuth bool, s storage.Requester, maxUploadSize uint) (*http.Server, error) {
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
-		Handler:           createMux(s, skipAuth),
+		Handler:           createMux(s, skipAuth, maxUploadSize),
 	}
 
 	log.Info("running HTTP API...")
@@ -43,12 +38,12 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester) (*http.Ser
 	return httpServer, nil
 }
 
-func createMux(s storage.Requester, skipAuth bool) *http.ServeMux {
+func createMux(s storage.Requester, skipAuth bool, maxUploadSize uint) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 
-	uploadHandler := wrapMiddlewares(s, skipAuth, uploadHandler(s), "upload")
+	uploadHandler := wrapMiddlewares(s, skipAuth, uploadHandler(s, maxUploadSize), "upload")
 	mux.Handle("/upload", uploadHandler)
 
 	storageRequestStatusHandler := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
@@ -128,14 +123,14 @@ func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
 	})
 }
 
-func uploadHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
+func uploadHandler(s storage.Requester, maxUploadSize uint) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 			return
 		}
 
-		r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+		r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadSize))
 
 		file, err := parseMultipart(r)
 		if err != nil {
