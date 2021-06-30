@@ -34,16 +34,37 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 		return broker.BrokerRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
 	}
 
-	br := broker.BrokerRequest{
+	return broker.BrokerRequest{
 		ID:            broker.BrokerRequestID(brproto.Id),
 		DataCid:       c,
 		Status:        status,
 		StorageDealID: broker.StorageDealID(brproto.StorageDealId),
 		CreatedAt:     brproto.CreatedAt.AsTime(),
 		UpdatedAt:     brproto.UpdatedAt.AsTime(),
+	}, nil
+}
+
+// FromProtoBrokerRequestInfo transforms a pb.BrokerRequest to broker.BrokerRequest.
+func FromProtoBrokerRequestInfo(brproto *pb.GetBrokerRequestInfoResponse) (broker.BrokerRequestInfo, error) {
+	br, err := FromProtoBrokerRequest(brproto.BrokerRequest)
+	if err != nil {
+		return broker.BrokerRequestInfo{}, nil
 	}
 
-	return br, nil
+	bri := broker.BrokerRequestInfo{
+		BrokerRequest: br,
+		Deals:         make([]broker.BrokerRequestDeal, len(brproto.Deals)),
+	}
+	for i, d := range brproto.Deals {
+		deal := broker.BrokerRequestDeal{
+			Miner:      d.Miner,
+			DealID:     d.DealId,
+			Expiration: d.Expiration,
+		}
+		bri.Deals[i] = deal
+	}
+
+	return bri, nil
 }
 
 // BrokerRequestToProto maps a broker.BrokerRequest to pb.BrokerRequest.
@@ -73,5 +94,28 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 		StorageDealId: string(br.StorageDealID),
 		CreatedAt:     timestamppb.New(br.CreatedAt),
 		UpdatedAt:     timestamppb.New(br.UpdatedAt),
+	}, nil
+}
+
+// BrokerRequestInfoToProto maps a broker
+func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequestInfoResponse, error) {
+	protobr, err := BrokerRequestToProto(br.BrokerRequest)
+	if err != nil {
+		return nil, fmt.Errorf("creating proto for broker request: %s", err)
+	}
+
+	deals := make([]*pb.GetBrokerRequestInfoResponse_BrokerRequestDeal, len(br.Deals))
+	for i, d := range br.Deals {
+		deal := &pb.GetBrokerRequestInfoResponse_BrokerRequestDeal{
+			Miner:      d.Miner,
+			DealId:     d.DealID,
+			Expiration: d.Expiration,
+		}
+		deals[i] = deal
+	}
+
+	return &pb.GetBrokerRequestInfoResponse{
+		BrokerRequest: protobr,
+		Deals:         deals,
 	}, nil
 }

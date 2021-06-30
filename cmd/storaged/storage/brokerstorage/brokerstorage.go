@@ -202,24 +202,35 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	}, nil
 }
 
-// Get returns a Request by id.
-func (bs *BrokerStorage) Get(ctx context.Context, id string) (storage.Request, error) {
-	br, err := bs.broker.Get(ctx, broker.BrokerRequestID(id))
+// GetRequestInfo returns information about a request.
+func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage.RequestInfo, error) {
+	br, err := bs.broker.GetBrokerRequestInfo(ctx, broker.BrokerRequestID(id))
 	if err != nil {
-		return storage.Request{}, fmt.Errorf("getting broker request: %s", err)
+		return storage.RequestInfo{}, fmt.Errorf("getting broker request info: %s", err)
 	}
 
-	status, err := brokerRequestStatusToStorageRequestStatus(br.Status)
+	status, err := brokerRequestStatusToStorageRequestStatus(br.BrokerRequest.Status)
 	if err != nil {
-		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
+		return storage.RequestInfo{}, fmt.Errorf("mapping statuses: %s", err)
 	}
-	sr := storage.Request{
-		ID:         string(br.ID),
-		Cid:        br.DataCid,
-		StatusCode: status,
+	sri := storage.RequestInfo{
+		Request: storage.Request{
+			ID:         string(br.BrokerRequest.ID),
+			Cid:        br.BrokerRequest.DataCid,
+			StatusCode: status,
+		},
 	}
 
-	return sr, nil
+	for _, d := range br.Deals {
+		deal := storage.Deal{
+			Miner:      d.Miner,
+			DealID:     d.DealID,
+			Expiration: d.Expiration,
+		}
+		sri.Deals = append(sri.Deals, deal)
+	}
+
+	return sri, nil
 }
 
 // GetCAR generates a CAR file from the provided Cid and writes it a io.Writer.

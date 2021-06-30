@@ -220,17 +220,38 @@ func (b *Broker) CreatePrepared(
 	return br, nil
 }
 
-// Get gets a BrokerRequest by id. If doesn't exist, it returns ErrNotFound.
-func (b *Broker) Get(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequest, error) {
+// GetBrokerRequestInfo gets a BrokerRequest by id. If doesn't exist, it returns ErrNotFound.
+func (b *Broker) GetBrokerRequestInfo(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
 	br, err := b.store.GetBrokerRequest(ctx, ID)
 	if err == store.ErrNotFound {
-		return broker.BrokerRequest{}, ErrNotFound
+		return broker.BrokerRequestInfo{}, ErrNotFound
 	}
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("get broker request from store: %s", err)
+		return broker.BrokerRequestInfo{}, fmt.Errorf("get broker request from store: %s", err)
 	}
 
-	return br, nil
+	sd, err := b.store.GetStorageDeal(ctx, br.StorageDealID)
+	if err != nil {
+		return broker.BrokerRequestInfo{}, nil
+	}
+
+	bri := broker.BrokerRequestInfo{
+		BrokerRequest: br,
+	}
+
+	for _, deal := range sd.Deals {
+		if deal.DealID == 0 {
+			continue
+		}
+		di := broker.BrokerRequestDeal{
+			Miner:      deal.Miner,
+			DealID:     deal.DealID,
+			Expiration: deal.DealExpiration,
+		}
+		bri.Deals = append(bri.Deals, di)
+	}
+
+	return bri, nil
 }
 
 // CreateStorageDeal creates a StorageDeal that contains multiple BrokerRequest. This API is most probably

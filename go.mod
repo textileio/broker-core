@@ -3,8 +3,6 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
-	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
-	github.com/detailyang/go-fallocate v0.0.0-20180908115635-432fa640bd2e
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.4
@@ -14,8 +12,8 @@ require (
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
 	github.com/filecoin-project/go-fil-markets v1.2.5
 	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
-	github.com/filecoin-project/go-state-types v0.1.0
-	github.com/filecoin-project/lotus v1.9.0
+	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48
+	github.com/filecoin-project/lotus v1.10.0
 	github.com/filecoin-project/specs-actors v0.9.13
 	github.com/gogo/status v1.1.0
 	github.com/google/uuid v1.2.0

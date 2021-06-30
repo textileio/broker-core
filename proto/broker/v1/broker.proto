@@ -42,12 +42,19 @@ message CreatePreparedBrokerRequestResponse {
 
 
 
-message GetBrokerRequestRequest {
+message GetBrokerRequestInfoRequest {
   string id = 1;
 }
 
-message GetBrokerRequestResponse {
+message GetBrokerRequestInfoResponse {
   BrokerRequest broker_request = 1;
+  repeated BrokerRequestDeal deals = 2;
+
+  message BrokerRequestDeal {
+	  string miner = 1;
+	  int64 deal_id = 2;
+	  uint64 expiration = 3;
+  }
 }
 
 message CreateStorageDealRequest {
@@ -116,7 +123,7 @@ message BrokerRequest {
 service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
   rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
-  rpc GetBrokerRequest(GetBrokerRequestRequest) returns (GetBrokerRequestResponse) {}
+  rpc GetBrokerRequestInfo(GetBrokerRequestInfoRequest) returns (GetBrokerRequestInfoResponse) {}
   rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
   rpc StorageDealFinalizedDeal(StorageDealFinalizedDealRequest) returns (StorageDealFinalizedDealResponse) {}
