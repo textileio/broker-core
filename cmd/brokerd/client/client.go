@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
+	auctioneercast "github.com/textileio/broker-core/auctioneer/cast"
 	"github.com/textileio/broker-core/broker"
-	auctioneercast "github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"

@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/common"
 	"github.com/textileio/broker-core/cmd/neard/contractclient"
 	"github.com/textileio/broker-core/cmd/neard/metrics"
 	"github.com/textileio/broker-core/cmd/neard/nearclient"
@@ -17,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/cmd/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/neard/releaser"
 	"github.com/textileio/broker-core/cmd/neard/service"
+	"github.com/textileio/broker-core/common"
 	logging "github.com/textileio/go-log/v2"
 )
 

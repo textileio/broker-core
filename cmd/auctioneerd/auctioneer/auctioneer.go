@@ -11,11 +11,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/textileio/broker-core/auctioneer/cast"
 	"github.com/textileio/broker-core/broker"
 	core "github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
+	"github.com/textileio/broker-core/filclient"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
 	"github.com/textileio/broker-core/marketpeer"
@@ -66,7 +67,7 @@ type Auctioneer struct {
 	auctionConf AuctionConfig
 
 	peer     *marketpeer.Peer
-	fc       FilClient
+	fc       filclient.FilClient
 	auctions *pubsub.Topic
 
 	broker core.Broker
@@ -87,7 +88,7 @@ func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
 	broker core.Broker,
-	fc FilClient,
+	fc filclient.FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
 	if err := validateConfig(auctionConf); err != nil {

@@ -15,19 +15,21 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/oklog/ulid/v2"
-	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
-	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
-	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
-	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
-	"github.com/textileio/broker-core/dshelper/txndswrap"
-	"github.com/textileio/broker-core/finalizer"
-	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
-	"github.com/textileio/broker-core/marketpeer"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/textileio/broker-core/auctioneer/cast"
+	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/dshelper/txndswrap"
+	"github.com/textileio/broker-core/filclient"
+	"github.com/textileio/broker-core/finalizer"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
+	"github.com/textileio/broker-core/lotusclient"
+	"github.com/textileio/broker-core/marketpeer"
+
+	"github.com/textileio/broker-core/cmd/bidbot/service/datauri"
+	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
+	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
 )
 
 var (
@@ -132,7 +134,7 @@ func (f *MinMaxFilter) Validate() error {
 // Service is a miner service that subscribes to brokered deals.
 type Service struct {
 	peer       *marketpeer.Peer
-	fc         auctioneer.FilClient
+	fc         filclient.FilClient
 	store      *bidstore.Store
 	subscribed bool
 
@@ -150,7 +152,7 @@ func New(
 	conf Config,
 	store txndswrap.TxnDatastore,
 	lc lotusclient.LotusClient,
-	fc auctioneer.FilClient,
+	fc filclient.FilClient,
 ) (*Service, error) {
 	if err := conf.BidParams.Validate(); err != nil {
 		return nil, fmt.Errorf("validating bid parameters: %v", err)

@@ -27,8 +27,8 @@ import (
 	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/marketpeer"
 	brokermocks "github.com/textileio/broker-core/mocks/broker"
-	auctioneermocks "github.com/textileio/broker-core/mocks/cmd/auctioneerd/auctioneer"
-	lotusclientmocks "github.com/textileio/broker-core/mocks/cmd/bidbot/service/lotusclient"
+	filclientmocks "github.com/textileio/broker-core/mocks/filclient"
+	lotusclientmocks "github.com/textileio/broker-core/mocks/lotusclient"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -295,8 +295,8 @@ func newLotusClientMock() *lotusclientmocks.LotusClient {
 	return lc
 }
 
-func newFilClientMock() *auctioneermocks.FilClient {
-	fc := &auctioneermocks.FilClient{}
+func newFilClientMock() *filclientmocks.FilClient {
+	fc := &filclientmocks.FilClient{}
 	fc.On(
 		"VerifyBidder",
 		mock.Anything,

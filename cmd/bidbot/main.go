@@ -26,17 +26,18 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/filclient"
+	"github.com/textileio/broker-core/dshelper"
+	"github.com/textileio/broker-core/filclient"
+	"github.com/textileio/broker-core/finalizer"
+	"github.com/textileio/broker-core/lotusclient"
+	"github.com/textileio/broker-core/marketpeer"
+	golog "github.com/textileio/go-log/v2"
+
 	"github.com/textileio/broker-core/cmd/bidbot/httpapi"
 	"github.com/textileio/broker-core/cmd/bidbot/service"
 	"github.com/textileio/broker-core/cmd/bidbot/service/limiter"
-	"github.com/textileio/broker-core/cmd/bidbot/service/lotusclient"
 	"github.com/textileio/broker-core/cmd/bidbot/service/store"
-	"github.com/textileio/broker-core/cmd/common"
-	"github.com/textileio/broker-core/dshelper"
-	"github.com/textileio/broker-core/finalizer"
-	"github.com/textileio/broker-core/marketpeer"
-	golog "github.com/textileio/go-log/v2"
+	"github.com/textileio/broker-core/common"
 )
 
 var (

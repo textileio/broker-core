@@ -8,11 +8,12 @@ import (
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/textileio/broker-core/auctioneer/cast"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
+	"github.com/textileio/broker-core/filclient"
 	"github.com/textileio/broker-core/finalizer"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"github.com/textileio/broker-core/marketpeer"
@@ -45,7 +46,7 @@ type Service struct {
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc auctioneer.FilClient) (*Service, error) {
+func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc filclient.FilClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer

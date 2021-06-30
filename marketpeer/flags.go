@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
 	"github.com/spf13/viper"
-	"github.com/textileio/broker-core/cmd/common"
+	"github.com/textileio/broker-core/common"
 )
 
 // Flags defines daemon flags for a marketpeer.
