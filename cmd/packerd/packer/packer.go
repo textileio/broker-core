@@ -6,14 +6,11 @@ import (
 	"sync"
 	"time"
 
+	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
-	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
-	"github.com/ipfs/go-unixfs"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
-	"github.com/multiformats/go-multibase"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/packer/store"
 	"github.com/textileio/broker-core/dshelper/txndswrap"
@@ -173,7 +170,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	}
 
 	start := time.Now()
-	batchCid, numBatchedCids, err := p.createDAGForBatch(ctx, bbrs)
+	batchCid, err := p.createDAGForBatch(ctx, bbrs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
@@ -193,141 +190,32 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 
 	p.metricNewBatch.Add(ctx, 1)
 	p.statLastBatch = time.Now()
-	p.statLastBatchCount = int64(numBatchedCids)
+	p.statLastBatchCount = int64(len(bbrs))
 	p.statLastBatchSize = batch.Size
 	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
 		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, numCidsBatched: %d, size: %d}",
-		sdID, batchCid, len(bbrs), numBatchedCids, batch.Size)
+		sdID, batchCid, len(bbrs), len(bbrs), batch.Size)
 
-	return numBatchedCids, nil
+	return len(bbrs), nil
 }
 
-func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBrokerRequest) (cid.Cid, int, error) {
-	batchRoot := unixfs.EmptyDirNode()
-	batchRoot.SetCidBuilder(merkledag.V1CidPrefix())
-	batchNodes := map[cid.Cid]*merkledag.ProtoNode{}
-
-	var numBatchedCids int
-	for _, br := range bbrs {
-		log.Debugf("get datacid %s", br.DataCid)
-		ctx, cls := context.WithTimeout(ctx, time.Millisecond*500)
-		defer cls()
-		targetNode, err := p.ipfs.Dag().Get(ctx, br.DataCid)
-		if err != nil {
-			return cid.Undef, 0, fmt.Errorf("getting node by cid: %s", err)
-		}
-
-		// 1- We get a base32 Cid.
-		base32Cid, err := br.DataCid.StringOfBase(multibase.Base32)
-		if err != nil {
-			return cid.Undef, 0, fmt.Errorf("transforming to base32 cid: %s", err)
-		}
-		base32CidLen := len(base32Cid)
-
-		// 2- Build path through 3 layers.
-		layer0LinkName := "ba.." + base32Cid[base32CidLen-2:base32CidLen]
-		layer1Node, err := getOrCreateLayerNode(batchRoot, layer0LinkName, batchNodes)
-		if err != nil {
-			return cid.Undef, 0, fmt.Errorf("get/create layer0 node: %s", err)
-		}
-		layer1LinkName := "ba.." + base32Cid[base32CidLen-4:base32CidLen]
-		layer2Node, err := getOrCreateLayerNode(layer1Node, layer1LinkName, batchNodes)
-		if err != nil {
-			return cid.Undef, 0, fmt.Errorf("get/create layer1 node: %s", err)
-		}
-
-		// 3- Add the target Cid in the layer 3 node, and bubble up parent nodes
-		//    changes up to the updated batchRoot that now includes this cid.
-		_, err = layer2Node.GetNodeLink(base32Cid)
-		if err != nil && err != merkledag.ErrLinkNotFound {
-			return cid.Undef, 0, fmt.Errorf("getting target node: %s", err)
-		}
-		if err == merkledag.ErrLinkNotFound {
-			if err := updateNodeLink(layer2Node, base32Cid, targetNode, batchNodes); err != nil {
-				return cid.Undef, 0, fmt.Errorf("adding target node link: %s", err)
-			}
-			if err := updateNodeLink(layer1Node, layer1LinkName, layer2Node, batchNodes); err != nil {
-				return cid.Undef, 0, fmt.Errorf("updating layer 2 node: %s", err)
-			}
-			if err := updateNodeLink(batchRoot, layer0LinkName, layer1Node, batchNodes); err != nil {
-				return cid.Undef, 0, fmt.Errorf("updating layer 1 node: %s", err)
-			}
-			numBatchedCids++
-		} else {
-			// This "else" case is interesting. It means we already batched the same dataCid
-			// in the dag. Other BrokerRequest had the same Cid!
-			// That's to say, we don't do anything new in this iteration.
-			// This isn't a problem, both StorageRequests are fulfilled and can find their data.
-
-			// Let's log a warning just to be aware that this is a lucky situation and not
-			// something firing often.
-			log.Warnf("lucky! cid %s is already in the batch", base32Cid)
+func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBrokerRequest) (cid.Cid, error) {
+	lst := make([]aggregator.AggregateDagEntry, len(bbrs))
+	for i, bbr := range bbrs {
+		lst[i] = aggregator.AggregateDagEntry{
+			RootCid:                   bbr.DataCid,
+			UniqueBlockCumulativeSize: uint64(bbr.Size),
 		}
 	}
-
-	toBeAddedNodes := make([]ipld.Node, 0, len(batchNodes))
-	for _, node := range batchNodes {
-		toBeAddedNodes = append(toBeAddedNodes, node)
+	root, err := aggregator.Aggregate(ctx, p.ipfs.Dag(), lst)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("aggregating cids: %s", err)
 	}
-	if err := p.ipfs.Dag().AddMany(ctx, toBeAddedNodes); err != nil {
-		return cid.Undef, 0, fmt.Errorf("adding updated nodes: %s", err)
+	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
+		return cid.Undef, fmt.Errorf("pinning batch root: %s", err)
 	}
-
-	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(batchRoot.Cid()), options.Pin.Recursive(true)); err != nil {
-		return cid.Undef, 0, fmt.Errorf("pinning batch root: %s", err)
-	}
-
-	return batchRoot.Cid(), numBatchedCids, nil
-}
-
-func getOrCreateLayerNode(
-	parentNode *merkledag.ProtoNode,
-	layerLinkName string,
-	batchNodes map[cid.Cid]*merkledag.ProtoNode) (*merkledag.ProtoNode, error) {
-	layerLink, err := parentNode.GetNodeLink(layerLinkName)
-	if err != nil && err != merkledag.ErrLinkNotFound {
-		return nil, fmt.Errorf("getting node by name: %s", err)
-	}
-	var layerNode *merkledag.ProtoNode
-	if err == merkledag.ErrLinkNotFound {
-		// We'll edit the paretNode to add an extra link. We can remove the current parentNode
-		// from the batch nodes set, since it won't be used in the final DAG.
-		delete(batchNodes, parentNode.Cid())
-
-		layerNode = unixfs.EmptyDirNode()
-		if err := parentNode.AddNodeLink(layerLinkName, layerNode); err != nil {
-			return nil, fmt.Errorf("adding link: %s", err)
-		}
-
-		// Add again parentNode with the extra link.
-		batchNodes[parentNode.Cid()] = parentNode
-	} else {
-		l1Node, ok := batchNodes[layerLink.Cid]
-		if !ok {
-			return nil, fmt.Errorf("proto node not found in batch nodes, this should never happen")
-		}
-		layerNode = l1Node
-	}
-
-	return layerNode, nil
-}
-
-func updateNodeLink(
-	node *merkledag.ProtoNode,
-	linkName string,
-	newNode ipld.Node,
-	batchNodes map[cid.Cid]*merkledag.ProtoNode) error {
-	delete(batchNodes, node.Cid())
-	if err := node.RemoveNodeLink(linkName); err != nil && err != merkledag.ErrLinkNotFound {
-		return fmt.Errorf("removing link name: %s", err)
-	}
-	if err := node.AddNodeLink(linkName, newNode); err != nil {
-		return fmt.Errorf("updating batch root node link: %s", err)
-	}
-	batchNodes[node.Cid()] = node
-
-	return nil
+	return root, nil
 }
 
 // calcBatchLimit does a worst-case estimation of the maximum size the batch DAG can have to fit

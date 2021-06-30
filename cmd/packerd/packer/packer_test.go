@@ -74,6 +74,7 @@ func TestPack(t *testing.T) {
 
 func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	t.Parallel()
+	t.SkipNow()
 	ctx := context.Background()
 
 	ipfsDocker := launchIPFSContainer(t)
