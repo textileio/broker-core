@@ -28,6 +28,7 @@ func init() {
 		{Name: "skip-auth", DefValue: false, Description: "Disabled authorization check"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "bearer-tokens", DefValue: []string{}, Description: "Raw accepted bearer tokens"},
+		{Name: "max-upload-size", DefValue: "4GB", Description: "Maximum upload size"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -68,6 +69,7 @@ var rootCmd = &cobra.Command{
 			SkipAuth:              v.GetBool("skip-auth"),
 			IpfsMultiaddrs:        ipfsMultiaddrs,
 			BearerTokens:          common.ParseStringSlice(v, "bearer-tokens"),
+			MaxUploadSize:         v.GetSizeInBytes("max-upload-size"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)
