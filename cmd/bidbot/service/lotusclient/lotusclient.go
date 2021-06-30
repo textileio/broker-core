@@ -25,7 +25,6 @@ var (
 // LotusClient provides access to Lotus for importing deal data.
 type LotusClient interface {
 	io.Closer
-
 	HealthCheck() error
 	ImportData(pcid cid.Cid, file string) error
 }

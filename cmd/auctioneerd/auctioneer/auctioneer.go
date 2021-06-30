@@ -162,7 +162,7 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 }
 
 // CreateAuction creates a new auction.
-// New auctions are queud if the auctioneer is busy.
+// New auctions are queued if the auctioneer is busy.
 func (a *Auctioneer) CreateAuction(auction core.Auction) (core.AuctionID, error) {
 	auction.Status = broker.AuctionStatusUnspecified
 	auction.Duration = a.auctionConf.Duration
