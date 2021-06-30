@@ -23,7 +23,7 @@ var defaultConfig = config{
 // Option applies a configuration change.
 type Option func(*config) error
 
-// WithBatchFrequency indicates the frequency in which ready batches are processed.
+// WithDaemonFrequency indicates the frequency in which ready batches are processed.
 func WithDaemonFrequency(frequency time.Duration) Option {
 	return func(c *config) error {
 		if frequency <= 0 {
