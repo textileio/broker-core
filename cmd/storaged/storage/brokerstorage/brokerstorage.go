@@ -135,7 +135,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		return storage.Request{}, errors.New("rep-factor should can't be negative")
 	}
 
-	deadline := time.Now().Add(auction.DefaultDealDeadline)
+	deadline := time.Now().Add(broker.DefaultPreparedCARDeadline)
 	if adr.Deadline != "" {
 		deadline, err = time.Parse(time.RFC3339, adr.Deadline)
 		if err != nil {

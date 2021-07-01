@@ -39,7 +39,7 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 		ID:            broker.BrokerRequestID(brproto.Id),
 		DataCid:       c,
 		Status:        status,
-		StorageDealID: auction.StorageDealID(brproto.StorageDealId),
+		StorageDealID: broker.StorageDealID(brproto.StorageDealId),
 		CreatedAt:     brproto.CreatedAt.AsTime(),
 		UpdatedAt:     brproto.UpdatedAt.AsTime(),
 	}, nil
@@ -121,7 +121,7 @@ func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequest
 	}, nil
 }
 
-// ClosedAuctionToPb returns pb.Auction from auction.Auction.
+// ClosedAuctionToPb returns pb.Auction from auction.
 func ClosedAuctionToPb(a broker.ClosedAuction) *pb.StorageDealAuctionedRequest {
 	pba := &pb.StorageDealAuctionedRequest{
 		Id:              string(a.ID),
@@ -136,16 +136,16 @@ func ClosedAuctionToPb(a broker.ClosedAuction) *pb.StorageDealAuctionedRequest {
 	return pba
 }
 
-// AuctionStatusToPb returns pb.Auction_Status from auction.AuctionStatus.
-func AuctionStatusToPb(s auction.AuctionStatus) pb.StorageDealAuctionedRequest_Status {
+// AuctionStatusToPb returns pb.Auction_Status from broker.AuctionStatus.
+func AuctionStatusToPb(s broker.AuctionStatus) pb.StorageDealAuctionedRequest_Status {
 	switch s {
-	case auction.AuctionStatusUnspecified:
+	case broker.AuctionStatusUnspecified:
 		return pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED
-	case auction.AuctionStatusQueued:
+	case broker.AuctionStatusQueued:
 		return pb.StorageDealAuctionedRequest_STATUS_QUEUED
-	case auction.AuctionStatusStarted:
+	case broker.AuctionStatusStarted:
 		return pb.StorageDealAuctionedRequest_STATUS_STARTED
-	case auction.AuctionStatusFinalized:
+	case broker.AuctionStatusFinalized:
 		return pb.StorageDealAuctionedRequest_STATUS_FINALIZED
 	default:
 		return pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED
@@ -168,7 +168,7 @@ func AuctionWinningBidsToPb(
 	return pbbids
 }
 
-// ClosedAuctionFromPb returns auction.Auction from pb.Auction.
+// ClosedAuctionFromPb returns auctioneer.Auction from pb.
 func ClosedAuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.ClosedAuction, error) {
 	wbids, err := AuctionWinningBidsFromPb(pba.WinningBids)
 	if err != nil {
@@ -176,7 +176,7 @@ func ClosedAuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.ClosedAuct
 	}
 	a := broker.ClosedAuction{
 		ID:              auction.AuctionID(pba.Id),
-		StorageDealID:   auction.StorageDealID(pba.StorageDealId),
+		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,
 		DealVerified:    pba.DealVerified,
@@ -187,19 +187,19 @@ func ClosedAuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.ClosedAuct
 	return a, nil
 }
 
-// AuctionStatusFromPb returns auction.AuctionStatus from pb.StorageDealAuctionedRequest_Status.
-func AuctionStatusFromPb(pbs pb.StorageDealAuctionedRequest_Status) auction.AuctionStatus {
+// AuctionStatusFromPb returns broker.AuctionStatus from pb.StorageDealAuctionedRequest_Status.
+func AuctionStatusFromPb(pbs pb.StorageDealAuctionedRequest_Status) broker.AuctionStatus {
 	switch pbs {
 	case pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED:
-		return auction.AuctionStatusUnspecified
+		return broker.AuctionStatusUnspecified
 	case pb.StorageDealAuctionedRequest_STATUS_QUEUED:
-		return auction.AuctionStatusQueued
+		return broker.AuctionStatusQueued
 	case pb.StorageDealAuctionedRequest_STATUS_STARTED:
-		return auction.AuctionStatusStarted
+		return broker.AuctionStatusStarted
 	case pb.StorageDealAuctionedRequest_STATUS_FINALIZED:
-		return auction.AuctionStatusFinalized
+		return broker.AuctionStatusFinalized
 	default:
-		return auction.AuctionStatusUnspecified
+		return broker.AuctionStatusUnspecified
 	}
 }
 

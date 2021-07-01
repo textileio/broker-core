@@ -21,12 +21,10 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
-	github.com/ipfs/go-ipfs-blockstore v1.0.4
 	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
 	github.com/ipfs/go-ipfs-util v0.0.2
-	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/ipld/go-car v0.1.1-0.20201119040415-11b6074b6d4d
@@ -48,7 +46,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.0.0-20210701125032-cc013977040c
+	github.com/textileio/bidbot v0.0.0-20210702145316-234d16234a64
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
@@ -65,5 +63,3 @@ replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
 
 replace github.com/hsanjuan/ipfs-lite => github.com/sanderpick/ipfs-lite v1.1.20-0.20210603231246-4c7bb79224a9
-
-replace github.com/textileio/bidbot => ../bidbot

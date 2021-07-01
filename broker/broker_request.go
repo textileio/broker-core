@@ -10,8 +10,14 @@ import (
 const (
 	// CodecFilCommitmentUnsealed is the IPLD codec for PieceCid cids.
 	CodecFilCommitmentUnsealed = 0xf101
+	// DefaultPreparedCARDeadline is the default deadline for prepared CAR deals.
+	DefaultPreparedCARDeadline = time.Hour * 48
 	// MaxPieceSize is the maximum piece size accepted for prepared data.
 	MaxPieceSize = 32 << 30
+	// MinDealReplication is the minimum allowed deal replication requested of miners.
+	MinDealReplication = 1
+	// MaxDealReplication is the maximum allowed deal replication requested of miners.
+	MaxDealReplication = 10
 )
 
 // BrokerRequestID is the type used for broker request identity.
@@ -22,7 +28,7 @@ type BrokerRequest struct {
 	ID            BrokerRequestID
 	DataCid       cid.Cid
 	Status        BrokerRequestStatus
-	StorageDealID auction.StorageDealID
+	StorageDealID StorageDealID
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
