@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 )
 
 // Dealer creates deals in the Filecoin network.
@@ -14,7 +14,7 @@ type Dealer interface {
 
 // AuctionDeals describes a set of deals for some prepared data.
 type AuctionDeals struct {
-	StorageDealID broker.StorageDealID
+	StorageDealID auction.StorageDealID
 	PayloadCid    cid.Cid
 	PieceCid      cid.Cid
 	PieceSize     uint64

@@ -12,14 +12,14 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pb "github.com/textileio/bidbot/gen/proto/v1/message"
-	"github.com/textileio/bidbot/lib/auctioneer/cast"
-	"github.com/textileio/bidbot/lib/broker"
-	core "github.com/textileio/bidbot/lib/broker"
+	core "github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/bidbot/lib/marketpeer"
 	"github.com/textileio/bidbot/lib/pubsub"
+	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
 	golog "github.com/textileio/go-log/v2"
@@ -70,7 +70,7 @@ type Auctioneer struct {
 	fc       filclient.FilClient
 	auctions *pubsub.Topic
 
-	broker core.Broker
+	broker broker.Broker
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
@@ -87,7 +87,7 @@ type Auctioneer struct {
 func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
-	broker core.Broker,
+	broker broker.Broker,
 	fc filclient.FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
@@ -164,10 +164,10 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queued if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(auction core.Auction) (core.AuctionID, error) {
-	auction.Status = broker.AuctionStatusUnspecified
-	auction.Duration = a.auctionConf.Duration
-	id, err := a.queue.CreateAuction(auction)
+func (a *Auctioneer) CreateAuction(theAuction core.Auction) (core.AuctionID, error) {
+	theAuction.Status = core.AuctionStatusUnspecified
+	theAuction.Duration = a.auctionConf.Duration
+	id, err := a.queue.CreateAuction(theAuction)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
 	}
@@ -194,7 +194,7 @@ func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
 // DeliverProposal delivers the proposal Cid for an accepted deal to the winning bidder.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
-func (a *Auctioneer) DeliverProposal(id broker.AuctionID, bid broker.BidID, pcid cid.Cid) error {
+func (a *Auctioneer) DeliverProposal(id core.AuctionID, bid core.BidID, pcid cid.Cid) error {
 	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid); errors.Is(q.ErrAuctionNotFound, err) {
 		return ErrAuctionNotFound
 	} else if errors.Is(q.ErrBidNotFound, err) {
@@ -379,7 +379,7 @@ func (a *Auctioneer) validateBid(b *core.Bid) error {
 
 func (a *Auctioneer) finalizeAuction(ctx context.Context, auction core.Auction) error {
 	switch auction.Status {
-	case broker.AuctionStatusFinalized:
+	case core.AuctionStatusFinalized:
 		if auction.ErrorCause != "" {
 			a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrError)
 		} else {

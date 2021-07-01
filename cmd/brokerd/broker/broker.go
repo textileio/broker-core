@@ -11,9 +11,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
-	"github.com/textileio/bidbot/lib/auctioneer"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
+	"github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
@@ -265,7 +266,7 @@ func (b *Broker) GetBrokerRequestInfo(
 func (b *Broker) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
-	brids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	brids []broker.BrokerRequestID) (auction.StorageDealID, error) {
 	if !batchCid.Defined() {
 		return "", ErrInvalidCid
 	}
@@ -293,8 +294,8 @@ func (b *Broker) CreateStorageDeal(
 		UpdatedAt:          now,
 		DisallowRebatching: false,
 		FilEpochDeadline:   0,
-		Sources: broker.Sources{
-			CARURL: &broker.CARURL{
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
 				URL: *b.conf.carExportURL.ResolveReference(cidURL),
 			},
 		},
@@ -322,7 +323,7 @@ func (b *Broker) CreateStorageDeal(
 // and to continue with the storage deal process.
 func (b *Broker) StorageDealPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id auction.StorageDealID,
 	dpr broker.DataPreparationResult,
 ) error {
 	if id == "" {
@@ -367,7 +368,7 @@ func (b *Broker) StorageDealPrepared(
 // StorageDealProposalAccepted indicates that a miner has accepted a proposed deal.
 func (b *Broker) StorageDealProposalAccepted(
 	ctx context.Context,
-	sdID broker.StorageDealID,
+	sdID auction.StorageDealID,
 	miner string,
 	proposal cid.Cid) error {
 	log.Debugf("accepted proposal %s from miner %s, signaling auctioneer to start download for bidbot", proposal, miner)
@@ -377,8 +378,8 @@ func (b *Broker) StorageDealProposalAccepted(
 		return fmt.Errorf("storage deal not found: %s", err)
 	}
 
-	var auctionID broker.AuctionID
-	var bidID broker.BidID
+	var auctionID auction.AuctionID
+	var bidID auction.BidID
 	for _, deal := range sd.Deals {
 		if deal.Miner == miner {
 			auctionID = deal.AuctionID
@@ -400,10 +401,10 @@ func (b *Broker) StorageDealProposalAccepted(
 }
 
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
-func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) error {
+func (b *Broker) StorageDealAuctioned(ctx context.Context, au auction.Auction) error {
 	log.Debugf("storage deal %s was auctioned with %d winning bids", au.StorageDealID, len(au.WinningBids))
 
-	if au.Status != broker.AuctionStatusFinalized {
+	if au.Status != auction.AuctionStatusFinalized {
 		return errors.New("auction status should be final")
 	}
 
@@ -629,7 +630,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 
 // GetStorageDeal gets an existing storage deal. If the storage deal doesn't exists, it returns
 // ErrNotFound.
-func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (broker.StorageDeal, error) {
+func (b *Broker) GetStorageDeal(ctx context.Context, id auction.StorageDealID) (broker.StorageDeal, error) {
 	sd, err := b.store.GetStorageDeal(ctx, id)
 	if err == ErrNotFound {
 		return broker.StorageDeal{}, ErrNotFound
@@ -647,7 +648,7 @@ func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (b
 //   be batched again.
 // - Move the underlying broker requests of the storage deal to Batching.
 // - Create an async job to unpin the Cid of the batch (since won't be relevant anymore).
-func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.StorageDealID, errCause string) error {
+func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id auction.StorageDealID, errCause string) error {
 	brs, err := b.store.StorageDealError(ctx, id, errCause, true)
 	if err != nil {
 		return fmt.Errorf("moving storage deal to error status: %s", err)

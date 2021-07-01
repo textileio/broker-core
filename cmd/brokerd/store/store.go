@@ -14,7 +14,8 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	"github.com/oklog/ulid/v2"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -75,7 +76,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 	if err != nil {
 		return fmt.Errorf("generating id: %s", err)
 	}
-	sd.ID = broker.StorageDealID(newID)
+	sd.ID = auction.StorageDealID(newID)
 
 	start := time.Now()
 	defer log.Debugf(
@@ -169,7 +170,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 // to Auctioning status.
 func (s *Store) StorageDealToAuctioning(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id auction.StorageDealID,
 	pieceCid cid.Cid,
 	pieceSize uint64) error {
 	txn, err := s.ds.NewTransaction(false)
@@ -235,7 +236,7 @@ func (s *Store) StorageDealToAuctioning(
 // schedule again this broker requests to Packer.
 func (s *Store) StorageDealError(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id auction.StorageDealID,
 	errorCause string,
 	rebatch bool) ([]broker.BrokerRequestID, error) {
 	txn, err := s.ds.NewTransaction(false)
@@ -317,7 +318,7 @@ func (s *Store) StorageDealError(
 
 // StorageDealSuccess moves a storage deal and the underlying broker requests to
 // Success status.
-func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID) error {
+func (s *Store) StorageDealSuccess(ctx context.Context, id auction.StorageDealID) error {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("creating transaction: %s", err)
@@ -398,7 +399,7 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 }
 
 // CountAuctionRetry increases the number of auction retries counter for a storage deal.
-func (s *Store) CountAuctionRetry(ctx context.Context, sdID broker.StorageDealID) error {
+func (s *Store) CountAuctionRetry(ctx context.Context, sdID auction.StorageDealID) error {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("creating transaction: %s", err)
@@ -425,7 +426,7 @@ func (s *Store) CountAuctionRetry(ctx context.Context, sdID broker.StorageDealID
 }
 
 // AddMinerDeals includes new deals from a finalized auction.
-func (s *Store) AddMinerDeals(ctx context.Context, auction broker.Auction) error {
+func (s *Store) AddMinerDeals(ctx context.Context, auction auction.Auction) error {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("creating transaction: %s", err)
@@ -501,7 +502,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.Auction) error
 
 // GetStorageDeal gets an existing storage deal by id. If the storage deal doesn't exists, it returns
 // ErrNotFound.
-func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (broker.StorageDeal, error) {
+func (s *Store) GetStorageDeal(ctx context.Context, id auction.StorageDealID) (broker.StorageDeal, error) {
 	isd, err := getStorageDeal(s.ds, id)
 	if err != nil {
 		return broker.StorageDeal{}, fmt.Errorf("get storage-deal from datastore: %s", err)
@@ -609,7 +610,7 @@ func saveUnpinJob(w datastore.Write, uj UnpinJob) error {
 	return nil
 }
 
-func getStorageDeal(r datastore.Read, id broker.StorageDealID) (storageDeal, error) {
+func getStorageDeal(r datastore.Read, id auction.StorageDealID) (storageDeal, error) {
 	var sd storageDeal
 	buf, err := r.Get(keyStorageDeal(id))
 	if err == datastore.ErrNotFound {
@@ -627,7 +628,7 @@ func keyBrokerRequest(ID broker.BrokerRequestID) datastore.Key {
 	return prefixBrokerRequest.ChildString(string(ID))
 }
 
-func keyStorageDeal(ID broker.StorageDealID) datastore.Key {
+func keyStorageDeal(ID auction.StorageDealID) datastore.Key {
 	return prefixStorageDeal.ChildString(string(ID))
 }
 func (s *Store) newID() (string, error) {

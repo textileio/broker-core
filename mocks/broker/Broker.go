@@ -3,8 +3,10 @@
 package mocks
 
 import (
+	auction "github.com/textileio/bidbot/lib/auction"
+	broker "github.com/textileio/broker-core/broker"
+
 	cid "github.com/ipfs/go-cid"
-	broker "github.com/textileio/bidbot/lib/broker"
 
 	context "context"
 
@@ -59,14 +61,14 @@ func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc bro
 }
 
 // CreateStorageDeal provides a mock function with given fields: ctx, batchCid, srids
-func (_m *Broker) CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+func (_m *Broker) CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []broker.BrokerRequestID) (auction.StorageDealID, error) {
 	ret := _m.Called(ctx, batchCid, srids)
 
-	var r0 broker.StorageDealID
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, []broker.BrokerRequestID) broker.StorageDealID); ok {
+	var r0 auction.StorageDealID
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, []broker.BrokerRequestID) auction.StorageDealID); ok {
 		r0 = rf(ctx, batchCid, srids)
 	} else {
-		r0 = ret.Get(0).(broker.StorageDealID)
+		r0 = ret.Get(0).(auction.StorageDealID)
 	}
 
 	var r1 error
@@ -100,13 +102,13 @@ func (_m *Broker) GetBrokerRequestInfo(ctx context.Context, ID broker.BrokerRequ
 	return r0, r1
 }
 
-// StorageDealAuctioned provides a mock function with given fields: ctx, auction
-func (_m *Broker) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
-	ret := _m.Called(ctx, auction)
+// StorageDealAuctioned provides a mock function with given fields: ctx, _a1
+func (_m *Broker) StorageDealAuctioned(ctx context.Context, _a1 auction.Auction) error {
+	ret := _m.Called(ctx, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.Auction) error); ok {
-		r0 = rf(ctx, auction)
+	if rf, ok := ret.Get(0).(func(context.Context, auction.Auction) error); ok {
+		r0 = rf(ctx, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -129,11 +131,11 @@ func (_m *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Final
 }
 
 // StorageDealPrepared provides a mock function with given fields: ctx, id, pr
-func (_m *Broker) StorageDealPrepared(ctx context.Context, id broker.StorageDealID, pr broker.DataPreparationResult) error {
+func (_m *Broker) StorageDealPrepared(ctx context.Context, id auction.StorageDealID, pr broker.DataPreparationResult) error {
 	ret := _m.Called(ctx, id, pr)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, broker.DataPreparationResult) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, auction.StorageDealID, broker.DataPreparationResult) error); ok {
 		r0 = rf(ctx, id, pr)
 	} else {
 		r0 = ret.Error(0)
@@ -143,11 +145,11 @@ func (_m *Broker) StorageDealPrepared(ctx context.Context, id broker.StorageDeal
 }
 
 // StorageDealProposalAccepted provides a mock function with given fields: ctx, sdID, miner, proposalCid
-func (_m *Broker) StorageDealProposalAccepted(ctx context.Context, sdID broker.StorageDealID, miner string, proposalCid cid.Cid) error {
+func (_m *Broker) StorageDealProposalAccepted(ctx context.Context, sdID auction.StorageDealID, miner string, proposalCid cid.Cid) error {
 	ret := _m.Called(ctx, sdID, miner, proposalCid)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, string, cid.Cid) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, auction.StorageDealID, string, cid.Cid) error); ok {
 		r0 = rf(ctx, sdID, miner, proposalCid)
 	} else {
 		r0 = ret.Error(0)

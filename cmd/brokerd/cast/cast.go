@@ -6,7 +6,8 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -40,7 +41,7 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 		ID:            broker.BrokerRequestID(brproto.Id),
 		DataCid:       c,
 		Status:        status,
-		StorageDealID: broker.StorageDealID(brproto.StorageDealId),
+		StorageDealID: auction.StorageDealID(brproto.StorageDealId),
 		CreatedAt:     brproto.CreatedAt.AsTime(),
 		UpdatedAt:     brproto.UpdatedAt.AsTime(),
 	}, nil
@@ -122,8 +123,8 @@ func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequest
 	}, nil
 }
 
-// AuctionToPb returns pb.Auction from broker.Auction.
-func AuctionToPb(a broker.Auction) *pb.StorageDealAuctionedRequest {
+// AuctionToPb returns pb.Auction from auction.Auction.
+func AuctionToPb(a auction.Auction) *pb.StorageDealAuctionedRequest {
 	pba := &pb.StorageDealAuctionedRequest{
 		Id:              string(a.ID),
 		StorageDealId:   string(a.StorageDealID),
@@ -143,24 +144,24 @@ func AuctionToPb(a broker.Auction) *pb.StorageDealAuctionedRequest {
 	return pba
 }
 
-// AuctionStatusToPb returns pb.Auction_Status from broker.AuctionStatus.
-func AuctionStatusToPb(s broker.AuctionStatus) pb.StorageDealAuctionedRequest_Status {
+// AuctionStatusToPb returns pb.Auction_Status from auction.AuctionStatus.
+func AuctionStatusToPb(s auction.AuctionStatus) pb.StorageDealAuctionedRequest_Status {
 	switch s {
-	case broker.AuctionStatusUnspecified:
+	case auction.AuctionStatusUnspecified:
 		return pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED
-	case broker.AuctionStatusQueued:
+	case auction.AuctionStatusQueued:
 		return pb.StorageDealAuctionedRequest_STATUS_QUEUED
-	case broker.AuctionStatusStarted:
+	case auction.AuctionStatusStarted:
 		return pb.StorageDealAuctionedRequest_STATUS_STARTED
-	case broker.AuctionStatusFinalized:
+	case auction.AuctionStatusFinalized:
 		return pb.StorageDealAuctionedRequest_STATUS_FINALIZED
 	default:
 		return pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED
 	}
 }
 
-// AuctionBidsToPb returns a map of pb.Auction_Bid from a map of broker.Bid.
-func AuctionBidsToPb(bids map[broker.BidID]broker.Bid) map[string]*pb.StorageDealAuctionedRequest_Bid {
+// AuctionBidsToPb returns a map of pb.Auction_Bid from a map of auction.Bid.
+func AuctionBidsToPb(bids map[auction.BidID]auction.Bid) map[string]*pb.StorageDealAuctionedRequest_Bid {
 	pbbids := make(map[string]*pb.StorageDealAuctionedRequest_Bid)
 	for k, v := range bids {
 		pbbids[string(k)] = &pb.StorageDealAuctionedRequest_Bid{
@@ -177,9 +178,9 @@ func AuctionBidsToPb(bids map[broker.BidID]broker.Bid) map[string]*pb.StorageDea
 	return pbbids
 }
 
-// AuctionWinningBidsToPb returns a map of pb.StorageDealAuctionedRequest_WinningBid from a map of broker.WinningBid.
+// AuctionWinningBidsToPb returns a map of pb.StorageDealAuctionedRequest_WinningBid from a map of auction.WinningBid.
 func AuctionWinningBidsToPb(
-	bids map[broker.BidID]broker.WinningBid,
+	bids map[auction.BidID]auction.WinningBid,
 ) map[string]*pb.StorageDealAuctionedRequest_WinningBid {
 	pbbids := make(map[string]*pb.StorageDealAuctionedRequest_WinningBid)
 	for k, v := range bids {
@@ -197,19 +198,19 @@ func AuctionWinningBidsToPb(
 	return pbbids
 }
 
-// AuctionFromPb returns broker.Auction from pb.Auction.
-func AuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.Auction, error) {
+// AuctionFromPb returns auction.Auction from pb.Auction.
+func AuctionFromPb(pba *pb.StorageDealAuctionedRequest) (auction.Auction, error) {
 	bids, err := AuctionBidsFromPb(pba.Bids)
 	if err != nil {
-		return broker.Auction{}, fmt.Errorf("decoding bids: %v", err)
+		return auction.Auction{}, fmt.Errorf("decoding bids: %v", err)
 	}
 	wbids, err := AuctionWinningBidsFromPb(pba.WinningBids)
 	if err != nil {
-		return broker.Auction{}, fmt.Errorf("decoding bids: %v", err)
+		return auction.Auction{}, fmt.Errorf("decoding bids: %v", err)
 	}
-	a := broker.Auction{
-		ID:              broker.AuctionID(pba.Id),
-		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
+	a := auction.Auction{
+		ID:              auction.AuctionID(pba.Id),
+		StorageDealID:   auction.StorageDealID(pba.StorageDealId),
 		DealSize:        pba.DealSize,
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,
@@ -226,31 +227,31 @@ func AuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.Auction, error) 
 	return a, nil
 }
 
-// AuctionStatusFromPb returns broker.AuctionStatus from pb.StorageDealAuctionedRequest_Status.
-func AuctionStatusFromPb(pbs pb.StorageDealAuctionedRequest_Status) broker.AuctionStatus {
+// AuctionStatusFromPb returns auction.AuctionStatus from pb.StorageDealAuctionedRequest_Status.
+func AuctionStatusFromPb(pbs pb.StorageDealAuctionedRequest_Status) auction.AuctionStatus {
 	switch pbs {
 	case pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED:
-		return broker.AuctionStatusUnspecified
+		return auction.AuctionStatusUnspecified
 	case pb.StorageDealAuctionedRequest_STATUS_QUEUED:
-		return broker.AuctionStatusQueued
+		return auction.AuctionStatusQueued
 	case pb.StorageDealAuctionedRequest_STATUS_STARTED:
-		return broker.AuctionStatusStarted
+		return auction.AuctionStatusStarted
 	case pb.StorageDealAuctionedRequest_STATUS_FINALIZED:
-		return broker.AuctionStatusFinalized
+		return auction.AuctionStatusFinalized
 	default:
-		return broker.AuctionStatusUnspecified
+		return auction.AuctionStatusUnspecified
 	}
 }
 
-// AuctionBidsFromPb returns a map of broker.Bid from a map of pb.StorageDealAuctionedRequest_Bid.
-func AuctionBidsFromPb(pbbids map[string]*pb.StorageDealAuctionedRequest_Bid) (map[broker.BidID]broker.Bid, error) {
-	bids := make(map[broker.BidID]broker.Bid)
+// AuctionBidsFromPb returns a map of auction.Bid from a map of pb.StorageDealAuctionedRequest_Bid.
+func AuctionBidsFromPb(pbbids map[string]*pb.StorageDealAuctionedRequest_Bid) (map[auction.BidID]auction.Bid, error) {
+	bids := make(map[auction.BidID]auction.Bid)
 	for k, v := range pbbids {
 		bidder, err := peer.Decode(v.BidderId)
 		if err != nil {
 			return nil, fmt.Errorf("decoding bidder: %v", err)
 		}
-		bids[broker.BidID(k)] = broker.Bid{
+		bids[auction.BidID(k)] = auction.Bid{
 			MinerAddr:        v.MinerAddr,
 			WalletAddrSig:    v.WalletAddrSig,
 			BidderID:         bidder,
@@ -264,11 +265,11 @@ func AuctionBidsFromPb(pbbids map[string]*pb.StorageDealAuctionedRequest_Bid) (m
 	return bids, nil
 }
 
-// AuctionWinningBidsFromPb returns a map of broker.WinningBid from a map of pb.StorageDealAuctionedRequest_WinningBid.
+// AuctionWinningBidsFromPb returns a map of auction.WinningBid from a map of pb.StorageDealAuctionedRequest_WinningBid.
 func AuctionWinningBidsFromPb(
 	pbbids map[string]*pb.StorageDealAuctionedRequest_WinningBid,
-) (map[broker.BidID]broker.WinningBid, error) {
-	wbids := make(map[broker.BidID]broker.WinningBid)
+) (map[auction.BidID]auction.WinningBid, error) {
+	wbids := make(map[auction.BidID]auction.WinningBid)
 	for k, v := range pbbids {
 		bidder, err := peer.Decode(v.BidderId)
 		if err != nil {
@@ -282,7 +283,7 @@ func AuctionWinningBidsFromPb(
 				return nil, fmt.Errorf("decoding proposal cid: %v", err)
 			}
 		}
-		wbids[broker.BidID(k)] = broker.WinningBid{
+		wbids[auction.BidID(k)] = auction.WinningBid{
 			BidderID:                bidder,
 			Acknowledged:            v.Acknowledged,
 			ProposalCid:             pcid,

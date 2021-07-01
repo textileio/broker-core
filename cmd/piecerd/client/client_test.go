@@ -17,8 +17,9 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/finalizer"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/client"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
 	"github.com/textileio/broker-core/tests"
@@ -31,7 +32,7 @@ func TestClient_ReadyToPrepare(t *testing.T) {
 	c, bm, ipfs := newClient(t)
 
 	dataCid := addRandomData(t, ipfs)
-	sdID := broker.StorageDealID("SD1")
+	sdID := auction.StorageDealID("SD1")
 	err := c.ReadyToPrepare(context.Background(), sdID, dataCid)
 	require.NoError(t, err)
 
@@ -104,20 +105,20 @@ func addRandomData(t *testing.T, ipfs *httpapi.HttpApi) cid.Cid {
 type brokerMock struct {
 	lock     sync.Mutex
 	numCalls int
-	sdpSDID  broker.StorageDealID
+	sdpSDID  auction.StorageDealID
 	sdpDPR   broker.DataPreparationResult
 }
 
 func (bm *brokerMock) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
-	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	srids []broker.BrokerRequestID) (auction.StorageDealID, error) {
 	panic("shouldn't be called")
 }
 
 func (bm *brokerMock) StorageDealPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id auction.StorageDealID,
 	dpr broker.DataPreparationResult) error {
 	bm.lock.Lock()
 	defer bm.lock.Unlock()
@@ -127,7 +128,7 @@ func (bm *brokerMock) StorageDealPrepared(
 	return nil
 }
 
-func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.Auction) error {
+func (bm *brokerMock) StorageDealAuctioned(context.Context, auction.Auction) error {
 	panic("shouldn't be called")
 }
 
@@ -147,7 +148,7 @@ func (bm *brokerMock) GetBrokerRequestInfo(context.Context, broker.BrokerRequest
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) StorageDealProposalAccepted(context.Context, broker.StorageDealID, string, cid.Cid) error {
+func (bm *brokerMock) StorageDealProposalAccepted(context.Context, auction.StorageDealID, string, cid.Cid) error {
 	panic("shouldn't be called")
 }
 

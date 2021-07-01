@@ -3,8 +3,9 @@
 package mocks
 
 import (
+	auction "github.com/textileio/bidbot/lib/auction"
+
 	cid "github.com/ipfs/go-cid"
-	broker "github.com/textileio/bidbot/lib/broker"
 
 	context "context"
 
@@ -17,18 +18,18 @@ type Auctioneer struct {
 }
 
 // GetAuction provides a mock function with given fields: ctx, id
-func (_m *Auctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (broker.Auction, error) {
+func (_m *Auctioneer) GetAuction(ctx context.Context, id auction.AuctionID) (auction.Auction, error) {
 	ret := _m.Called(ctx, id)
 
-	var r0 broker.Auction
-	if rf, ok := ret.Get(0).(func(context.Context, broker.AuctionID) broker.Auction); ok {
+	var r0 auction.Auction
+	if rf, ok := ret.Get(0).(func(context.Context, auction.AuctionID) auction.Auction); ok {
 		r0 = rf(ctx, id)
 	} else {
-		r0 = ret.Get(0).(broker.Auction)
+		r0 = ret.Get(0).(auction.Auction)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, broker.AuctionID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, auction.AuctionID) error); ok {
 		r1 = rf(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -38,11 +39,11 @@ func (_m *Auctioneer) GetAuction(ctx context.Context, id broker.AuctionID) (brok
 }
 
 // ProposalAccepted provides a mock function with given fields: ctx, auID, bidID, proposalCid
-func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID broker.AuctionID, bidID broker.BidID, proposalCid cid.Cid) error {
+func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID auction.AuctionID, bidID auction.BidID, proposalCid cid.Cid) error {
 	ret := _m.Called(ctx, auID, bidID, proposalCid)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.AuctionID, broker.BidID, cid.Cid) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, auction.AuctionID, auction.BidID, cid.Cid) error); ok {
 		r0 = rf(ctx, auID, bidID, proposalCid)
 	} else {
 		r0 = ret.Error(0)
@@ -52,18 +53,18 @@ func (_m *Auctioneer) ProposalAccepted(ctx context.Context, auID broker.AuctionI
 }
 
 // ReadyToAuction provides a mock function with given fields: ctx, id, payloadCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources
-func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id broker.StorageDealID, payloadCid cid.Cid, dealSize int, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string, filEpochDeadline uint64, sources broker.Sources) (broker.AuctionID, error) {
+func (_m *Auctioneer) ReadyToAuction(ctx context.Context, id auction.StorageDealID, payloadCid cid.Cid, dealSize int, dealDuration int, dealReplication int, dealVerified bool, excludedMiners []string, filEpochDeadline uint64, sources auction.Sources) (auction.AuctionID, error) {
 	ret := _m.Called(ctx, id, payloadCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources)
 
-	var r0 broker.AuctionID
-	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, cid.Cid, int, int, int, bool, []string, uint64, broker.Sources) broker.AuctionID); ok {
+	var r0 auction.AuctionID
+	if rf, ok := ret.Get(0).(func(context.Context, auction.StorageDealID, cid.Cid, int, int, int, bool, []string, uint64, auction.Sources) auction.AuctionID); ok {
 		r0 = rf(ctx, id, payloadCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources)
 	} else {
-		r0 = ret.Get(0).(broker.AuctionID)
+		r0 = ret.Get(0).(auction.AuctionID)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageDealID, cid.Cid, int, int, int, bool, []string, uint64, broker.Sources) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, auction.StorageDealID, cid.Cid, int, int, int, bool, []string, uint64, auction.Sources) error); ok {
 		r1 = rf(ctx, id, payloadCid, dealSize, dealDuration, dealReplication, dealVerified, excludedMiners, filEpochDeadline, sources)
 	} else {
 		r1 = ret.Error(1)

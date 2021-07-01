@@ -3,7 +3,7 @@ package auctioneer
 import (
 	"fmt"
 
-	"github.com/textileio/bidbot/lib/auctioneer"
+	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"google.golang.org/grpc"
 )

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/textileio/bidbot/lib/broker"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/logging"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	logger "github.com/textileio/go-log/v2"

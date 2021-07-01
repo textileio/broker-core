@@ -19,8 +19,9 @@ import (
 	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
 	pieceri "github.com/textileio/broker-core/piecer"
 	logger "github.com/textileio/go-log/v2"
@@ -102,7 +103,7 @@ func New(
 
 // ReadyToPrepare signals the Piecer that a new StorageDeal is ready to be prepared.
 // Piecer will call the broker async with the end result.
-func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, dataCid cid.Cid) error {
+func (p *Piecer) ReadyToPrepare(ctx context.Context, id auction.StorageDealID, dataCid cid.Cid) error {
 	if id == "" {
 		return fmt.Errorf("storage deal id is empty")
 	}

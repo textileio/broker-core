@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"
@@ -118,7 +119,7 @@ func (c *Client) GetBrokerRequestInfo(
 func (c *Client) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
-	ids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	ids []broker.BrokerRequestID) (auction.StorageDealID, error) {
 	if !batchCid.Defined() {
 		return "", fmt.Errorf("batch cid is undefined")
 	}
@@ -140,13 +141,13 @@ func (c *Client) CreateStorageDeal(
 		return "", fmt.Errorf("calling create storage deal api: %s", err)
 	}
 
-	return broker.StorageDealID(res.Id), nil
+	return auction.StorageDealID(res.Id), nil
 }
 
 // StorageDealPrepared indicates the preparing output for a storage deal.
 func (c *Client) StorageDealPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id auction.StorageDealID,
 	pr broker.DataPreparationResult) error {
 	req := &pb.StorageDealPreparedRequest{
 		StorageDealId: string(id),
@@ -160,7 +161,7 @@ func (c *Client) StorageDealPrepared(
 }
 
 // StorageDealAuctioned indicates the storage deal auction has completed.
-func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
+func (c *Client) StorageDealAuctioned(ctx context.Context, auction auction.Auction) error {
 	req := cast.AuctionToPb(auction)
 	if _, err := c.c.StorageDealAuctioned(ctx, req); err != nil {
 		return fmt.Errorf("calling storage deal winners api: %s", err)
@@ -171,7 +172,7 @@ func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.Auctio
 // StorageDealProposalAccepted notifies that a proposal has been accepted by a miner.
 func (c *Client) StorageDealProposalAccepted(
 	ctx context.Context,
-	sdID broker.StorageDealID,
+	sdID auction.StorageDealID,
 	miner string,
 	proposalCid cid.Cid) error {
 	req := &pb.StorageDealProposalAcceptedRequest{
