@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+CONTRACT_SUFFIX="-edge"
+if [[ "$1" == *"staging"* ]]; then
+	  CONTRACT_SUFFIX=""
+fi
+
 checkEnv() {
     if [[ -z ${!1+set} ]]; then
        echo "Oop! Need to define the $1 environment variable"
@@ -11,9 +16,9 @@ checkEnv SEED_PHRASE
 
 lockFunds() {
   echo "Locking funds on NEAR..."
-  near call filecoin-bridge.testnet addDeposit '{ "brokerId": "filecoin-bridge.testnet", "accountId": "lock-box.testnet" }' \
+  near call filecoin-bridge${CONTRACT_SUFFIX}.testnet addDeposit "{ \"brokerId\": \"filecoin-bridge${CONTRACT_SUFFIX}.testnet\", \"accountId\": \"lock-box.testnet\" }" \
   --account-id "lock-box.testnet" \
-  --amount 1 \
+  --amount 0.25  \
   --seedPhrase "$SEED_PHRASE"
 }
 
@@ -42,6 +47,7 @@ while ((i<=$COUNT)); do
 
   echo "Uploading file of size $SIZE..."
   OUT=$(curl -H "Authorization: $TOKEN" -F "file=@$TMPFILE" $TARGET 2>/dev/null)
+  echo $OUT
   if [[ $OUT == *"account doesn't have deposited funds"* ]]; then
 	  lockFunds
   fi
