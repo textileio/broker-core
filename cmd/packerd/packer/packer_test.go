@@ -17,8 +17,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/logging"
+	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/tests"
 	golog "github.com/textileio/go-log/v2"
 )

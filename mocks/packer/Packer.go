@@ -4,7 +4,7 @@ package mocks
 
 import (
 	cid "github.com/ipfs/go-cid"
-	broker "github.com/textileio/broker-core/broker"
+	broker "github.com/textileio/bidbot/lib/broker"
 
 	context "context"
 

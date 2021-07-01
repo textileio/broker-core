@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
 	"github.com/textileio/broker-core/cmd/packerd/client"
 	packeri "github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/rpc"

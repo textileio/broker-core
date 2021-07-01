@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	core "github.com/textileio/broker-core/broker"
+	core "github.com/textileio/bidbot/lib/broker"
 )
 
 func TestAcceptBid(t *testing.T) {

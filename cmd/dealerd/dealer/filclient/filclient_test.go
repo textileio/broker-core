@@ -12,8 +12,8 @@ import (
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
-	"github.com/textileio/broker-core/logging"
 )
 
 func TestExecuteAuctionDeal(t *testing.T) {

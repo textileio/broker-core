@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
 )
 
 // Dealer creates deals in the Filecoin network.

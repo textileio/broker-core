@@ -14,7 +14,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	"github.com/oklog/ulid/v2"
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
 	logger "github.com/textileio/go-log/v2"
 )
 

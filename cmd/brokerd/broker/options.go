@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
 )
 
 var defaultConfig = config{

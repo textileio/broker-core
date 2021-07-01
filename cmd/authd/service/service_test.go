@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/bidbot/lib/logging"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
-	"github.com/textileio/broker-core/logging"
 	mocks "github.com/textileio/broker-core/mocks/chainapi"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"

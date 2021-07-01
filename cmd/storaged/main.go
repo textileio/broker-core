@@ -7,8 +7,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/storaged/service"
-	"github.com/textileio/broker-core/common"
 	logging "github.com/textileio/go-log/v2"
 )
 

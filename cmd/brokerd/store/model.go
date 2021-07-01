@@ -8,7 +8,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
 )
 
 type brokerRequest struct {
