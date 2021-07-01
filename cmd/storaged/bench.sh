@@ -13,7 +13,7 @@ lockFunds() {
   echo "Locking funds on NEAR..."
   near call filecoin-bridge.testnet addDeposit '{ "brokerId": "filecoin-bridge.testnet", "accountId": "lock-box.testnet" }' \
   --account-id "lock-box.testnet" \
-  --amount 1 \
+  --amount 0.25  \
   --seedPhrase "$SEED_PHRASE"
 }
 
