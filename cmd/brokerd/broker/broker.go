@@ -232,25 +232,27 @@ func (b *Broker) GetBrokerRequestInfo(
 		return broker.BrokerRequestInfo{}, fmt.Errorf("get broker request from store: %s", err)
 	}
 
-	sd, err := b.store.GetStorageDeal(ctx, br.StorageDealID)
-	if err != nil {
-		return broker.BrokerRequestInfo{}, nil
-	}
-
 	bri := broker.BrokerRequestInfo{
 		BrokerRequest: br,
 	}
 
-	for _, deal := range sd.Deals {
-		if deal.DealID == 0 {
-			continue
+	if br.StorageDealID != "" {
+		sd, err := b.store.GetStorageDeal(ctx, br.StorageDealID)
+		if err != nil {
+			return broker.BrokerRequestInfo{}, fmt.Errorf("get storage-deal: %s", err)
 		}
-		di := broker.BrokerRequestDeal{
-			Miner:      deal.Miner,
-			DealID:     deal.DealID,
-			Expiration: deal.DealExpiration,
+
+		for _, deal := range sd.Deals {
+			if deal.DealID == 0 {
+				continue
+			}
+			di := broker.BrokerRequestDeal{
+				Miner:      deal.Miner,
+				DealID:     deal.DealID,
+				Expiration: deal.DealExpiration,
+			}
+			bri.Deals = append(bri.Deals, di)
 		}
-		bri.Deals = append(bri.Deals, di)
 	}
 
 	return bri, nil

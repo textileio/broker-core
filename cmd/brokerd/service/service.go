@@ -20,7 +20,7 @@ import (
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
 	"github.com/textileio/broker-core/common"
-	logging "github.com/textileio/go-log/v2"
+	logger "github.com/textileio/go-log/v2"
 
 	"github.com/textileio/broker-core/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	log = logging.Logger("broker/service")
+	log = logger.Logger("broker/service")
 )
 
 // Config provides configuration to the broker service.
