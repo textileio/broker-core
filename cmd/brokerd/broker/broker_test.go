@@ -290,36 +290,29 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
-	bids := map[auction.BidID]auction.Bid{
+	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerAddr:        "f01111",
-			AskPrice:         100,
-			VerifiedAskPrice: 200,
-			StartEpoch:       300,
-			FastRetrieval:    true,
+			MinerAddr:     "f01111",
+			Price:         200,
+			StartEpoch:    300,
+			FastRetrieval: true,
 		},
 		auction.BidID("Bid2"): {
-			MinerAddr:        "f02222",
-			AskPrice:         1100,
-			VerifiedAskPrice: 1200,
-			StartEpoch:       1300,
-			FastRetrieval:    false,
+			MinerAddr:     "f02222",
+			Price:         1200,
+			StartEpoch:    1300,
+			FastRetrieval: false,
 		},
 	}
 
-	a := auction.Auction{
+	a := broker.ClosedAuction{
 		ID:              auction.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
-		DealSize:        dpr.PieceSize,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
 		Status:          auction.AuctionStatusFinalized,
-		Bids:            bids,
-		WinningBids: map[auction.BidID]auction.WinningBid{
-			auction.BidID("Bid1"): {},
-			auction.BidID("Bid2"): {},
-		},
+		WinningBids:     winningBids,
 	}
 	err = b.StorageDealAuctioned(ctx, a)
 	require.NoError(t, err)
@@ -340,7 +333,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Equal(t, dpr.PieceCid, sd2.PieceCid)
 	require.Equal(t, dpr.PieceSize, sd2.PieceSize)
 	require.Len(t, sd2.Deals, 2)
-	for bidID, wb := range bids {
+	for bidID, wb := range winningBids {
 		var found bool
 		for _, deal := range sd2.Deals {
 			if deal.BidID == bidID {
@@ -369,8 +362,8 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Len(t, calledADS.Targets, 2)
 
 	for _, tr := range calledADS.Targets {
-		var bid auction.Bid
-		for _, b := range bids {
+		var bid broker.WinningBid
+		for _, b := range winningBids {
 			if tr.Miner == b.MinerAddr {
 				bid = b
 				break
@@ -379,7 +372,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 		if bid.MinerAddr == "" {
 			t.Errorf("AuctionDealsTarget has no corresponding Bid")
 		}
-		require.Equal(t, bid.VerifiedAskPrice, tr.PricePerGiBPerEpoch)
+		require.Equal(t, bid.Price, tr.PricePerGiBPerEpoch)
 		require.Equal(t, bid.StartEpoch, tr.StartEpoch)
 		require.True(t, tr.Verified)
 		require.Equal(t, bid.FastRetrieval, tr.FastRetrieval)
@@ -425,36 +418,28 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
-	bids := map[auction.BidID]auction.Bid{
+	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerAddr:        "f01111",
-			AskPrice:         100,
-			VerifiedAskPrice: 200,
-			StartEpoch:       300,
-			FastRetrieval:    true,
+			MinerAddr:     "f01111",
+			Price:         200,
+			StartEpoch:    300,
+			FastRetrieval: true,
 		},
 		auction.BidID("Bid2"): {
-			MinerAddr:        "f02222",
-			AskPrice:         1100,
-			VerifiedAskPrice: 1200,
-			StartEpoch:       1300,
-			FastRetrieval:    false,
+			MinerAddr:     "f02222",
+			Price:         1200,
+			StartEpoch:    1300,
+			FastRetrieval: false,
 		},
 	}
-
-	a := auction.Auction{
+	a := broker.ClosedAuction{
 		ID:              auction.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
-		DealSize:        dpr.PieceSize,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
 		Status:          auction.AuctionStatusFinalized,
-		Bids:            bids,
-		WinningBids: map[auction.BidID]auction.WinningBid{
-			auction.BidID("Bid1"): {},
-			auction.BidID("Bid2"): {},
-		},
+		WinningBids:     winningBids,
 	}
 	err = b.StorageDealAuctioned(ctx, a)
 	require.NoError(t, err)
@@ -506,10 +491,9 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	packer.calledBrokerRequestIDs = nil
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
-	a := auction.Auction{
+	a := broker.ClosedAuction{
 		ID:              auction.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
-		DealSize:        dpr.PieceSize,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 1,
 		DealVerified:    true,
@@ -570,34 +554,28 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	err = b.StorageDealPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
-	bids := map[auction.BidID]auction.Bid{
+	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerAddr:        "f0011",
-			AskPrice:         100,
-			VerifiedAskPrice: 200,
-			StartEpoch:       300,
-			FastRetrieval:    true,
+			MinerAddr:     "f0011",
+			Price:         200,
+			StartEpoch:    300,
+			FastRetrieval: true,
 		},
 		auction.BidID("Bid2"): {
-			MinerAddr:        "f0012",
-			AskPrice:         1100,
-			VerifiedAskPrice: 1200,
-			StartEpoch:       1300,
-			FastRetrieval:    false,
+			MinerAddr:     "f0012",
+			Price:         1200,
+			StartEpoch:    1300,
+			FastRetrieval: false,
 		},
 	}
-	auction := auction.Auction{
+
+	auction := broker.ClosedAuction{
 		ID:              auction.AuctionID("AUCTION1"),
 		StorageDealID:   sd,
-		DealSize:        dpr.PieceSize,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		Status:          auction.AuctionStatusFinalized,
-		Bids:            bids,
-		WinningBids: map[auction.BidID]auction.WinningBid{
-			auction.BidID("Bid1"): {},
-			auction.BidID("Bid2"): {},
-		},
+		WinningBids:     winningBids,
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
 	require.NoError(t, err)

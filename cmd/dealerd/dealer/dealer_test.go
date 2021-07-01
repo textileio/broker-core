@@ -277,7 +277,7 @@ func (b *brokerMock) StorageDealPrepared(
 	panic("shouldn't be called")
 }
 
-func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction auction.Auction) error {
+func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
 	panic("shouldn't be called")
 }
 

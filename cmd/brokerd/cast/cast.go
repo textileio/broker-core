@@ -2,10 +2,8 @@ package cast
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -123,22 +121,16 @@ func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequest
 	}, nil
 }
 
-// AuctionToPb returns pb.Auction from auction.Auction.
-func AuctionToPb(a auction.Auction) *pb.StorageDealAuctionedRequest {
+// ClosedAuctionToPb returns pb.Auction from auction.Auction.
+func ClosedAuctionToPb(a broker.ClosedAuction) *pb.StorageDealAuctionedRequest {
 	pba := &pb.StorageDealAuctionedRequest{
 		Id:              string(a.ID),
 		StorageDealId:   string(a.StorageDealID),
-		DealSize:        a.DealSize,
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
 		DealVerified:    a.DealVerified,
 		Status:          AuctionStatusToPb(a.Status),
-		Bids:            AuctionBidsToPb(a.Bids),
 		WinningBids:     AuctionWinningBidsToPb(a.WinningBids),
-		StartedAt:       timestamppb.New(a.StartedAt),
-		UpdatedAt:       timestamppb.New(a.UpdatedAt),
-		Duration:        int64(a.Duration),
-		Attempts:        a.Attempts,
 		Error:           a.ErrorCause,
 	}
 	return pba
@@ -160,68 +152,36 @@ func AuctionStatusToPb(s auction.AuctionStatus) pb.StorageDealAuctionedRequest_S
 	}
 }
 
-// AuctionBidsToPb returns a map of pb.Auction_Bid from a map of auction.Bid.
-func AuctionBidsToPb(bids map[auction.BidID]auction.Bid) map[string]*pb.StorageDealAuctionedRequest_Bid {
-	pbbids := make(map[string]*pb.StorageDealAuctionedRequest_Bid)
-	for k, v := range bids {
-		pbbids[string(k)] = &pb.StorageDealAuctionedRequest_Bid{
-			MinerAddr:        v.MinerAddr,
-			WalletAddrSig:    v.WalletAddrSig,
-			BidderId:         v.BidderID.String(),
-			AskPrice:         v.AskPrice,
-			VerifiedAskPrice: v.VerifiedAskPrice,
-			StartEpoch:       v.StartEpoch,
-			FastRetrieval:    v.FastRetrieval,
-			ReceivedAt:       timestamppb.New(v.ReceivedAt),
-		}
-	}
-	return pbbids
-}
-
 // AuctionWinningBidsToPb returns a map of pb.StorageDealAuctionedRequest_WinningBid from a map of auction.WinningBid.
 func AuctionWinningBidsToPb(
-	bids map[auction.BidID]auction.WinningBid,
+	bids map[auction.BidID]broker.WinningBid,
 ) map[string]*pb.StorageDealAuctionedRequest_WinningBid {
 	pbbids := make(map[string]*pb.StorageDealAuctionedRequest_WinningBid)
 	for k, v := range bids {
-		var pcid string
-		if v.ProposalCid.Defined() {
-			pcid = v.ProposalCid.String()
-		}
 		pbbids[string(k)] = &pb.StorageDealAuctionedRequest_WinningBid{
-			BidderId:                v.BidderID.String(),
-			Acknowledged:            v.Acknowledged,
-			ProposalCid:             pcid,
-			ProposalCidAcknowledged: v.ProposalCidAcknowledged,
+			MinerAddr:     v.MinerAddr,
+			Price:         v.Price,
+			StartEpoch:    v.StartEpoch,
+			FastRetrieval: v.FastRetrieval,
 		}
 	}
 	return pbbids
 }
 
-// AuctionFromPb returns auction.Auction from pb.Auction.
-func AuctionFromPb(pba *pb.StorageDealAuctionedRequest) (auction.Auction, error) {
-	bids, err := AuctionBidsFromPb(pba.Bids)
-	if err != nil {
-		return auction.Auction{}, fmt.Errorf("decoding bids: %v", err)
-	}
+// ClosedAuctionFromPb returns auction.Auction from pb.Auction.
+func ClosedAuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.ClosedAuction, error) {
 	wbids, err := AuctionWinningBidsFromPb(pba.WinningBids)
 	if err != nil {
-		return auction.Auction{}, fmt.Errorf("decoding bids: %v", err)
+		return broker.ClosedAuction{}, fmt.Errorf("decoding bids: %v", err)
 	}
-	a := auction.Auction{
+	a := broker.ClosedAuction{
 		ID:              auction.AuctionID(pba.Id),
 		StorageDealID:   auction.StorageDealID(pba.StorageDealId),
-		DealSize:        pba.DealSize,
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,
 		DealVerified:    pba.DealVerified,
 		Status:          AuctionStatusFromPb(pba.Status),
-		Bids:            bids,
 		WinningBids:     wbids,
-		StartedAt:       pba.StartedAt.AsTime(),
-		UpdatedAt:       pba.UpdatedAt.AsTime(),
-		Duration:        time.Duration(pba.Duration),
-		Attempts:        pba.Attempts,
 		ErrorCause:      pba.Error,
 	}
 	return a, nil
@@ -243,51 +203,17 @@ func AuctionStatusFromPb(pbs pb.StorageDealAuctionedRequest_Status) auction.Auct
 	}
 }
 
-// AuctionBidsFromPb returns a map of auction.Bid from a map of pb.StorageDealAuctionedRequest_Bid.
-func AuctionBidsFromPb(pbbids map[string]*pb.StorageDealAuctionedRequest_Bid) (map[auction.BidID]auction.Bid, error) {
-	bids := make(map[auction.BidID]auction.Bid)
-	for k, v := range pbbids {
-		bidder, err := peer.Decode(v.BidderId)
-		if err != nil {
-			return nil, fmt.Errorf("decoding bidder: %v", err)
-		}
-		bids[auction.BidID(k)] = auction.Bid{
-			MinerAddr:        v.MinerAddr,
-			WalletAddrSig:    v.WalletAddrSig,
-			BidderID:         bidder,
-			AskPrice:         v.AskPrice,
-			VerifiedAskPrice: v.VerifiedAskPrice,
-			StartEpoch:       v.StartEpoch,
-			FastRetrieval:    v.FastRetrieval,
-			ReceivedAt:       v.ReceivedAt.AsTime(),
-		}
-	}
-	return bids, nil
-}
-
 // AuctionWinningBidsFromPb returns a map of auction.WinningBid from a map of pb.StorageDealAuctionedRequest_WinningBid.
 func AuctionWinningBidsFromPb(
 	pbbids map[string]*pb.StorageDealAuctionedRequest_WinningBid,
-) (map[auction.BidID]auction.WinningBid, error) {
-	wbids := make(map[auction.BidID]auction.WinningBid)
+) (map[auction.BidID]broker.WinningBid, error) {
+	wbids := make(map[auction.BidID]broker.WinningBid)
 	for k, v := range pbbids {
-		bidder, err := peer.Decode(v.BidderId)
-		if err != nil {
-			return nil, fmt.Errorf("decoding bidder id: %v", err)
-		}
-		pcid := cid.Undef
-		if v.ProposalCid != "" {
-			var err error
-			pcid, err = cid.Decode(v.ProposalCid)
-			if err != nil {
-				return nil, fmt.Errorf("decoding proposal cid: %v", err)
-			}
-		}
-		wbids[auction.BidID(k)] = auction.WinningBid{
-			BidderID:                bidder,
-			Acknowledged:            v.Acknowledged,
-			ProposalCid:             pcid,
-			ProposalCidAcknowledged: v.ProposalCidAcknowledged,
+		wbids[auction.BidID(k)] = broker.WinningBid{
+			MinerAddr:     v.MinerAddr,
+			Price:         v.Price,
+			StartEpoch:    v.StartEpoch,
+			FastRetrieval: v.FastRetrieval,
 		}
 	}
 	return wbids, nil
