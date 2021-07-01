@@ -194,8 +194,8 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	p.statLastBatchSize = batch.Size
 	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
-		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, numCidsBatched: %d, size: %d}",
-		sdID, batchCid, len(bbrs), len(bbrs), batch.Size)
+		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, size: %d}",
+		sdID, batchCid, len(bbrs), batch.Size)
 
 	return len(bbrs), nil
 }
@@ -208,13 +208,17 @@ func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBr
 			UniqueBlockCumulativeSize: uint64(bbr.Size),
 		}
 	}
+	start := time.Now()
 	root, err := aggregator.Aggregate(ctx, p.ipfs.Dag(), lst)
 	if err != nil {
 		return cid.Undef, fmt.Errorf("aggregating cids: %s", err)
 	}
+	log.Debugf("aggregation took %dms", time.Since(start).Milliseconds())
 	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
 		return cid.Undef, fmt.Errorf("pinning batch root: %s", err)
 	}
+	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
+
 	return root, nil
 }
 
