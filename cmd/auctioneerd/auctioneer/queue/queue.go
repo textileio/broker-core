@@ -16,8 +16,8 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
 	"github.com/oklog/ulid/v2"
-	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/dshelper/txndswrap"
+	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	dsextensions "github.com/textileio/go-datastore-extensions"
 	golog "github.com/textileio/go-log/v2"
 )

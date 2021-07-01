@@ -12,7 +12,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"

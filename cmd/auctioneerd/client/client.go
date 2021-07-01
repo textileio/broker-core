@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	core "github.com/textileio/broker-core/auctioneer"
-	"github.com/textileio/broker-core/auctioneer/cast"
-	"github.com/textileio/broker-core/broker"
-	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
+	pb "github.com/textileio/bidbot/gen/proto/v1"
+	core "github.com/textileio/bidbot/lib/auctioneer"
+	"github.com/textileio/bidbot/lib/auctioneer/cast"
+	"github.com/textileio/bidbot/lib/broker"
 	"google.golang.org/grpc"
 )
 

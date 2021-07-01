@@ -15,8 +15,8 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/logging"
+	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/logging"
 	badger "github.com/textileio/go-ds-badger3"
 	golog "github.com/textileio/go-log/v2"
 )

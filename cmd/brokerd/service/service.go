@@ -10,8 +10,8 @@ import (
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/multiformats/go-multiaddr"
-	auctioneercast "github.com/textileio/broker-core/auctioneer/cast"
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/common"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
@@ -19,10 +19,9 @@ import (
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
-	"github.com/textileio/broker-core/common"
 	logger "github.com/textileio/go-log/v2"
 
-	"github.com/textileio/broker-core/dshelper"
+	"github.com/textileio/bidbot/lib/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -342,7 +341,7 @@ func (s *Service) StorageDealAuctioned(
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	auction, err := auctioneercast.AuctionFromPb(r.Auction)
+	auction, err := cast.AuctionFromPb(r)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid auction: %s", err)
 	}

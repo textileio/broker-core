@@ -19,12 +19,10 @@ require (
 	github.com/gogo/status v1.1.0
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hsanjuan/ipfs-lite v1.1.19
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-blockstore v1.0.4
 	github.com/ipfs/go-ipfs-cmds v0.6.0
-	github.com/ipfs/go-ipfs-config v0.14.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
 	github.com/ipfs/go-ipfs-util v0.0.2
@@ -37,12 +35,8 @@ require (
 	github.com/libp2p/go-libp2p v0.14.3
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5
-	github.com/libp2p/go-libp2p-peerstore v0.2.7
-	github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210517161200-e6ad80cf4782
-	github.com/libp2p/go-libp2p-quic-transport v0.11.1
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.3.3
-	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/multiformats/go-varint v0.0.6
@@ -54,19 +48,14 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
+	github.com/textileio/bidbot v0.0.0-20210701014417-e4967e348e43
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
-	github.com/textileio/go-ds-mongo v0.1.4
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
 	github.com/textileio/jwt-go-eddsa v0.2.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/contrib/instrumentation/runtime v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
-	go.opentelemetry.io/otel/exporters/prometheus v0.21.0
 	go.opentelemetry.io/otel/metric v0.21.0
-	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
-	go.opentelemetry.io/otel/sdk/metric v0.21.0
-	go.uber.org/zap v1.18.1
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1
 )

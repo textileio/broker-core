@@ -5,8 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	auctioneercast "github.com/textileio/broker-core/auctioneer/cast"
-	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/bidbot/lib/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"
@@ -162,9 +161,7 @@ func (c *Client) StorageDealPrepared(
 
 // StorageDealAuctioned indicates the storage deal auction has completed.
 func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
-	req := &pb.StorageDealAuctionedRequest{
-		Auction: auctioneercast.AuctionToPb(auction),
-	}
+	req := cast.AuctionToPb(auction)
 	if _, err := c.c.StorageDealAuctioned(ctx, req); err != nil {
 		return fmt.Errorf("calling storage deal winners api: %s", err)
 	}
