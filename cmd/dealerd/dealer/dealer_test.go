@@ -9,7 +9,8 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/tests"
@@ -257,7 +258,7 @@ func (fc *fcMock) CheckDealStatusWithMiner(
 type brokerMock struct {
 	calledFAD broker.FinalizedAuctionDeal
 
-	callerPASdID        broker.StorageDealID
+	callerPASdID        auction.StorageDealID
 	calledPAMiner       string
 	calledPAProposalCid cid.Cid
 }
@@ -265,24 +266,24 @@ type brokerMock struct {
 func (b *brokerMock) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
-	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	srids []broker.BrokerRequestID) (auction.StorageDealID, error) {
 	panic("shouldn't be called")
 }
 
 func (b *brokerMock) StorageDealPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id auction.StorageDealID,
 	pr broker.DataPreparationResult) error {
 	panic("shouldn't be called")
 }
 
-func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.Auction) error {
+func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction auction.Auction) error {
 	panic("shouldn't be called")
 }
 
 func (b *brokerMock) StorageDealProposalAccepted(
 	_ context.Context,
-	sdID broker.StorageDealID,
+	sdID auction.StorageDealID,
 	miner string,
 	proposalCid cid.Cid) error {
 	b.callerPASdID = sdID

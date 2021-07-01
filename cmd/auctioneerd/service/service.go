@@ -9,13 +9,14 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	pb "github.com/textileio/bidbot/gen/proto/v1"
-	"github.com/textileio/bidbot/lib/auctioneer/cast"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/bidbot/lib/marketpeer"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
@@ -137,8 +138,8 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		return nil, status.Errorf(codes.InvalidArgument, "decoding sources: %v", err)
 	}
 
-	id, err := s.lib.CreateAuction(broker.Auction{
-		StorageDealID:    broker.StorageDealID(req.StorageDealId),
+	id, err := s.lib.CreateAuction(auction.Auction{
+		StorageDealID:    auction.StorageDealID(req.StorageDealId),
 		PayloadCid:       payloadCid,
 		DealSize:         req.DealSize,
 		DealDuration:     req.DealDuration,
@@ -164,7 +165,7 @@ func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.
 	if req.Id == "" {
 		return nil, status.Error(codes.InvalidArgument, "auction id is empty")
 	}
-	a, err := s.lib.GetAuction(broker.AuctionID(req.Id))
+	a, err := s.lib.GetAuction(auction.AuctionID(req.Id))
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +192,7 @@ func (s *Service) ProposalAccepted(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid proposal cid")
 	}
-	if err := s.lib.DeliverProposal(broker.AuctionID(req.AuctionId), broker.BidID(req.BidId), proposalCid); err != nil {
+	if err := s.lib.DeliverProposal(auction.AuctionID(req.AuctionId), auction.BidID(req.BidId), proposalCid); err != nil {
 		return nil, status.Errorf(codes.Internal, "delivering proposal: %v", err)
 	}
 	return &pb.ProposalAcceptedResponse{}, nil

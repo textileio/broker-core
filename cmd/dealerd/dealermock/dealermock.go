@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/broker-core/broker"
 	dealeri "github.com/textileio/broker-core/dealer"
 	logger "github.com/textileio/go-log/v2"
 )

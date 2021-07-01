@@ -7,7 +7,8 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/tests"
 )
 
@@ -22,7 +23,7 @@ func TestSaveAndGetBrokerRequest(t *testing.T) {
 		ID:            "BR1",
 		DataCid:       castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
 		Status:        broker.RequestBatching,
-		StorageDealID: broker.StorageDealID("SD1"),
+		StorageDealID: auction.StorageDealID("SD1"),
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -63,7 +64,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	s := newStore(t)
 
 	// 0- Test retrieving a non-existent storage deal
-	_, err := s.GetStorageDeal(ctx, broker.StorageDealID("fake"))
+	_, err := s.GetStorageDeal(ctx, auction.StorageDealID("fake"))
 	require.Error(t, ErrNotFound, err)
 
 	// 1- Create two broker requests.

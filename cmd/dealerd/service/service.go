@@ -10,7 +10,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/finalizer"
@@ -156,7 +156,7 @@ func (s *Service) ReadyToCreateDeals(
 	}
 
 	ad := dealeri.AuctionDeals{
-		StorageDealID: broker.StorageDealID(r.StorageDealId),
+		StorageDealID: auction.StorageDealID(r.StorageDealId),
 		PayloadCid:    payloadCid,
 		PieceCid:      pieceCid,
 		PieceSize:     r.PieceSize,

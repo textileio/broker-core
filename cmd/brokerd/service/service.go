@@ -10,8 +10,9 @@ import (
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/broker-core/broker"
 	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
@@ -209,7 +210,7 @@ func (s *Service) CreatePreparedBrokerRequest(
 			return nil, status.Error(codes.InvalidArgument, "CAR URL scheme should be http(s)")
 		}
 
-		pc.Sources.CARURL = &broker.CARURL{
+		pc.Sources.CARURL = &auction.CARURL{
 			URL: *url,
 		}
 	}
@@ -227,7 +228,7 @@ func (s *Service) CreatePreparedBrokerRequest(
 			}
 			maddrs[i] = maddr
 		}
-		pc.Sources.CARIPFS = &broker.CARIPFS{
+		pc.Sources.CARIPFS = &auction.CARIPFS{
 			Cid:        carCid,
 			Multiaddrs: maddrs,
 		}
@@ -366,7 +367,7 @@ func (s *Service) StorageDealPrepared(
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "decoding piece cid: %s", err)
 	}
-	id := broker.StorageDealID(r.StorageDealId)
+	id := auction.StorageDealID(r.StorageDealId)
 	pr := broker.DataPreparationResult{
 		PieceCid:  pieceCid,
 		PieceSize: r.PieceSize,
@@ -404,7 +405,7 @@ func (s *Service) StorageDealFinalizedDeal(
 		}
 	}
 	fad := broker.FinalizedAuctionDeal{
-		StorageDealID:  broker.StorageDealID(r.StorageDealId),
+		StorageDealID:  auction.StorageDealID(r.StorageDealId),
 		DealID:         r.DealId,
 		DealExpiration: r.DealExpiration,
 		Miner:          r.MinerId,
@@ -433,7 +434,7 @@ func (s *Service) StorageDealProposalAccepted(
 
 	if err := s.broker.StorageDealProposalAccepted(
 		ctx,
-		broker.StorageDealID(r.StorageDealId),
+		auction.StorageDealID(r.StorageDealId),
 		r.Miner, proposalCid); err != nil {
 		return nil, status.Errorf(codes.Internal, "notifying proposal accepted: %s", err)
 	}
@@ -482,17 +483,17 @@ func validateConfig(conf Config) error {
 	if conf.IPFSAPIMultiaddr == "" {
 		return errors.New("ipfs api multiaddress is empty")
 	}
-	if conf.DealDuration < broker.MinDealDuration {
-		return fmt.Errorf("deal duration is less than minimum allowed: %d", broker.MinDealDuration)
+	if conf.DealDuration < auction.MinDealDuration {
+		return fmt.Errorf("deal duration is less than minimum allowed: %d", auction.MinDealDuration)
 	}
-	if conf.DealDuration > broker.MaxDealDuration {
-		return fmt.Errorf("deal duration is greater than maximum allowed: %d", broker.MaxDealDuration)
+	if conf.DealDuration > auction.MaxDealDuration {
+		return fmt.Errorf("deal duration is greater than maximum allowed: %d", auction.MaxDealDuration)
 	}
-	if conf.DealReplication < broker.MinDealReplication {
-		return fmt.Errorf("deal replication is less than minimum allowed: %d", broker.MinDealDuration)
+	if conf.DealReplication < auction.MinDealReplication {
+		return fmt.Errorf("deal replication is less than minimum allowed: %d", auction.MinDealDuration)
 	}
-	if conf.DealReplication > broker.MaxDealReplication {
-		return fmt.Errorf("deal replication is greater than maximum allowed: %d", broker.MaxDealDuration)
+	if conf.DealReplication > auction.MaxDealReplication {
+		return fmt.Errorf("deal replication is greater than maximum allowed: %d", auction.MaxDealDuration)
 	}
 	return nil
 }

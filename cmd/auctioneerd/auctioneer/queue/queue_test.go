@@ -15,14 +15,14 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/logging"
 	badger "github.com/textileio/go-ds-badger3"
 	golog "github.com/textileio/go-log/v2"
 )
 
 var testCid cid.Cid
-var testSources broker.Sources
+var testSources auction.Sources
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
@@ -33,7 +33,7 @@ func init() {
 
 	testCid, _ = cid.Parse("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1")
 	carURL, _ := url.Parse("https://foo.com/cid/123")
-	testSources = broker.Sources{CARURL: &broker.CARURL{URL: *carURL}}
+	testSources = auction.Sources{CARURL: &auction.CARURL{URL: *carURL}}
 }
 
 func TestQueue_newID(t *testing.T) {
@@ -41,7 +41,7 @@ func TestQueue_newID(t *testing.T) {
 	q := newQueue(t)
 
 	// Ensure monotonic
-	var last broker.AuctionID
+	var last auction.AuctionID
 	for i := 0; i < 10000; i++ {
 		id, err := q.newID(time.Now())
 		require.NoError(t, err)
@@ -60,11 +60,11 @@ func TestQueue_ListAuctions(t *testing.T) {
 	limit := 100
 	now := time.Now()
 
-	ids := make([]broker.AuctionID, limit)
+	ids := make([]auction.AuctionID, limit)
 	for i := 0; i < limit; i++ {
 		now = now.Add(time.Millisecond)
-		id, err := q.CreateAuction(broker.Auction{
-			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+		id, err := q.CreateAuction(auction.Auction{
+			StorageDealID:   auction.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 			PayloadCid:      testCid,
 			DealSize:        1024,
 			DealDuration:    1,
@@ -107,8 +107,8 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(broker.Auction{
-		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+	id, err := q.CreateAuction(auction.Auction{
+		StorageDealID:   auction.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		DealSize:        1024,
 		DealDuration:    1,
@@ -125,7 +125,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, got.ID)
 	assert.NotEmpty(t, got.StorageDealID)
-	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
+	assert.Equal(t, auction.AuctionStatusFinalized, got.Status)
 	assert.Equal(t, "https://foo.com/cid/123", got.Sources.CARURL.URL.String())
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1, int(got.DealDuration))
@@ -143,8 +143,8 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(broker.Auction{
-		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+	id, err := q.CreateAuction(auction.Auction{
+		StorageDealID:   auction.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		Sources:         testSources,
 		DealSize:        1024,
@@ -159,7 +159,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
-	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
+	assert.Equal(t, auction.AuctionStatusFinalized, got.Status)
 	assert.Empty(t, got.ErrorCause)
 	assert.Len(t, got.Bids, 3)
 	assert.Len(t, got.WinningBids, int(got.DealReplication))
@@ -203,13 +203,13 @@ func newQueue(t *testing.T) *Queue {
 
 func runner(
 	_ context.Context,
-	a broker.Auction,
-	addBid func(bid broker.Bid) (broker.BidID, error),
-) (map[broker.BidID]broker.WinningBid, error) {
+	a auction.Auction,
+	addBid func(bid auction.Bid) (auction.BidID, error),
+) (map[auction.BidID]auction.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)
 
-	result := make(map[broker.BidID]broker.WinningBid)
-	receivedBids := []broker.Bid{
+	result := make(map[auction.BidID]auction.WinningBid)
+	receivedBids := []auction.Bid{
 		{
 			MinerAddr:        "miner1",
 			WalletAddrSig:    []byte("sig1"),
@@ -250,7 +250,7 @@ func runner(
 				return nil, err
 			}
 			if i < int(a.DealReplication) {
-				result[id] = broker.WinningBid{
+				result[id] = auction.WinningBid{
 					BidderID:     receivedBids[0].BidderID,
 					Acknowledged: true,
 				}
@@ -268,7 +268,7 @@ func runner(
 	return result, nil
 }
 
-func finalizer(_ context.Context, _ broker.Auction) error {
+func finalizer(_ context.Context, _ auction.Auction) error {
 	return nil
 }
 

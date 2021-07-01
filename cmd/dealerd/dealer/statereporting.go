@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 )
 

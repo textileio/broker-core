@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	core "github.com/textileio/bidbot/lib/broker"
+	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/bidbot/lib/logging"
@@ -208,7 +208,7 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 	bm.On(
 		"StorageDealAuctioned",
 		mock.Anything,
-		mock.AnythingOfType("broker.Auction"),
+		mock.AnythingOfType("auction.Auction"),
 	).Return(nil)
 
 	s, err := service.New(config, store, bm, newFilClientMock())

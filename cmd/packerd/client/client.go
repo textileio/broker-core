@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/broker-core/broker"
 	pb "github.com/textileio/broker-core/gen/broker/packer/v1"
 	"google.golang.org/grpc"
 )

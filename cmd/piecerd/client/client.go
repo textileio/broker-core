@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/bidbot/lib/broker"
+	"github.com/textileio/bidbot/lib/auction"
 	pb "github.com/textileio/broker-core/gen/broker/piecer/v1"
 	"google.golang.org/grpc"
 )
@@ -26,7 +26,7 @@ func NewClient(cc *grpc.ClientConn) *Client {
 
 // ReadyToPrepare signals the piecer that a new StorageDeal is ready to be prepared.
 // Piecer will call thebroker async with the end result.
-func (c *Client) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, dataCid cid.Cid) error {
+func (c *Client) ReadyToPrepare(ctx context.Context, id auction.StorageDealID, dataCid cid.Cid) error {
 	if !dataCid.Defined() {
 		return fmt.Errorf("data cid is undefined")
 	}
