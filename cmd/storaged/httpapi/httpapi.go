@@ -46,7 +46,7 @@ func createMux(s storage.Requester, skipAuth bool, maxUploadSize uint) *http.Ser
 	uploadHandler := wrapMiddlewares(s, skipAuth, uploadHandler(s, maxUploadSize), "upload")
 	mux.Handle("/upload", uploadHandler)
 
-	storageRequestStatusHandler := wrapMiddlewares(s, skipAuth, storageRequestHandler(s), "storagerequest")
+	storageRequestStatusHandler := wrapMiddlewares(s, true, storageRequestHandler(s), "storagerequest")
 	mux.Handle("/storagerequest/", storageRequestStatusHandler)
 
 	auctionDataHandler := wrapMiddlewares(s, skipAuth, auctionDataHandler(s), "auction-data")
