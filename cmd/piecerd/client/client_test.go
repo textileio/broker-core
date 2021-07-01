@@ -128,7 +128,7 @@ func (bm *brokerMock) StorageDealPrepared(
 	return nil
 }
 
-func (bm *brokerMock) StorageDealAuctioned(context.Context, auction.Auction) error {
+func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.ClosedAuction) error {
 	panic("shouldn't be called")
 }
 

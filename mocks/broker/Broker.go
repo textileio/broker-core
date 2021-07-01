@@ -103,11 +103,11 @@ func (_m *Broker) GetBrokerRequestInfo(ctx context.Context, ID broker.BrokerRequ
 }
 
 // StorageDealAuctioned provides a mock function with given fields: ctx, _a1
-func (_m *Broker) StorageDealAuctioned(ctx context.Context, _a1 auction.Auction) error {
+func (_m *Broker) StorageDealAuctioned(ctx context.Context, _a1 broker.ClosedAuction) error {
 	ret := _m.Called(ctx, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, auction.Auction) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, broker.ClosedAuction) error); ok {
 		r0 = rf(ctx, _a1)
 	} else {
 		r0 = ret.Error(0)

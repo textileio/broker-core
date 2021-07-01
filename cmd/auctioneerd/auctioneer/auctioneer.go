@@ -377,7 +377,7 @@ func (a *Auctioneer) validateBid(b *core.Bid) error {
 	return nil
 }
 
-func (a *Auctioneer) finalizeAuction(ctx context.Context, auction core.Auction) error {
+func (a *Auctioneer) finalizeAuction(ctx context.Context, auction broker.ClosedAuction) error {
 	switch auction.Status {
 	case core.AuctionStatusFinalized:
 		if auction.ErrorCause != "" {

@@ -208,7 +208,7 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 	bm.On(
 		"StorageDealAuctioned",
 		mock.Anything,
-		mock.AnythingOfType("auction.Auction"),
+		mock.AnythingOfType("broker.ClosedAuction"),
 	).Return(nil)
 
 	s, err := service.New(config, store, bm, newFilClientMock())

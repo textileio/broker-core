@@ -14,6 +14,26 @@ const (
 	invalidStatus = "invalid"
 )
 
+// WinningBid contains details about a winning bid in a closed auction.
+type WinningBid struct {
+	MinerAddr     string
+	Price         int64
+	StartEpoch    uint64
+	FastRetrieval bool
+}
+
+// ClosedAuction contains closed auction details auctioneer reports back to the broker.
+type ClosedAuction struct {
+	ID              auction.AuctionID
+	StorageDealID   auction.StorageDealID
+	DealDuration    uint64
+	DealReplication uint32
+	DealVerified    bool
+	Status          auction.AuctionStatus
+	WinningBids     map[auction.BidID]WinningBid
+	ErrorCause      string
+}
+
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
 	// Create creates a new BrokerRequest for a cid.
@@ -33,7 +53,7 @@ type Broker interface {
 	StorageDealPrepared(ctx context.Context, id auction.StorageDealID, pr DataPreparationResult) error
 
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
-	StorageDealAuctioned(ctx context.Context, auction auction.Auction) error
+	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
 
 	// StorageDealFinalizedDeal signals to the broker results about deal making.
 	StorageDealFinalizedDeal(ctx context.Context, fad FinalizedAuctionDeal) error

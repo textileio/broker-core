@@ -77,19 +77,12 @@ message StorageDealProposalAcceptedResponse {
 message StorageDealAuctionedRequest {
     string id = 1;
     string storage_deal_id = 2;
-    string payload_cid = 3;
-    uint64 deal_size = 4;
-    uint64 deal_duration = 5;
-    uint32 deal_replication = 6;
-    bool deal_verified = 7;
-    Status status = 8;
-    map<string, Bid> bids = 9;
-    map<string, WinningBid> winning_bids = 10;
-    google.protobuf.Timestamp started_at = 11;
-    google.protobuf.Timestamp updated_at = 12;
-    int64 duration = 13;
-    uint32 attempts = 14;
-    string error = 15;
+    uint64 deal_duration = 3;
+    uint32 deal_replication = 4;
+    bool deal_verified = 5;
+    Status status = 6;
+    map<string, WinningBid> winning_bids = 7;
+    string error = 8;
                                
     enum Status {
         STATUS_UNSPECIFIED = 0;
@@ -98,22 +91,11 @@ message StorageDealAuctionedRequest {
         STATUS_FINALIZED = 3;
     }
 
-    message Bid {
-        string miner_addr = 1;
-        bytes wallet_addr_sig = 2;
-        string bidder_id = 3;
-        int64 ask_price = 4;
-        int64 verified_ask_price = 5;
-        uint64 start_epoch = 6;
-        bool fast_retrieval = 7;
-        google.protobuf.Timestamp received_at = 8;
-    }
-
     message WinningBid {
-        string bidder_id = 1;
-        bool acknowledged = 2;
-        string proposal_cid = 3;
-        bool proposal_cid_acknowledged = 4;
+        string miner_addr = 1;
+        int64 price = 2;
+        uint64 start_epoch = 3;
+        bool fast_retrieval = 4;
     }
 }
 

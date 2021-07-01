@@ -18,6 +18,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
+	"github.com/textileio/broker-core/broker"
 	dsextensions "github.com/textileio/go-datastore-extensions"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -69,7 +70,7 @@ type Handler func(
 ) (map[auction.BidID]auction.WinningBid, error)
 
 // Finalizer is called when an auction moves from "started" to "finalized".
-type Finalizer func(ctx context.Context, auction auction.Auction) error
+type Finalizer func(ctx context.Context, auction broker.ClosedAuction) error
 
 // Queue is a persistent worker-based task queue.
 type Queue struct {
@@ -464,7 +465,7 @@ func (q *Queue) saveAndFinalizeAuction(a *auction.Auction, status auction.Auctio
 		// Ugly trick! See the declaration of this field for details
 		if !a.BrokerAlreadyNotifiedByClosedAuction {
 			// Finish auction with the finalizer func
-			if err := q.finalizer(q.ctx, *a); err != nil {
+			if err := q.finalizer(q.ctx, toClosedAuction(a)); err != nil {
 				status = q.fail(a, err)
 
 				// Save and update status to "finalized" or "queued"
@@ -762,4 +763,37 @@ func decode(v []byte) (a auction.Auction, err error) {
 		return a, err
 	}
 	return a, nil
+}
+
+func toClosedAuction(a *auction.Auction) broker.ClosedAuction {
+	wbids := make(map[auction.BidID]broker.WinningBid)
+	for wbid := range a.WinningBids {
+		bid, ok := a.Bids[wbid]
+		if !ok {
+			log.Errorf("winning bid %s wasn't found in bid map", wbid)
+			continue
+		}
+		var price int64
+		if a.DealVerified {
+			price = bid.VerifiedAskPrice
+		} else {
+			price = bid.AskPrice
+		}
+		wbids[wbid] = broker.WinningBid{
+			MinerAddr:     bid.MinerAddr,
+			Price:         price,
+			StartEpoch:    bid.StartEpoch,
+			FastRetrieval: bid.FastRetrieval,
+		}
+	}
+	return broker.ClosedAuction{
+		ID:              a.ID,
+		StorageDealID:   a.StorageDealID,
+		DealDuration:    a.DealDuration,
+		DealReplication: a.DealReplication,
+		DealVerified:    a.DealVerified,
+		Status:          a.Status,
+		WinningBids:     wbids,
+		ErrorCause:      a.ErrorCause,
+	}
 }

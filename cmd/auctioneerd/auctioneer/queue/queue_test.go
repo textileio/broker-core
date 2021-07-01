@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/logging"
+	"github.com/textileio/broker-core/broker"
 	badger "github.com/textileio/go-ds-badger3"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -268,7 +269,7 @@ func runner(
 	return result, nil
 }
 
-func finalizer(_ context.Context, _ auction.Auction) error {
+func finalizer(_ context.Context, _ broker.ClosedAuction) error {
 	return nil
 }
 

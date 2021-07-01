@@ -401,7 +401,7 @@ func (b *Broker) StorageDealProposalAccepted(
 }
 
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
-func (b *Broker) StorageDealAuctioned(ctx context.Context, au auction.Auction) error {
+func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) error {
 	log.Debugf("storage deal %s was auctioned with %d winning bids", au.StorageDealID, len(au.WinningBids))
 
 	if au.Status != auction.AuctionStatusFinalized {
@@ -495,20 +495,10 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au auction.Auction) e
 	}
 
 	var i int
-	for wbid := range au.WinningBids {
-		bid, ok := au.Bids[wbid]
-		if !ok {
-			return fmt.Errorf("winning bid %s wasn't found in bid map", wbid)
-		}
-		var price int64
-		if au.DealVerified {
-			price = bid.VerifiedAskPrice
-		} else {
-			price = bid.AskPrice
-		}
+	for _, bid := range au.WinningBids {
 		ads.Targets[i] = dealer.AuctionDealsTarget{
 			Miner:               bid.MinerAddr,
-			PricePerGiBPerEpoch: price,
+			PricePerGiBPerEpoch: bid.Price,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            au.DealVerified,
 			FastRetrieval:       bid.FastRetrieval,

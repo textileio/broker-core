@@ -342,7 +342,7 @@ func (s *Service) StorageDealAuctioned(
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	auction, err := cast.AuctionFromPb(r)
+	auction, err := cast.ClosedAuctionFromPb(r)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid auction: %s", err)
 	}
