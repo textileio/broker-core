@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/logging"
+	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	badger "github.com/textileio/go-ds-badger3"
 	golog "github.com/textileio/go-log/v2"
@@ -64,8 +65,8 @@ func TestQueue_ListAuctions(t *testing.T) {
 	ids := make([]auction.AuctionID, limit)
 	for i := 0; i < limit; i++ {
 		now = now.Add(time.Millisecond)
-		id, err := q.CreateAuction(auction.Auction{
-			StorageDealID:   auction.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+		id, err := q.CreateAuction(auctioneer.Auction{
+			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 			PayloadCid:      testCid,
 			DealSize:        1024,
 			DealDuration:    1,
@@ -108,8 +109,8 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(auction.Auction{
-		StorageDealID:   auction.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+	id, err := q.CreateAuction(auctioneer.Auction{
+		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		DealSize:        1024,
 		DealDuration:    1,
@@ -126,7 +127,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, got.ID)
 	assert.NotEmpty(t, got.StorageDealID)
-	assert.Equal(t, auction.AuctionStatusFinalized, got.Status)
+	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Equal(t, "https://foo.com/cid/123", got.Sources.CARURL.URL.String())
 	assert.Equal(t, 1024, int(got.DealSize))
 	assert.Equal(t, 1, int(got.DealDuration))
@@ -144,8 +145,8 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(auction.Auction{
-		StorageDealID:   auction.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+	id, err := q.CreateAuction(auctioneer.Auction{
+		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		Sources:         testSources,
 		DealSize:        1024,
@@ -160,7 +161,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
-	assert.Equal(t, auction.AuctionStatusFinalized, got.Status)
+	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Empty(t, got.ErrorCause)
 	assert.Len(t, got.Bids, 3)
 	assert.Len(t, got.WinningBids, int(got.DealReplication))
@@ -204,7 +205,7 @@ func newQueue(t *testing.T) *Queue {
 
 func runner(
 	_ context.Context,
-	a auction.Auction,
+	a auctioneer.Auction,
 	addBid func(bid auction.Bid) (auction.BidID, error),
 ) (map[auction.BidID]auction.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)

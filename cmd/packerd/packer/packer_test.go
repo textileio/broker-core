@@ -17,7 +17,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/tests"
@@ -153,17 +152,17 @@ type brokerMock struct {
 func (bm *brokerMock) CreateStorageDeal(
 	ctx context.Context,
 	batchCid cid.Cid,
-	srids []broker.BrokerRequestID) (auction.StorageDealID, error) {
+	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
 	if !bm.allowMultipleCalls && bm.batchCid.Defined() {
 		return "", fmt.Errorf("create storage deal called twice")
 	}
 	bm.batchCid = batchCid
 	bm.srids = srids
 
-	return auction.StorageDealID("DUKE"), nil
+	return broker.StorageDealID("DUKE"), nil
 }
 
-func (bm *brokerMock) StorageDealPrepared(context.Context, auction.StorageDealID, broker.DataPreparationResult) error {
+func (bm *brokerMock) StorageDealPrepared(context.Context, broker.StorageDealID, broker.DataPreparationResult) error {
 	panic("shouldn't be called")
 }
 
@@ -171,7 +170,7 @@ func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.ClosedAuction
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) StorageDealProposalAccepted(context.Context, auction.StorageDealID, string, cid.Cid) error {
+func (bm *brokerMock) StorageDealProposalAccepted(context.Context, broker.StorageDealID, string, cid.Cid) error {
 	panic("shouldn't be called")
 }
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/tests"
 )
 
@@ -367,7 +367,7 @@ func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
 
 var (
 	gad1 = AuctionData{
-		StorageDealID: auction.StorageDealID("1"),
+		StorageDealID: broker.StorageDealID("1"),
 		PayloadCid:    castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jP1"),
 		PieceCid:      castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),
 		Duration:      10,

@@ -15,8 +15,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/oklog/ulid/v2"
-	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
+	"github.com/textileio/broker-core/broker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -39,7 +39,7 @@ var (
 type AuctionData struct {
 	ID string
 
-	StorageDealID auction.StorageDealID
+	StorageDealID broker.StorageDealID
 	PayloadCid    cid.Cid
 	PieceCid      cid.Cid
 	PieceSize     uint64

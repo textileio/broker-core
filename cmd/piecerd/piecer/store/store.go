@@ -14,8 +14,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/oklog/ulid/v2"
-	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
+	"github.com/textileio/broker-core/broker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -37,7 +37,7 @@ const (
 type UnpreparedStorageDeal struct {
 	ID            UnpreparedStorageDealID
 	Status        status
-	StorageDealID auction.StorageDealID
+	StorageDealID broker.StorageDealID
 	DataCid       cid.Cid
 	CreatedAt     time.Time
 	ReadyAt       time.Time
@@ -67,7 +67,7 @@ func New(ds txndswrap.TxnDatastore) *Store {
 }
 
 // Create creates a new pending data to be prepared.
-func (s *Store) Create(sdID auction.StorageDealID, dataCid cid.Cid) error {
+func (s *Store) Create(sdID broker.StorageDealID, dataCid cid.Cid) error {
 	newID, err := s.newID()
 	if err != nil {
 		return fmt.Errorf("generating new id: %s", err)

@@ -3,10 +3,10 @@
 package mocks
 
 import (
-	cid "github.com/ipfs/go-cid"
-	auction "github.com/textileio/bidbot/lib/auction"
-
 	context "context"
+
+	cid "github.com/ipfs/go-cid"
+	"github.com/textileio/broker-core/broker"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -17,11 +17,11 @@ type Piecer struct {
 }
 
 // ReadyToPrepare provides a mock function with given fields: ctx, id, c
-func (_m *Piecer) ReadyToPrepare(ctx context.Context, id auction.StorageDealID, c cid.Cid) error {
+func (_m *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, c cid.Cid) error {
 	ret := _m.Called(ctx, id, c)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, auction.StorageDealID, cid.Cid) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, cid.Cid) error); ok {
 		r0 = rf(ctx, id, c)
 	} else {
 		r0 = ret.Error(0)

@@ -8,16 +8,17 @@ import (
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	pb "github.com/textileio/bidbot/gen/proto/v1"
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/bidbot/lib/marketpeer"
+	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
@@ -109,6 +110,11 @@ func (s *Service) PeerInfo() (*marketpeer.PeerInfo, error) {
 	return s.peer.Info()
 }
 
+// GetAuction gets the state of an auction by id. Mostly for test purpose.
+func (s *Service) GetAuction(id auction.AuctionID) (*core.Auction, error) {
+	return s.lib.GetAuction(id)
+}
+
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	if req == nil {
@@ -138,8 +144,8 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		return nil, status.Errorf(codes.InvalidArgument, "decoding sources: %v", err)
 	}
 
-	id, err := s.lib.CreateAuction(auction.Auction{
-		StorageDealID:    auction.StorageDealID(req.StorageDealId),
+	id, err := s.lib.CreateAuction(core.Auction{
+		StorageDealID:    broker.StorageDealID(req.StorageDealId),
 		PayloadCid:       payloadCid,
 		DealSize:         req.DealSize,
 		DealDuration:     req.DealDuration,
@@ -154,23 +160,6 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	}
 	return &pb.ReadyToAuctionResponse{
 		Id: string(id),
-	}, nil
-}
-
-// GetAuction gets an auction by id.
-func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.GetAuctionResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "auction id is empty")
-	}
-	a, err := s.lib.GetAuction(auction.AuctionID(req.Id))
-	if err != nil {
-		return nil, err
-	}
-	return &pb.GetAuctionResponse{
-		Auction: cast.AuctionToPb(*a),
 	}, nil
 }
 

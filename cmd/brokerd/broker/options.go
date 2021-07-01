@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 )
 
 var defaultConfig = config{
 	dealDuration:    auction.MaxDealDuration,
-	dealReplication: auction.MinDealReplication,
+	dealReplication: broker.MinDealReplication,
 	verifiedDeals:   true,
 
 	unpinnerFrequency:       time.Minute * 5,

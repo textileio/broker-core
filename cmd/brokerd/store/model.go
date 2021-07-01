@@ -17,7 +17,7 @@ type brokerRequest struct {
 	DataCid       cid.Cid
 	Status        broker.BrokerRequestStatus
 	Metadata      metadata
-	StorageDealID auction.StorageDealID
+	StorageDealID broker.StorageDealID
 	RebatchCount  int
 	ErrCause      string
 	CreatedAt     time.Time
@@ -69,7 +69,7 @@ func castToBrokerRequest(ibr brokerRequest) broker.BrokerRequest {
 }
 
 type storageDeal struct {
-	ID                 auction.StorageDealID
+	ID                 broker.StorageDealID
 	Status             broker.StorageDealStatus
 	BrokerRequestIDs   []broker.BrokerRequestID
 	RepFactor          int
@@ -101,7 +101,7 @@ type carIPFS struct {
 }
 
 type minerDeal struct {
-	StorageDealID auction.StorageDealID
+	StorageDealID broker.StorageDealID
 	AuctionID     auction.AuctionID
 	BidID         auction.BidID
 	Miner         string

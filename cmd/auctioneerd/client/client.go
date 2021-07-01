@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	pb "github.com/textileio/bidbot/gen/proto/v1"
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/bidbot/lib/cast"
 	core "github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"google.golang.org/grpc"
 )
 
@@ -29,7 +30,7 @@ func New(cc *grpc.ClientConn) *Client {
 // ReadyToAuction creates an auction.
 func (c *Client) ReadyToAuction(
 	ctx context.Context,
-	storageDealID auction.StorageDealID,
+	storageDealID broker.StorageDealID,
 	payloadCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
@@ -52,17 +53,6 @@ func (c *Client) ReadyToAuction(
 		return "", fmt.Errorf("calling ready to auction api: %s", err)
 	}
 	return auction.AuctionID(res.Id), nil
-}
-
-// GetAuction returns an auction by id.
-func (c *Client) GetAuction(ctx context.Context, auctionID auction.AuctionID) (auction.Auction, error) {
-	res, err := c.c.GetAuction(ctx, &pb.GetAuctionRequest{
-		Id: string(auctionID),
-	})
-	if err != nil {
-		return auction.Auction{}, err
-	}
-	return cast.AuctionFromPb(res.Auction)
 }
 
 // ProposalAccepted signals the auctioneer that a miner has accepted a deal proposal.

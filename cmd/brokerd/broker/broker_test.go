@@ -13,6 +13,7 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
@@ -268,7 +269,7 @@ func TestStorageDealPrepared(t *testing.T) {
 func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, auctioneer, dealer, _ := createBroker(t)
+	b, _, _, theAuctioneer, dealer, _ := createBroker(t)
 	b.conf.dealReplication = 2
 
 	// 1- Create two broker requests and a corresponding storage deal, and
@@ -311,7 +312,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
-		Status:          auction.AuctionStatusFinalized,
+		Status:          broker.AuctionStatusFinalized,
 		WinningBids:     winningBids,
 	}
 	err = b.StorageDealAuctioned(ctx, a)
@@ -390,13 +391,13 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	// 6- Verify that the auctioneer wasn't called again for a new auction.
 	//    The replication factor was 2, and we had 2 winning bids so a new auction
 	//    isn't necessary.
-	require.Equal(t, 1, auctioneer.calledCount)
+	require.Equal(t, 1, theAuctioneer.calledCount)
 }
 
 func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, auctioneer, _, _ := createBroker(t)
+	b, _, _, theAuctioneer, _, _ := createBroker(t)
 	b.conf.dealReplication = 3
 
 	// 1- Create two broker requests and a corresponding storage deal, and
@@ -438,7 +439,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
-		Status:          auction.AuctionStatusFinalized,
+		Status:          broker.AuctionStatusFinalized,
 		WinningBids:     winningBids,
 	}
 	err = b.StorageDealAuctioned(ctx, a)
@@ -451,16 +452,16 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 
 	// 4- We received two winning bids instead of three. Check that the Auctioneer
 	//    was called to create a new auction with rep factor 1.
-	require.Equal(t, 2, auctioneer.calledCount)
-	require.Equal(t, auction.MaxDealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, brgCid, auctioneer.calledPayloadCid)
-	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
-	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
-	require.Equal(t, 1, auctioneer.calledDealReplication)
-	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
-	require.Contains(t, auctioneer.calledExcludedMiners, "f01111")
-	require.Contains(t, auctioneer.calledExcludedMiners, "f02222")
+	require.Equal(t, 2, theAuctioneer.calledCount)
+	require.Equal(t, auction.MaxDealDuration, uint64(theAuctioneer.calledDealDuration))
+	require.Equal(t, brgCid, theAuctioneer.calledPayloadCid)
+	require.Equal(t, int(dpr.PieceSize), theAuctioneer.calledPieceSize)
+	require.Equal(t, sd, theAuctioneer.calledStorageDealID)
+	require.Equal(t, int(b.conf.dealDuration), theAuctioneer.calledDealDuration)
+	require.Equal(t, 1, theAuctioneer.calledDealReplication)
+	require.Equal(t, b.conf.verifiedDeals, theAuctioneer.calledDealVerified)
+	require.Contains(t, theAuctioneer.calledExcludedMiners, "f01111")
+	require.Contains(t, theAuctioneer.calledExcludedMiners, "f02222")
 }
 
 func TestStorageDealFailedAuction(t *testing.T) {
@@ -497,7 +498,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 1,
 		DealVerified:    true,
-		Status:          auction.AuctionStatusFinalized,
+		Status:          broker.AuctionStatusFinalized,
 		ErrorCause:      "reached max retries",
 	}
 	err = b.StorageDealAuctioned(ctx, a)
@@ -510,7 +511,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.Equal(t, a.ErrorCause, sd2.Error)
 
 	// 4- Verify that Dealer was NOT called
-	require.Equal(t, auction.StorageDealID(""), dealerd.calledAuctionDeals.StorageDealID)
+	require.Equal(t, broker.StorageDealID(""), dealerd.calledAuctionDeals.StorageDealID)
 
 	// 5- Verify that the underlying broker requests were moved
 	//    to Batching again.
@@ -574,7 +575,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		StorageDealID:   sd,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
-		Status:          auction.AuctionStatusFinalized,
+		Status:          broker.AuctionStatusFinalized,
 		WinningBids:     winningBids,
 	}
 	err = b.StorageDealAuctioned(ctx, auction)
@@ -699,12 +700,12 @@ func (dp *dumbPacker) ReadyToPack(ctx context.Context, id broker.BrokerRequestID
 
 type dumbPiecer struct {
 	calledCid cid.Cid
-	calledID  auction.StorageDealID
+	calledID  broker.StorageDealID
 }
 
 var _ piecer.Piecer = (*dumbPiecer)(nil)
 
-func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id auction.StorageDealID, c cid.Cid) error {
+func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, c cid.Cid) error {
 	dp.calledCid = c
 	dp.calledID = id
 
@@ -712,7 +713,7 @@ func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id auction.StorageDeal
 }
 
 type dumbAuctioneer struct {
-	calledStorageDealID    auction.StorageDealID
+	calledStorageDealID    broker.StorageDealID
 	calledPayloadCid       cid.Cid
 	calledPieceSize        int
 	calledDealDuration     int
@@ -726,7 +727,7 @@ type dumbAuctioneer struct {
 
 func (dp *dumbAuctioneer) ReadyToAuction(
 	ctx context.Context,
-	id auction.StorageDealID,
+	id broker.StorageDealID,
 	payloadCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
@@ -747,7 +748,7 @@ func (dp *dumbAuctioneer) ReadyToAuction(
 	return auction.AuctionID("AUCTION1"), nil
 }
 
-func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id auction.AuctionID) (auction.Auction, error) {
+func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id auction.AuctionID) (auctioneer.Auction, error) {
 	panic("shouldn't be called")
 }
 

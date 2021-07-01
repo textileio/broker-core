@@ -25,13 +25,45 @@ type WinningBid struct {
 // ClosedAuction contains closed auction details auctioneer reports back to the broker.
 type ClosedAuction struct {
 	ID              auction.AuctionID
-	StorageDealID   auction.StorageDealID
+	StorageDealID   StorageDealID
 	DealDuration    uint64
 	DealReplication uint32
 	DealVerified    bool
-	Status          auction.AuctionStatus
+	Status          AuctionStatus
 	WinningBids     map[auction.BidID]WinningBid
 	ErrorCause      string
+}
+
+// AuctionStatus is the status of an auction.
+type AuctionStatus int
+
+const (
+	// AuctionStatusUnspecified indicates the initial or invalid status of an auction.
+	AuctionStatusUnspecified AuctionStatus = iota
+	// AuctionStatusQueued indicates the auction is currently queued.
+	AuctionStatusQueued
+	// AuctionStatusStarted indicates the auction has started.
+	AuctionStatusStarted
+	// AuctionStatusFinalized indicates the auction has reached a final state.
+	// If ErrorCause is empty, the auction has received a sufficient number of bids.
+	// If ErrorCause is not empty, a fatal error has occurred and the auction should be considered abandoned.
+	AuctionStatusFinalized
+)
+
+// String returns a string-encoded status.
+func (as AuctionStatus) String() string {
+	switch as {
+	case AuctionStatusUnspecified:
+		return "unspecified"
+	case AuctionStatusQueued:
+		return "queued"
+	case AuctionStatusStarted:
+		return "started"
+	case AuctionStatusFinalized:
+		return "finalized"
+	default:
+		return "invalid"
+	}
 }
 
 // Broker provides full set of functionalities for Filecoin brokering.
@@ -47,10 +79,10 @@ type Broker interface {
 
 	// CreateStorageDeal creates a new StorageDeal. It is called
 	// by the Packer after batching a set of BrokerRequest properly.
-	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (auction.StorageDealID, error)
+	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDealID, error)
 
 	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
-	StorageDealPrepared(ctx context.Context, id auction.StorageDealID, pr DataPreparationResult) error
+	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
 
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
 	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
@@ -59,14 +91,14 @@ type Broker interface {
 	StorageDealFinalizedDeal(ctx context.Context, fad FinalizedAuctionDeal) error
 
 	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
-	StorageDealProposalAccepted(ctx context.Context, sdID auction.StorageDealID, miner string, proposalCid cid.Cid) error
+	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
 }
 
 // StorageDeal is the underlying entity that gets into bidding and
 // store data in the Filecoin network. It groups one or multiple
 // BrokerRequests.
 type StorageDeal struct {
-	ID                 auction.StorageDealID
+	ID                 StorageDealID
 	Status             StorageDealStatus
 	BrokerRequestIDs   []BrokerRequestID
 	RepFactor          int
@@ -89,6 +121,9 @@ type StorageDeal struct {
 	// Dealer populates this field
 	Deals []MinerDeal
 }
+
+// StorageDealID is the type of a StorageDeal identifier.
+type StorageDealID string
 
 // StorageDealStatus is the type of a broker status.
 type StorageDealStatus int
@@ -132,7 +167,7 @@ func (sds StorageDealStatus) String() string {
 // If ErrCause is empty, and DealID is zero then the deal is in progress.
 // IF ErrCause is empty, and DealID is not zero then is final.
 type MinerDeal struct {
-	StorageDealID auction.StorageDealID
+	StorageDealID StorageDealID
 	AuctionID     auction.AuctionID
 	BidID         auction.BidID
 	CreatedAt     time.Time
@@ -163,7 +198,7 @@ func (dpr DataPreparationResult) Validate() error {
 
 // FinalizedAuctionDeal contains information about a finalized deal.
 type FinalizedAuctionDeal struct {
-	StorageDealID  auction.StorageDealID
+	StorageDealID  StorageDealID
 	Miner          string
 	DealID         int64
 	DealExpiration uint64

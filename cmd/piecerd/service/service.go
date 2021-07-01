@@ -8,7 +8,6 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/finalizer"
@@ -89,7 +88,7 @@ func (s *Service) ReadyToPrepare(ctx context.Context, r *pb.ReadyToPrepareReques
 		return nil, status.Error(codes.InvalidArgument, "data cid is undefined")
 	}
 
-	if err := s.piecer.ReadyToPrepare(ctx, auction.StorageDealID(r.StorageDealId), dataCid); err != nil {
+	if err := s.piecer.ReadyToPrepare(ctx, broker.StorageDealID(r.StorageDealId), dataCid); err != nil {
 		return nil, status.Errorf(codes.Internal, "queuing data-cid to be prepared: %s", err)
 	}
 
