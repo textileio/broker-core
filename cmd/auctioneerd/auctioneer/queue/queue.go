@@ -164,6 +164,9 @@ func validate(a auctioneer.Auction) error {
 	if a.Status != broker.AuctionStatusUnspecified {
 		return errors.New("invalid initial auction status")
 	}
+	if len(a.Bids) != 0 {
+		return errors.New("initial bids must be empty")
+	}
 	if len(a.WinningBids) != 0 {
 		return errors.New("initial winning bids must be empty")
 	}

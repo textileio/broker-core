@@ -11,6 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/metric"
+
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/auctioneer"
@@ -20,8 +23,6 @@ import (
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
-	logger "github.com/textileio/go-log/v2"
-	"go.opentelemetry.io/otel/metric"
 )
 
 const (

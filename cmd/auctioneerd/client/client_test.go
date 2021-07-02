@@ -117,7 +117,7 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	c, s := newClient(t, 1)
+	c, s := newClient(t, 2)
 	bots := addBidbots(t, 10)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)

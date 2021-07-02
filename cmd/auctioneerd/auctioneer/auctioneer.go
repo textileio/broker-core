@@ -11,6 +11,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
+	golog "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/metric"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	pb "github.com/textileio/bidbot/gen/v1"
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/cast"
@@ -23,10 +28,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
-	golog "github.com/textileio/go-log/v2"
-	"go.opentelemetry.io/otel/metric"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -165,10 +166,10 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queued if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(theAuction auctioneer.Auction) (core.AuctionID, error) {
-	theAuction.Duration = a.auctionConf.Duration
-	theAuction.Status = broker.AuctionStatusUnspecified
-	id, err := a.queue.CreateAuction(theAuction)
+func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, error) {
+	auction.Status = broker.AuctionStatusUnspecified
+	auction.Duration = a.auctionConf.Duration
+	id, err := a.queue.CreateAuction(auction)
 	if err != nil {
 		return "", fmt.Errorf("creating auction: %v", err)
 	}
@@ -467,10 +468,10 @@ func (bh *BidHeap) Pop() (x interface{}) {
 }
 
 func (a *Auctioneer) selectNewWinners(
-	state auctioneer.Auction,
+	auction auctioneer.Auction,
 	bids map[core.BidID]core.Bid,
 ) (map[core.BidID]core.WinningBid, error) {
-	selectCount := int(state.DealReplication) - len(state.WinningBids)
+	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
 	if selectCount == 0 {
 		return nil, nil
 	}
@@ -479,7 +480,7 @@ func (a *Auctioneer) selectNewWinners(
 	}
 
 	var (
-		bh      = heapifyBids(bids, state.DealVerified)
+		bh      = heapifyBids(bids, auction.DealVerified)
 		winners = make(map[core.BidID]core.WinningBid)
 	)
 
@@ -508,7 +509,7 @@ type notifyResult struct {
 
 func (a *Auctioneer) notifyWinners(
 	ctx context.Context,
-	state auctioneer.Auction,
+	auction auctioneer.Auction,
 	winners map[core.BidID]core.WinningBid,
 ) (map[core.BidID]core.WinningBid, error) {
 	if winners == nil {
@@ -516,7 +517,7 @@ func (a *Auctioneer) notifyWinners(
 	}
 
 	// Add non-acked winners from prior attempts
-	for id, wb := range state.WinningBids {
+	for id, wb := range auction.WinningBids {
 		if !wb.Acknowledged || (wb.ProposalCid.Defined() && !wb.ProposalCidAcknowledged) {
 			winners[id] = wb
 		}
@@ -529,7 +530,7 @@ func (a *Auctioneer) notifyWinners(
 
 	var wg sync.WaitGroup
 	resCh := make(chan notifyResult, len(winners))
-	aid := state.ID
+	aid := auction.ID
 	for id, wb := range winners {
 		wg.Add(1)
 		go func(id core.BidID, wb core.WinningBid) {
