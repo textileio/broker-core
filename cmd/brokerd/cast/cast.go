@@ -121,7 +121,7 @@ func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequest
 	}, nil
 }
 
-// ClosedAuctionToPb returns pb.Auction from auction.
+// ClosedAuctionToPb returns pb.StorageDealAuctionedRequest from ClosedAuction.
 func ClosedAuctionToPb(a broker.ClosedAuction) *pb.StorageDealAuctionedRequest {
 	pba := &pb.StorageDealAuctionedRequest{
 		Id:              string(a.ID),
@@ -168,7 +168,7 @@ func AuctionWinningBidsToPb(
 	return pbbids
 }
 
-// ClosedAuctionFromPb returns auctioneer.Auction from pb.
+// ClosedAuctionFromPb returns broker.ClosedAuction from pb.
 func ClosedAuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.ClosedAuction, error) {
 	wbids, err := AuctionWinningBidsFromPb(pba.WinningBids)
 	if err != nil {

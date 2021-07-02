@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
+	"google.golang.org/grpc"
+
 	"github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
-	"google.golang.org/grpc"
 )
 
 // Client provides the client api.

@@ -7,6 +7,10 @@ import (
 
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
+	golog "github.com/textileio/go-log/v2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
@@ -20,9 +24,6 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
 	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
 	"github.com/textileio/broker-core/rpc"
-	golog "github.com/textileio/go-log/v2"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 )
 
 var log = golog.Logger("auctioneer/service")
