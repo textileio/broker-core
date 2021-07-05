@@ -3,6 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
+	cloud.google.com/go/pubsub v1.12.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.4
@@ -30,6 +31,7 @@ require (
 	github.com/ipld/go-car v0.1.1-0.20201119040415-11b6074b6d4d
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.2.0
+	github.com/labstack/gommon v0.3.0
 	github.com/libp2p/go-libp2p v0.14.3
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5
@@ -53,6 +55,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/metric v0.21.0
+	google.golang.org/api v0.50.0
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1
 )
