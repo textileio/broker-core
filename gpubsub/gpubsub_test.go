@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,8 +17,32 @@ func init() {
 	logger.SetAllLoggers(logger.LevelDebug)
 }
 
+// This test does some e2e testing of gpubsub library:
+// 1. Registers a handler for subscription sub-1 and topic topic-1.
+//    This handler receives a message, and publish another message in topic-2.
+// 2. The test sends a message to topic-1.
+// 3. The test checks that:
+//    3.1. The message sent in 2. was received by handler registered in 1.
+//    3.2. The message that handler 1. should have sent in topic-2 really was sent.
+//
+// All topics and subscriptions doesn't exist when the test runs, so the code is also testing the internal
+// logic of gpubsub regarding creating topics and subscriptions that doesn't exist.
+// These tests covers then:
+// - Creating a topic.
+// - Creating a subscription.
+// - Sending a message to a topic.
+// - Receiving a message from a topic.
+// - Sending messages to a topic through a message handler (not entirely relevant, but covered).
 func TestE2E(t *testing.T) {
 	t.Parallel()
+	var lock sync.Mutex // We use shared vars, so to be safe.
+
+	var sentIDTopic1 MessageID
+	sentDataTopic1 := []byte("duke-ftw")
+
+	waitChan := make(chan struct{})
+	var sentIDTopic2 MessageID
+	sentDataTopic2 := []byte("duke-ftw-2")
 
 	// 1. Launch dockerized pubsub emulator.
 	launchPubsubEmulator(t)
@@ -25,36 +50,47 @@ func TestE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Register a handler for topic-1.
-	var receivedID MessageID
-	var receivedData []byte
-	waitChan := make(chan struct{})
 	ps.RegisterTopicHandler("sub-1", "topic-1", func(id MessageID, data []byte, ack AckMessageFunc, nack NackMessageFunc) {
-		receivedID = id
-		receivedData = data
+		lock.Lock()
+		defer lock.Unlock()
+		require.Equal(t, sentIDTopic1, id)
+		require.True(t, bytes.Equal(sentDataTopic1, data))
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		sentIDTopic2, err = ps.PublishMsg(ctx, "topic-2", sentDataTopic2)
+		require.NoError(t, err)
+		require.NotEmpty(t, sentIDTopic2)
+
+		ack()
+	})
+
+	ps.RegisterTopicHandler("sub-2", "topic-2", func(id MessageID, data []byte, ack AckMessageFunc, nack NackMessageFunc) {
+		lock.Lock()
+		defer lock.Unlock()
+
+		require.Equal(t, sentIDTopic2, id)
+		require.True(t, bytes.Equal(sentDataTopic2, data))
+
 		ack()
 		close(waitChan)
 	})
 
 	// 3. Send a message to topic-1
-	sentData := []byte("duke-ftw")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	sentID, err := ps.PublishMsg(ctx, "topic-1", sentData)
+	lock.Lock()
+	sentIDTopic1, err = ps.PublishMsg(ctx, "topic-1", sentDataTopic1)
+	lock.Unlock()
 	require.NoError(t, err)
-	require.NotEmpty(t, sentID)
+	require.NotEmpty(t, sentIDTopic1)
 
+	// Wait for expected things to happen; 5s timeout max.
 	select {
 	case <-time.After(time.Second * 5):
 		t.Fatalf("timed out waiting for handler call")
 	case <-waitChan:
 	}
-	require.Equal(t, sentID, receivedID)
-	require.True(t, bytes.Equal(sentData, receivedData))
-
-	// 4. Make topic-1 handler send another message to topic-2.
-	// 5. See if topic-2 message was received.
-
-	// Run all again to see if can reuse topics.
 }
 
 func launchPubsubEmulator(t *testing.T) {
