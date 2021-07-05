@@ -1,5 +1,7 @@
 package msgbroker
 
+import "context"
+
 // MessageID is the type of a message identifier.
 type MessageID string
 
@@ -13,3 +15,9 @@ type NackMessageFunc func()
 // is responsible for calling Ack() or Nack() functions to properly signal
 // message processing.
 type TopicHandler func(MessageID, []byte, AckMessageFunc, NackMessageFunc)
+
+// MsgBroker is a message-broker for async message communication.
+type MsgBroker interface {
+	RegisterTopicHandler(subscriptionName, topicName string, handler TopicHandler) error
+	PublishMsg(ctx context.Context, topicName string, data []byte) (MessageID, error)
+}

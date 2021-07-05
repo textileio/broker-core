@@ -49,6 +49,10 @@ func TestE2E(t *testing.T) {
 	launchPubsubEmulator(t)
 	ps, err := New("test", "test", "test-")
 	require.NoError(t, err)
+	defer func() {
+		err := ps.Close()
+		require.NoError(t, err)
+	}()
 
 	// 2. Register a handler for topic-1.
 	ps.RegisterTopicHandler("sub-1", "topic-1", func(id msgbroker.MessageID, data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {

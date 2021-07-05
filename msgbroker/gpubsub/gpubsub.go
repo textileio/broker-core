@@ -21,7 +21,11 @@ type PubsubMsgBroker struct {
 
 	topicCacheLock sync.Mutex
 	topicCache     map[string]*pubsub.Topic
+
+	receivingHandlersWg sync.WaitGroup
 }
+
+var _ msgbroker.MsgBroker = (*PubsubMsgBroker)(nil)
 
 func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
 	if apiKey == "" {
@@ -50,10 +54,8 @@ func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
 	}, nil
 }
 
-// TODO(jsign): move to base package and create subfolders
 func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName string, handler msgbroker.TopicHandler) error {
 	topic, err := p.getTopic(topicName)
-	// TODO(jsign): tune topic.PublishSettings?
 
 	var sub *pubsub.Subscription
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -87,20 +89,25 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 	}
 
 	// TODO(jsign): tune ReceiveSettings
-	// TODO(jsign) handle receive 100% failure etc.
+	p.receivingHandlersWg.Add(1)
 	go func() {
+		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
+			// TODO(jsign): metrics
 			handler(msgbroker.MessageID(m.ID), m.Data, m.Ack, m.Nack)
 		})
 		if err != nil {
 			log.Errorf("receive handler subscription %s, topic %s: %s", subscriptionName, topicName, err)
+			return
 		}
+		log.Infof("handler for subscription %s, topic %s closed gracefully", subscriptionName, topicName)
 	}()
 
 	log.Debugf("registered handler for %s:%s", subscriptionName, topicName)
 	return nil
 }
 
+// TODO(jsign): metrics
 func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data []byte) (msgbroker.MessageID, error) {
 	topic, err := p.getTopic(topicName)
 	if err != nil {
@@ -122,6 +129,7 @@ func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data
 }
 
 func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
+	name = p.topicPrefix + name
 	p.topicCacheLock.Lock()
 	defer p.topicCacheLock.Unlock()
 	topic, ok := p.topicCache[name]
@@ -143,15 +151,32 @@ func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
 		if err != nil {
 			return nil, fmt.Errorf("creating topic %s: %s", name, err)
 		}
-		// TODO(jsign): set publishsettings
+		// The default publish settings values can be inspected in pubsub.DefaultPublishSettings.
+		// They seem quite reasonable.
 	}
 	p.topicCache[name] = topic
 
-	// TODO(jsign): when topic.Stop()?
 	return topic, nil
 }
 
-func (p *PubsubMsgBroker) Close() {
+func (p *PubsubMsgBroker) Close() error {
+	log.Infof("closing pubsub msg broker...")
+
 	p.clientCtxCancel()
-	// TODO(jsign): wait for things.
+
+	log.Infof("closing topics...")
+	p.topicCacheLock.Lock()
+	defer p.topicCacheLock.Unlock()
+	for _, topic := range p.topicCache {
+		topic.Stop()
+	}
+	log.Infof("topics closed")
+
+	log.Infof("waiting for receiving handlers to close...")
+	p.receivingHandlersWg.Wait()
+	log.Infof("all receiving handlers to closed")
+
+	log.Infof("pubsub msg broker closed")
+
+	return nil
 }
