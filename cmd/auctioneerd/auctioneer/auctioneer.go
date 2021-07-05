@@ -11,21 +11,23 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/textileio/broker-core/auctioneer/cast"
-	"github.com/textileio/broker-core/broker"
-	core "github.com/textileio/broker-core/broker"
-	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
-	"github.com/textileio/broker-core/dshelper/txndswrap"
-	"github.com/textileio/broker-core/filclient"
-	"github.com/textileio/broker-core/finalizer"
-	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1/message"
-	"github.com/textileio/broker-core/marketpeer"
-	"github.com/textileio/broker-core/metrics"
-	"github.com/textileio/broker-core/pubsub"
 	golog "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	pb "github.com/textileio/bidbot/gen/v1"
+	core "github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/bidbot/lib/cast"
+	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
+	"github.com/textileio/bidbot/lib/filclient"
+	"github.com/textileio/bidbot/lib/finalizer"
+	"github.com/textileio/bidbot/lib/marketpeer"
+	"github.com/textileio/bidbot/lib/pubsub"
+	"github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
+	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
+	"github.com/textileio/broker-core/metrics"
 )
 
 var (
@@ -70,7 +72,7 @@ type Auctioneer struct {
 	fc       filclient.FilClient
 	auctions *pubsub.Topic
 
-	broker core.Broker
+	broker broker.Broker
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
@@ -87,7 +89,7 @@ type Auctioneer struct {
 func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
-	broker core.Broker,
+	broker broker.Broker,
 	fc filclient.FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
@@ -164,7 +166,7 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queued if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(auction core.Auction) (core.AuctionID, error) {
+func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, error) {
 	auction.Status = broker.AuctionStatusUnspecified
 	auction.Duration = a.auctionConf.Duration
 	id, err := a.queue.CreateAuction(auction)
@@ -181,7 +183,7 @@ func (a *Auctioneer) CreateAuction(auction core.Auction) (core.AuctionID, error)
 
 // GetAuction returns an auction by id.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
-func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
+func (a *Auctioneer) GetAuction(id core.AuctionID) (*auctioneer.Auction, error) {
 	auction, err := a.queue.GetAuction(id)
 	if errors.Is(q.ErrAuctionNotFound, err) {
 		return nil, ErrAuctionNotFound
@@ -194,7 +196,7 @@ func (a *Auctioneer) GetAuction(id core.AuctionID) (*core.Auction, error) {
 // DeliverProposal delivers the proposal Cid for an accepted deal to the winning bidder.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
-func (a *Auctioneer) DeliverProposal(id broker.AuctionID, bid broker.BidID, pcid cid.Cid) error {
+func (a *Auctioneer) DeliverProposal(id core.AuctionID, bid core.BidID, pcid cid.Cid) error {
 	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid); errors.Is(q.ErrAuctionNotFound, err) {
 		return ErrAuctionNotFound
 	} else if errors.Is(q.ErrBidNotFound, err) {
@@ -212,7 +214,7 @@ func (a *Auctioneer) DeliverProposal(id broker.AuctionID, bid broker.BidID, pcid
 // - Notifying winners of a proposal cid that was from an agreed upon deal.
 func (a *Auctioneer) processAuction(
 	ctx context.Context,
-	auction core.Auction,
+	auction auctioneer.Auction,
 	addBid func(bid core.Bid) (core.BidID, error),
 ) (map[core.BidID]core.WinningBid, error) {
 	log.Debugf("auction %s started", auction.ID)
@@ -377,7 +379,7 @@ func (a *Auctioneer) validateBid(b *core.Bid) error {
 	return nil
 }
 
-func (a *Auctioneer) finalizeAuction(ctx context.Context, auction core.Auction) error {
+func (a *Auctioneer) finalizeAuction(ctx context.Context, auction broker.ClosedAuction) error {
 	switch auction.Status {
 	case broker.AuctionStatusFinalized:
 		if auction.ErrorCause != "" {
@@ -401,7 +403,7 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	}
 }
 
-func acceptBid(auction *core.Auction, bid *core.Bid) bool {
+func acceptBid(auction *auctioneer.Auction, bid *core.Bid) bool {
 	if auction.FilEpochDeadline > 0 && (bid.StartEpoch <= 0 || auction.FilEpochDeadline < bid.StartEpoch) {
 		log.Debugf("miner %s start epoch %d doesn't meet the deadline %d of auction %s",
 			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
@@ -466,7 +468,7 @@ func (bh *BidHeap) Pop() (x interface{}) {
 }
 
 func (a *Auctioneer) selectNewWinners(
-	auction core.Auction,
+	auction auctioneer.Auction,
 	bids map[core.BidID]core.Bid,
 ) (map[core.BidID]core.WinningBid, error) {
 	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
@@ -507,7 +509,7 @@ type notifyResult struct {
 
 func (a *Auctioneer) notifyWinners(
 	ctx context.Context,
-	auction core.Auction,
+	auction auctioneer.Auction,
 	winners map[core.BidID]core.WinningBid,
 ) (map[core.BidID]core.WinningBid, error) {
 	if winners == nil {

@@ -11,16 +11,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/metric"
+
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
-	"github.com/textileio/broker-core/dshelper/txndswrap"
 	"github.com/textileio/broker-core/packer"
 	"github.com/textileio/broker-core/piecer"
-	logger "github.com/textileio/go-log/v2"
-	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -293,8 +295,8 @@ func (b *Broker) CreateStorageDeal(
 		UpdatedAt:          now,
 		DisallowRebatching: false,
 		FilEpochDeadline:   0,
-		Sources: broker.Sources{
-			CARURL: &broker.CARURL{
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
 				URL: *b.conf.carExportURL.ResolveReference(cidURL),
 			},
 		},
@@ -377,8 +379,8 @@ func (b *Broker) StorageDealProposalAccepted(
 		return fmt.Errorf("storage deal not found: %s", err)
 	}
 
-	var auctionID broker.AuctionID
-	var bidID broker.BidID
+	var auctionID auction.AuctionID
+	var bidID auction.BidID
 	for _, deal := range sd.Deals {
 		if deal.Miner == miner {
 			auctionID = deal.AuctionID
@@ -400,7 +402,7 @@ func (b *Broker) StorageDealProposalAccepted(
 }
 
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
-func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) error {
+func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) error {
 	log.Debugf("storage deal %s was auctioned with %d winning bids", au.StorageDealID, len(au.WinningBids))
 
 	if au.Status != broker.AuctionStatusFinalized {
@@ -494,20 +496,10 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.Auction) er
 	}
 
 	var i int
-	for wbid := range au.WinningBids {
-		bid, ok := au.Bids[wbid]
-		if !ok {
-			return fmt.Errorf("winning bid %s wasn't found in bid map", wbid)
-		}
-		var price int64
-		if au.DealVerified {
-			price = bid.VerifiedAskPrice
-		} else {
-			price = bid.AskPrice
-		}
+	for _, bid := range au.WinningBids {
 		ads.Targets[i] = dealer.AuctionDealsTarget{
 			Miner:               bid.MinerAddr,
-			PricePerGiBPerEpoch: price,
+			PricePerGiBPerEpoch: bid.Price,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            au.DealVerified,
 			FastRetrieval:       bid.FastRetrieval,

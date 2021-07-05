@@ -8,6 +8,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -101,8 +102,8 @@ type carIPFS struct {
 
 type minerDeal struct {
 	StorageDealID broker.StorageDealID
-	AuctionID     broker.AuctionID
-	BidID         broker.BidID
+	AuctionID     auction.AuctionID
+	BidID         auction.BidID
 	Miner         string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
@@ -155,7 +156,7 @@ func castToStorageDeal(isd storageDeal) (broker.StorageDeal, error) {
 		if err != nil {
 			return broker.StorageDeal{}, fmt.Errorf("parsing url: %s", err)
 		}
-		bd.Sources.CARURL = &broker.CARURL{URL: *u}
+		bd.Sources.CARURL = &auction.CARURL{URL: *u}
 	}
 	if isd.Sources.CARIPFS != nil {
 		carCID, err := cid.Parse(isd.Sources.CARIPFS.Cid)
@@ -170,7 +171,7 @@ func castToStorageDeal(isd storageDeal) (broker.StorageDeal, error) {
 			}
 			multiaddrs[i] = maddr
 		}
-		bd.Sources.CARIPFS = &broker.CARIPFS{
+		bd.Sources.CARIPFS = &auction.CARIPFS{
 			Cid:        carCID,
 			Multiaddrs: multiaddrs,
 		}

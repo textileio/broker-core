@@ -425,7 +425,7 @@ func (s *Store) CountAuctionRetry(ctx context.Context, sdID broker.StorageDealID
 }
 
 // AddMinerDeals includes new deals from a finalized auction.
-func (s *Store) AddMinerDeals(ctx context.Context, auction broker.Auction) error {
+func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction) error {
 	txn, err := s.ds.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("creating transaction: %s", err)
@@ -444,11 +444,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.Auction) error
 
 	now := time.Now()
 	// Add winning bids to list of deals.
-	for bidID := range auction.WinningBids {
-		bid, ok := auction.Bids[bidID]
-		if !ok {
-			return fmt.Errorf("winning bid %s wasn't found in bid map", bidID)
-		}
+	for bidID, bid := range auction.WinningBids {
 		sd.Deals = append(sd.Deals,
 			minerDeal{
 				StorageDealID: auction.StorageDealID,

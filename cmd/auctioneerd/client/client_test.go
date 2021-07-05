@@ -10,25 +10,25 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	core "github.com/textileio/broker-core/broker"
+	core "github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/bidbot/lib/dshelper"
+	"github.com/textileio/bidbot/lib/finalizer"
+	"github.com/textileio/bidbot/lib/logging"
+	"github.com/textileio/bidbot/lib/marketpeer"
+	filclientmocks "github.com/textileio/bidbot/lib/mocks/filclient"
+	lotusclientmocks "github.com/textileio/bidbot/lib/mocks/lotusclient"
+	bidbotsrv "github.com/textileio/bidbot/service"
+	"github.com/textileio/bidbot/service/datauri/apitest"
+	bidstore "github.com/textileio/bidbot/service/store"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/client"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
-	bidbotsrv "github.com/textileio/broker-core/cmd/bidbot/service"
-	"github.com/textileio/broker-core/cmd/bidbot/service/datauri/apitest"
-	bidstore "github.com/textileio/broker-core/cmd/bidbot/service/store"
-	"github.com/textileio/broker-core/dshelper"
-	"github.com/textileio/broker-core/finalizer"
-	"github.com/textileio/broker-core/logging"
-	"github.com/textileio/broker-core/marketpeer"
 	brokermocks "github.com/textileio/broker-core/mocks/broker"
-	filclientmocks "github.com/textileio/broker-core/mocks/filclient"
-	lotusclientmocks "github.com/textileio/broker-core/mocks/lotusclient"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -57,8 +57,8 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	c, dag := newClient(t, 1)
-	gw := apitest.NewDataURIHTTPGateway(dag)
+	c, s := newClient(t, 1)
+	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
@@ -81,8 +81,8 @@ func TestClient_ReadyToAuction(t *testing.T) {
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	c, dag := newClient(t, 1)
-	gw := apitest.NewDataURIHTTPGateway(dag)
+	c, s := newClient(t, 1)
+	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
@@ -102,24 +102,24 @@ func TestClient_GetAuction(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	got, err := c.GetAuction(context.Background(), id)
+	got, err := s.GetAuction(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
-	assert.Equal(t, core.AuctionStatusStarted, got.Status)
+	assert.Equal(t, broker.AuctionStatusStarted, got.Status)
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
-	got, err = c.GetAuction(context.Background(), id)
+	got, err = s.GetAuction(id)
 	require.NoError(t, err)
 	assert.Equal(t, 1, int(got.Attempts))
-	assert.Equal(t, core.AuctionStatusFinalized, got.Status) // no miners making bids
+	assert.Equal(t, broker.AuctionStatusFinalized, got.Status) // no miners making bids
 	assert.NotEmpty(t, got.ErrorCause)
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	c, dag := newClient(t, 2)
+	c, s := newClient(t, 2)
 	bots := addBidbots(t, 10)
-	gw := apitest.NewDataURIHTTPGateway(dag)
+	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
@@ -143,10 +143,10 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
-	got, err := c.GetAuction(context.Background(), id)
+	got, err := s.GetAuction(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
-	assert.Equal(t, core.AuctionStatusFinalized, got.Status)
+	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Empty(t, got.ErrorCause)
 	require.Len(t, got.WinningBids, 2)
 
@@ -174,12 +174,12 @@ func TestClient_RunAuction(t *testing.T) {
 		assert.Empty(t, bids[0].ErrorCause)
 	}
 
-	got, err = c.GetAuction(context.Background(), id)
+	_, err = s.GetAuction(id)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), auctioneer.ErrAuctionNotFound.Error())
 }
 
-func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService) {
+func newClient(t *testing.T, attempts uint32) (*client.Client, *service.Service) {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -208,7 +208,7 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 	bm.On(
 		"StorageDealAuctioned",
 		mock.Anything,
-		mock.AnythingOfType("broker.Auction"),
+		mock.AnythingOfType("broker.ClosedAuction"),
 	).Return(nil)
 
 	s, err := service.New(config, store, bm, newFilClientMock())
@@ -223,7 +223,7 @@ func newClient(t *testing.T, attempts uint32) (*client.Client, format.DAGService
 	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
 	fin.Add(conn)
-	return client.New(conn), s.DAGService()
+	return client.New(conn), s
 }
 
 func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
@@ -279,8 +279,8 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 	return bots
 }
 
-func newDealID() core.StorageDealID {
-	return core.StorageDealID(uuid.New().String())
+func newDealID() broker.StorageDealID {
+	return broker.StorageDealID(uuid.New().String())
 }
 
 func newLotusClientMock() *lotusclientmocks.LotusClient {

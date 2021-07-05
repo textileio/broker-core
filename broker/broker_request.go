@@ -1,18 +1,23 @@
 package broker
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/multiformats/go-multiaddr"
+	"github.com/textileio/bidbot/lib/auction"
 )
 
 const (
 	// CodecFilCommitmentUnsealed is the IPLD codec for PieceCid cids.
 	CodecFilCommitmentUnsealed = 0xf101
+	// DefaultPreparedCARDeadline is the default deadline for prepared CAR deals.
+	DefaultPreparedCARDeadline = time.Hour * 48
 	// MaxPieceSize is the maximum piece size accepted for prepared data.
 	MaxPieceSize = 32 << 30
+	// MinDealReplication is the minimum allowed deal replication requested of miners.
+	MinDealReplication = 1
+	// MaxDealReplication is the maximum allowed deal replication requested of miners.
+	MaxDealReplication = 10
 )
 
 // BrokerRequestID is the type used for broker request identity.
@@ -47,18 +52,7 @@ type PreparedCAR struct {
 	PieceSize uint64
 	RepFactor int
 	Deadline  time.Time
-	Sources   Sources
-}
-
-// CARURL contains details of a CAR file stored in an HTTP endpoint.
-type CARURL struct {
-	URL url.URL
-}
-
-// CARIPFS contains details of a CAR file Cid stored in an HTTP endpoint.
-type CARIPFS struct {
-	Cid        cid.Cid
-	Multiaddrs []multiaddr.Multiaddr
+	Sources   auction.Sources
 }
 
 // BrokerRequestStatus describe the current status of a

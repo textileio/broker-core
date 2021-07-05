@@ -3,16 +3,68 @@ package broker
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ipfs/go-cid"
+
+	"github.com/textileio/bidbot/lib/auction"
 )
 
 const (
 	invalidStatus = "invalid"
 )
+
+// WinningBid contains details about a winning bid in a closed auction.
+type WinningBid struct {
+	MinerAddr     string
+	Price         int64
+	StartEpoch    uint64
+	FastRetrieval bool
+}
+
+// ClosedAuction contains closed auction details auctioneer reports back to the broker.
+type ClosedAuction struct {
+	ID              auction.AuctionID
+	StorageDealID   StorageDealID
+	DealDuration    uint64
+	DealReplication uint32
+	DealVerified    bool
+	Status          AuctionStatus
+	WinningBids     map[auction.BidID]WinningBid
+	ErrorCause      string
+}
+
+// AuctionStatus is the status of an auction.
+type AuctionStatus int
+
+const (
+	// AuctionStatusUnspecified indicates the initial or invalid status of an auction.
+	AuctionStatusUnspecified AuctionStatus = iota
+	// AuctionStatusQueued indicates the auction is currently queued.
+	AuctionStatusQueued
+	// AuctionStatusStarted indicates the auction has started.
+	AuctionStatusStarted
+	// AuctionStatusFinalized indicates the auction has reached a final state.
+	// If ErrorCause is empty, the auction has received a sufficient number of bids.
+	// If ErrorCause is not empty, a fatal error has occurred and the auction should be considered abandoned.
+	AuctionStatusFinalized
+)
+
+// String returns a string-encoded status.
+func (as AuctionStatus) String() string {
+	switch as {
+	case AuctionStatusUnspecified:
+		return "unspecified"
+	case AuctionStatusQueued:
+		return "queued"
+	case AuctionStatusStarted:
+		return "started"
+	case AuctionStatusFinalized:
+		return "finalized"
+	default:
+		return "invalid"
+	}
+}
 
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
@@ -33,7 +85,7 @@ type Broker interface {
 	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
 
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
-	StorageDealAuctioned(ctx context.Context, auction Auction) error
+	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
 
 	// StorageDealFinalizedDeal signals to the broker results about deal making.
 	StorageDealFinalizedDeal(ctx context.Context, fad FinalizedAuctionDeal) error
@@ -51,7 +103,7 @@ type StorageDeal struct {
 	BrokerRequestIDs   []BrokerRequestID
 	RepFactor          int
 	DealDuration       int
-	Sources            Sources
+	Sources            auction.Sources
 	DisallowRebatching bool
 	AuctionRetries     int
 	FilEpochDeadline   uint64
@@ -68,49 +120,6 @@ type StorageDeal struct {
 
 	// Dealer populates this field
 	Deals []MinerDeal
-}
-
-// Sources contains information about download sources for prepared data.
-type Sources struct {
-	CARURL  *CARURL
-	CARIPFS *CARIPFS
-}
-
-// Validate ensures Sources are valid.
-func (s Sources) Validate() error {
-	if s.CARURL == nil && s.CARIPFS == nil {
-		return errors.New("should contain at least one source")
-	}
-	if s.CARURL != nil {
-		switch s.CARURL.URL.Scheme {
-		case "http", "https":
-		default:
-			return fmt.Errorf("unsupported scheme %s", s.CARURL.URL.Scheme)
-		}
-	}
-	if s.CARIPFS != nil {
-		if !s.CARIPFS.Cid.Defined() {
-			return errors.New("cid undefined")
-		}
-		if len(s.CARIPFS.Multiaddrs) == 0 {
-			return errors.New("no multiaddr")
-		}
-	}
-	return nil
-}
-
-// String returns the string representation of the sources.
-func (s Sources) String() string {
-	var b strings.Builder
-	_, _ = b.WriteString("{")
-	if s.CARURL != nil {
-		fmt.Fprintf(&b, "url: %s,", s.CARURL.URL.String())
-	}
-	if s.CARIPFS != nil {
-		fmt.Fprintf(&b, "cid: %s,", s.CARIPFS.Cid.String())
-	}
-	_, _ = b.WriteString("}")
-	return b.String()
 }
 
 // StorageDealID is the type of a StorageDeal identifier.
@@ -159,8 +168,8 @@ func (sds StorageDealStatus) String() string {
 // IF ErrCause is empty, and DealID is not zero then is final.
 type MinerDeal struct {
 	StorageDealID StorageDealID
-	AuctionID     AuctionID
-	BidID         BidID
+	AuctionID     auction.AuctionID
+	BidID         auction.BidID
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 

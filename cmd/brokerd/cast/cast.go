@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -118,4 +119,102 @@ func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequest
 		BrokerRequest: protobr,
 		Deals:         deals,
 	}, nil
+}
+
+// ClosedAuctionToPb returns pb.StorageDealAuctionedRequest from ClosedAuction.
+func ClosedAuctionToPb(a broker.ClosedAuction) *pb.StorageDealAuctionedRequest {
+	pba := &pb.StorageDealAuctionedRequest{
+		Id:              string(a.ID),
+		StorageDealId:   string(a.StorageDealID),
+		DealDuration:    a.DealDuration,
+		DealReplication: a.DealReplication,
+		DealVerified:    a.DealVerified,
+		Status:          AuctionStatusToPb(a.Status),
+		WinningBids:     AuctionWinningBidsToPb(a.WinningBids),
+		Error:           a.ErrorCause,
+	}
+	return pba
+}
+
+// AuctionStatusToPb returns pb.Auction_Status from broker.AuctionStatus.
+func AuctionStatusToPb(s broker.AuctionStatus) pb.StorageDealAuctionedRequest_Status {
+	switch s {
+	case broker.AuctionStatusUnspecified:
+		return pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED
+	case broker.AuctionStatusQueued:
+		return pb.StorageDealAuctionedRequest_STATUS_QUEUED
+	case broker.AuctionStatusStarted:
+		return pb.StorageDealAuctionedRequest_STATUS_STARTED
+	case broker.AuctionStatusFinalized:
+		return pb.StorageDealAuctionedRequest_STATUS_FINALIZED
+	default:
+		return pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED
+	}
+}
+
+// AuctionWinningBidsToPb returns a map of pb.StorageDealAuctionedRequest_WinningBid from a map of auction.WinningBid.
+func AuctionWinningBidsToPb(
+	bids map[auction.BidID]broker.WinningBid,
+) map[string]*pb.StorageDealAuctionedRequest_WinningBid {
+	pbbids := make(map[string]*pb.StorageDealAuctionedRequest_WinningBid)
+	for k, v := range bids {
+		pbbids[string(k)] = &pb.StorageDealAuctionedRequest_WinningBid{
+			MinerAddr:     v.MinerAddr,
+			Price:         v.Price,
+			StartEpoch:    v.StartEpoch,
+			FastRetrieval: v.FastRetrieval,
+		}
+	}
+	return pbbids
+}
+
+// ClosedAuctionFromPb returns broker.ClosedAuction from pb.
+func ClosedAuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.ClosedAuction, error) {
+	wbids, err := AuctionWinningBidsFromPb(pba.WinningBids)
+	if err != nil {
+		return broker.ClosedAuction{}, fmt.Errorf("decoding bids: %v", err)
+	}
+	a := broker.ClosedAuction{
+		ID:              auction.AuctionID(pba.Id),
+		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
+		DealDuration:    pba.DealDuration,
+		DealReplication: pba.DealReplication,
+		DealVerified:    pba.DealVerified,
+		Status:          AuctionStatusFromPb(pba.Status),
+		WinningBids:     wbids,
+		ErrorCause:      pba.Error,
+	}
+	return a, nil
+}
+
+// AuctionStatusFromPb returns broker.AuctionStatus from pb.StorageDealAuctionedRequest_Status.
+func AuctionStatusFromPb(pbs pb.StorageDealAuctionedRequest_Status) broker.AuctionStatus {
+	switch pbs {
+	case pb.StorageDealAuctionedRequest_STATUS_UNSPECIFIED:
+		return broker.AuctionStatusUnspecified
+	case pb.StorageDealAuctionedRequest_STATUS_QUEUED:
+		return broker.AuctionStatusQueued
+	case pb.StorageDealAuctionedRequest_STATUS_STARTED:
+		return broker.AuctionStatusStarted
+	case pb.StorageDealAuctionedRequest_STATUS_FINALIZED:
+		return broker.AuctionStatusFinalized
+	default:
+		return broker.AuctionStatusUnspecified
+	}
+}
+
+// AuctionWinningBidsFromPb returns a map of auction.WinningBid from a map of pb.StorageDealAuctionedRequest_WinningBid.
+func AuctionWinningBidsFromPb(
+	pbbids map[string]*pb.StorageDealAuctionedRequest_WinningBid,
+) (map[auction.BidID]broker.WinningBid, error) {
+	wbids := make(map[auction.BidID]broker.WinningBid)
+	for k, v := range pbbids {
+		wbids[auction.BidID(k)] = broker.WinningBid{
+			MinerAddr:     v.MinerAddr,
+			Price:         v.Price,
+			StartEpoch:    v.StartEpoch,
+			FastRetrieval: v.FastRetrieval,
+		}
+	}
+	return wbids, nil
 }

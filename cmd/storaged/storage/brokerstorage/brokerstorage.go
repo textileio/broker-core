@@ -17,6 +17,7 @@ import (
 	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/auth"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
@@ -134,7 +135,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		return storage.Request{}, errors.New("rep-factor should can't be negative")
 	}
 
-	deadline := time.Now().Add(broker.DefaultDealDeadline)
+	deadline := time.Now().Add(broker.DefaultPreparedCARDeadline)
 	if adr.Deadline != "" {
 		deadline, err = time.Parse(time.RFC3339, adr.Deadline)
 		if err != nil {
@@ -158,7 +159,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 			return storage.Request{}, fmt.Errorf("CAR URL scheme should be http(s)")
 		}
 
-		pc.Sources.CARURL = &broker.CARURL{
+		pc.Sources.CARURL = &auction.CARURL{
 			URL: *url,
 		}
 	}
@@ -176,7 +177,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 			}
 			maddrs[i] = maddr
 		}
-		pc.Sources.CARIPFS = &broker.CARIPFS{
+		pc.Sources.CARIPFS = &auction.CARIPFS{
 			Cid:        carCid,
 			Multiaddrs: maddrs,
 		}

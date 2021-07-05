@@ -17,10 +17,10 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/client"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
-	"github.com/textileio/broker-core/finalizer"
 	"github.com/textileio/broker-core/tests"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -127,7 +127,7 @@ func (bm *brokerMock) StorageDealPrepared(
 	return nil
 }
 
-func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.Auction) error {
+func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.ClosedAuction) error {
 	panic("shouldn't be called")
 }
 

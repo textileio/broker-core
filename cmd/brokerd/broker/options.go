@@ -6,11 +6,12 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 )
 
 var defaultConfig = config{
-	dealDuration:    broker.MaxDealDuration,
+	dealDuration:    auction.MaxDealDuration,
 	dealReplication: broker.MinDealReplication,
 	verifiedDeals:   true,
 

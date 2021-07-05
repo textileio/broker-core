@@ -2,7 +2,6 @@ syntax = "proto3";
 package broker.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
-import "broker/auctioneer/v1/auctioneer.proto";
 import "google/protobuf/timestamp.proto";
 
 message CreateBrokerRequestRequest {
@@ -76,7 +75,28 @@ message StorageDealProposalAcceptedResponse {
 }
 
 message StorageDealAuctionedRequest {
-  broker.auctioneer.v1.Auction auction = 2;
+    string id = 1;
+    string storage_deal_id = 2;
+    uint64 deal_duration = 3;
+    uint32 deal_replication = 4;
+    bool deal_verified = 5;
+    Status status = 6;
+    map<string, WinningBid> winning_bids = 7;
+    string error = 8;
+                               
+    enum Status {
+        STATUS_UNSPECIFIED = 0;
+        STATUS_QUEUED = 1;
+        STATUS_STARTED = 2;
+        STATUS_FINALIZED = 3;
+    }
+
+    message WinningBid {
+        string miner_addr = 1;
+        int64 price = 2;
+        uint64 start_epoch = 3;
+        bool fast_retrieval = 4;
+    }
 }
 
 message StorageDealAuctionedResponse {
@@ -130,5 +150,3 @@ service APIService {
   rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
   rpc StorageDealPrepared(StorageDealPreparedRequest) returns (StorageDealPreparedResponse) {}
 }
-
-

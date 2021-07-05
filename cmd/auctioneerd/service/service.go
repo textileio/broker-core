@@ -7,20 +7,23 @@ import (
 
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
-	format "github.com/ipfs/go-ipld-format"
-	"github.com/textileio/broker-core/auctioneer/cast"
-	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/common"
-	"github.com/textileio/broker-core/dshelper/txndswrap"
-	"github.com/textileio/broker-core/filclient"
-	"github.com/textileio/broker-core/finalizer"
-	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
-	"github.com/textileio/broker-core/marketpeer"
-	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+
+	format "github.com/ipfs/go-ipld-format"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
+	"github.com/textileio/bidbot/lib/filclient"
+	"github.com/textileio/bidbot/lib/finalizer"
+	"github.com/textileio/bidbot/lib/marketpeer"
+	core "github.com/textileio/broker-core/auctioneer"
+	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
+	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
+	"github.com/textileio/broker-core/rpc"
 )
 
 var log = golog.Logger("auctioneer/service")
@@ -108,6 +111,11 @@ func (s *Service) PeerInfo() (*marketpeer.PeerInfo, error) {
 	return s.peer.Info()
 }
 
+// GetAuction gets the state of an auction by id. Mostly for test purpose.
+func (s *Service) GetAuction(id auction.AuctionID) (*core.Auction, error) {
+	return s.lib.GetAuction(id)
+}
+
 // ReadyToAuction creates a new auction.
 func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
 	if req == nil {
@@ -137,7 +145,7 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 		return nil, status.Errorf(codes.InvalidArgument, "decoding sources: %v", err)
 	}
 
-	id, err := s.lib.CreateAuction(broker.Auction{
+	id, err := s.lib.CreateAuction(core.Auction{
 		StorageDealID:    broker.StorageDealID(req.StorageDealId),
 		PayloadCid:       payloadCid,
 		DealSize:         req.DealSize,
@@ -153,23 +161,6 @@ func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionReques
 	}
 	return &pb.ReadyToAuctionResponse{
 		Id: string(id),
-	}, nil
-}
-
-// GetAuction gets an auction by id.
-func (s *Service) GetAuction(_ context.Context, req *pb.GetAuctionRequest) (*pb.GetAuctionResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-	if req.Id == "" {
-		return nil, status.Error(codes.InvalidArgument, "auction id is empty")
-	}
-	a, err := s.lib.GetAuction(broker.AuctionID(req.Id))
-	if err != nil {
-		return nil, err
-	}
-	return &pb.GetAuctionResponse{
-		Auction: cast.AuctionToPb(*a),
 	}, nil
 }
 
@@ -191,7 +182,7 @@ func (s *Service) ProposalAccepted(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid proposal cid")
 	}
-	if err := s.lib.DeliverProposal(broker.AuctionID(req.AuctionId), broker.BidID(req.BidId), proposalCid); err != nil {
+	if err := s.lib.DeliverProposal(auction.AuctionID(req.AuctionId), auction.BidID(req.BidId), proposalCid); err != nil {
 		return nil, status.Errorf(codes.Internal, "delivering proposal: %v", err)
 	}
 	return &pb.ProposalAcceptedResponse{}, nil

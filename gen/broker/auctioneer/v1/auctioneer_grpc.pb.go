@@ -4,6 +4,7 @@ package auctioneer
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -19,7 +20,6 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type APIServiceClient interface {
 	ReadyToAuction(ctx context.Context, in *ReadyToAuctionRequest, opts ...grpc.CallOption) (*ReadyToAuctionResponse, error)
-	GetAuction(ctx context.Context, in *GetAuctionRequest, opts ...grpc.CallOption) (*GetAuctionResponse, error)
 	ProposalAccepted(ctx context.Context, in *ProposalAcceptedRequest, opts ...grpc.CallOption) (*ProposalAcceptedResponse, error)
 }
 
@@ -33,16 +33,7 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 
 func (c *aPIServiceClient) ReadyToAuction(ctx context.Context, in *ReadyToAuctionRequest, opts ...grpc.CallOption) (*ReadyToAuctionResponse, error) {
 	out := new(ReadyToAuctionResponse)
-	err := c.cc.Invoke(ctx, "/broker.auctioneer.v1.APIService/ReadyToAuction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *aPIServiceClient) GetAuction(ctx context.Context, in *GetAuctionRequest, opts ...grpc.CallOption) (*GetAuctionResponse, error) {
-	out := new(GetAuctionResponse)
-	err := c.cc.Invoke(ctx, "/broker.auctioneer.v1.APIService/GetAuction", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.v1.APIService/ReadyToAuction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +42,7 @@ func (c *aPIServiceClient) GetAuction(ctx context.Context, in *GetAuctionRequest
 
 func (c *aPIServiceClient) ProposalAccepted(ctx context.Context, in *ProposalAcceptedRequest, opts ...grpc.CallOption) (*ProposalAcceptedResponse, error) {
 	out := new(ProposalAcceptedResponse)
-	err := c.cc.Invoke(ctx, "/broker.auctioneer.v1.APIService/ProposalAccepted", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.v1.APIService/ProposalAccepted", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +54,6 @@ func (c *aPIServiceClient) ProposalAccepted(ctx context.Context, in *ProposalAcc
 // for forward compatibility
 type APIServiceServer interface {
 	ReadyToAuction(context.Context, *ReadyToAuctionRequest) (*ReadyToAuctionResponse, error)
-	GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error)
 	ProposalAccepted(context.Context, *ProposalAcceptedRequest) (*ProposalAcceptedResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
@@ -74,9 +64,6 @@ type UnimplementedAPIServiceServer struct {
 
 func (UnimplementedAPIServiceServer) ReadyToAuction(context.Context, *ReadyToAuctionRequest) (*ReadyToAuctionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadyToAuction not implemented")
-}
-func (UnimplementedAPIServiceServer) GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAuction not implemented")
 }
 func (UnimplementedAPIServiceServer) ProposalAccepted(context.Context, *ProposalAcceptedRequest) (*ProposalAcceptedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProposalAccepted not implemented")
@@ -104,28 +91,10 @@ func _APIService_ReadyToAuction_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.auctioneer.v1.APIService/ReadyToAuction",
+		FullMethod: "/proto.v1.APIService/ReadyToAuction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServiceServer).ReadyToAuction(ctx, req.(*ReadyToAuctionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _APIService_GetAuction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAuctionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(APIServiceServer).GetAuction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/broker.auctioneer.v1.APIService/GetAuction",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).GetAuction(ctx, req.(*GetAuctionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -140,7 +109,7 @@ func _APIService_ProposalAccepted_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.auctioneer.v1.APIService/ProposalAccepted",
+		FullMethod: "/proto.v1.APIService/ProposalAccepted",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServiceServer).ProposalAccepted(ctx, req.(*ProposalAcceptedRequest))
@@ -152,16 +121,12 @@ func _APIService_ProposalAccepted_Handler(srv interface{}, ctx context.Context, 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var APIService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "broker.auctioneer.v1.APIService",
+	ServiceName: "proto.v1.APIService",
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "ReadyToAuction",
 			Handler:    _APIService_ReadyToAuction_Handler,
-		},
-		{
-			MethodName: "GetAuction",
-			Handler:    _APIService_GetAuction_Handler,
 		},
 		{
 			MethodName: "ProposalAccepted",

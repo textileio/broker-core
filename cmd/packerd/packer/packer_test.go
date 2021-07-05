@@ -17,8 +17,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/logging"
 	"github.com/textileio/broker-core/tests"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -166,7 +166,7 @@ func (bm *brokerMock) StorageDealPrepared(context.Context, broker.StorageDealID,
 	panic("shouldn't be called")
 }
 
-func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.Auction) error {
+func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.ClosedAuction) error {
 	panic("shouldn't be called")
 }
 

@@ -3,10 +3,10 @@
 package mocks
 
 import (
-	cid "github.com/ipfs/go-cid"
-	broker "github.com/textileio/broker-core/broker"
-
 	context "context"
+
+	cid "github.com/ipfs/go-cid"
+	"github.com/textileio/broker-core/broker"
 
 	mock "github.com/stretchr/testify/mock"
 )

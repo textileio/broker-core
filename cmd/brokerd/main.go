@@ -6,9 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/service"
-	"github.com/textileio/broker-core/common"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -29,7 +30,7 @@ func init() {
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
-		{Name: "deal-duration", DefValue: broker.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
+		{Name: "deal-duration", DefValue: auction.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},

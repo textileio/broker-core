@@ -81,9 +81,7 @@ services:
       - brokerd
     restart: unless-stopped
   bidbot:
-    build:
-      context: .
-      dockerfile: ./cmd/bidbot/Dockerfile
+    image: textile/bidbot:latest
     platform: linux/amd64
     volumes:
       - bidbot_data:/data/bidbot
