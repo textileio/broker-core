@@ -8,6 +8,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/labstack/gommon/log"
+	"github.com/textileio/broker-core/msgbroker"
 	"google.golang.org/api/iterator"
 )
 
@@ -50,12 +51,7 @@ func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
 }
 
 // TODO(jsign): move to base package and create subfolders
-type MessageID string
-type AckMessageFunc func()
-type NackMessageFunc func()
-type TopicHandler func(MessageID, []byte, AckMessageFunc, NackMessageFunc)
-
-func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName string, handler TopicHandler) error {
+func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName string, handler msgbroker.TopicHandler) error {
 	topic, err := p.getTopic(topicName)
 	// TODO(jsign): tune topic.PublishSettings?
 
@@ -94,7 +90,7 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 	// TODO(jsign) handle receive 100% failure etc.
 	go func() {
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
-			handler(MessageID(m.ID), m.Data, m.Ack, m.Nack)
+			handler(msgbroker.MessageID(m.ID), m.Data, m.Ack, m.Nack)
 		})
 		if err != nil {
 			log.Errorf("receive handler subscription %s, topic %s: %s", subscriptionName, topicName, err)
@@ -105,7 +101,7 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 	return nil
 }
 
-func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data []byte) (MessageID, error) {
+func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data []byte) (msgbroker.MessageID, error) {
 	topic, err := p.getTopic(topicName)
 	if err != nil {
 		return "", fmt.Errorf("get topic: %s", err)
@@ -122,7 +118,7 @@ func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data
 		return "", fmt.Errorf("publishing to pubsub: %s", err)
 	}
 
-	return MessageID(id), nil
+	return msgbroker.MessageID(id), nil
 }
 
 func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {

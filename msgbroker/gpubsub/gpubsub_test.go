@@ -10,6 +10,7 @@ import (
 
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -37,11 +38,11 @@ func TestE2E(t *testing.T) {
 	t.Parallel()
 	var lock sync.Mutex // We use shared vars, so to be safe.
 
-	var sentIDTopic1 MessageID
+	var sentIDTopic1 msgbroker.MessageID
 	sentDataTopic1 := []byte("duke-ftw")
 
 	waitChan := make(chan struct{})
-	var sentIDTopic2 MessageID
+	var sentIDTopic2 msgbroker.MessageID
 	sentDataTopic2 := []byte("duke-ftw-2")
 
 	// 1. Launch dockerized pubsub emulator.
@@ -50,7 +51,7 @@ func TestE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Register a handler for topic-1.
-	ps.RegisterTopicHandler("sub-1", "topic-1", func(id MessageID, data []byte, ack AckMessageFunc, nack NackMessageFunc) {
+	ps.RegisterTopicHandler("sub-1", "topic-1", func(id msgbroker.MessageID, data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
 		lock.Lock()
 		defer lock.Unlock()
 		require.Equal(t, sentIDTopic1, id)
@@ -65,7 +66,7 @@ func TestE2E(t *testing.T) {
 		ack()
 	})
 
-	ps.RegisterTopicHandler("sub-2", "topic-2", func(id MessageID, data []byte, ack AckMessageFunc, nack NackMessageFunc) {
+	ps.RegisterTopicHandler("sub-2", "topic-2", func(id msgbroker.MessageID, data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
 		lock.Lock()
 		defer lock.Unlock()
 
