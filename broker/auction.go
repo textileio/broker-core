@@ -13,7 +13,7 @@ const (
 	// MinDealDuration is the minimum allowed deal duration in epochs requested of miners.
 	MinDealDuration = epochsPerDay * 365 / 2 // ~6 months
 	// MaxDealDuration is the maximum allowed deal duration in epochs requested of miners.
-	MaxDealDuration = epochsPerDay * 365 // ~1 year
+	MaxDealDuration = epochsPerDay * 510 // As far as we know, is the safest max duration that all miners accept.
 	// MinDealReplication is the minimum allowed deal replication requested of miners.
 	MinDealReplication = 1
 	// MaxDealReplication is the maximum allowed deal replication requested of miners.
