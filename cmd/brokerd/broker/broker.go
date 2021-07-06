@@ -22,7 +22,6 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/packer"
-	"github.com/textileio/broker-core/piecer"
 )
 
 const (
@@ -47,7 +46,6 @@ var (
 type Broker struct {
 	store      *store.Store
 	packer     packer.Packer
-	piecer     piecer.Piecer
 	auctioneer auctioneer.Auctioneer
 	dealer     dealer.Dealer
 	chainAPI   chainapi.ChainAPI
@@ -69,7 +67,6 @@ type Broker struct {
 func New(
 	ds txndswrap.TxnDatastore,
 	packer packer.Packer,
-	piecer piecer.Piecer,
 	auctioneer auctioneer.Auctioneer,
 	dealer dealer.Dealer,
 	chainAPI chainapi.ChainAPI,
@@ -95,7 +92,6 @@ func New(
 	b := &Broker{
 		store:      s,
 		packer:     packer,
-		piecer:     piecer,
 		dealer:     dealer,
 		auctioneer: auctioneer,
 		chainAPI:   chainAPI,
@@ -308,13 +304,6 @@ func (b *Broker) CreateStorageDeal(
 	// - Save the `StorageDeal` in the store.
 	if err := b.store.CreateStorageDeal(ctx, &sd); err != nil {
 		return "", fmt.Errorf("creating storage deal: %w", err)
-	}
-
-	log.Debugf("creating storage deal %s created, signaling piecer...", sd.ID)
-	// Signal Piecer that there's work to do. It will eventually call us
-	// through PreparedStorageDeal(...).
-	if err := b.piecer.ReadyToPrepare(ctx, sd.ID, sd.PayloadCid); err != nil {
-		return "", fmt.Errorf("signaling piecer: %s", err)
 	}
 
 	return sd.ID, nil

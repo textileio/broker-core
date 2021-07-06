@@ -669,7 +669,6 @@ func createBroker(t *testing.T) (
 	b, err := New(
 		ds,
 		packer,
-		piecer,
 		auctioneer,
 		dealer,
 		chainAPI,

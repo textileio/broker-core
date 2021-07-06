@@ -22,16 +22,19 @@ import (
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
+	pbBroker "github.com/textileio/broker-core/gen/broker/v1"
+	"github.com/textileio/broker-core/msgbroker"
 	pieceri "github.com/textileio/broker-core/piecer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.Logger("piecer")
 
 // Piecer provides a data-preparation pipeline for StorageDeals.
 type Piecer struct {
-	broker   broker.Broker
+	mb       msgbroker.MsgBroker
 	ipfsApis []ipfsAPI
 
 	store           *store.Store
@@ -64,7 +67,7 @@ var _ pieceri.Piecer = (*Piecer)(nil)
 func New(
 	ds txndswrap.TxnDatastore,
 	ipfsEndpoints []multiaddr.Multiaddr,
-	b broker.Broker,
+	mb msgbroker.MsgBroker,
 	daemonFrequency time.Duration,
 	retryDelay time.Duration) (*Piecer, error) {
 	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
@@ -84,7 +87,7 @@ func New(
 	p := &Piecer{
 		store:    store.New(txndswrap.Wrap(ds, "/store")),
 		ipfsApis: ipfsApis,
-		broker:   b,
+		mb:       mb,
 
 		daemonFrequency: daemonFrequency,
 		retryDelay:      retryDelay,
@@ -238,8 +241,18 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	duration := time.Since(start).Seconds()
 	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, duration)
 
-	if err := p.broker.StorageDealPrepared(ctx, usd.StorageDealID, dpr); err != nil {
+	sdp := &pbBroker.StorageDealPreparedRequest{
+		MsgId:         msgID,
+		StorageDealId: string(usd.StorageDealID),
+		PieceCid:      dpr.PieceCid.Bytes(),
+		PieceSize:     dpr.PieceSize,
+	}
+	sdpBytes, err := proto.Marshal(sdp)
+	if err != nil {
 		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
+	}
+	if err := p.mb.PublishMsg(ctx, "new-prepared-batch", sdpBytes); err != nil {
+		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
 	}
 
 	p.metricNewPrepare.Add(ctx, 1)

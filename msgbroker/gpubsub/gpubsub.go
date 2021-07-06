@@ -94,7 +94,7 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
 			// TODO(jsign): metrics
-			handler(msgbroker.MessageID(m.ID), m.Data, m.Ack, m.Nack)
+			handler(m.Data, m.Ack, m.Nack)
 		})
 		if err != nil {
 			log.Errorf("receive handler subscription %s, topic %s: %s", subscriptionName, topicName, err)
@@ -107,11 +107,10 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 	return nil
 }
 
-// TODO(jsign): metrics
-func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data []byte) (msgbroker.MessageID, error) {
+func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data []byte) error {
 	topic, err := p.getTopic(topicName)
 	if err != nil {
-		return "", fmt.Errorf("get topic: %s", err)
+		return fmt.Errorf("get topic: %s", err)
 	}
 	msg := pubsub.Message{
 		Data: data,
@@ -120,12 +119,11 @@ func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	id, err := pr.Get(ctx)
-	if err != nil {
-		return "", fmt.Errorf("publishing to pubsub: %s", err)
+	if _, err := pr.Get(ctx); err != nil {
+		return fmt.Errorf("publishing to pubsub: %s", err)
 	}
 
-	return msgbroker.MessageID(id), nil
+	return nil
 }
 
 func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
@@ -147,12 +145,11 @@ func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
 	if !exist {
 		log.Warnf("creating topic %s", name)
 
+		// TODO(jsign): switch to CreatTopicWithConfig() with explicit config.
 		topic, err = p.client.CreateTopic(ctx, name)
 		if err != nil {
 			return nil, fmt.Errorf("creating topic %s: %s", name, err)
 		}
-		// The default publish settings values can be inspected in pubsub.DefaultPublishSettings.
-		// They seem quite reasonable.
 	}
 	p.topicCache[name] = topic
 
