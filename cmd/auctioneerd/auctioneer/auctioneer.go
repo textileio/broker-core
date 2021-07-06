@@ -253,6 +253,7 @@ func (a *Auctioneer) processAuction(
 
 	bids := make(map[core.BidID]core.Bid)
 	bidders := make(map[peer.ID]struct{})
+	var mu sync.Mutex
 	for _, b := range auction.WinningBids {
 		bidders[b.BidderID] = struct{}{}
 	}
@@ -260,10 +261,6 @@ func (a *Auctioneer) processAuction(
 		if err := from.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid bidder: %v", err)
 		}
-		if _, ok := bidders[from]; ok {
-			return nil, fmt.Errorf("bid was already received")
-		}
-
 		pbid := &pb.Bid{}
 		if err := proto.Unmarshal(msg, pbid); err != nil {
 			return nil, fmt.Errorf("unmarshaling message: %v", err)
@@ -295,12 +292,23 @@ func (a *Auctioneer) processAuction(
 		if !acceptBid(&auction, &bid) {
 			return nil, errors.New("bid rejected")
 		}
+
+		mu.Lock()
+		_, exists := bidders[from]
+		if exists {
+			mu.Unlock()
+			return nil, fmt.Errorf("bid was already received")
+		}
+		bidders[bid.BidderID] = struct{}{}
+		mu.Unlock()
+
 		id, err := addBid(bid)
 		if err != nil {
 			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
 		}
-		bidders[bid.BidderID] = struct{}{}
+		mu.Lock()
 		bids[id] = bid
+		mu.Unlock()
 		a.metricAcceptedBid.Add(ctx, 1)
 
 		return []byte(id), nil
@@ -330,6 +338,7 @@ func (a *Auctioneer) processAuction(
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	<-actx.Done()
+	mu.Lock()
 	log.Debugf(
 		"auction %s completed (attempt=%d/%d); total bids: %d/%d",
 		auction.ID,
@@ -339,6 +348,7 @@ func (a *Auctioneer) processAuction(
 		auction.DealReplication,
 	)
 	roundWinners, err := a.selectNewWinners(auction, bids)
+	mu.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("selecting new winners: %v", err)
 	}
