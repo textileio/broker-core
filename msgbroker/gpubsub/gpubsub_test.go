@@ -38,11 +38,9 @@ func TestE2E(t *testing.T) {
 	t.Parallel()
 	var lock sync.Mutex // We use shared vars, so to be safe.
 
-	var sentIDTopic1 msgbroker.MessageID
 	sentDataTopic1 := []byte("duke-ftw")
 
 	waitChan := make(chan struct{})
-	var sentIDTopic2 msgbroker.MessageID
 	sentDataTopic2 := []byte("duke-ftw-2")
 
 	// 1. Launch dockerized pubsub emulator.
@@ -55,26 +53,23 @@ func TestE2E(t *testing.T) {
 	}()
 
 	// 2. Register a handler for topic-1.
-	ps.RegisterTopicHandler("sub-1", "topic-1", func(id msgbroker.MessageID, data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
+	ps.RegisterTopicHandler("sub-1", "topic-1", func(data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
 		lock.Lock()
 		defer lock.Unlock()
-		require.Equal(t, sentIDTopic1, id)
 		require.True(t, bytes.Equal(sentDataTopic1, data))
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		sentIDTopic2, err = ps.PublishMsg(ctx, "topic-2", sentDataTopic2)
+		err = ps.PublishMsg(ctx, "topic-2", sentDataTopic2)
 		require.NoError(t, err)
-		require.NotEmpty(t, sentIDTopic2)
 
 		ack()
 	})
 
-	ps.RegisterTopicHandler("sub-2", "topic-2", func(id msgbroker.MessageID, data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
+	ps.RegisterTopicHandler("sub-2", "topic-2", func(data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
 		lock.Lock()
 		defer lock.Unlock()
 
-		require.Equal(t, sentIDTopic2, id)
 		require.True(t, bytes.Equal(sentDataTopic2, data))
 
 		ack()
@@ -85,10 +80,9 @@ func TestE2E(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	lock.Lock()
-	sentIDTopic1, err = ps.PublishMsg(ctx, "topic-1", sentDataTopic1)
+	err = ps.PublishMsg(ctx, "topic-1", sentDataTopic1)
 	lock.Unlock()
 	require.NoError(t, err)
-	require.NotEmpty(t, sentIDTopic1)
 
 	// Wait for expected things to happen; 5s timeout max.
 	select {

@@ -2,16 +2,8 @@ syntax = "proto3";
 package broker.piecer.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/piecer/v1;piecer";
 
-import "google/protobuf/timestamp.proto";
-
 message ReadyToPrepareRequest {
-    string storage_deal_id = 1;
-    string data_cid = 2;
-}
-
-message ReadyToPrepareResponse {
-}
-
-service APIService {
-    rpc ReadyToPrepare(ReadyToPrepareRequest) returns (ReadyToPrepareResponse) {}
+    string msg_id = 1; // TODO(jsign): set up and add validations.
+    string storage_deal_id = 2;
+    string data_cid = 3;
 }

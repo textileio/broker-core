@@ -19,7 +19,6 @@ import (
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
-	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
 	logger "github.com/textileio/go-log/v2"
 
 	"github.com/textileio/bidbot/lib/dshelper"
@@ -90,11 +89,6 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
 
-	piecer, err := pieceri.New(config.PiecerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating piecer implementation: %s", err)
-	}
-
 	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
@@ -122,7 +116,6 @@ func New(config Config) (*Service, error) {
 	broker, err := brokeri.New(
 		ds,
 		packer,
-		piecer,
 		auctioneer,
 		dealer,
 		reporter,

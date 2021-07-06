@@ -103,12 +103,10 @@ message StorageDealAuctionedResponse {
 }
 
 message StorageDealPreparedRequest {
-  string storage_deal_id = 1;
-  string piece_cid = 2;
-  uint64 piece_size = 3;
-}
-
-message StorageDealPreparedResponse {
+  string msg_id = 1;
+  string storage_deal_id = 2;
+  bytes piece_cid = 3;
+  uint64 piece_size = 4;
 }
 
 message StorageDealFinalizedDealRequest {
@@ -149,5 +147,4 @@ service APIService {
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
   rpc StorageDealFinalizedDeal(StorageDealFinalizedDealRequest) returns (StorageDealFinalizedDealResponse) {}
   rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
-  rpc StorageDealPrepared(StorageDealPreparedRequest) returns (StorageDealPreparedResponse) {}
 }

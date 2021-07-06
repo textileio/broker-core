@@ -131,7 +131,7 @@ func (x BrokerRequest_Status) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BrokerRequest_Status.Descriptor instead.
 func (BrokerRequest_Status) EnumDescriptor() ([]byte, []int) {
-	return file_broker_v1_broker_proto_rawDescGZIP(), []int{16, 0}
+	return file_broker_v1_broker_proto_rawDescGZIP(), []int{15, 0}
 }
 
 type CreateBrokerRequestRequest struct {
@@ -781,9 +781,10 @@ type StorageDealPreparedRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	StorageDealId string `protobuf:"bytes,1,opt,name=storage_deal_id,json=storageDealId,proto3" json:"storage_deal_id,omitempty"`
-	PieceCid      string `protobuf:"bytes,2,opt,name=piece_cid,json=pieceCid,proto3" json:"piece_cid,omitempty"`
-	PieceSize     uint64 `protobuf:"varint,3,opt,name=piece_size,json=pieceSize,proto3" json:"piece_size,omitempty"`
+	MsgId         string `protobuf:"bytes,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	StorageDealId string `protobuf:"bytes,2,opt,name=storage_deal_id,json=storageDealId,proto3" json:"storage_deal_id,omitempty"`
+	PieceCid      []byte `protobuf:"bytes,3,opt,name=piece_cid,json=pieceCid,proto3" json:"piece_cid,omitempty"`
+	PieceSize     uint64 `protobuf:"varint,4,opt,name=piece_size,json=pieceSize,proto3" json:"piece_size,omitempty"`
 }
 
 func (x *StorageDealPreparedRequest) Reset() {
@@ -818,6 +819,13 @@ func (*StorageDealPreparedRequest) Descriptor() ([]byte, []int) {
 	return file_broker_v1_broker_proto_rawDescGZIP(), []int{12}
 }
 
+func (x *StorageDealPreparedRequest) GetMsgId() string {
+	if x != nil {
+		return x.MsgId
+	}
+	return ""
+}
+
 func (x *StorageDealPreparedRequest) GetStorageDealId() string {
 	if x != nil {
 		return x.StorageDealId
@@ -825,11 +833,11 @@ func (x *StorageDealPreparedRequest) GetStorageDealId() string {
 	return ""
 }
 
-func (x *StorageDealPreparedRequest) GetPieceCid() string {
+func (x *StorageDealPreparedRequest) GetPieceCid() []byte {
 	if x != nil {
 		return x.PieceCid
 	}
-	return ""
+	return nil
 }
 
 func (x *StorageDealPreparedRequest) GetPieceSize() uint64 {
@@ -837,44 +845,6 @@ func (x *StorageDealPreparedRequest) GetPieceSize() uint64 {
 		return x.PieceSize
 	}
 	return 0
-}
-
-type StorageDealPreparedResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *StorageDealPreparedResponse) Reset() {
-	*x = StorageDealPreparedResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[13]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *StorageDealPreparedResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StorageDealPreparedResponse) ProtoMessage() {}
-
-func (x *StorageDealPreparedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[13]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StorageDealPreparedResponse.ProtoReflect.Descriptor instead.
-func (*StorageDealPreparedResponse) Descriptor() ([]byte, []int) {
-	return file_broker_v1_broker_proto_rawDescGZIP(), []int{13}
 }
 
 type StorageDealFinalizedDealRequest struct {
@@ -892,7 +862,7 @@ type StorageDealFinalizedDealRequest struct {
 func (x *StorageDealFinalizedDealRequest) Reset() {
 	*x = StorageDealFinalizedDealRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[14]
+		mi := &file_broker_v1_broker_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -905,7 +875,7 @@ func (x *StorageDealFinalizedDealRequest) String() string {
 func (*StorageDealFinalizedDealRequest) ProtoMessage() {}
 
 func (x *StorageDealFinalizedDealRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[14]
+	mi := &file_broker_v1_broker_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -918,7 +888,7 @@ func (x *StorageDealFinalizedDealRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorageDealFinalizedDealRequest.ProtoReflect.Descriptor instead.
 func (*StorageDealFinalizedDealRequest) Descriptor() ([]byte, []int) {
-	return file_broker_v1_broker_proto_rawDescGZIP(), []int{14}
+	return file_broker_v1_broker_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StorageDealFinalizedDealRequest) GetStorageDealId() string {
@@ -965,7 +935,7 @@ type StorageDealFinalizedDealResponse struct {
 func (x *StorageDealFinalizedDealResponse) Reset() {
 	*x = StorageDealFinalizedDealResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[15]
+		mi := &file_broker_v1_broker_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -978,7 +948,7 @@ func (x *StorageDealFinalizedDealResponse) String() string {
 func (*StorageDealFinalizedDealResponse) ProtoMessage() {}
 
 func (x *StorageDealFinalizedDealResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[15]
+	mi := &file_broker_v1_broker_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +961,7 @@ func (x *StorageDealFinalizedDealResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorageDealFinalizedDealResponse.ProtoReflect.Descriptor instead.
 func (*StorageDealFinalizedDealResponse) Descriptor() ([]byte, []int) {
-	return file_broker_v1_broker_proto_rawDescGZIP(), []int{15}
+	return file_broker_v1_broker_proto_rawDescGZIP(), []int{14}
 }
 
 type BrokerRequest struct {
@@ -1010,7 +980,7 @@ type BrokerRequest struct {
 func (x *BrokerRequest) Reset() {
 	*x = BrokerRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[16]
+		mi := &file_broker_v1_broker_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1023,7 +993,7 @@ func (x *BrokerRequest) String() string {
 func (*BrokerRequest) ProtoMessage() {}
 
 func (x *BrokerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[16]
+	mi := &file_broker_v1_broker_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1036,7 +1006,7 @@ func (x *BrokerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrokerRequest.ProtoReflect.Descriptor instead.
 func (*BrokerRequest) Descriptor() ([]byte, []int) {
-	return file_broker_v1_broker_proto_rawDescGZIP(), []int{16}
+	return file_broker_v1_broker_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *BrokerRequest) GetId() string {
@@ -1097,7 +1067,7 @@ type CreatePreparedBrokerRequestRequest_PreparedCAR struct {
 func (x *CreatePreparedBrokerRequestRequest_PreparedCAR) Reset() {
 	*x = CreatePreparedBrokerRequestRequest_PreparedCAR{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[17]
+		mi := &file_broker_v1_broker_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1110,7 +1080,7 @@ func (x *CreatePreparedBrokerRequestRequest_PreparedCAR) String() string {
 func (*CreatePreparedBrokerRequestRequest_PreparedCAR) ProtoMessage() {}
 
 func (x *CreatePreparedBrokerRequestRequest_PreparedCAR) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[17]
+	mi := &file_broker_v1_broker_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1179,7 +1149,7 @@ type CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL struct {
 func (x *CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL) Reset() {
 	*x = CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[18]
+		mi := &file_broker_v1_broker_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1192,7 +1162,7 @@ func (x *CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL) String() string 
 func (*CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL) ProtoMessage() {}
 
 func (x *CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[18]
+	mi := &file_broker_v1_broker_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1227,7 +1197,7 @@ type CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS struct {
 func (x *CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS) Reset() {
 	*x = CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[19]
+		mi := &file_broker_v1_broker_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1240,7 +1210,7 @@ func (x *CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS) String() string
 func (*CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS) ProtoMessage() {}
 
 func (x *CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[19]
+	mi := &file_broker_v1_broker_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1283,7 +1253,7 @@ type GetBrokerRequestInfoResponse_BrokerRequestDeal struct {
 func (x *GetBrokerRequestInfoResponse_BrokerRequestDeal) Reset() {
 	*x = GetBrokerRequestInfoResponse_BrokerRequestDeal{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[20]
+		mi := &file_broker_v1_broker_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1296,7 +1266,7 @@ func (x *GetBrokerRequestInfoResponse_BrokerRequestDeal) String() string {
 func (*GetBrokerRequestInfoResponse_BrokerRequestDeal) ProtoMessage() {}
 
 func (x *GetBrokerRequestInfoResponse_BrokerRequestDeal) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[20]
+	mi := &file_broker_v1_broker_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1347,7 +1317,7 @@ type StorageDealAuctionedRequest_WinningBid struct {
 func (x *StorageDealAuctionedRequest_WinningBid) Reset() {
 	*x = StorageDealAuctionedRequest_WinningBid{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_broker_v1_broker_proto_msgTypes[22]
+		mi := &file_broker_v1_broker_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1360,7 +1330,7 @@ func (x *StorageDealAuctionedRequest_WinningBid) String() string {
 func (*StorageDealAuctionedRequest_WinningBid) ProtoMessage() {}
 
 func (x *StorageDealAuctionedRequest_WinningBid) ProtoReflect() protoreflect.Message {
-	mi := &file_broker_v1_broker_proto_msgTypes[22]
+	mi := &file_broker_v1_broker_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1550,8 +1520,9 @@ var file_broker_v1_broker_proto_rawDesc = []byte{
 	0x45, 0x44, 0x10, 0x02, 0x12, 0x14, 0x0a, 0x10, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x46,
 	0x49, 0x4e, 0x41, 0x4c, 0x49, 0x5a, 0x45, 0x44, 0x10, 0x03, 0x22, 0x1e, 0x0a, 0x1c, 0x53, 0x74,
 	0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x41, 0x75, 0x63, 0x74, 0x69, 0x6f, 0x6e,
-	0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x80, 0x01, 0x0a, 0x1a, 0x53,
+	0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x97, 0x01, 0x0a, 0x1a, 0x53,
 	0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x50, 0x72, 0x65, 0x70, 0x61, 0x72,
+<<<<<<< HEAD
 	0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x26, 0x0a, 0x0f, 0x73, 0x74, 0x6f,
 	0x72, 0x61, 0x67, 0x65, 0x5f, 0x64, 0x65, 0x61, 0x6c, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
 	0x28, 0x09, 0x52, 0x0d, 0x73, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x49,
@@ -1661,6 +1632,110 @@ var file_broker_v1_broker_proto_rawDesc = []byte{
 	0x6c, 0x65, 0x69, 0x6f, 0x2f, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2d, 0x63, 0x6f, 0x72, 0x65,
 	0x2f, 0x67, 0x65, 0x6e, 0x2f, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2f, 0x76, 0x31, 0x3b, 0x62,
 	0x72, 0x6f, 0x6b, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+=======
+	0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x15, 0x0a, 0x06, 0x6d, 0x73, 0x67,
+	0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6d, 0x73, 0x67, 0x49, 0x64,
+	0x12, 0x26, 0x0a, 0x0f, 0x73, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x5f, 0x64, 0x65, 0x61, 0x6c,
+	0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x73, 0x74, 0x6f, 0x72, 0x61,
+	0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x49, 0x64, 0x12, 0x1b, 0x0a, 0x09, 0x70, 0x69, 0x65, 0x63,
+	0x65, 0x5f, 0x63, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x08, 0x70, 0x69, 0x65,
+	0x63, 0x65, 0x43, 0x69, 0x64, 0x12, 0x1d, 0x0a, 0x0a, 0x70, 0x69, 0x65, 0x63, 0x65, 0x5f, 0x73,
+	0x69, 0x7a, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x09, 0x70, 0x69, 0x65, 0x63, 0x65,
+	0x53, 0x69, 0x7a, 0x65, 0x22, 0xc7, 0x01, 0x0a, 0x1f, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65,
+	0x44, 0x65, 0x61, 0x6c, 0x46, 0x69, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x64, 0x44, 0x65, 0x61,
+	0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x26, 0x0a, 0x0f, 0x73, 0x74, 0x6f, 0x72,
+	0x61, 0x67, 0x65, 0x5f, 0x64, 0x65, 0x61, 0x6c, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x0d, 0x73, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x49, 0x64,
+	0x12, 0x17, 0x0a, 0x07, 0x64, 0x65, 0x61, 0x6c, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x03, 0x52, 0x06, 0x64, 0x65, 0x61, 0x6c, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x0f, 0x64, 0x65, 0x61,
+	0x6c, 0x5f, 0x65, 0x78, 0x70, 0x69, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x04, 0x52, 0x0e, 0x64, 0x65, 0x61, 0x6c, 0x45, 0x78, 0x70, 0x69, 0x72, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x12, 0x19, 0x0a, 0x08, 0x6d, 0x69, 0x6e, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x04,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x69, 0x6e, 0x65, 0x72, 0x49, 0x64, 0x12, 0x1f, 0x0a,
+	0x0b, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x5f, 0x63, 0x61, 0x75, 0x73, 0x65, 0x18, 0x05, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x0a, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x43, 0x61, 0x75, 0x73, 0x65, 0x22, 0x22,
+	0x0a, 0x20, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x46, 0x69, 0x6e,
+	0x61, 0x6c, 0x69, 0x7a, 0x65, 0x64, 0x44, 0x65, 0x61, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0xf6, 0x02, 0x0a, 0x0d, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x02, 0x69, 0x64, 0x12, 0x19, 0x0a, 0x08, 0x64, 0x61, 0x74, 0x61, 0x5f, 0x63, 0x69, 0x64,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x64, 0x61, 0x74, 0x61, 0x43, 0x69, 0x64, 0x12,
+	0x37, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32,
+	0x1f, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x42, 0x72, 0x6f, 0x6b,
+	0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
+	0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x26, 0x0a, 0x0f, 0x73, 0x74, 0x6f, 0x72,
+	0x61, 0x67, 0x65, 0x5f, 0x64, 0x65, 0x61, 0x6c, 0x5f, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x0d, 0x73, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x49, 0x64,
+	0x12, 0x39, 0x0a, 0x0a, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x05,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
+	0x52, 0x09, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x41, 0x74, 0x12, 0x39, 0x0a, 0x0a, 0x75,
+	0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x75, 0x70, 0x64,
+	0x61, 0x74, 0x65, 0x64, 0x41, 0x74, 0x22, 0x63, 0x0a, 0x06, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
+	0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10,
+	0x00, 0x12, 0x0c, 0x0a, 0x08, 0x42, 0x41, 0x54, 0x43, 0x48, 0x49, 0x4e, 0x47, 0x10, 0x01, 0x12,
+	0x0d, 0x0a, 0x09, 0x50, 0x52, 0x45, 0x50, 0x41, 0x52, 0x49, 0x4e, 0x47, 0x10, 0x02, 0x12, 0x0e,
+	0x0a, 0x0a, 0x41, 0x55, 0x43, 0x54, 0x49, 0x4f, 0x4e, 0x49, 0x4e, 0x47, 0x10, 0x03, 0x12, 0x0e,
+	0x0a, 0x0a, 0x44, 0x45, 0x41, 0x4c, 0x4d, 0x41, 0x4b, 0x49, 0x4e, 0x47, 0x10, 0x04, 0x12, 0x0b,
+	0x0a, 0x07, 0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10, 0x05, 0x32, 0xa3, 0x06, 0x0a, 0x0a,
+	0x41, 0x50, 0x49, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x66, 0x0a, 0x13, 0x43, 0x72,
+	0x65, 0x61, 0x74, 0x65, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x12, 0x25, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72,
+	0x65, 0x61, 0x74, 0x65, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x26, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65,
+	0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x42, 0x72, 0x6f, 0x6b, 0x65,
+	0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x22, 0x00, 0x12, 0x7e, 0x0a, 0x1b, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x50, 0x72, 0x65, 0x70,
+	0x61, 0x72, 0x65, 0x64, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x12, 0x2d, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72,
+	0x65, 0x61, 0x74, 0x65, 0x50, 0x72, 0x65, 0x70, 0x61, 0x72, 0x65, 0x64, 0x42, 0x72, 0x6f, 0x6b,
+	0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x2e, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72, 0x65,
+	0x61, 0x74, 0x65, 0x50, 0x72, 0x65, 0x70, 0x61, 0x72, 0x65, 0x64, 0x42, 0x72, 0x6f, 0x6b, 0x65,
+	0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x22, 0x00, 0x12, 0x69, 0x0a, 0x14, 0x47, 0x65, 0x74, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x26, 0x2e, 0x62, 0x72, 0x6f,
+	0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x27, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x47,
+	0x65, 0x74, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x49,
+	0x6e, 0x66, 0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x60, 0x0a,
+	0x11, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65,
+	0x61, 0x6c, 0x12, 0x23, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x43,
+	0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x24, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72,
+	0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67,
+	0x65, 0x44, 0x65, 0x61, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12,
+	0x69, 0x0a, 0x14, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x41, 0x75,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x65, 0x64, 0x12, 0x26, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72,
+	0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x41,
+	0x75, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x27, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x6f, 0x72,
+	0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x41, 0x75, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x65, 0x64,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x75, 0x0a, 0x18, 0x53, 0x74,
+	0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x46, 0x69, 0x6e, 0x61, 0x6c, 0x69, 0x7a,
+	0x65, 0x64, 0x44, 0x65, 0x61, 0x6c, 0x12, 0x2a, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e,
+	0x76, 0x31, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x46, 0x69,
+	0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x64, 0x44, 0x65, 0x61, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x53,
+	0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x46, 0x69, 0x6e, 0x61, 0x6c, 0x69,
+	0x7a, 0x65, 0x64, 0x44, 0x65, 0x61, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x00, 0x12, 0x7e, 0x0a, 0x1b, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c,
+	0x50, 0x72, 0x6f, 0x70, 0x6f, 0x73, 0x61, 0x6c, 0x41, 0x63, 0x63, 0x65, 0x70, 0x74, 0x65, 0x64,
+	0x12, 0x2d, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x6f,
+	0x72, 0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x50, 0x72, 0x6f, 0x70, 0x6f, 0x73, 0x61, 0x6c,
+	0x41, 0x63, 0x63, 0x65, 0x70, 0x74, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x2e, 0x2e, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x6f, 0x72,
+	0x61, 0x67, 0x65, 0x44, 0x65, 0x61, 0x6c, 0x50, 0x72, 0x6f, 0x70, 0x6f, 0x73, 0x61, 0x6c, 0x41,
+	0x63, 0x63, 0x65, 0x70, 0x74, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x00, 0x42, 0x37, 0x5a, 0x35, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
+	0x74, 0x65, 0x78, 0x74, 0x69, 0x6c, 0x65, 0x69, 0x6f, 0x2f, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72,
+	0x2d, 0x63, 0x6f, 0x72, 0x65, 0x2f, 0x67, 0x65, 0x6e, 0x2f, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72,
+	0x2f, 0x76, 0x31, 0x3b, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
+>>>>>>> 80fd7bf... piecerd/brokerd: keep making pubsub progress
 }
 
 var (
@@ -1676,7 +1751,7 @@ func file_broker_v1_broker_proto_rawDescGZIP() []byte {
 }
 
 var file_broker_v1_broker_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_broker_v1_broker_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_broker_v1_broker_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_broker_v1_broker_proto_goTypes = []interface{}{
 	(StorageDealAuctionedRequest_Status)(0),                        // 0: broker.v1.StorageDealAuctionedRequest.Status
 	(BrokerRequest_Status)(0),                                      // 1: broker.v1.BrokerRequest.Status
@@ -1693,51 +1768,48 @@ var file_broker_v1_broker_proto_goTypes = []interface{}{
 	(*StorageDealAuctionedRequest)(nil),                            // 12: broker.v1.StorageDealAuctionedRequest
 	(*StorageDealAuctionedResponse)(nil),                           // 13: broker.v1.StorageDealAuctionedResponse
 	(*StorageDealPreparedRequest)(nil),                             // 14: broker.v1.StorageDealPreparedRequest
-	(*StorageDealPreparedResponse)(nil),                            // 15: broker.v1.StorageDealPreparedResponse
-	(*StorageDealFinalizedDealRequest)(nil),                        // 16: broker.v1.StorageDealFinalizedDealRequest
-	(*StorageDealFinalizedDealResponse)(nil),                       // 17: broker.v1.StorageDealFinalizedDealResponse
-	(*BrokerRequest)(nil),                                          // 18: broker.v1.BrokerRequest
-	(*CreatePreparedBrokerRequestRequest_PreparedCAR)(nil),         // 19: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR
-	(*CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL)(nil),  // 20: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARURL
-	(*CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS)(nil), // 21: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARIPFS
-	(*GetBrokerRequestInfoResponse_BrokerRequestDeal)(nil),         // 22: broker.v1.GetBrokerRequestInfoResponse.BrokerRequestDeal
-	nil, // 23: broker.v1.StorageDealAuctionedRequest.WinningBidsEntry
-	(*StorageDealAuctionedRequest_WinningBid)(nil), // 24: broker.v1.StorageDealAuctionedRequest.WinningBid
-	(*timestamppb.Timestamp)(nil),                  // 25: google.protobuf.Timestamp
+	(*StorageDealFinalizedDealRequest)(nil),                        // 15: broker.v1.StorageDealFinalizedDealRequest
+	(*StorageDealFinalizedDealResponse)(nil),                       // 16: broker.v1.StorageDealFinalizedDealResponse
+	(*BrokerRequest)(nil),                                          // 17: broker.v1.BrokerRequest
+	(*CreatePreparedBrokerRequestRequest_PreparedCAR)(nil),         // 18: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR
+	(*CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL)(nil),  // 19: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARURL
+	(*CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS)(nil), // 20: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARIPFS
+	(*GetBrokerRequestInfoResponse_BrokerRequestDeal)(nil),         // 21: broker.v1.GetBrokerRequestInfoResponse.BrokerRequestDeal
+	nil, // 22: broker.v1.StorageDealAuctionedRequest.WinningBidsEntry
+	(*StorageDealAuctionedRequest_WinningBid)(nil), // 23: broker.v1.StorageDealAuctionedRequest.WinningBid
+	(*timestamppb.Timestamp)(nil),                  // 24: google.protobuf.Timestamp
 }
 var file_broker_v1_broker_proto_depIdxs = []int32{
-	18, // 0: broker.v1.CreateBrokerRequestResponse.request:type_name -> broker.v1.BrokerRequest
-	19, // 1: broker.v1.CreatePreparedBrokerRequestRequest.preparedCAR:type_name -> broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR
-	18, // 2: broker.v1.CreatePreparedBrokerRequestResponse.request:type_name -> broker.v1.BrokerRequest
-	18, // 3: broker.v1.GetBrokerRequestInfoResponse.broker_request:type_name -> broker.v1.BrokerRequest
-	22, // 4: broker.v1.GetBrokerRequestInfoResponse.deals:type_name -> broker.v1.GetBrokerRequestInfoResponse.BrokerRequestDeal
+	17, // 0: broker.v1.CreateBrokerRequestResponse.request:type_name -> broker.v1.BrokerRequest
+	18, // 1: broker.v1.CreatePreparedBrokerRequestRequest.preparedCAR:type_name -> broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR
+	17, // 2: broker.v1.CreatePreparedBrokerRequestResponse.request:type_name -> broker.v1.BrokerRequest
+	17, // 3: broker.v1.GetBrokerRequestInfoResponse.broker_request:type_name -> broker.v1.BrokerRequest
+	21, // 4: broker.v1.GetBrokerRequestInfoResponse.deals:type_name -> broker.v1.GetBrokerRequestInfoResponse.BrokerRequestDeal
 	0,  // 5: broker.v1.StorageDealAuctionedRequest.status:type_name -> broker.v1.StorageDealAuctionedRequest.Status
-	23, // 6: broker.v1.StorageDealAuctionedRequest.winning_bids:type_name -> broker.v1.StorageDealAuctionedRequest.WinningBidsEntry
+	22, // 6: broker.v1.StorageDealAuctionedRequest.winning_bids:type_name -> broker.v1.StorageDealAuctionedRequest.WinningBidsEntry
 	1,  // 7: broker.v1.BrokerRequest.status:type_name -> broker.v1.BrokerRequest.Status
-	25, // 8: broker.v1.BrokerRequest.created_at:type_name -> google.protobuf.Timestamp
-	25, // 9: broker.v1.BrokerRequest.updated_at:type_name -> google.protobuf.Timestamp
-	25, // 10: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.deadline:type_name -> google.protobuf.Timestamp
-	20, // 11: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.car_url:type_name -> broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARURL
-	21, // 12: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.car_ipfs:type_name -> broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARIPFS
-	24, // 13: broker.v1.StorageDealAuctionedRequest.WinningBidsEntry.value:type_name -> broker.v1.StorageDealAuctionedRequest.WinningBid
+	24, // 8: broker.v1.BrokerRequest.created_at:type_name -> google.protobuf.Timestamp
+	24, // 9: broker.v1.BrokerRequest.updated_at:type_name -> google.protobuf.Timestamp
+	24, // 10: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.deadline:type_name -> google.protobuf.Timestamp
+	19, // 11: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.car_url:type_name -> broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARURL
+	20, // 12: broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.car_ipfs:type_name -> broker.v1.CreatePreparedBrokerRequestRequest.PreparedCAR.CARIPFS
+	23, // 13: broker.v1.StorageDealAuctionedRequest.WinningBidsEntry.value:type_name -> broker.v1.StorageDealAuctionedRequest.WinningBid
 	2,  // 14: broker.v1.APIService.CreateBrokerRequest:input_type -> broker.v1.CreateBrokerRequestRequest
 	4,  // 15: broker.v1.APIService.CreatePreparedBrokerRequest:input_type -> broker.v1.CreatePreparedBrokerRequestRequest
 	6,  // 16: broker.v1.APIService.GetBrokerRequestInfo:input_type -> broker.v1.GetBrokerRequestInfoRequest
 	8,  // 17: broker.v1.APIService.CreateStorageDeal:input_type -> broker.v1.CreateStorageDealRequest
 	12, // 18: broker.v1.APIService.StorageDealAuctioned:input_type -> broker.v1.StorageDealAuctionedRequest
-	16, // 19: broker.v1.APIService.StorageDealFinalizedDeal:input_type -> broker.v1.StorageDealFinalizedDealRequest
+	15, // 19: broker.v1.APIService.StorageDealFinalizedDeal:input_type -> broker.v1.StorageDealFinalizedDealRequest
 	10, // 20: broker.v1.APIService.StorageDealProposalAccepted:input_type -> broker.v1.StorageDealProposalAcceptedRequest
-	14, // 21: broker.v1.APIService.StorageDealPrepared:input_type -> broker.v1.StorageDealPreparedRequest
-	3,  // 22: broker.v1.APIService.CreateBrokerRequest:output_type -> broker.v1.CreateBrokerRequestResponse
-	5,  // 23: broker.v1.APIService.CreatePreparedBrokerRequest:output_type -> broker.v1.CreatePreparedBrokerRequestResponse
-	7,  // 24: broker.v1.APIService.GetBrokerRequestInfo:output_type -> broker.v1.GetBrokerRequestInfoResponse
-	9,  // 25: broker.v1.APIService.CreateStorageDeal:output_type -> broker.v1.CreateStorageDealResponse
-	13, // 26: broker.v1.APIService.StorageDealAuctioned:output_type -> broker.v1.StorageDealAuctionedResponse
-	17, // 27: broker.v1.APIService.StorageDealFinalizedDeal:output_type -> broker.v1.StorageDealFinalizedDealResponse
-	11, // 28: broker.v1.APIService.StorageDealProposalAccepted:output_type -> broker.v1.StorageDealProposalAcceptedResponse
-	15, // 29: broker.v1.APIService.StorageDealPrepared:output_type -> broker.v1.StorageDealPreparedResponse
-	22, // [22:30] is the sub-list for method output_type
-	14, // [14:22] is the sub-list for method input_type
+	3,  // 21: broker.v1.APIService.CreateBrokerRequest:output_type -> broker.v1.CreateBrokerRequestResponse
+	5,  // 22: broker.v1.APIService.CreatePreparedBrokerRequest:output_type -> broker.v1.CreatePreparedBrokerRequestResponse
+	7,  // 23: broker.v1.APIService.GetBrokerRequestInfo:output_type -> broker.v1.GetBrokerRequestInfoResponse
+	9,  // 24: broker.v1.APIService.CreateStorageDeal:output_type -> broker.v1.CreateStorageDealResponse
+	13, // 25: broker.v1.APIService.StorageDealAuctioned:output_type -> broker.v1.StorageDealAuctionedResponse
+	16, // 26: broker.v1.APIService.StorageDealFinalizedDeal:output_type -> broker.v1.StorageDealFinalizedDealResponse
+	11, // 27: broker.v1.APIService.StorageDealProposalAccepted:output_type -> broker.v1.StorageDealProposalAcceptedResponse
+	21, // [21:28] is the sub-list for method output_type
+	14, // [14:21] is the sub-list for method input_type
 	14, // [14:14] is the sub-list for extension type_name
 	14, // [14:14] is the sub-list for extension extendee
 	0,  // [0:14] is the sub-list for field type_name
@@ -1906,18 +1978,6 @@ func file_broker_v1_broker_proto_init() {
 			}
 		}
 		file_broker_v1_broker_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*StorageDealPreparedResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_broker_v1_broker_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*StorageDealFinalizedDealRequest); i {
 			case 0:
 				return &v.state
@@ -1929,7 +1989,7 @@ func file_broker_v1_broker_proto_init() {
 				return nil
 			}
 		}
-		file_broker_v1_broker_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+		file_broker_v1_broker_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*StorageDealFinalizedDealResponse); i {
 			case 0:
 				return &v.state
@@ -1941,7 +2001,7 @@ func file_broker_v1_broker_proto_init() {
 				return nil
 			}
 		}
-		file_broker_v1_broker_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+		file_broker_v1_broker_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*BrokerRequest); i {
 			case 0:
 				return &v.state
@@ -1953,7 +2013,7 @@ func file_broker_v1_broker_proto_init() {
 				return nil
 			}
 		}
-		file_broker_v1_broker_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+		file_broker_v1_broker_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*CreatePreparedBrokerRequestRequest_PreparedCAR); i {
 			case 0:
 				return &v.state
@@ -1965,7 +2025,7 @@ func file_broker_v1_broker_proto_init() {
 				return nil
 			}
 		}
-		file_broker_v1_broker_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+		file_broker_v1_broker_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL); i {
 			case 0:
 				return &v.state
@@ -1977,7 +2037,7 @@ func file_broker_v1_broker_proto_init() {
 				return nil
 			}
 		}
-		file_broker_v1_broker_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+		file_broker_v1_broker_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS); i {
 			case 0:
 				return &v.state
@@ -1989,7 +2049,7 @@ func file_broker_v1_broker_proto_init() {
 				return nil
 			}
 		}
-		file_broker_v1_broker_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+		file_broker_v1_broker_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetBrokerRequestInfoResponse_BrokerRequestDeal); i {
 			case 0:
 				return &v.state
@@ -2001,7 +2061,7 @@ func file_broker_v1_broker_proto_init() {
 				return nil
 			}
 		}
-		file_broker_v1_broker_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+		file_broker_v1_broker_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*StorageDealAuctionedRequest_WinningBid); i {
 			case 0:
 				return &v.state
@@ -2020,7 +2080,7 @@ func file_broker_v1_broker_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_broker_v1_broker_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   23,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
