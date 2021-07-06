@@ -137,6 +137,7 @@ message BrokerRequest {
     AUCTIONING = 3;
     DEALMAKING = 4;
     SUCCESS = 5;
+    ERROR = 6;
   }
 }
 
