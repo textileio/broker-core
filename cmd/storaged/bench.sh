@@ -3,6 +3,7 @@ set -euo pipefail
 
 # TODO: rewrite all this as a node program and use the js client.
 
+TARGET="${1}/upload"
 CONTRACT_SUFFIX="-edge"
 TOKEN="Bearer eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IlJlcTBMNHBXc21kankyZGc3bExEajJTZWlmcm92WWk0eHRiQkRxZlRwY1U9IiwidXNlIjoic2lnIn19.eyJpc3MiOiJsb2NrLWJveC50ZXN0bmV0Iiwic3ViIjoiZGlkOmtleTp6Nk1rakFCa1N2QWdqTUJtTXozazJheXNDQUJ1TXhLU0ZkQWF6RHh4OFZOYTFnQ1UiLCJuYmYiOjE2MjUxNjAxNjMsImlhdCI6MTYyNTE2MDE2MywiZXhwIjoxOTQwNTIwMTYzLCJhdWQiOiJmaWxlY29pbi1icmlkZ2UtZWRnZS50ZXN0bmV0In0=.4KuYDrpw8WAEDbrrkNF3a3QRvRZVfcdjLMGyKyrfnkVEN4U4hYrXf1Z56KOxOhShd4g0gXVDVYh-NzYEDaBgCA=="
 if [[ "$1" == *"staging"* ]]; then
@@ -19,6 +20,10 @@ checkEnv() {
 checkEnv SEED_PHRASE
 
 lockFunds() {
+  if [[ "$1" == *"127.0.0.1"* ]]; then
+    return
+  fi
+
   echo "Locking funds on NEAR..."
   near call filecoin-bridge${CONTRACT_SUFFIX}.testnet addDeposit "{ \"brokerId\": \"filecoin-bridge${CONTRACT_SUFFIX}.testnet\", \"accountId\": \"lock-box.testnet\" }" \
   --account-id "lock-box.testnet" \
@@ -31,7 +36,6 @@ if [ "$#" -le 1 ]; then
 	exit -1
 fi
 
-TARGET="${1}/upload"
 MIN_SIZE=$2
 MAX_SIZE=${3:-$MIN_SIZE}
 COUNT=${4:-1}
@@ -39,7 +43,7 @@ SLEEP=${5:-0}
 
 echo "Hitting $TARGET with sizes [$MIN_SIZE, $MAX_SIZE] for $COUNT times..."
 
-lockFunds
+lockFunds $TARGET
 
 i=1
 while ((i<=$COUNT)); do
@@ -51,7 +55,7 @@ while ((i<=$COUNT)); do
   OUT=$(curl -H "Authorization: $TOKEN" -F "file=@$TMPFILE" $TARGET 2>/dev/null)
   echo $OUT
   if [[ $OUT == *"account doesn't have deposited funds"* ]]; then
-	  lockFunds
+	  lockFunds $TARGET
   fi
 
   rm $TMPFILE

@@ -3,6 +3,7 @@ package gpubsub
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -28,10 +29,11 @@ type PubsubMsgBroker struct {
 var _ msgbroker.MsgBroker = (*PubsubMsgBroker)(nil)
 
 func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
-	if apiKey == "" {
+	_, usingEmulator := os.LookupEnv("PUBSUB_EMULATOR_HOST")
+	if !usingEmulator && apiKey == "" {
 		return nil, fmt.Errorf("api key is empty")
 	}
-	if projectID == "" {
+	if !usingEmulator && projectID == "" {
 		return nil, fmt.Errorf("project-id is empty")
 	}
 
