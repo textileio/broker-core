@@ -235,7 +235,7 @@ func TestStorageDealPrepared(t *testing.T) {
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.StorageDealPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
 	// 3- Verify the storage deal moved to the correct status, and is linked
@@ -287,7 +287,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.StorageDealPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
@@ -415,7 +415,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.StorageDealPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
@@ -484,7 +484,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.StorageDealPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
 	// Empty the call stack of the mocks, since it has calls from before.
@@ -552,7 +552,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.StorageDealPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, sd, dpr)
 	require.NoError(t, err)
 
 	winningBids := map[auction.BidID]broker.WinningBid{

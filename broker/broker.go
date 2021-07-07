@@ -81,9 +81,6 @@ type Broker interface {
 	// by the Packer after batching a set of BrokerRequest properly.
 	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDealID, error)
 
-	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
-	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
-
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
 	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
 

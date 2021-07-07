@@ -61,6 +61,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 func (s *Service) readyToPrepare(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
 	r := &pb.ReadyToPrepareRequest{}
 	if err := proto.Unmarshal(data, r); err != nil {
+		log.Errorf("unmarshal ready to prepare request: %s", err)
 		nack()
 		return
 	}

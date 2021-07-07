@@ -34,9 +34,6 @@ func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project-id is empty")
 	}
-	if topicPrefix == "" {
-		return nil, fmt.Errorf("topic-prefix is empty")
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	client, err := pubsub.NewClient(ctx, projectID)

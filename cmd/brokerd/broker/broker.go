@@ -309,9 +309,8 @@ func (b *Broker) CreateStorageDeal(
 	return sd.ID, nil
 }
 
-// StorageDealPrepared is called by Prepared to notify that the data preparation stage is done,
-// and to continue with the storage deal process.
-func (b *Broker) StorageDealPrepared(
+// NewBatchPrepared contains information of a prepared batch.
+func (b *Broker) NewBatchPrepared(
 	ctx context.Context,
 	id broker.StorageDealID,
 	dpr broker.DataPreparationResult,
