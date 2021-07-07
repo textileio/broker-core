@@ -12,11 +12,13 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	golog "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/textileio/bidbot/gen/v1"
+	"github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
@@ -83,6 +85,7 @@ type Auctioneer struct {
 	metricNewBid              metric.Int64Counter
 	metricAcceptedBid         metric.Int64Counter
 	metricLastCreatedAuction  metric.Int64ValueObserver
+	metricPubsubPeers         metric.Int64ValueObserver
 }
 
 // New returns a new Auctioneer.
@@ -175,7 +178,12 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, 
 	}
 
 	log.Debugf("created auction %s", id)
-	a.metricNewAuction.Add(context.Background(), 1)
+
+	labels := []attribute.KeyValue{
+		attribute.Int("replication", int(auction.DealReplication)),
+		attribute.Bool("verified", auction.DealVerified),
+	}
+	a.metricNewAuction.Add(context.Background(), 1, labels...)
 	a.statLastCreatedAuction = time.Now()
 
 	return id, nil
@@ -287,7 +295,8 @@ func (a *Auctioneer) processAuction(
 			price = bid.AskPrice
 		}
 		log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
-		a.metricNewBid.Add(ctx, 1)
+		label := attribute.String("miner-addr", bid.MinerAddr)
+		a.metricNewBid.Add(ctx, 1, label)
 
 		if !acceptBid(&auction, &bid) {
 			return nil, errors.New("bid rejected")
@@ -309,7 +318,7 @@ func (a *Auctioneer) processAuction(
 		mu.Lock()
 		bids[id] = bid
 		mu.Unlock()
-		a.metricAcceptedBid.Add(ctx, 1)
+		a.metricAcceptedBid.Add(ctx, 1, label)
 
 		return []byte(id), nil
 	}
@@ -389,21 +398,61 @@ func (a *Auctioneer) validateBid(b *core.Bid) error {
 	return nil
 }
 
-func (a *Auctioneer) finalizeAuction(ctx context.Context, auction broker.ClosedAuction) error {
+func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Auction) error {
+	labels := []attribute.KeyValue{
+		attribute.Int("replication", int(auction.DealReplication)),
+		attribute.Bool("verified", auction.DealVerified),
+		attribute.Int("attempts", int(auction.Attempts)),
+	}
 	switch auction.Status {
 	case broker.AuctionStatusFinalized:
 		if auction.ErrorCause != "" {
-			a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrError)
+			labels = append(labels, metrics.AttrError)
+			labels = append(labels, attribute.String("error-cause", auction.ErrorCause))
 		} else {
-			a.metricNewFinalizedAuction.Add(ctx, 1, metrics.AttrOK)
+			labels = append(labels, metrics.AttrOK)
 		}
 	default:
 		return fmt.Errorf("invalid final status: %s", auction.Status)
 	}
-	if err := a.broker.StorageDealAuctioned(ctx, auction); err != nil {
+	a.metricNewFinalizedAuction.Add(ctx, 1, labels...)
+	if err := a.broker.StorageDealAuctioned(ctx, toClosedAuction(auction)); err != nil {
 		return fmt.Errorf("signaling broker: %v", err)
 	}
 	return nil
+}
+
+func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
+	wbids := make(map[auction.BidID]broker.WinningBid)
+	for wbid := range a.WinningBids {
+		bid, ok := a.Bids[wbid]
+		if !ok {
+			log.Errorf("winning bid %s wasn't found in bid map", wbid)
+			continue
+		}
+		var price int64
+		if a.DealVerified {
+			price = bid.VerifiedAskPrice
+		} else {
+			price = bid.AskPrice
+		}
+		wbids[wbid] = broker.WinningBid{
+			MinerAddr:     bid.MinerAddr,
+			Price:         price,
+			StartEpoch:    bid.StartEpoch,
+			FastRetrieval: bid.FastRetrieval,
+		}
+	}
+	return broker.ClosedAuction{
+		ID:              a.ID,
+		StorageDealID:   a.StorageDealID,
+		DealDuration:    a.DealDuration,
+		DealReplication: a.DealReplication,
+		DealVerified:    a.DealVerified,
+		Status:          a.Status,
+		WinningBids:     wbids,
+		ErrorCause:      a.ErrorCause,
+	}
 }
 
 func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
