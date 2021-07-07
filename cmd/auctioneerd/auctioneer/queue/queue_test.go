@@ -270,7 +270,7 @@ func runner(
 	return result, nil
 }
 
-func finalizer(_ context.Context, _ broker.ClosedAuction) error {
+func finalizer(_ context.Context, _ *auctioneer.Auction) error {
 	return nil
 }
 
