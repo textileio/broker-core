@@ -402,6 +402,7 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 	labels := []attribute.KeyValue{
 		attribute.Int("replication", int(auction.DealReplication)),
 		attribute.Bool("verified", auction.DealVerified),
+		attribute.Int("attempts", int(auction.Attempts)),
 	}
 	switch auction.Status {
 	case broker.AuctionStatusFinalized:
