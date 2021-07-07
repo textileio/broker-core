@@ -161,8 +161,16 @@ func (bs *BrokerStorage) uploadToPinata(r io.Reader) (cid.Cid, error) {
 	errCh := make(chan error)
 	go func() {
 		defer close(errCh)
-		defer bodyWriter.Close()
-		defer mwriter.Close()
+		defer func() {
+			if err := bodyWriter.Close(); err != nil {
+				log.Errorf("closing body writer: %s", err)
+			}
+		}()
+		defer func() {
+			if err := mwriter.Close(); err != nil {
+				log.Errorf("closing multipart writer: %s", err)
+			}
+		}()
 
 		w, err := mwriter.CreateFormFile("file", "filedata")
 		if err != nil {
@@ -179,15 +187,19 @@ func (bs *BrokerStorage) uploadToPinata(r io.Reader) (cid.Cid, error) {
 			errCh <- err
 			return
 		}
-
 	}()
 	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("executing request: %s", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Errorf("closing pinata response: %s", err)
+		}
+	}()
 	merr := <-errCh
 	if merr != nil {
 		return cid.Undef, fmt.Errorf("writing multipart: %s", merr)
-	}
-	if err != nil {
-		return cid.Undef, fmt.Errorf("executing request: %s", err)
 	}
 
 	var pinataRes struct{ IpfsHash string }
