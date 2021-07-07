@@ -38,7 +38,6 @@ func (iu *IpfsUploader) Store(ctx context.Context, r io.Reader) (cid.Cid, error)
 	p, err := iu.client.Unixfs().Add(
 		ctx,
 		ipfsfiles.NewReaderFile(r),
-		options.Unixfs.CidVersion(1),
 		options.Unixfs.Pin(true))
 	if err != nil {
 		return cid.Undef, fmt.Errorf("adding data to ipfs: %s", err)

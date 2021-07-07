@@ -27,6 +27,8 @@ func init() {
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "skip-auth", DefValue: false, Description: "Disabled authorization check"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
+		{Name: "pinata-jwt", DefValue: "",
+			Description: "Pinata API JWT to upload files also to Pinata. If empty, the feature will be considered disabled."},
 		{Name: "bearer-tokens", DefValue: []string{}, Description: "Raw accepted bearer tokens"},
 		{Name: "max-upload-size", DefValue: "4GB", Description: "Maximum upload size"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
@@ -68,6 +70,7 @@ var rootCmd = &cobra.Command{
 			AuthAddr:              v.GetString("auth-addr"),
 			SkipAuth:              v.GetBool("skip-auth"),
 			IpfsMultiaddrs:        ipfsMultiaddrs,
+			PinataJWT:             v.GetString("pinata-jwt"),
 			BearerTokens:          common.ParseStringSlice(v, "bearer-tokens"),
 			MaxUploadSize:         v.GetSizeInBytes("max-upload-size"),
 		}

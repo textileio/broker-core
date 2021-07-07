@@ -23,6 +23,7 @@ type Config struct {
 	AuthAddr              string
 	SkipAuth              bool
 	IpfsMultiaddrs        []multiaddr.Multiaddr
+	PinataJWT             string
 	BearerTokens          []string
 	MaxUploadSize         uint
 }
@@ -72,7 +73,7 @@ func createStorage(config Config) (storage.Requester, error) {
 		return nil, fmt.Errorf("creating brokerd gRPC client: %s", err)
 	}
 
-	bs, err := brokerstorage.New(auth, up, client, config.IpfsMultiaddrs)
+	bs, err := brokerstorage.New(auth, up, client, config.IpfsMultiaddrs, config.PinataJWT)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker storage: %s", err)
 	}
