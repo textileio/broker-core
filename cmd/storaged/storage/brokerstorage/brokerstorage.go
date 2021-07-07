@@ -2,10 +2,14 @@ package brokerstorage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
+	"mime/multipart"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -31,10 +35,11 @@ var (
 
 // BrokerStorage its an API implementation of the storage service.
 type BrokerStorage struct {
-	auth     auth.Authorizer
-	up       uploader.Uploader
-	broker   broker.Broker
-	ipfsApis []ipfsAPI
+	auth       auth.Authorizer
+	uploader   uploader.Uploader
+	broker     broker.Broker
+	ipfsApis   []ipfsAPI
+	pinataAuth string
 }
 
 type ipfsAPI struct {
@@ -50,6 +55,7 @@ func New(
 	up uploader.Uploader,
 	broker broker.Broker,
 	ipfsEndpoints []multiaddr.Multiaddr,
+	pinataJWT string,
 ) (*BrokerStorage, error) {
 	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
@@ -63,11 +69,17 @@ func New(
 		}
 		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
 	}
+
+	if pinataJWT != "" {
+		pinataJWT = "Bearer " + pinataJWT
+	}
+
 	return &BrokerStorage{
-		auth:     auth,
-		up:       up,
-		broker:   broker,
-		ipfsApis: ipfsApis,
+		auth:       auth,
+		uploader:   up,
+		broker:     broker,
+		ipfsApis:   ipfsApis,
+		pinataAuth: pinataJWT,
 	}, nil
 }
 
@@ -80,11 +92,44 @@ func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (boo
 // CreateFromReader creates a StorageRequest using data from a stream.
 func (bs *BrokerStorage) CreateFromReader(
 	ctx context.Context,
-	r io.Reader,
+	or io.Reader,
 ) (storage.Request, error) {
-	c, err := bs.up.Store(ctx, r)
+	type pinataUploadResult struct {
+		c   cid.Cid
+		err error
+	}
+	pinataRes := make(chan pinataUploadResult)
+	teer, teew := io.Pipe()
+	if bs.pinataAuth != "" {
+		or = io.TeeReader(or, teew)
+
+		go func() {
+			defer close(pinataRes)
+			c, err := bs.uploadToPinata(teer)
+			if err != nil {
+				pinataRes <- pinataUploadResult{err: fmt.Errorf("upload to pinata: %s", err)}
+				return
+			}
+			pinataRes <- pinataUploadResult{c: c}
+		}()
+	}
+
+	c, err := bs.uploader.Store(ctx, or)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("storing stream: %s", err)
+	}
+
+	if bs.pinataAuth != "" {
+		if err := teew.Close(); err != nil {
+			return storage.Request{}, fmt.Errorf("closing pinata tee writer: %s", err)
+		}
+		pres := <-pinataRes
+		if pres.err != nil {
+			return storage.Request{}, fmt.Errorf("uploading to pinata: %s", err)
+		}
+		if pres.c != c {
+			return storage.Request{}, fmt.Errorf("pinata and broker cids doesn't match: %s vs %s", pres.c, c)
+		}
 	}
 
 	sr, err := bs.broker.Create(ctx, c)
@@ -101,6 +146,64 @@ func (bs *BrokerStorage) CreateFromReader(
 		Cid:        c,
 		StatusCode: status,
 	}, nil
+}
+
+func (bs *BrokerStorage) uploadToPinata(r io.Reader) (cid.Cid, error) {
+	body, bodyWriter := io.Pipe()
+	req, err := http.NewRequest(http.MethodPost, "https://api.pinata.cloud/pinning/pinFileToIPFS", body)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("creating request: %s", err)
+	}
+
+	mwriter := multipart.NewWriter(bodyWriter)
+	req.Header.Add("Content-Type", mwriter.FormDataContentType())
+	req.Header.Add("Authorization", bs.pinataAuth)
+	errCh := make(chan error)
+	go func() {
+		defer close(errCh)
+		defer bodyWriter.Close()
+		defer mwriter.Close()
+
+		w, err := mwriter.CreateFormFile("file", "filedata")
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		if written, err := io.Copy(w, r); err != nil {
+			errCh <- fmt.Errorf("copying file stream to pinata after %d bytes: %s", written, err)
+			return
+		}
+
+		if err := mwriter.Close(); err != nil {
+			errCh <- err
+			return
+		}
+
+	}()
+	resp, err := http.DefaultClient.Do(req)
+	merr := <-errCh
+	if merr != nil {
+		return cid.Undef, fmt.Errorf("writing multipart: %s", merr)
+	}
+	if err != nil {
+		return cid.Undef, fmt.Errorf("executing request: %s", err)
+	}
+
+	var pinataRes struct{ IpfsHash string }
+	jsonRes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("reading response: %s", err)
+	}
+	if err := json.Unmarshal(jsonRes, &pinataRes); err != nil {
+		return cid.Undef, fmt.Errorf("unmarshaling response: %s", err)
+	}
+	pinataCid, err := cid.Decode(pinataRes.IpfsHash)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("decoding cid: %s", err)
+	}
+
+	return pinataCid, nil
 }
 
 // CreateFromExternalSource creates a broker request for prepared data.

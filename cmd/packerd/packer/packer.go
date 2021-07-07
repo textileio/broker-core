@@ -100,9 +100,6 @@ func New(
 // that contains this BrokerRequest gets created.
 func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	log.Debugf("received ready to pack: %s %s", id, dataCid)
-	if dataCid.Version() != 1 {
-		return fmt.Errorf("only cidv1 is supported")
-	}
 
 	node, err := p.ipfs.Dag().Get(ctx, dataCid)
 	if err != nil {
