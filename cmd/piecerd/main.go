@@ -30,6 +30,9 @@ func init() {
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "daemon-frequency", DefValue: time.Second * 30, Description: "Daemon frequency to process pending data"},
 		{Name: "retry-delay", DefValue: time.Second * 20, Description: "Delay for reprocessing items"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -74,6 +77,9 @@ var rootCmd = &cobra.Command{
 		}
 
 		// TODO(jsign): configPiecer env vars.
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
 		mb, err := gpubsub.New(projectID, apiKey, topicPrefix)
 		common.CheckErrf("creating google pubsub client: %s", err)
 

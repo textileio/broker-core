@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -19,6 +20,8 @@ import (
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
+	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logger "github.com/textileio/go-log/v2"
 
 	"github.com/textileio/bidbot/lib/dshelper"
@@ -26,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -54,6 +58,10 @@ type Config struct {
 	CARExportURL string
 
 	AuctionMaxRetries int
+
+	GPubSubProjectID     string
+	GPubSubAPIKey        string
+	MsgBrokerTopicPrefix string
 }
 
 // Service provides an implementation of the broker API.
@@ -113,6 +121,11 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
 
+	mb, err := gpubsub.New(config.GPubSubProjectID, config.GPubSubAPIKey, config.MsgBrokerTopicPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("creating google pubsub message broker: %s", err)
+	}
+
 	broker, err := brokeri.New(
 		ds,
 		packer,
@@ -135,6 +148,9 @@ func New(config Config) (*Service, error) {
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		broker: broker,
 	}
+
+	mb.RegisterTopicHandler("broker-batchprepared", "batchprepared", s.batchPrepared)
+
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
 		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
@@ -348,28 +364,32 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
-// StorageDealPrepared indicates that a data batch is prepared for Filecoin onboarding.
-func (s *Service) StorageDealPrepared(
-	ctx context.Context,
-	r *pb.StorageDealPreparedRequest) (*pb.StorageDealPreparedResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+func (s *Service) batchPrepared(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
+	r := &pb.NewBatchPrepared{}
+	if err := proto.Unmarshal(data, r); err != nil {
+		log.Errorf("unmarshaling storage deal prepared request: %s", err)
+		nack()
+		return
 	}
-
-	pieceCid, err := cid.Decode(r.PieceCid)
+	pieceCid, err := cid.Cast(r.PieceCid)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "decoding piece cid: %s", err)
+		log.Errorf("decoding piece cid: %s", err)
+		nack()
+		return
 	}
 	id := broker.StorageDealID(r.StorageDealId)
 	pr := broker.DataPreparationResult{
 		PieceCid:  pieceCid,
 		PieceSize: r.PieceSize,
 	}
-	if err := s.broker.StorageDealPrepared(ctx, id, pr); err != nil {
-		return nil, status.Errorf(codes.Internal, "calling storage deal prepared: %s", err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
+		log.Errorf("calling storage deal prepared: %s", err)
+		nack()
+		return
 	}
-
-	return &pb.StorageDealPreparedResponse{}, nil
+	ack()
 }
 
 // StorageDealFinalizedDeal reports the result of finalized deals.

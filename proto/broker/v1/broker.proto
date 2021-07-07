@@ -102,7 +102,7 @@ message StorageDealAuctionedRequest {
 message StorageDealAuctionedResponse {
 }
 
-message StorageDealPreparedRequest {
+message NewBatchPrepared {
   string msg_id = 1;
   string storage_deal_id = 2;
   bytes piece_cid = 3;

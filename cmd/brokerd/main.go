@@ -34,6 +34,9 @@ func init() {
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "car-export-url", DefValue: "", Description: "URL that generates CAR files for stored cids"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
@@ -82,6 +85,10 @@ var rootCmd = &cobra.Command{
 			CARExportURL: v.GetString("car-export-url"),
 
 			AuctionMaxRetries: v.GetInt("auction-max-retries"),
+
+			GPubSubProjectID:     v.GetString("gpubsub-project-id"),
+			GPubSubAPIKey:        v.GetString("gpubsub-api-key"),
+			MsgBrokerTopicPrefix: v.GetString("msgbroker-topic-prefix"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

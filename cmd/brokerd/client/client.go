@@ -143,22 +143,6 @@ func (c *Client) CreateStorageDeal(
 	return broker.StorageDealID(res.Id), nil
 }
 
-// StorageDealPrepared indicates the preparing output for a storage deal.
-func (c *Client) StorageDealPrepared(
-	ctx context.Context,
-	id broker.StorageDealID,
-	pr broker.DataPreparationResult) error {
-	req := &pb.StorageDealPreparedRequest{
-		StorageDealId: string(id),
-		PieceCid:      pr.PieceCid.String(),
-		PieceSize:     pr.PieceSize,
-	}
-	if _, err := c.c.StorageDealPrepared(ctx, req); err != nil {
-		return fmt.Errorf("calling storage deal prepared api: %s", err)
-	}
-	return nil
-}
-
 // StorageDealAuctioned indicates the storage deal auction has completed.
 func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
 	req := cast.ClosedAuctionToPb(auction)
