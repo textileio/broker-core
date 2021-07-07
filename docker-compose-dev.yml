@@ -44,7 +44,7 @@ services:
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - STORAGE_BROKER_ADDR=brokerd:5000
       - STORAGE_AUTH_ADDR=authd:5000
-      - STORAGE_SKIP_AUTH=false
+      - STORAGE_SKIP_AUTH=true
     ports:
       - "127.0.0.1:8888:8888"
     security_opt:
@@ -130,6 +130,7 @@ services:
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
       - BROKER_CAR_EXPORT_URL=http://storaged:8888/car/
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -175,6 +176,7 @@ services:
       - PIECER_MONGO_DBNAME=piecerd
       - PIECER_BROKER_ADDR=brokerd:5000
       - PIECER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -227,6 +229,12 @@ services:
       - "4001:4001/udp"
       - "127.0.0.1:5001:5001"
       - "127.0.0.1:8080:8080"
+  gpubsub:
+    image: textile/pubsub-emulator:latest
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:8085:8085"
+
 volumes:
   auctioneerd_data:
   bidbot_data:
