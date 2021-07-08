@@ -68,9 +68,13 @@ define gen_release_files
 endef
 
 up:
-	./tests/buildx_patch.sh
 	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
 .PHONY: up
+
+up-patched:
+	./tests/buildx_patch.sh
+	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
+.PHONY: up-patched
 
 down:
 	docker-compose -f docker-compose-dev.yml down
