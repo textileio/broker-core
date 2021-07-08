@@ -18,8 +18,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
+	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
 	golog "github.com/textileio/go-log/v2"
+	"google.golang.org/protobuf/proto"
 )
 
 func init() {
@@ -44,8 +47,7 @@ func TestPack(t *testing.T) {
 	ipfs, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	brokerMock := &brokerMock{}
-	packer := createPacker(t, ipfs, brokerMock)
+	packer, mb := createPacker(t, ipfs)
 
 	// 2- Add 100 random files and get their cids.
 	numFiles := 100
@@ -61,12 +63,24 @@ func TestPack(t *testing.T) {
 	numBatchedCids, err := packer.pack(ctx)
 	require.NoError(t, err)
 
-	require.Len(t, brokerMock.srids, numFiles)
+	require.Equal(t, mb.TotalPublished(), 1)
+	require.Equal(t, mb.TotalPublishedTopic("new-batch-created"), 1)
+
+	msgb, err := mb.GetMsg("new-batch-created", 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+
+	require.Len(t, msg.BrokerRequestIds, numFiles)
 	require.Equal(t, numFiles, numBatchedCids)
-	require.True(t, brokerMock.batchCid.Defined())
+	require.NotEmpty(t, msg.BatchCid)
+	bcid, err := cid.Cast(msg.BatchCid)
+	require.NoError(t, err)
+	require.True(t, bcid.Defined())
 
 	// Check that the batch cid was pinned in ipfs.
-	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
 	require.NoError(t, err)
 	require.True(t, pinned)
 }
@@ -84,8 +98,7 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	ipfs, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	brokerMock := &brokerMock{}
-	packer := createPacker(t, ipfs, brokerMock)
+	packer, mb := createPacker(t, ipfs)
 
 	// 2- Create a single file
 	dataCid := addRandomData(t, ipfs, 1)[0]
@@ -101,24 +114,35 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	numCidsBatched, err := packer.pack(ctx)
 	require.NoError(t, err)
 
-	require.True(t, brokerMock.batchCid.Defined())
+	require.Equal(t, mb.TotalPublished(), 1)
+	require.Equal(t, mb.TotalPublishedTopic("newbatchcreated"), 1)
+	msgb, err := mb.GetMsg("newbatchcreated", 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+	bcid, err := cid.Cast(msg.BatchCid)
+	require.NoError(t, err)
+
+	require.True(t, bcid.Defined())
 	// We fullfiled numRepeatedBrokerRequest, not only 1!
-	require.Len(t, brokerMock.srids, numRepeatedBrokerRequest)
+	require.Len(t, msg.BrokerRequestIds, numRepeatedBrokerRequest)
 	// Despite we fulfilled multiple broker request, the batch only has one cid!
 	require.Equal(t, 1, numCidsBatched)
 
 	// Check that the batch cid was pinned in ipfs.
-	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
 	require.NoError(t, err)
 	require.True(t, pinned)
 }
 
-func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi, broker *brokerMock) *Packer {
+func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi) (*Packer, *fakemsgbroker.FakeMsgBroker) {
 	ds := tests.NewTxMapDatastore()
-	packer, err := New(ds, ipfsClient, broker, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
+	mb := fakemsgbroker.New()
+	packer, err := New(ds, ipfsClient, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
 	require.NoError(t, err)
 
-	return packer
+	return packer, mb
 }
 
 func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {

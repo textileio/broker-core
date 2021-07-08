@@ -53,7 +53,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	mb.RegisterTopicHandler("piecer-readytoprepare", "readytoprepare", s.readyToPrepareHandler)
+	mb.RegisterTopicHandler("piecer-new-batch-created", "new-batch-created", s.readyToPrepareHandler)
 
 	return s, nil
 }
