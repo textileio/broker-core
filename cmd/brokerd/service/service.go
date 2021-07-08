@@ -149,7 +149,7 @@ func New(config Config) (*Service, error) {
 		broker: broker,
 	}
 
-	mb.RegisterTopicHandler("broker-newbatchprepared", "newbatchprepared", s.newBatchPreparedHandler)
+	mb.RegisterTopicHandler("broker-new-batch-prepared", "new-batch-prepared", s.newBatchPreparedHandler)
 
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -321,7 +321,7 @@ func (s *Service) newBatchCreatedHandler(data []byte, ack mbroker.AckMessageFunc
 		nack()
 		return
 	}
-	batchCid, err := cid.Decode(r.BatchCid)
+	batchCid, err := cid.Cast(r.BatchCid)
 	if err != nil {
 		log.Errorf("invalid cid: %s", r.BatchCid)
 		nack()

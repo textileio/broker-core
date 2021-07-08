@@ -183,7 +183,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 
 	msg := &pb.NewBatchCreated{
 		MsgId:            uuid.New().String(),
-		BatchCid:         batchCid.String(),
+		BatchCid:         batchCid.Bytes(),
 		BrokerRequestIds: brids,
 	}
 	msgb, err := proto.Marshal(msg)

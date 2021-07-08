@@ -58,7 +58,7 @@ message GetBrokerRequestInfoResponse {
 
 message NewBatchCreated {
   string msg_id = 1;
-  string batch_cid = 2;
+  bytes batch_cid = 2;
   repeated string broker_request_ids = 3;
 }
 

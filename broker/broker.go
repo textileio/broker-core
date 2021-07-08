@@ -77,10 +77,6 @@ type Broker interface {
 	// GetBrokerRequestInfo returns a broker request information by id.
 	GetBrokerRequestInfo(ctx context.Context, ID BrokerRequestID) (BrokerRequestInfo, error)
 
-	// CreateStorageDeal creates a new StorageDeal. It is called
-	// by the Packer after batching a set of BrokerRequest properly.
-	//CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDealID, error)
-
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
 	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
 
