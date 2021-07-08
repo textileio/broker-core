@@ -79,8 +79,8 @@ func (s *Service) newBatchCreatedHandler(data []byte) error {
 		return errors.New("data cid is undefined")
 	}
 
-	// TODO(jsign): remove
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
 	if err := s.piecer.ReadyToPrepare(ctx, broker.StorageDealID(r.Id), batchCid); err != nil {
 		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}

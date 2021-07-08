@@ -59,6 +59,9 @@ func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
 
 func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName string, handler msgbroker.TopicHandler) error {
 	topic, err := p.getTopic(topicName)
+	if err != nil {
+		return fmt.Errorf("get topic: %s", err)
+	}
 
 	var sub *pubsub.Subscription
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -85,10 +88,11 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		sub, err = p.client.CreateSubscription(ctx, topicName, config)
+		sub, err = p.client.CreateSubscription(ctx, subscriptionName, config)
 		if err != nil {
 			return fmt.Errorf("creating subscription: %s", err)
 		}
+		log.Warnf("subscription %s for topic %s created", subscriptionName, topicName)
 	}
 
 	// TODO(jsign): tune ReceiveSettings
@@ -96,7 +100,6 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 	go func() {
 		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
-			// TODO(jsign): metrics
 			if err := handler(m.Data); err != nil {
 				log.Error(err)
 				m.Nack()
