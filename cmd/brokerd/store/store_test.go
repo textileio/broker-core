@@ -90,6 +90,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	// 2- Create a storage deal linked with those two broker request.
 	now = time.Now()
 	sd := broker.StorageDeal{
+		ID:               "SD1",
 		PayloadCid:       castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jB1"),
 		Status:           broker.StorageDealPreparing,
 		BrokerRequestIDs: []broker.BrokerRequestID{br1.ID, br2.ID},

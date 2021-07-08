@@ -11,7 +11,6 @@ import (
 	"github.com/dustin/go-humanize"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	commP "github.com/filecoin-project/go-fil-commp-hashhash"
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	format "github.com/ipfs/go-ipld-format"
@@ -243,10 +242,9 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, duration)
 
 	sdp := &pbBroker.NewBatchPrepared{
-		MsgId:         uuid.New().String(),
-		StorageDealId: string(usd.StorageDealID),
-		PieceCid:      dpr.PieceCid.Bytes(),
-		PieceSize:     dpr.PieceSize,
+		Id:        string(usd.StorageDealID),
+		PieceCid:  dpr.PieceCid.Bytes(),
+		PieceSize: dpr.PieceSize,
 	}
 	sdpBytes, err := proto.Marshal(sdp)
 	if err != nil {

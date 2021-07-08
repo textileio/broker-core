@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"time"
 
@@ -11,7 +13,7 @@ import (
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
-	pb "github.com/textileio/broker-core/gen/broker/piecer/v1"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/protobuf/proto"
@@ -53,47 +55,37 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	mb.RegisterTopicHandler("piecer-new-batch-created", "new-batch-created", s.readyToPrepareHandler)
+	mb.RegisterTopicHandler("piecer-new-batch-created", "new-batch-created", s.newBatchCreatedHandler)
 
 	return s, nil
 }
 
-func (s *Service) readyToPrepareHandler(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
-	r := &pb.ReadyToPrepareRequest{}
+func (s *Service) newBatchCreatedHandler(data []byte) error {
+	r := &pb.NewBatchCreated{}
 	if err := proto.Unmarshal(data, r); err != nil {
-		log.Errorf("unmarshal ready to prepare request: %s", err)
-		nack()
-		return
+		return fmt.Errorf("unmarshal ready to prepare request: %s", err)
 	}
 
-	if r.StorageDealId == "" {
-		log.Error("storage deal id is empty")
-		nack()
-		return
+	if r.Id == "" {
+		return errors.New("storage deal id is empty")
 	}
 
-	dataCid, err := cid.Decode(r.DataCid)
+	batchCid, err := cid.Cast(r.BatchCid)
 	if err != nil {
-		log.Errorf("decoding data cid: %s", err)
-		nack()
-		return
+		return fmt.Errorf("decoding batch cid: %s", err)
 	}
 
-	if !dataCid.Defined() {
-		log.Error("data cid is undefined")
-		nack()
-		return
+	if !batchCid.Defined() {
+		return errors.New("data cid is undefined")
 	}
 
 	// TODO(jsign): remove
 	ctx := context.Background()
-	if err := s.piecer.ReadyToPrepare(ctx, broker.StorageDealID(r.StorageDealId), dataCid); err != nil {
-		log.Errorf("queuing data-cid to be prepared: %s", err)
-		nack()
-		return
+	if err := s.piecer.ReadyToPrepare(ctx, broker.StorageDealID(r.Id), batchCid); err != nil {
+		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}
 
-	ack()
+	return nil
 }
 
 // Close the service.

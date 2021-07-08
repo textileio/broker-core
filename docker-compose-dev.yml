@@ -108,8 +108,7 @@ services:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
-    entrypoint: ["echo", "bye"]
-    #restart: unless-stopped
+    restart: unless-stopped
   brokerd:
     build:
       context: .
@@ -155,6 +154,7 @@ services:
       - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - PACKER_BATCH_MIN_SIZE=100
       - PACKER_TARGET_SECTOR_SIZE=20000
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -175,6 +175,7 @@ services:
       - PIECER_MONGO_URI=mongodb://mongo:27017
       - PIECER_MONGO_DBNAME=piecerd
       - PIECER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
+      - PIECER_DAEMON_FREQUENCY=3s
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
