@@ -176,6 +176,7 @@ func (b *Broker) CreatePrepared(
 		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
 	}
 	sd := broker.StorageDeal{
+		ID:                 broker.StorageDealID(uuid.New().String()), // TODO(jsign): this should change to storaged providing the id.
 		RepFactor:          pc.RepFactor,
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.StorageDealAuctioning,
@@ -259,6 +260,7 @@ func (b *Broker) GetBrokerRequestInfo(
 // CreateNewBatch creates a StorageDeal that contains multiple BrokerRequest.
 func (b *Broker) CreateNewBatch(
 	ctx context.Context,
+	batchID string,
 	batchCid cid.Cid,
 	brids []broker.BrokerRequestID) (broker.StorageDealID, error) {
 	if !batchCid.Defined() {
@@ -279,6 +281,7 @@ func (b *Broker) CreateNewBatch(
 	}
 	now := time.Now()
 	sd := broker.StorageDeal{
+		ID:                 broker.StorageDealID(batchID),
 		PayloadCid:         batchCid,
 		RepFactor:          int(b.conf.dealReplication),
 		DealDuration:       int(b.conf.dealDuration),
@@ -295,10 +298,6 @@ func (b *Broker) CreateNewBatch(
 		},
 	}
 
-	// Transactionally we:
-	// - Move involved BrokerRequest statuses to `Preparing`.
-	// - Link each BrokerRequest with the StorageDeal.
-	// - Save the `StorageDeal` in the store.
 	if err := b.store.CreateStorageDeal(ctx, &sd); err != nil {
 		return "", fmt.Errorf("creating storage deal: %w", err)
 	}
@@ -322,7 +321,7 @@ func (b *Broker) NewBatchPrepared(
 
 	sd, err := b.store.GetStorageDeal(ctx, id)
 	if err != nil {
-		return fmt.Errorf("storage deal not found: %s", err)
+		return fmt.Errorf("get stoarge deal: %s", err)
 	}
 
 	if err := b.store.StorageDealToAuctioning(ctx, id, dpr.PieceCid, dpr.PieceSize); err != nil {

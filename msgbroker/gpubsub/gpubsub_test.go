@@ -10,7 +10,6 @@ import (
 
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -53,7 +52,7 @@ func TestE2E(t *testing.T) {
 	}()
 
 	// 2. Register a handler for topic-1.
-	ps.RegisterTopicHandler("sub-1", "topic-1", func(data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
+	ps.RegisterTopicHandler("sub-1", "topic-1", func(data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 		require.True(t, bytes.Equal(sentDataTopic1, data))
@@ -63,17 +62,17 @@ func TestE2E(t *testing.T) {
 		err = ps.PublishMsg(ctx, "topic-2", sentDataTopic2)
 		require.NoError(t, err)
 
-		ack()
+		return nil
 	})
 
-	ps.RegisterTopicHandler("sub-2", "topic-2", func(data []byte, ack msgbroker.AckMessageFunc, nack msgbroker.NackMessageFunc) {
+	ps.RegisterTopicHandler("sub-2", "topic-2", func(data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 
 		require.True(t, bytes.Equal(sentDataTopic2, data))
 
-		ack()
 		close(waitChan)
+		return nil
 	})
 
 	// 3. Send a message to topic-1

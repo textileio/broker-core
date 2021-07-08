@@ -8,9 +8,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/labstack/gommon/log"
 	"github.com/textileio/broker-core/msgbroker"
+	logger "github.com/textileio/go-log/v2"
 	"google.golang.org/api/iterator"
+)
+
+var (
+	log = logger.Logger("gpubsub")
 )
 
 type PubsubMsgBroker struct {
@@ -93,7 +97,12 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
 			// TODO(jsign): metrics
-			handler(m.Data, m.Ack, m.Nack)
+			if err := handler(m.Data); err != nil {
+				log.Error(err)
+				m.Nack()
+				return
+			}
+			m.Ack()
 		})
 		if err != nil {
 			log.Errorf("receive handler subscription %s, topic %s: %s", subscriptionName, topicName, err)

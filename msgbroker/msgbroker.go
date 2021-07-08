@@ -2,16 +2,10 @@ package msgbroker
 
 import "context"
 
-// AckMessageFunc is a function that ACK a received message.
-type AckMessageFunc func()
-
-// NackMessageFunc is a function that NACKs a received message.
-type NackMessageFunc func()
-
-// TopicHandler is function that processes a received message. The function
-// is responsible for calling Ack() or Nack() functions to properly signal
-// message processing.
-type TopicHandler func([]byte, AckMessageFunc, NackMessageFunc)
+// TopicHandler is function that processes a received message.
+// If no error is returned, the message will be automatically acked.
+// If an error is returned, the message will be automatically nacked.
+type TopicHandler func([]byte) error
 
 // MsgBroker is a message-broker for async message communication.
 type MsgBroker interface {

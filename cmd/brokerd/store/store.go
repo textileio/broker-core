@@ -68,14 +68,9 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 
 // CreateStorageDeal persists a storage deal. It populates the sd.ID field with the corresponding id.
 func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) error {
-	if sd.ID != "" {
-		return fmt.Errorf("storage deal id must be empty")
+	if sd.ID == "" {
+		return fmt.Errorf("storage deal id is empty")
 	}
-	newID, err := s.newID()
-	if err != nil {
-		return fmt.Errorf("generating id: %s", err)
-	}
-	sd.ID = broker.StorageDealID(newID)
 
 	start := time.Now()
 	defer log.Debugf(
@@ -500,7 +495,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (broker.StorageDeal, error) {
 	isd, err := getStorageDeal(s.ds, id)
 	if err != nil {
-		return broker.StorageDeal{}, fmt.Errorf("get storage-deal from datastore: %s", err)
+		return broker.StorageDeal{}, fmt.Errorf("get storage-deal %s from datastore: %s", id, err)
 	}
 
 	return castToStorageDeal(isd)

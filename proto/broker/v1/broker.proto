@@ -57,7 +57,7 @@ message GetBrokerRequestInfoResponse {
 }
 
 message NewBatchCreated {
-  string msg_id = 1;
+  string id = 1;
   bytes batch_cid = 2;
   repeated string broker_request_ids = 3;
 }
@@ -101,10 +101,9 @@ message StorageDealAuctionedResponse {
 }
 
 message NewBatchPrepared {
-  string msg_id = 1;
-  string storage_deal_id = 2;
-  bytes piece_cid = 3;
-  uint64 piece_size = 4;
+  string id = 1;
+  bytes piece_cid = 2;
+  uint64 piece_size = 3;
 }
 
 message StorageDealFinalizedDealRequest {

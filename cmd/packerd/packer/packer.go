@@ -2,16 +2,19 @@ package packer
 
 import (
 	"context"
+	"crypto/rand"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
+	"github.com/oklog/ulid/v2"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/packer/store"
@@ -41,6 +44,9 @@ type Packer struct {
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
+
+	lock    sync.Mutex
+	entropy *ulid.MonotonicEntropy
 
 	metricNewBatch          metric.Int64Counter
 	statLastBatch           time.Time
@@ -181,8 +187,12 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		brids[i] = string(bbr.BrokerRequestID)
 	}
 
+	id, err := p.newID()
+	if err != nil {
+		return 0, fmt.Errorf("creating new id: %s", err)
+	}
 	msg := &pb.NewBatchCreated{
-		MsgId:            uuid.New().String(),
+		Id:               id,
 		BatchCid:         batchCid.Bytes(),
 		BrokerRequestIds: brids,
 	}
@@ -230,6 +240,25 @@ func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBr
 	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
 
 	return root, nil
+}
+
+func (p *Packer) newID() (string, error) {
+	p.lock.Lock()
+
+	if p.entropy == nil {
+		p.entropy = ulid.Monotonic(rand.Reader, 0)
+	}
+	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), p.entropy)
+	if errors.Is(err, ulid.ErrMonotonicOverflow) {
+		p.entropy = nil
+		p.lock.Unlock()
+		return p.newID()
+	} else if err != nil {
+		p.lock.Unlock()
+		return "", fmt.Errorf("generating id: %v", err)
+	}
+	p.lock.Unlock()
+	return strings.ToLower(id.String()), nil
 }
 
 // calcBatchLimit does a worst-case estimation of the maximum size the batch DAG can have to fit

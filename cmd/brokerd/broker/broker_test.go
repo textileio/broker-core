@@ -19,14 +19,13 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/packer"
-	"github.com/textileio/broker-core/piecer"
 	"github.com/textileio/broker-core/tests"
 )
 
 func TestCreateBrokerRequestSuccess(t *testing.T) {
 	t.Parallel()
 
-	b, packer, _, _, _, _ := createBroker(t)
+	b, packer, _, _, _ := createBroker(t)
 	c := createCidFromString("BrokerRequest1")
 
 	br, err := b.Create(context.Background(), c)
@@ -45,7 +44,7 @@ func TestCreateBrokerRequestFail(t *testing.T) {
 
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
-		b, _, _, _, _, _ := createBroker(t)
+		b, _, _, _, _ := createBroker(t)
 		_, err := b.Create(context.Background(), cid.Undef)
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -54,7 +53,7 @@ func TestCreateBrokerRequestFail(t *testing.T) {
 func TestCreateStorageDeal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, piecer, _, _, _ := createBroker(t)
+	b, _, _, _, _ := createBroker(t)
 
 	// 1- Create two broker requests.
 	c := createCidFromString("BrokerRequest1")
@@ -69,13 +68,8 @@ func TestCreateStorageDeal(t *testing.T) {
 
 	// 2- Create a StorageDeal with both storage requests.
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
-
-	// Check that what Piecer was notified about matches
-	// the BrokerRequest group to be prepared.
-	require.Equal(t, brgCid, piecer.calledCid)
-	require.Equal(t, sd, piecer.calledID)
 
 	// Check that all broker request:
 	// 1- Moved to StatusPreparing
@@ -108,7 +102,7 @@ func TestCreateStorageDeal(t *testing.T) {
 func TestCreatePrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, packer, piecer, auctioneer, _, _ := createBroker(t)
+	b, _, auctioneer, _, _ := createBroker(t)
 
 	// 1- Create some prepared data setup.
 	deadline, _ := time.Parse(time.RFC3339, "2021-06-18T12:51:00+00:00")
@@ -135,17 +129,13 @@ func TestCreatePrepared(t *testing.T) {
 	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc)
 	require.NoError(t, err)
 
-	// 2- Check that packer and piecer were *NOT* called, this data is already prepared.
-	require.Len(t, packer.calledBrokerRequestIDs, 0)
-	require.Equal(t, cid.Undef, piecer.calledCid)
-
-	// 3- Check that the created BrokerRequest moved directly to Auctioning.
+	// 2- Check that the created BrokerRequest moved directly to Auctioning.
 	br, err := b.GetBrokerRequestInfo(ctx, createdBr.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestAuctioning, br.BrokerRequest.Status)
 	require.NotEmpty(t, br.BrokerRequest.StorageDealID)
 
-	// 4- Check that the storage deal was created correctly, in particular:
+	// 3- Check that the storage deal was created correctly, in particular:
 	//    - The download sources URL and IPFS.
 	//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
 	//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
@@ -168,7 +158,7 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, pc.PieceCid, sd.PieceCid)
 	require.Equal(t, pc.PieceSize, sd.PieceSize)
 
-	// 5- Check that we made the call to create the auction.
+	// 4- Check that we made the call to create the auction.
 	require.Equal(t, b.conf.dealDuration, uint64(auctioneer.calledDealDuration))
 	require.Equal(t, payloadCid, auctioneer.calledPayloadCid)
 	require.Equal(t, int(sd.PieceSize), auctioneer.calledPieceSize)
@@ -189,27 +179,27 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _, _, _ := createBroker(t)
-		_, err := b.CreateNewBatch(ctx, cid.Undef, nil)
+		b, _, _, _, _ := createBroker(t)
+		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
 	t.Run("empty group", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _, _, _ := createBroker(t)
+		b, _, _, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
-		_, err := b.CreateNewBatch(ctx, brgCid, nil)
+		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, nil)
 		require.Equal(t, ErrEmptyGroup, err)
 	})
 
 	t.Run("group contains unknown broker request id", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _, _, _ := createBroker(t)
+		b, _, _, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
-		_, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
+		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
 		require.True(t, errors.Is(err, store.ErrStorageDealContainsUnknownBrokerRequest))
 	})
 }
@@ -217,7 +207,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 func TestStorageDealPrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, auctioneer, _, _ := createBroker(t)
+	b, _, auctioneer, _, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal.
 	c := createCidFromString("BrokerRequest1")
@@ -227,7 +217,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
 	// 2- Call StorageDealPrepared as if the piecer did.
@@ -269,7 +259,7 @@ func TestStorageDealPrepared(t *testing.T) {
 func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, theAuctioneer, dealer, _ := createBroker(t)
+	b, _, auctioneer, dealer, _ := createBroker(t)
 	b.conf.dealReplication = 2
 
 	// 1- Create two broker requests and a corresponding storage deal, and
@@ -281,7 +271,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -391,13 +381,13 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	// 6- Verify that the auctioneer wasn't called again for a new auction.
 	//    The replication factor was 2, and we had 2 winning bids so a new auction
 	//    isn't necessary.
-	require.Equal(t, 1, theAuctioneer.calledCount)
+	require.Equal(t, 1, auctioneer.calledCount)
 }
 
 func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, theAuctioneer, _, _ := createBroker(t)
+	b, _, auctioneer, _, _ := createBroker(t)
 	b.conf.dealReplication = 3
 
 	// 1- Create two broker requests and a corresponding storage deal, and
@@ -409,7 +399,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -452,22 +442,22 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 
 	// 4- We received two winning bids instead of three. Check that the Auctioneer
 	//    was called to create a new auction with rep factor 1.
-	require.Equal(t, 2, theAuctioneer.calledCount)
-	require.Equal(t, auction.MaxDealDuration, uint64(theAuctioneer.calledDealDuration))
-	require.Equal(t, brgCid, theAuctioneer.calledPayloadCid)
-	require.Equal(t, int(dpr.PieceSize), theAuctioneer.calledPieceSize)
-	require.Equal(t, sd, theAuctioneer.calledStorageDealID)
-	require.Equal(t, int(b.conf.dealDuration), theAuctioneer.calledDealDuration)
-	require.Equal(t, 1, theAuctioneer.calledDealReplication)
-	require.Equal(t, b.conf.verifiedDeals, theAuctioneer.calledDealVerified)
-	require.Contains(t, theAuctioneer.calledExcludedMiners, "f01111")
-	require.Contains(t, theAuctioneer.calledExcludedMiners, "f02222")
+	require.Equal(t, 2, auctioneer.calledCount)
+	require.Equal(t, auction.MaxDealDuration, uint64(auctioneer.calledDealDuration))
+	require.Equal(t, brgCid, auctioneer.calledPayloadCid)
+	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
+	require.Equal(t, sd, auctioneer.calledStorageDealID)
+	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
+	require.Equal(t, 1, auctioneer.calledDealReplication)
+	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
+	require.Contains(t, auctioneer.calledExcludedMiners, "f01111")
+	require.Contains(t, auctioneer.calledExcludedMiners, "f02222")
 }
 
 func TestStorageDealFailedAuction(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, packer, _, _, dealerd, _ := createBroker(t)
+	b, packer, _, dealerd, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -478,7 +468,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -534,7 +524,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 func TestStorageDealFinalizedDeals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, _, _, chainAPI := createBroker(t)
+	b, _, _, _, chainAPI := createBroker(t)
 	b.conf.dealReplication = 2
 
 	// 1- Create two broker requests and a corresponding storage deal, and
@@ -546,7 +536,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	br2, err := b.Create(ctx, c2)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -656,13 +646,11 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 func createBroker(t *testing.T) (
 	*Broker,
 	*dumbPacker,
-	*dumbPiecer,
 	*dumbAuctioneer,
 	*dumbDealer,
 	*dumbChainAPI) {
 	ds := tests.NewTxMapDatastore()
 	packer := &dumbPacker{}
-	piecer := &dumbPiecer{}
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
 	chainAPI := &dumbChainAPI{}
@@ -677,7 +665,7 @@ func createBroker(t *testing.T) (
 	)
 	require.NoError(t, err)
 
-	return b, packer, piecer, auctioneer, dealer, chainAPI
+	return b, packer, auctioneer, dealer, chainAPI
 }
 
 type dumbPacker struct {
@@ -693,20 +681,6 @@ var _ packer.Packer = (*dumbPacker)(nil)
 
 func (dp *dumbPacker) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	dp.calledBrokerRequestIDs = append(dp.calledBrokerRequestIDs, brc{id: id, dataCid: dataCid})
-
-	return nil
-}
-
-type dumbPiecer struct {
-	calledCid cid.Cid
-	calledID  broker.StorageDealID
-}
-
-var _ piecer.Piecer = (*dumbPiecer)(nil)
-
-func (dp *dumbPiecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, c cid.Cid) error {
-	dp.calledCid = c
-	dp.calledID = id
 
 	return nil
 }
