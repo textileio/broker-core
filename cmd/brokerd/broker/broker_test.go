@@ -69,7 +69,7 @@ func TestCreateStorageDeal(t *testing.T) {
 
 	// 2- Create a StorageDeal with both storage requests.
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
 	// Check that what Piecer was notified about matches
@@ -190,7 +190,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		b, _, _, _, _, _ := createBroker(t)
-		_, err := b.CreateStorageDeal(ctx, cid.Undef, nil)
+		_, err := b.CreateNewBatch(ctx, cid.Undef, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
@@ -199,7 +199,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		ctx := context.Background()
 		b, _, _, _, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
-		_, err := b.CreateStorageDeal(ctx, brgCid, nil)
+		_, err := b.CreateNewBatch(ctx, brgCid, nil)
 		require.Equal(t, ErrEmptyGroup, err)
 	})
 
@@ -209,7 +209,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 		b, _, _, _, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
-		_, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
+		_, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
 		require.True(t, errors.Is(err, store.ErrStorageDealContainsUnknownBrokerRequest))
 	})
 }
@@ -227,7 +227,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
 	// 2- Call StorageDealPrepared as if the piecer did.
@@ -281,7 +281,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -409,7 +409,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -478,7 +478,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -546,7 +546,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 	br2, err := b.Create(ctx, c2)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateStorageDeal(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),

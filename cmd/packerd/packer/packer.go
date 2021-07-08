@@ -7,6 +7,7 @@ import (
 	"time"
 
 	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
@@ -14,9 +15,12 @@ import (
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/packer/store"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	packeri "github.com/textileio/broker-core/packer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -29,9 +33,9 @@ type Packer struct {
 	daemonFreq        time.Duration
 	exportMetricsFreq time.Duration
 
-	store  *store.Store
-	ipfs   *httpapi.HttpApi
-	broker broker.Broker
+	store *store.Store
+	ipfs  *httpapi.HttpApi
+	mb    mbroker.MsgBroker
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -55,7 +59,7 @@ var _ packeri.Packer = (*Packer)(nil)
 func New(
 	ds txndswrap.TxnDatastore,
 	ipfsClient *httpapi.HttpApi,
-	broker broker.Broker,
+	mb mbroker.MsgBroker,
 	opts ...Option) (*Packer, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
@@ -79,9 +83,9 @@ func New(
 		daemonFreq:        cfg.daemonFreq,
 		exportMetricsFreq: cfg.exportMetricsFreq,
 
-		store:  store,
-		ipfs:   ipfsClient,
-		broker: broker,
+		store: store,
+		ipfs:  ipfsClient,
+		mb:    mb,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
@@ -172,13 +176,22 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
 
-	brids := make([]broker.BrokerRequestID, len(bbrs))
+	brids := make([]string, len(bbrs))
 	for i, bbr := range bbrs {
-		brids[i] = bbr.BrokerRequestID
+		brids[i] = string(bbr.BrokerRequestID)
 	}
-	sdID, err := p.broker.CreateStorageDeal(ctx, batchCid, brids)
+
+	msg := &pb.NewBatchCreated{
+		MsgId:            uuid.New().String(),
+		BatchCid:         batchCid.String(),
+		BrokerRequestIds: brids,
+	}
+	msgb, err := proto.Marshal(msg)
 	if err != nil {
-		return 0, fmt.Errorf("creating storage deal: %s", err)
+		return 0, fmt.Errorf("marshaling new-batch-created message: %s", err)
+	}
+	if err := p.mb.PublishMsg(ctx, "new-batch-created", msgb); err != nil {
+		return 0, fmt.Errorf("publishing new-batch-created message: %s", err)
 	}
 
 	if err := p.store.DeleteBatch(batch.ID); err != nil {
@@ -191,8 +204,8 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	p.statLastBatchSize = batch.Size
 	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
-		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, size: %d}",
-		sdID, batchCid, len(bbrs), batch.Size)
+		"storage deal created: {cid: %s, numBrokerRequests: %d, size: %d}",
+		batchCid, len(bbrs), batch.Size)
 
 	return len(bbrs), nil
 }

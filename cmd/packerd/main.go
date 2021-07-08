@@ -29,6 +29,10 @@ func init() {
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -57,7 +61,6 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			ListenAddr:       v.GetString("rpc-addr"),
 			IpfsAPIMultiaddr: v.GetString("ipfs-multiaddr"),
-			BrokerAPIAddr:    v.GetString("broker-addr"),
 
 			MongoURI:    v.GetString("mongo-uri"),
 			MongoDBName: v.GetString("mongo-dbname"),
@@ -67,6 +70,11 @@ var rootCmd = &cobra.Command{
 
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     v.GetSizeInBytes("batch-min-size"),
+
+			// TODO(jsign): config these env vars in k8.
+			GPubSubProjectID:     v.GetString("gpubsub-project-id"),
+			GPubSubAPIKey:        v.GetString("gpubsub-api-key"),
+			MsgBrokerTopicPrefix: v.GetString("msgbroker-topic-prefix"),
 		}
 		serv, err := service.New(config)
 		common.CheckErr(err)

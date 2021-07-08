@@ -56,14 +56,12 @@ message GetBrokerRequestInfoResponse {
   }
 }
 
-message CreateStorageDealRequest {
-  string batch_cid = 1;
-  repeated string broker_request_ids = 2;
+message NewBatchCreated {
+  string msg_id = 1;
+  string batch_cid = 2;
+  repeated string broker_request_ids = 3;
 }
 
-message CreateStorageDealResponse {
-  string id = 1;
-}
 
 message StorageDealProposalAcceptedRequest {
   string storage_deal_id = 1;
@@ -143,7 +141,6 @@ service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
   rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
   rpc GetBrokerRequestInfo(GetBrokerRequestInfoRequest) returns (GetBrokerRequestInfoResponse) {}
-  rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
   rpc StorageDealFinalizedDeal(StorageDealFinalizedDealRequest) returns (StorageDealFinalizedDealResponse) {}
   rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
