@@ -214,8 +214,8 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	p.statLastBatchSize = batch.Size
 	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
-		"storage deal created: {cid: %s, numBrokerRequests: %d, size: %d}",
-		batchCid, len(bbrs), batch.Size)
+		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, size: %d}",
+		id, batchCid, len(bbrs), batch.Size)
 
 	return len(bbrs), nil
 }

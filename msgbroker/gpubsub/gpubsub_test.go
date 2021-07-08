@@ -3,6 +3,7 @@ package gpubsub
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -88,6 +89,42 @@ func TestE2E(t *testing.T) {
 	case <-time.After(time.Second * 5):
 		t.Fatalf("timed out waiting for handler call")
 	case <-waitChan:
+	}
+}
+
+func TestTwoSubscriptions(t *testing.T) {
+	t.Parallel()
+	waitCh := make(chan struct{})
+
+	launchPubsubEmulator(t)
+	ps, err := New("test", "test", "test-")
+	require.NoError(t, err)
+
+	ps.RegisterTopicHandler("sub-1", "topic-1", func(data []byte) error {
+		fmt.Println("sub-1 received")
+		waitCh <- struct{}{}
+
+		return nil
+	})
+
+	ps.RegisterTopicHandler("sub-2", "topic-1", func(data []byte) error {
+		fmt.Println("sub-2 received")
+		waitCh <- struct{}{}
+
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	err = ps.PublishMsg(ctx, "topic-1", []byte("HA"))
+	require.NoError(t, err)
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-time.After(time.Second * 5):
+			t.Fatalf("timed out waiting for handler call")
+		case <-waitCh:
+		}
 	}
 }
 

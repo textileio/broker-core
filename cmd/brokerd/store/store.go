@@ -20,7 +20,7 @@ import (
 
 var (
 	// ErrNotFound is returned if the broker request doesn't exist.
-	ErrNotFound = fmt.Errorf("broker request not found")
+	ErrNotFound = fmt.Errorf("not found")
 	// ErrStorageDealContainsUnknownBrokerRequest is returned if a storage deal contains an
 	// unknown broker request.
 	ErrStorageDealContainsUnknownBrokerRequest = fmt.Errorf("storage deal contains an unknown broker request")

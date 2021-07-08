@@ -337,6 +337,8 @@ func (s *Service) newBatchCreatedHandler(data []byte) error {
 	if _, err := s.broker.CreateNewBatch(ctx, r.Id, batchCid, brids); err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
 	}
+	log.Debugf("new batch created: %s", r.Id)
+
 	return nil
 }
 
@@ -378,7 +380,7 @@ func (s *Service) newBatchPreparedHandler(data []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
-		return fmt.Errorf("creating new batch: %s", err)
+		return fmt.Errorf("processing new prepared batch: %s", err)
 	}
 
 	return nil

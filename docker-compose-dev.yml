@@ -139,6 +139,7 @@ services:
       - packerd
       - mongo
       - ipfs
+      - gpubsub
     restart: unless-stopped
   packerd:
     build:
@@ -154,6 +155,7 @@ services:
       - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - PACKER_BATCH_MIN_SIZE=100
       - PACKER_TARGET_SECTOR_SIZE=20000
+      - PACKER_DAEMON_FREQUENCY=3s
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
@@ -162,6 +164,7 @@ services:
     depends_on:
       - mongo
       - ipfs
+      - gpubsub
     restart: unless-stopped
   piecerd:
     build:
@@ -184,6 +187,7 @@ services:
     depends_on:
       - mongo
       - ipfs
+      - gpubsub
     restart: unless-stopped
   dealerd:
     build:
