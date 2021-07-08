@@ -114,35 +114,6 @@ func (c *Client) GetBrokerRequestInfo(
 	return br, nil
 }
 
-// CreateStorageDeal deal creates a storage deal.
-func (c *Client) CreateStorageDeal(
-	ctx context.Context,
-	batchCid cid.Cid,
-	ids []broker.BrokerRequestID) (broker.StorageDealID, error) {
-	if !batchCid.Defined() {
-		return "", fmt.Errorf("batch cid is undefined")
-	}
-	if len(ids) == 0 {
-		return "", fmt.Errorf("grouped broker requests list is empty")
-	}
-
-	brids := make([]string, len(ids))
-	for i, brID := range ids {
-		brids[i] = string(brID)
-	}
-
-	req := &pb.CreateStorageDealRequest{
-		BatchCid:         batchCid.String(),
-		BrokerRequestIds: brids,
-	}
-	res, err := c.c.CreateStorageDeal(ctx, req)
-	if err != nil {
-		return "", fmt.Errorf("calling create storage deal api: %s", err)
-	}
-
-	return broker.StorageDealID(res.Id), nil
-}
-
 // StorageDealAuctioned indicates the storage deal auction has completed.
 func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
 	req := cast.ClosedAuctionToPb(auction)

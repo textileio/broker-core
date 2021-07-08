@@ -14,9 +14,9 @@ import (
 	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	pb "github.com/textileio/broker-core/gen/broker/packer/v1"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
@@ -34,13 +34,16 @@ type Config struct {
 	MongoURI    string
 
 	IpfsAPIMultiaddr string
-	BrokerAPIAddr    string
 
 	DaemonFrequency        time.Duration
 	ExportMetricsFrequency time.Duration
 
 	TargetSectorSize int64
 	BatchMinSize     uint
+
+	GPubSubProjectID     string
+	GPubSubAPIKey        string
+	MsgBrokerTopicPrefix string
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -76,16 +79,16 @@ func New(conf Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
-	brokerClient, err := client.New(conf.BrokerAPIAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating broker client: %s", err)
-	}
 	opts := []packer.Option{
 		packer.WithDaemonFrequency(conf.DaemonFrequency),
 		packer.WithSectorSize(conf.TargetSectorSize),
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
-	lib, err := packer.New(ds, ipfsClient, brokerClient, opts...)
+	mb, err := gpubsub.New(conf.GPubSubProjectID, conf.GPubSubAPIKey, conf.MsgBrokerTopicPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("creating google pubsub message broker: %s", err)
+	}
+	lib, err := packer.New(ds, ipfsClient, mb, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
@@ -143,9 +146,6 @@ func (s *Service) Close() error {
 }
 
 func validateConfig(conf Config) error {
-	if conf.BrokerAPIAddr == "" {
-		return fmt.Errorf("broker api addr is empty")
-	}
 	if conf.IpfsAPIMultiaddr == "" {
 		return fmt.Errorf("ipfs api multiaddr is empty")
 	}

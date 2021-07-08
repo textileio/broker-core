@@ -149,7 +149,7 @@ func New(config Config) (*Service, error) {
 		broker: broker,
 	}
 
-	mb.RegisterTopicHandler("broker-batchprepared", "batchprepared", s.batchPrepared)
+	mb.RegisterTopicHandler("broker-newbatchprepared", "newbatchprepared", s.newBatchPreparedHandler)
 
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -314,33 +314,38 @@ func (s *Service) GetBrokerRequestInfo(
 	return res, nil
 }
 
-// CreateStorageDeal deal creates a storage deal.
-func (s *Service) CreateStorageDeal(
-	ctx context.Context,
-	r *pb.CreateStorageDealRequest) (*pb.CreateStorageDealResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+func (s *Service) newBatchCreatedHandler(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
+	r := &pb.NewBatchCreated{}
+	if err := proto.Unmarshal(data, r); err != nil {
+		log.Errorf("unmarshaling new-batch-created request: %s", err)
+		nack()
+		return
 	}
-
 	batchCid, err := cid.Decode(r.BatchCid)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", r.BatchCid)
+		log.Errorf("invalid cid: %s", r.BatchCid)
+		nack()
+		return
 	}
 
 	brids := make([]broker.BrokerRequestID, len(r.BrokerRequestIds))
 	for i, id := range r.BrokerRequestIds {
 		if id == "" {
-			return nil, status.Error(codes.InvalidArgument, "broker request id can't be empty")
+			log.Errorf("broker request id can't be empty")
+			nack()
+			return
 		}
 		brids[i] = broker.BrokerRequestID(id)
 	}
 
-	sd, err := s.broker.CreateStorageDeal(ctx, batchCid, brids)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "creating storage deal: %s", err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	if _, err := s.broker.CreateNewBatch(ctx, batchCid, brids); err != nil {
+		log.Errorf("creating storage deal: %s", err)
+		nack()
+		return
 	}
-
-	return &pb.CreateStorageDealResponse{Id: string(sd)}, nil
+	ack()
 }
 
 // StorageDealAuctioned indicated that an auction has completed.
@@ -364,10 +369,10 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
-func (s *Service) batchPrepared(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
+func (s *Service) newBatchPreparedHandler(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
 	r := &pb.NewBatchPrepared{}
 	if err := proto.Unmarshal(data, r); err != nil {
-		log.Errorf("unmarshaling storage deal prepared request: %s", err)
+		log.Errorf("unmarshaling new-batch-prepared request: %s", err)
 		nack()
 		return
 	}

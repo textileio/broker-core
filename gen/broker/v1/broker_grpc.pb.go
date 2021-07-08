@@ -21,7 +21,6 @@ type APIServiceClient interface {
 	CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error)
 	CreatePreparedBrokerRequest(ctx context.Context, in *CreatePreparedBrokerRequestRequest, opts ...grpc.CallOption) (*CreatePreparedBrokerRequestResponse, error)
 	GetBrokerRequestInfo(ctx context.Context, in *GetBrokerRequestInfoRequest, opts ...grpc.CallOption) (*GetBrokerRequestInfoResponse, error)
-	CreateStorageDeal(ctx context.Context, in *CreateStorageDealRequest, opts ...grpc.CallOption) (*CreateStorageDealResponse, error)
 	StorageDealAuctioned(ctx context.Context, in *StorageDealAuctionedRequest, opts ...grpc.CallOption) (*StorageDealAuctionedResponse, error)
 	StorageDealFinalizedDeal(ctx context.Context, in *StorageDealFinalizedDealRequest, opts ...grpc.CallOption) (*StorageDealFinalizedDealResponse, error)
 	StorageDealProposalAccepted(ctx context.Context, in *StorageDealProposalAcceptedRequest, opts ...grpc.CallOption) (*StorageDealProposalAcceptedResponse, error)
@@ -62,15 +61,6 @@ func (c *aPIServiceClient) GetBrokerRequestInfo(ctx context.Context, in *GetBrok
 	return out, nil
 }
 
-func (c *aPIServiceClient) CreateStorageDeal(ctx context.Context, in *CreateStorageDealRequest, opts ...grpc.CallOption) (*CreateStorageDealResponse, error) {
-	out := new(CreateStorageDealResponse)
-	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateStorageDeal", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *aPIServiceClient) StorageDealAuctioned(ctx context.Context, in *StorageDealAuctionedRequest, opts ...grpc.CallOption) (*StorageDealAuctionedResponse, error) {
 	out := new(StorageDealAuctionedResponse)
 	err := c.cc.Invoke(ctx, "/broker.v1.APIService/StorageDealAuctioned", in, out, opts...)
@@ -105,7 +95,6 @@ type APIServiceServer interface {
 	CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error)
 	CreatePreparedBrokerRequest(context.Context, *CreatePreparedBrokerRequestRequest) (*CreatePreparedBrokerRequestResponse, error)
 	GetBrokerRequestInfo(context.Context, *GetBrokerRequestInfoRequest) (*GetBrokerRequestInfoResponse, error)
-	CreateStorageDeal(context.Context, *CreateStorageDealRequest) (*CreateStorageDealResponse, error)
 	StorageDealAuctioned(context.Context, *StorageDealAuctionedRequest) (*StorageDealAuctionedResponse, error)
 	StorageDealFinalizedDeal(context.Context, *StorageDealFinalizedDealRequest) (*StorageDealFinalizedDealResponse, error)
 	StorageDealProposalAccepted(context.Context, *StorageDealProposalAcceptedRequest) (*StorageDealProposalAcceptedResponse, error)
@@ -124,9 +113,6 @@ func (UnimplementedAPIServiceServer) CreatePreparedBrokerRequest(context.Context
 }
 func (UnimplementedAPIServiceServer) GetBrokerRequestInfo(context.Context, *GetBrokerRequestInfoRequest) (*GetBrokerRequestInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBrokerRequestInfo not implemented")
-}
-func (UnimplementedAPIServiceServer) CreateStorageDeal(context.Context, *CreateStorageDealRequest) (*CreateStorageDealResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateStorageDeal not implemented")
 }
 func (UnimplementedAPIServiceServer) StorageDealAuctioned(context.Context, *StorageDealAuctionedRequest) (*StorageDealAuctionedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StorageDealAuctioned not implemented")
@@ -204,24 +190,6 @@ func _APIService_GetBrokerRequestInfo_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _APIService_CreateStorageDeal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateStorageDealRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(APIServiceServer).CreateStorageDeal(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/broker.v1.APIService/CreateStorageDeal",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).CreateStorageDeal(ctx, req.(*CreateStorageDealRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _APIService_StorageDealAuctioned_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StorageDealAuctionedRequest)
 	if err := dec(in); err != nil {
@@ -294,10 +262,6 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBrokerRequestInfo",
 			Handler:    _APIService_GetBrokerRequestInfo_Handler,
-		},
-		{
-			MethodName: "CreateStorageDeal",
-			Handler:    _APIService_CreateStorageDeal_Handler,
 		},
 		{
 			MethodName: "StorageDealAuctioned",

@@ -252,7 +252,7 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	if err != nil {
 		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
 	}
-	if err := p.mb.PublishMsg(ctx, "new-prepared-batch", sdpBytes); err != nil {
+	if err := p.mb.PublishMsg(ctx, "newbatchprepared", sdpBytes); err != nil {
 		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
 	}
 

@@ -3,7 +3,6 @@ package packer
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -141,53 +140,6 @@ func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
 		cids[i] = node.Cid()
 	}
 	return cids
-}
-
-type brokerMock struct {
-	batchCid           cid.Cid
-	srids              []broker.BrokerRequestID
-	allowMultipleCalls bool
-}
-
-func (bm *brokerMock) CreateStorageDeal(
-	ctx context.Context,
-	batchCid cid.Cid,
-	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
-	if !bm.allowMultipleCalls && bm.batchCid.Defined() {
-		return "", fmt.Errorf("create storage deal called twice")
-	}
-	bm.batchCid = batchCid
-	bm.srids = srids
-
-	return broker.StorageDealID("DUKE"), nil
-}
-
-func (bm *brokerMock) StorageDealPrepared(context.Context, broker.StorageDealID, broker.DataPreparationResult) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.ClosedAuction) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealProposalAccepted(context.Context, broker.StorageDealID, string, cid.Cid) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) CreatePrepared(context.Context, cid.Cid, broker.PreparedCAR) (broker.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) Create(context.Context, cid.Cid) (broker.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealFinalizedDeal(context.Context, broker.FinalizedAuctionDeal) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) GetBrokerRequestInfo(context.Context, broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
-	panic("shouldn't be called")
 }
 
 func launchIPFSContainer(t *testing.T) *dockertest.Resource {

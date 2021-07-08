@@ -53,12 +53,12 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	mb.RegisterTopicHandler("piecer-readytoprepare", "readytoprepare", s.readyToPrepare)
+	mb.RegisterTopicHandler("piecer-readytoprepare", "readytoprepare", s.readyToPrepareHandler)
 
 	return s, nil
 }
 
-func (s *Service) readyToPrepare(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
+func (s *Service) readyToPrepareHandler(data []byte, ack mbroker.AckMessageFunc, nack mbroker.NackMessageFunc) {
 	r := &pb.ReadyToPrepareRequest{}
 	if err := proto.Unmarshal(data, r); err != nil {
 		log.Errorf("unmarshal ready to prepare request: %s", err)

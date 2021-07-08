@@ -86,6 +86,7 @@ var rootCmd = &cobra.Command{
 
 			AuctionMaxRetries: v.GetInt("auction-max-retries"),
 
+			// TODO(jsign): config these env vars in k8.
 			GPubSubProjectID:     v.GetString("gpubsub-project-id"),
 			GPubSubAPIKey:        v.GetString("gpubsub-api-key"),
 			MsgBrokerTopicPrefix: v.GetString("msgbroker-topic-prefix"),
