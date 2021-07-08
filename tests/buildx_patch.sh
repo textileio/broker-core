@@ -1,4 +1,4 @@
- Dockfiles="$(find $1  -name 'Dockerfile')"
+Dockfiles="$(find $1  -name 'Dockerfile')"
 d=$(date +%s)
 i=0
 for file in $Dockfiles; do
