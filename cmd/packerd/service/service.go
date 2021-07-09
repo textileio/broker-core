@@ -84,7 +84,7 @@ func New(conf Config) (*Service, error) {
 		packer.WithSectorSize(conf.TargetSectorSize),
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
-	mb, err := gpubsub.New(conf.GPubSubProjectID, conf.GPubSubAPIKey, conf.MsgBrokerTopicPrefix)
+	mb, err := gpubsub.New(conf.GPubSubProjectID, conf.GPubSubAPIKey, conf.MsgBrokerTopicPrefix, "packerd")
 	if err != nil {
 		return nil, fmt.Errorf("creating google pubsub message broker: %s", err)
 	}

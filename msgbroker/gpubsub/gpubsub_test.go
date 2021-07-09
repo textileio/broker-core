@@ -45,7 +45,7 @@ func TestE2E(t *testing.T) {
 
 	// 1. Launch dockerized pubsub emulator.
 	launchPubsubEmulator(t)
-	ps, err := New("test", "test", "test-")
+	ps, err := New("", "", "test-", "testd")
 	require.NoError(t, err)
 	defer func() {
 		err := ps.Close()
@@ -53,7 +53,8 @@ func TestE2E(t *testing.T) {
 	}()
 
 	// 2. Register a handler for topic-1.
-	ps.RegisterTopicHandler("sub-1", "topic-1", func(data []byte) error {
+	ps.subsPrefix = "sub-1"
+	ps.RegisterTopicHandler("topic-1", func(data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 		require.True(t, bytes.Equal(sentDataTopic1, data))
@@ -66,7 +67,8 @@ func TestE2E(t *testing.T) {
 		return nil
 	})
 
-	ps.RegisterTopicHandler("sub-2", "topic-2", func(data []byte) error {
+	ps.subsPrefix = "sub-2"
+	ps.RegisterTopicHandler("topic-2", func(data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 
@@ -97,17 +99,19 @@ func TestTwoSubscriptions(t *testing.T) {
 	waitCh := make(chan struct{})
 
 	launchPubsubEmulator(t)
-	ps, err := New("test", "test", "test-")
+	ps, err := New("", "", "test-", "testd")
 	require.NoError(t, err)
 
-	ps.RegisterTopicHandler("sub-1", "topic-1", func(data []byte) error {
+	ps.subsPrefix = "sub-1"
+	ps.RegisterTopicHandler("topic-1", func(data []byte) error {
 		fmt.Println("sub-1 received")
 		waitCh <- struct{}{}
 
 		return nil
 	})
 
-	ps.RegisterTopicHandler("sub-2", "topic-1", func(data []byte) error {
+	ps.subsPrefix = "sub-2"
+	ps.RegisterTopicHandler("topic-1", func(data []byte) error {
 		fmt.Println("sub-2 received")
 		waitCh <- struct{}{}
 

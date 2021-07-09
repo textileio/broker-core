@@ -80,7 +80,7 @@ var rootCmd = &cobra.Command{
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix)
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "piecerd")
 		common.CheckErrf("creating google pubsub client: %s", err)
 
 		config := service.Config{
