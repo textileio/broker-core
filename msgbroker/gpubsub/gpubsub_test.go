@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
@@ -36,23 +37,42 @@ func init() {
 // - Sending messages to a topic through a message handler (not entirely relevant, but covered).
 func TestE2E(t *testing.T) {
 	t.Parallel()
+
+	t.Run("emulator", func(t *testing.T) {
+		t.Parallel()
+		launchPubsubEmulator(t)
+		ps, err := New("", "", "test-", "testd")
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			err := ps.Close()
+			require.NoError(t, err)
+		})
+
+		rune2e(t, ps)
+	})
+
+	t.Run("real", func(t *testing.T) {
+		t.Parallel()
+		t.SkipNow() // Skipped by default, only useful when providing credentials.
+
+		secretProjectID := "fill-me"
+		secretApiKey, err := ioutil.ReadFile("testdata/create-me.json")
+		require.NoError(t, err)
+
+		ps, err := New(secretProjectID, string(secretApiKey), "test-", "testd")
+		require.NoError(t, err)
+		rune2e(t, ps)
+	})
+
+}
+
+func rune2e(t *testing.T, ps *PubsubMsgBroker) {
 	var lock sync.Mutex // We use shared vars, so to be safe.
+	waitChan := make(chan struct{})
 
 	sentDataTopic1 := []byte("duke-ftw")
-
-	waitChan := make(chan struct{})
 	sentDataTopic2 := []byte("duke-ftw-2")
 
-	// 1. Launch dockerized pubsub emulator.
-	launchPubsubEmulator(t)
-	ps, err := New("", "", "test-", "testd")
-	require.NoError(t, err)
-	defer func() {
-		err := ps.Close()
-		require.NoError(t, err)
-	}()
-
-	// 2. Register a handler for topic-1.
 	ps.subsPrefix = "sub-1"
 	ps.RegisterTopicHandler("topic-1", func(data []byte) error {
 		lock.Lock()
@@ -61,7 +81,7 @@ func TestE2E(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		err = ps.PublishMsg(ctx, "topic-2", sentDataTopic2)
+		err := ps.PublishMsg(ctx, "topic-2", sentDataTopic2)
 		require.NoError(t, err)
 
 		return nil
@@ -78,11 +98,10 @@ func TestE2E(t *testing.T) {
 		return nil
 	})
 
-	// 3. Send a message to topic-1
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	lock.Lock()
-	err = ps.PublishMsg(ctx, "topic-1", sentDataTopic1)
+	err := ps.PublishMsg(ctx, "topic-1", sentDataTopic1)
 	lock.Unlock()
 	require.NoError(t, err)
 

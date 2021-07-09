@@ -11,6 +11,7 @@ import (
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -43,7 +44,7 @@ func New(projectID, apiKey, topicPrefix, subsPrefix string) (*PubsubMsgBroker, e
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client, err := pubsub.NewClient(ctx, projectID)
+	client, err := pubsub.NewClient(ctx, projectID, option.WithCredentialsJSON([]byte(apiKey)))
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("creating pubsub client: %s", err)
@@ -89,7 +90,21 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, hand
 		log.Warnf("creating subscription %s for topic %s", subName, topicName)
 
 		config := pubsub.SubscriptionConfig{
-			Topic: topic,
+			Topic:                 topic,
+			PushConfig:            pubsub.PushConfig{},
+			AckDeadline:           time.Second * 10,
+			RetainAckedMessages:   false,
+			RetentionDuration:     time.Hour * 24 * 7,
+			ExpirationPolicy:      time.Duration(0),
+			Labels:                nil,
+			EnableMessageOrdering: false,
+			DeadLetterPolicy:      nil,
+			Filter:                "",
+			RetryPolicy: &pubsub.RetryPolicy{
+				MinimumBackoff: time.Second * 10,
+				MaximumBackoff: time.Minute * 10,
+			},
+			Detached: false,
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
@@ -100,9 +115,16 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, hand
 		log.Warnf("subscription %s for topic %s created", subName, topicName)
 	}
 
-	// TODO(jsign): tune ReceiveSettings
+	sub.ReceiveSettings = pubsub.ReceiveSettings{
+		MaxExtension:           0,
+		MaxExtensionPeriod:     0,
+		MaxOutstandingMessages: 1000,
+		MaxOutstandingBytes:    100e6, // 100MB
+		NumGoroutines:          10,
+	}
 	p.receivingHandlersWg.Add(1)
 	go func() {
+
 		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
 			if err := handler(m.Data); err != nil {
@@ -161,7 +183,6 @@ func (p *PubsubMsgBroker) getTopic(tname mbroker.TopicName) (*pubsub.Topic, erro
 	if !exist {
 		log.Warnf("creating topic %s", name)
 
-		// TODO(jsign): switch to CreatTopicWithConfig() with explicit config.
 		topic, err = p.client.CreateTopic(ctx, name)
 		if err != nil {
 			return nil, fmt.Errorf("creating topic %s: %s", name, err)
