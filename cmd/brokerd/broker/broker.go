@@ -260,7 +260,7 @@ func (b *Broker) GetBrokerRequestInfo(
 // CreateNewBatch creates a StorageDeal that contains multiple BrokerRequest.
 func (b *Broker) CreateNewBatch(
 	ctx context.Context,
-	batchID string,
+	batchID broker.StorageDealID,
 	batchCid cid.Cid,
 	brids []broker.BrokerRequestID) (broker.StorageDealID, error) {
 	if !batchCid.Defined() {
@@ -281,7 +281,7 @@ func (b *Broker) CreateNewBatch(
 	}
 	now := time.Now()
 	sd := broker.StorageDeal{
-		ID:                 broker.StorageDealID(batchID),
+		ID:                 batchID,
 		PayloadCid:         batchCid,
 		RepFactor:          int(b.conf.dealReplication),
 		DealDuration:       int(b.conf.dealDuration),

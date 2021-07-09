@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/textileio/broker-core/msgbroker"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 	"google.golang.org/api/iterator"
 )
@@ -18,6 +18,7 @@ var (
 )
 
 type PubsubMsgBroker struct {
+	subsPrefix  string
 	topicPrefix string
 
 	client          *pubsub.Client
@@ -30,9 +31,9 @@ type PubsubMsgBroker struct {
 	receivingHandlersWg sync.WaitGroup
 }
 
-var _ msgbroker.MsgBroker = (*PubsubMsgBroker)(nil)
+var _ mbroker.MsgBroker = (*PubsubMsgBroker)(nil)
 
-func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
+func New(projectID, apiKey, topicPrefix, subsPrefix string) (*PubsubMsgBroker, error) {
 	_, usingEmulator := os.LookupEnv("PUBSUB_EMULATOR_HOST")
 	if !usingEmulator && apiKey == "" {
 		return nil, fmt.Errorf("api key is empty")
@@ -49,6 +50,9 @@ func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
 	}
 
 	return &PubsubMsgBroker{
+		topicPrefix: topicPrefix,
+		subsPrefix:  subsPrefix,
+
 		client:          client,
 		clientCtx:       ctx,
 		clientCtxCancel: cancel,
@@ -57,12 +61,13 @@ func New(projectID, apiKey, topicPrefix string) (*PubsubMsgBroker, error) {
 	}, nil
 }
 
-func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName string, handler msgbroker.TopicHandler) error {
+func (p *PubsubMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, handler mbroker.TopicHandler) error {
 	topic, err := p.getTopic(topicName)
 	if err != nil {
 		return fmt.Errorf("get topic: %s", err)
 	}
 
+	subName := p.subsPrefix + "-" + string(topicName)
 	var sub *pubsub.Subscription
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -75,24 +80,24 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 		if err != nil {
 			return fmt.Errorf("looking for subscription: %s", err)
 		}
-		if subi.ID() == subscriptionName {
+		if subi.ID() == subName {
 			sub = subi
 			break
 		}
 	}
 	if sub == nil {
-		log.Warnf("creating subscription %s for topic %s", subscriptionName, topicName)
+		log.Warnf("creating subscription %s for topic %s", subName, topicName)
 
 		config := pubsub.SubscriptionConfig{
 			Topic: topic,
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
-		sub, err = p.client.CreateSubscription(ctx, subscriptionName, config)
+		sub, err = p.client.CreateSubscription(ctx, subName, config)
 		if err != nil {
 			return fmt.Errorf("creating subscription: %s", err)
 		}
-		log.Warnf("subscription %s for topic %s created", subscriptionName, topicName)
+		log.Warnf("subscription %s for topic %s created", subName, topicName)
 	}
 
 	// TODO(jsign): tune ReceiveSettings
@@ -108,17 +113,17 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(subscriptionName, topicName strin
 			m.Ack()
 		})
 		if err != nil {
-			log.Errorf("receive handler subscription %s, topic %s: %s", subscriptionName, topicName, err)
+			log.Errorf("receive handler subscription %s, topic %s: %s", subName, topicName, err)
 			return
 		}
-		log.Infof("handler for subscription %s, topic %s closed gracefully", subscriptionName, topicName)
+		log.Infof("handler for subscription %s, topic %s closed gracefully", subName, topicName)
 	}()
 
-	log.Debugf("registered handler for %s:%s", subscriptionName, topicName)
+	log.Debugf("registered handler for %s:%s", subName, topicName)
 	return nil
 }
 
-func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data []byte) error {
+func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName mbroker.TopicName, data []byte) error {
 	topic, err := p.getTopic(topicName)
 	if err != nil {
 		return fmt.Errorf("get topic: %s", err)
@@ -137,8 +142,8 @@ func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName string, data
 	return nil
 }
 
-func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
-	name = p.topicPrefix + name
+func (p *PubsubMsgBroker) getTopic(tname mbroker.TopicName) (*pubsub.Topic, error) {
+	name := p.topicPrefix + string(tname)
 	p.topicCacheLock.Lock()
 	defer p.topicCacheLock.Unlock()
 	topic, ok := p.topicCache[name]

@@ -200,7 +200,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("marshaling new-batch-created message: %s", err)
 	}
-	if err := p.mb.PublishMsg(ctx, "new-batch-created", msgb); err != nil {
+	if err := p.mb.PublishMsg(ctx, mbroker.NewBatchCreatedTopic, msgb); err != nil {
 		return 0, fmt.Errorf("publishing new-batch-created message: %s", err)
 	}
 
