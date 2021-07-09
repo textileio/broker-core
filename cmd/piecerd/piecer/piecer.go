@@ -23,7 +23,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
 	pbBroker "github.com/textileio/broker-core/gen/broker/v1"
-	"github.com/textileio/broker-core/msgbroker"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	pieceri "github.com/textileio/broker-core/piecer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
@@ -34,7 +34,7 @@ var log = logger.Logger("piecer")
 
 // Piecer provides a data-preparation pipeline for StorageDeals.
 type Piecer struct {
-	mb       msgbroker.MsgBroker
+	mb       mbroker.MsgBroker
 	ipfsApis []ipfsAPI
 
 	store           *store.Store
@@ -67,7 +67,7 @@ var _ pieceri.Piecer = (*Piecer)(nil)
 func New(
 	ds txndswrap.TxnDatastore,
 	ipfsEndpoints []multiaddr.Multiaddr,
-	mb msgbroker.MsgBroker,
+	mb mbroker.MsgBroker,
 	daemonFrequency time.Duration,
 	retryDelay time.Duration) (*Piecer, error) {
 	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
@@ -250,7 +250,7 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	if err != nil {
 		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
 	}
-	if err := p.mb.PublishMsg(ctx, "new-batch-prepared", sdpBytes); err != nil {
+	if err := p.mb.PublishMsg(ctx, mbroker.NewBatchPreparedTopic, sdpBytes); err != nil {
 		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
 	}
 

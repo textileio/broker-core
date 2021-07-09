@@ -20,6 +20,7 @@ import (
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
+	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logger "github.com/textileio/go-log/v2"
 
@@ -28,7 +29,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -120,7 +120,7 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
 
-	mb, err := gpubsub.New(config.GPubSubProjectID, config.GPubSubAPIKey, config.MsgBrokerTopicPrefix)
+	mb, err := gpubsub.New(config.GPubSubProjectID, config.GPubSubAPIKey, config.MsgBrokerTopicPrefix, "brokerd")
 	if err != nil {
 		return nil, fmt.Errorf("creating google pubsub message broker: %s", err)
 	}
@@ -148,8 +148,7 @@ func New(config Config) (*Service, error) {
 		broker: broker,
 	}
 
-	mb.RegisterTopicHandler("broker-new-batch-created", "new-batch-created", s.newBatchCreatedHandler)
-	mb.RegisterTopicHandler("broker-new-batch-prepared", "new-batch-prepared", s.newBatchPreparedHandler)
+	msgbroker.RegisterHandlers(mb, s)
 
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -314,30 +313,13 @@ func (s *Service) GetBrokerRequestInfo(
 	return res, nil
 }
 
-func (s *Service) newBatchCreatedHandler(data []byte) error {
-	r := &pb.NewBatchCreated{}
-	if err := proto.Unmarshal(data, r); err != nil {
-		return fmt.Errorf("unmarshaling new-batch-created request: %s", err)
-	}
-	batchCid, err := cid.Cast(r.BatchCid)
-	if err != nil {
-		return fmt.Errorf("invalid cid: %s", r.BatchCid)
-	}
-
-	brids := make([]broker.BrokerRequestID, len(r.BrokerRequestIds))
-	for i, id := range r.BrokerRequestIds {
-		if id == "" {
-			return fmt.Errorf("broker request id can't be empty")
-		}
-		brids[i] = broker.BrokerRequestID(id)
-	}
-
+func (s *Service) OnNewBatchCreated(id broker.StorageDealID, batchCid cid.Cid, brids []broker.BrokerRequestID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if _, err := s.broker.CreateNewBatch(ctx, r.Id, batchCid, brids); err != nil {
+	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
 	}
-	log.Debugf("new batch created: %s", r.Id)
+	log.Debugf("new batch created: %s", id)
 
 	return nil
 }
@@ -363,20 +345,8 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
-func (s *Service) newBatchPreparedHandler(data []byte) error {
-	r := &pb.NewBatchPrepared{}
-	if err := proto.Unmarshal(data, r); err != nil {
-		return fmt.Errorf("unmarshaling new-batch-prepared request: %s", err)
-	}
-	pieceCid, err := cid.Cast(r.PieceCid)
-	if err != nil {
-		return fmt.Errorf("decoding piece cid: %s", err)
-	}
-	id := broker.StorageDealID(r.Id)
-	pr := broker.DataPreparationResult{
-		PieceCid:  pieceCid,
-		PieceSize: r.PieceSize,
-	}
+func (s *Service) OnNewBatchPreparedHandler(id broker.StorageDealID, pr broker.DataPreparationResult) error {
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {

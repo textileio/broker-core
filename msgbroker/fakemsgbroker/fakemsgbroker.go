@@ -19,14 +19,14 @@ func New() *FakeMsgBroker {
 	}
 }
 
-func (b *FakeMsgBroker) RegisterTopicHandler(subscriptionName, topicName string, handler mbroker.TopicHandler) error {
+func (b *FakeMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, handler mbroker.TopicHandler) error {
 	panic("not implemented")
 }
-func (b *FakeMsgBroker) PublishMsg(ctx context.Context, topicName string, data []byte) error {
+func (b *FakeMsgBroker) PublishMsg(ctx context.Context, topicName mbroker.TopicName, data []byte) error {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	b.topicMessages[topicName] = append(b.topicMessages[topicName], data)
+	b.topicMessages[string(topicName)] = append(b.topicMessages[string(topicName)], data)
 
 	return nil
 }
