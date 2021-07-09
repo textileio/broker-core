@@ -116,7 +116,7 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, hand
 	}
 
 	sub.ReceiveSettings = pubsub.ReceiveSettings{
-		MaxExtension:           0,
+		MaxExtension:           -1,
 		MaxExtensionPeriod:     0,
 		MaxOutstandingMessages: 1000,
 		MaxOutstandingBytes:    100e6, // 100MB
