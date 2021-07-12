@@ -24,7 +24,6 @@ import (
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logger "github.com/textileio/go-log/v2"
 
-	"github.com/textileio/bidbot/lib/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -45,8 +44,7 @@ type Config struct {
 	DealerAddr     string
 	ReporterAddr   string
 
-	MongoDBName string
-	MongoURI    string
+	PostgresURI string
 
 	IPFSAPIMultiaddr string
 
@@ -78,46 +76,41 @@ var _ pb.APIServiceServer = (*Service)(nil)
 // New returns a new Service.
 func New(config Config) (*Service, error) {
 	if err := validateConfig(config); err != nil {
-		return nil, fmt.Errorf("config is invalid: %s", err)
+		return nil, fmt.Errorf("config is invalid: %w", err)
 	}
 
 	listener, err := net.Listen("tcp", config.ListenAddr)
 	if err != nil {
-		return nil, fmt.Errorf("getting net listener: %v", err)
-	}
-
-	ds, err := dshelper.NewMongoTxnDatastore(config.MongoURI, config.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("creating datastore: %s", err)
+		return nil, fmt.Errorf("getting net listener: %w", err)
 	}
 
 	packer, err := packeri.New(config.PackerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating packer implementation: %s", err)
+		return nil, fmt.Errorf("creating packer implementation: %w", err)
 	}
 
 	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
+		return nil, fmt.Errorf("creating auctioneer implementation: %w", err)
 	}
 
 	dealer, err := dealeri.New(config.DealerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating dealer implementation: %s", err)
+		return nil, fmt.Errorf("creating dealer implementation: %w", err)
 	}
 
 	reporter, err := chainapii.New(config.ReporterAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating reporter implementation: %s", err)
+		return nil, fmt.Errorf("creating reporter implementation: %w", err)
 	}
 
 	ma, err := multiaddr.NewMultiaddr(config.IPFSAPIMultiaddr)
 	if err != nil {
-		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
+		return nil, fmt.Errorf("parsing ipfs client multiaddr: %w", err)
 	}
 	ipfsClient, err := httpapi.NewApi(ma)
 	if err != nil {
-		return nil, fmt.Errorf("creating ipfs client: %s", err)
+		return nil, fmt.Errorf("creating ipfs client: %w", err)
 	}
 
 	mb, err := gpubsub.New(config.GPubSubProjectID, config.GPubSubAPIKey, config.MsgBrokerTopicPrefix, "brokerd")
@@ -126,7 +119,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	broker, err := brokeri.New(
-		ds,
+		config.PostgresURI,
 		packer,
 		auctioneer,
 		dealer,
@@ -139,7 +132,7 @@ func New(config Config) (*Service, error) {
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("creating broker implementation: %s", err)
+		return nil, fmt.Errorf("creating broker implementation: %w", err)
 	}
 
 	s := &Service{
@@ -153,7 +146,7 @@ func New(config Config) (*Service, error) {
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
 		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Errorf("server error: %v", err)
+			log.Errorf("server error: %w", err)
 		}
 	}()
 
@@ -451,11 +444,8 @@ func validateConfig(conf Config) error {
 	if conf.ReporterAddr == "" {
 		return errors.New("reporter api addr is empty")
 	}
-	if conf.MongoDBName == "" {
-		return errors.New("mongo db name is empty")
-	}
-	if conf.MongoURI == "" {
-		return errors.New("mongo uri is empty")
+	if conf.PostgresURI == "" {
+		return errors.New("postgres uri is empty")
 	}
 	if conf.IPFSAPIMultiaddr == "" {
 		return errors.New("ipfs api multiaddress is empty")

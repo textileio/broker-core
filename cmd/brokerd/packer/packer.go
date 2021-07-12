@@ -23,7 +23,7 @@ var _ packeri.Packer = (*Packer)(nil)
 func New(addr string) (*Packer, error) {
 	c, err := client.NewClient(addr, rpc.GetClientOpts(addr)...)
 	if err != nil {
-		return nil, fmt.Errorf("creating client: %v", err)
+		return nil, fmt.Errorf("creating client: %w", err)
 	}
 	return &Packer{c: c}, nil
 }
@@ -33,7 +33,7 @@ func New(addr string) (*Packer, error) {
 // that contains this BrokerRequest gets created.
 func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	if err := p.c.ReadyToPack(ctx, id, dataCid); err != nil {
-		return fmt.Errorf("ready to pack client: %s", err)
+		return fmt.Errorf("ready to pack client: %w", err)
 	}
 
 	return nil
@@ -42,7 +42,7 @@ func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dat
 // Close closes the packer.
 func (p *Packer) Close() error {
 	if err := p.c.Close(); err != nil {
-		return fmt.Errorf("closing gRPC client: %s", err)
+		return fmt.Errorf("closing gRPC client: %w", err)
 	}
 	return nil
 }

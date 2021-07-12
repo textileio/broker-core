@@ -22,8 +22,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-api-multiaddr", DefValue: "", Description: "IPFS API multiaddress for unpinning data"},
 		{Name: "piecer-addr", DefValue: "", Description: "Piecer API address"},
 		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
@@ -53,7 +52,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
-		common.CheckErrf("setting log levels: %v", err)
+		common.CheckErrf("setting log levels: %w", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
@@ -61,7 +60,7 @@ var rootCmd = &cobra.Command{
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
-			log.Fatalf("booting instrumentation: %s", err)
+			log.Fatalf("booting instrumentation: %w", err)
 		}
 
 		serviceConfig := service.Config{
@@ -73,8 +72,7 @@ var rootCmd = &cobra.Command{
 			DealerAddr:     v.GetString("dealer-addr"),
 			ReporterAddr:   v.GetString("reporter-addr"),
 
-			MongoURI:    v.GetString("mongo-uri"),
-			MongoDBName: v.GetString("mongo-dbname"),
+			PostgresURI: v.GetString("postgres-uri"),
 
 			IPFSAPIMultiaddr: v.GetString("ipfs-api-multiaddr"),
 
@@ -98,7 +96,7 @@ var rootCmd = &cobra.Command{
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
-				log.Errorf("closing http endpoint: %s", err)
+				log.Errorf("closing http endpoint: %w", err)
 			}
 		})
 	},

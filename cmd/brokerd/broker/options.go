@@ -107,7 +107,7 @@ func WithCARExportURL(rawURL string) Option {
 	return func(c *config) error {
 		u, err := url.Parse(rawURL)
 		if err != nil {
-			return fmt.Errorf("parsing url: %s", err)
+			return fmt.Errorf("parsing url: %w", err)
 		}
 		c.carExportURL = u
 		return nil
@@ -128,7 +128,7 @@ func WithAuctionMaxRetries(max int) Option {
 
 func (c config) validate() error {
 	if c.carExportURL == nil {
-		return fmt.Errorf("the CAR exporting URL can't be empty")
+		return errors.New("the CAR exporting URL can't be empty")
 	}
 	return nil
 }

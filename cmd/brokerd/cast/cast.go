@@ -14,7 +14,7 @@ import (
 func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, error) {
 	c, err := cid.Decode(brproto.DataCid)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("decoding cid: %s", err)
+		return broker.BrokerRequest{}, fmt.Errorf("decoding cid: %w", err)
 	}
 
 	var status broker.BrokerRequestStatus
@@ -106,7 +106,7 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequestInfoResponse, error) {
 	protobr, err := BrokerRequestToProto(br.BrokerRequest)
 	if err != nil {
-		return nil, fmt.Errorf("creating proto for broker request: %s", err)
+		return nil, fmt.Errorf("creating proto for broker request: %w", err)
 	}
 
 	deals := make([]*pb.GetBrokerRequestInfoResponse_BrokerRequestDeal, len(br.Deals))
@@ -176,7 +176,7 @@ func AuctionWinningBidsToPb(
 func ClosedAuctionFromPb(pba *pb.StorageDealAuctionedRequest) (broker.ClosedAuction, error) {
 	wbids, err := AuctionWinningBidsFromPb(pba.WinningBids)
 	if err != nil {
-		return broker.ClosedAuction{}, fmt.Errorf("decoding bids: %v", err)
+		return broker.ClosedAuction{}, fmt.Errorf("decoding bids: %w", err)
 	}
 	a := broker.ClosedAuction{
 		ID:              auction.AuctionID(pba.Id),
