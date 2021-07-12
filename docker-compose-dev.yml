@@ -119,8 +119,8 @@ services:
       - BROKER_LOG_JSON=false
       - BROKER_IPFS_API_MULTIADDR=/dns4/ipfs/tcp/5001
       - BROKER_RPC_ADDR=:5000
-      - BROKER_MONGO_URI=mongodb://mongo:27017
-      - BROKER_MONGO_DBNAME=brokerd
+      # - BROKER_MONGO_URI=mongodb://mongo:27017
+      # - BROKER_MONGO_DBNAME=brokerd
       - BROKER_PACKER_ADDR=packerd:5000
       - BROKER_PIECER_ADDR=piecerd:5000
       - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
@@ -130,6 +130,7 @@ services:
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
       - BROKER_CAR_EXPORT_URL=http://storaged:8888/car/
+      - BROKER_POSTGRES_URI=postgres://postgres:5432?timezone=UTC
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
@@ -223,6 +224,14 @@ services:
         /usr/bin/mongod --fork --logpath /var/log/mongod.log --bind_ip_all --replSet rs0
         mongo --eval 'rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host: "mongo:27017" }]})'
         tail -f /var/log/mongod.log
+  postgres:
+    image: postgres:latest
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
   ipfs:
     image: ipfs/go-ipfs:v0.8.0
     platform: linux/amd64

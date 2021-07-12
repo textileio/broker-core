@@ -42,12 +42,12 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequ
 	}
 	res, err := c.c.CreateBrokerRequest(ctx, req)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
+		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %w", err)
 	}
 
 	br, err := cast.FromProtoBrokerRequest(res.Request)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
+		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %w", err)
 	}
 
 	return br, nil
@@ -84,12 +84,12 @@ func (c *Client) CreatePrepared(
 
 	res, err := c.c.CreatePreparedBrokerRequest(ctx, req)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
+		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %w", err)
 	}
 
 	br, err := cast.FromProtoBrokerRequest(res.Request)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
+		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %w", err)
 	}
 
 	return br, nil
@@ -104,11 +104,11 @@ func (c *Client) GetBrokerRequestInfo(
 	}
 	res, err := c.c.GetBrokerRequestInfo(ctx, req)
 	if err != nil {
-		return broker.BrokerRequestInfo{}, fmt.Errorf("calling get broker api: %s", err)
+		return broker.BrokerRequestInfo{}, fmt.Errorf("calling get broker api: %w", err)
 	}
 	br, err := cast.FromProtoBrokerRequestInfo(res)
 	if err != nil {
-		return broker.BrokerRequestInfo{}, fmt.Errorf("converting broker request response: %s", err)
+		return broker.BrokerRequestInfo{}, fmt.Errorf("converting broker request response: %w", err)
 	}
 
 	return br, nil
@@ -118,7 +118,7 @@ func (c *Client) GetBrokerRequestInfo(
 func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
 	req := cast.ClosedAuctionToPb(auction)
 	if _, err := c.c.StorageDealAuctioned(ctx, req); err != nil {
-		return fmt.Errorf("calling storage deal winners api: %s", err)
+		return fmt.Errorf("calling storage deal winners api: %w", err)
 	}
 	return nil
 }
@@ -135,7 +135,7 @@ func (c *Client) StorageDealProposalAccepted(
 		ProposalCid:   proposalCid.String(),
 	}
 	if _, err := c.c.StorageDealProposalAccepted(ctx, req); err != nil {
-		return fmt.Errorf("calling proposal accepted deals api: %s", err)
+		return fmt.Errorf("calling proposal accepted deals api: %w", err)
 	}
 	return nil
 }
@@ -150,7 +150,7 @@ func (c *Client) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		ErrorCause:     fad.ErrorCause,
 	}
 	if _, err := c.c.StorageDealFinalizedDeal(ctx, req); err != nil {
-		return fmt.Errorf("calling storage finalized deals api: %s", err)
+		return fmt.Errorf("calling storage finalized deals api: %w", err)
 	}
 	return nil
 }
@@ -158,7 +158,7 @@ func (c *Client) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 // Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {
-		return fmt.Errorf("closing gRPC client: %s", err)
+		return fmt.Errorf("closing gRPC client: %w", err)
 	}
 	return nil
 }

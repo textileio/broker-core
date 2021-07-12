@@ -3,7 +3,6 @@ package broker
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/ipfs/go-cid"
 
@@ -100,8 +99,6 @@ type StorageDeal struct {
 	DisallowRebatching bool
 	AuctionRetries     int
 	FilEpochDeadline   uint64
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
 	Error              string
 
 	// Packer calculates this field after batching storage requests.
@@ -163,8 +160,6 @@ type MinerDeal struct {
 	StorageDealID StorageDealID
 	AuctionID     auction.AuctionID
 	BidID         auction.BidID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
 
 	Miner          string
 	DealID         int64
