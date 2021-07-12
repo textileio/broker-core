@@ -42,6 +42,9 @@ func New(projectID, apiKey, topicPrefix, subsPrefix string) (*PubsubMsgBroker, e
 	if !usingEmulator && projectID == "" {
 		return nil, fmt.Errorf("project-id is empty")
 	}
+	if !usingEmulator && topicPrefix == "" {
+		return nil, fmt.Errorf("topic-prefix is empty")
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	client, err := pubsub.NewClient(ctx, projectID, option.WithCredentialsJSON([]byte(apiKey)))
