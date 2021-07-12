@@ -76,7 +76,6 @@ var rootCmd = &cobra.Command{
 			ipfsMultiaddrs[i] = ma
 		}
 
-		// TODO(jsign): configPiecer env vars.
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
