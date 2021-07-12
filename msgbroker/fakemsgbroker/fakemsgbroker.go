@@ -8,20 +8,25 @@ import (
 	mbroker "github.com/textileio/broker-core/msgbroker"
 )
 
+// FakeMsgBroker is an in-memory implementation of a msgbroker. It's only useful for tests.
 type FakeMsgBroker struct {
 	lock          sync.Mutex
 	topicMessages map[string][][]byte
 }
 
+// New returns a new FakeMsgBroker.
 func New() *FakeMsgBroker {
 	return &FakeMsgBroker{
 		topicMessages: map[string][][]byte{},
 	}
 }
 
+// RegisterTopicHandler registers a handler for a topic.
 func (b *FakeMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, handler mbroker.TopicHandler) error {
 	panic("not implemented")
 }
+
+// PublishMsg publishes a payload to a topic.
 func (b *FakeMsgBroker) PublishMsg(ctx context.Context, topicName mbroker.TopicName, data []byte) error {
 	b.lock.Lock()
 	defer b.lock.Unlock()
@@ -33,6 +38,7 @@ func (b *FakeMsgBroker) PublishMsg(ctx context.Context, topicName mbroker.TopicN
 
 // Helpers for tests
 
+// TotalPublished returns the amount of all published messages.
 func (b *FakeMsgBroker) TotalPublished() int {
 	b.lock.Lock()
 	defer b.lock.Unlock()
@@ -45,6 +51,7 @@ func (b *FakeMsgBroker) TotalPublished() int {
 	return count
 }
 
+// TotalPublishedTopic returns the total amount of published messages in a topic.
 func (b *FakeMsgBroker) TotalPublishedTopic(name string) int {
 	b.lock.Lock()
 	defer b.lock.Unlock()
@@ -52,6 +59,7 @@ func (b *FakeMsgBroker) TotalPublishedTopic(name string) int {
 	return len(b.topicMessages[name])
 }
 
+// GetMsg returns the idx-th (0-based index) message present in a particular topic.
 func (b *FakeMsgBroker) GetMsg(name string, idx int) ([]byte, error) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
