@@ -27,28 +27,35 @@ type MsgBroker interface {
 	PublishMsg(ctx context.Context, topicName TopicName, data []byte) error
 }
 
+// TopicName is a topic name.
 type TopicName string
 
 const (
-	NewBatchCreatedTopic  TopicName = "new-batch-created"
-	NewBatchPreparedTopic           = "new-batch-prepared"
+	// NewBatchCreatedTopic is the topic name for new-batch-created messages.
+	NewBatchCreatedTopic TopicName = "new-batch-created"
+	// NewBatchPreparedTopic is the topic name for new-batch-prepared messages.
+	NewBatchPreparedTopic = "new-batch-prepared"
 )
 
+// NewBatchCreatedListener is a handler for NewBatchCreated topic.
 type NewBatchCreatedListener interface {
 	OnNewBatchCreated(broker.StorageDealID, cid.Cid, []broker.BrokerRequestID) error
 }
 
+// NewBatchPreparedListener is a handler for NewBatchPrepared topic.
 type NewBatchPreparedListener interface {
 	OnNewBatchPrepared(broker.StorageDealID, broker.DataPreparationResult) error
 }
 
-func RegisterHandlers(mb MsgBroker, s interface{}) {
+// RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
+// s might satisfy on known XXXListener interfaces. This allows to automatically wire
+// s to receive messages from topics of implemented handlers.
+func RegisterHandlers(mb MsgBroker, s interface{}) error {
 	if l, ok := s.(NewBatchCreatedListener); ok {
-		mb.RegisterTopicHandler(NewBatchCreatedTopic, func(data []byte) error {
+		err := mb.RegisterTopicHandler(NewBatchCreatedTopic, func(data []byte) error {
 			r := &pbBroker.NewBatchCreated{}
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal new batch created: %s", err)
-
 			}
 			if r.Id == "" {
 				return errors.New("storage deal id is empty")
@@ -75,10 +82,13 @@ func RegisterHandlers(mb MsgBroker, s interface{}) {
 			}
 			return nil
 		})
+		if err != nil {
+			return fmt.Errorf("registering handler for new-batch-created topic")
+		}
 	}
 
 	if l, ok := s.(NewBatchPreparedListener); ok {
-		mb.RegisterTopicHandler(NewBatchPreparedTopic, func(data []byte) error {
+		err := mb.RegisterTopicHandler(NewBatchPreparedTopic, func(data []byte) error {
 			r := &pbBroker.NewBatchPrepared{}
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal new batch prepared: %s", err)
@@ -97,5 +107,10 @@ func RegisterHandlers(mb MsgBroker, s interface{}) {
 			}
 			return nil
 		})
+		if err != nil {
+			return fmt.Errorf("registering handler for new-batch-prepared topic")
+		}
 	}
+
+	return nil
 }

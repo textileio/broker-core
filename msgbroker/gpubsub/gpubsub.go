@@ -18,8 +18,9 @@ var (
 	log = logger.Logger("gpubsub")
 )
 
+// PubsubMsgBroker is an implementation of MsgBroker for Google PubSub.
 type PubsubMsgBroker struct {
-	subsPrefix  string
+	subsName    string
 	topicPrefix string
 
 	client          *pubsub.Client
@@ -34,7 +35,8 @@ type PubsubMsgBroker struct {
 
 var _ mbroker.MsgBroker = (*PubsubMsgBroker)(nil)
 
-func New(projectID, apiKey, topicPrefix, subsPrefix string) (*PubsubMsgBroker, error) {
+// New returns a new *PubsubMsgBroker.
+func New(projectID, apiKey, topicPrefix, subsName string) (*PubsubMsgBroker, error) {
 	_, usingEmulator := os.LookupEnv("PUBSUB_EMULATOR_HOST")
 	if !usingEmulator && apiKey == "" {
 		return nil, fmt.Errorf("api key is empty")
@@ -55,7 +57,7 @@ func New(projectID, apiKey, topicPrefix, subsPrefix string) (*PubsubMsgBroker, e
 
 	return &PubsubMsgBroker{
 		topicPrefix: topicPrefix,
-		subsPrefix:  subsPrefix,
+		subsName:    subsName,
 
 		client:          client,
 		clientCtx:       ctx,
@@ -65,13 +67,20 @@ func New(projectID, apiKey, topicPrefix, subsPrefix string) (*PubsubMsgBroker, e
 	}, nil
 }
 
-func (p *PubsubMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, handler mbroker.TopicHandler) error {
+// RegisterTopicHandler registers a handler for a topic.
+// - If the topic doesn't exist in PubSub, it's automatically created. The topic name is defined
+//   as '<topic-prefix>-<topic-name>'.
+// - If a subscription doesn't exist in PubSub it's automatically created. The subscription name is
+//   defined as '<topic-prefix>-<topic-name>-<subs-name>' (e.g: "staging-new-batch-created-brokerd")
+func (p *PubsubMsgBroker) RegisterTopicHandler(tname mbroker.TopicName, handler mbroker.TopicHandler) error {
+	topicName := p.topicPrefix + string(tname)
+
 	topic, err := p.getTopic(topicName)
 	if err != nil {
 		return fmt.Errorf("get topic: %s", err)
 	}
 
-	subName := p.subsPrefix + "-" + string(topicName)
+	subName := topicName + "-" + p.subsName
 	var sub *pubsub.Subscription
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -127,7 +136,6 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, hand
 	}
 	p.receivingHandlersWg.Add(1)
 	go func() {
-
 		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
 			if err := handler(m.Data); err != nil {
@@ -148,7 +156,12 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, hand
 	return nil
 }
 
-func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName mbroker.TopicName, data []byte) error {
+// PublishMsg publishes a payload to a topic.
+// If the topic doesn't exist, it's created. The topic name is the same as described in
+// RegisterTopicHandler method documentation.
+func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, tname mbroker.TopicName, data []byte) error {
+	topicName := p.topicPrefix + string(tname)
+
 	topic, err := p.getTopic(topicName)
 	if err != nil {
 		return fmt.Errorf("get topic: %s", err)
@@ -167,8 +180,7 @@ func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, topicName mbroker.Topi
 	return nil
 }
 
-func (p *PubsubMsgBroker) getTopic(tname mbroker.TopicName) (*pubsub.Topic, error) {
-	name := p.topicPrefix + string(tname)
+func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
 	p.topicCacheLock.Lock()
 	defer p.topicCacheLock.Unlock()
 	topic, ok := p.topicCache[name]
@@ -196,6 +208,7 @@ func (p *PubsubMsgBroker) getTopic(tname mbroker.TopicName) (*pubsub.Topic, erro
 	return topic, nil
 }
 
+// Close closes the client.
 func (p *PubsubMsgBroker) Close() error {
 	log.Infof("closing pubsub msg broker...")
 
