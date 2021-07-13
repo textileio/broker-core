@@ -92,6 +92,10 @@ protos: $(BUF) $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC) clean-protos
 	$(BUF) generate --template '{"version":"v1beta1","plugins":[{"name":"go","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO)},{"name":"go-grpc","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO_GRPC)}]}'
 .PHONY: protos
 
+generate:
+	go generate ./...
+.PHONY: generate
+
 clean-protos:
 	find . -type f -name '*.pb.go' -delete
 	find . -type f -name '*pb_test.go' -delete
