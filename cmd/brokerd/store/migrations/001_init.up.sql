@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS broker_requests (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+CREATE INDEX IF NOT EXISTS broker_requests_storage_deal_id ON broker_requests (storage_deal_id);
 
 CREATE TABLE IF NOT EXISTS miner_deals (
     storage_deal_id text NOT NULL,
@@ -39,6 +40,8 @@ CREATE TABLE IF NOT EXISTS miner_deals (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+CREATE INDEX IF NOT EXISTS miner_deals_storage_deal_id ON miner_deals (storage_deal_id);
+CREATE INDEX IF NOT EXISTS miner_deals_miner_addr ON miner_deals (miner_addr);
 
 CREATE TABLE IF NOT EXISTS unpin_jobs (
     id text PRIMARY KEY,
