@@ -130,7 +130,7 @@ services:
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
       - BROKER_CAR_EXPORT_URL=http://storaged:8888/car/
-      - BROKER_POSTGRES_URI=postgres://postgres:5432?timezone=UTC
+      - BROKER_POSTGRES_URI=postgres://dev_user:dev_password@postgres:5432?sslmode=disable&timezone=UTC
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
@@ -227,8 +227,6 @@ services:
   postgres:
     image: postgres:latest
     platform: linux/amd64
-    ports:
-      - "127.0.0.1:5432:5432"
     environment:
       - POSTGRES_USER=dev_user
       - POSTGRES_PASSWORD=dev_password
