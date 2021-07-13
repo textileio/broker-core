@@ -87,16 +87,16 @@ func TestCreateStorageDeal(t *testing.T) {
 	sd2, err := b.GetStorageDeal(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, sd, sd2.ID)
-	require.True(t, castCid(sd2.PayloadCid).Defined())
+	require.True(t, sd2.PayloadCid.Defined())
 	require.Equal(t, broker.StorageDealPreparing, sd2.Status)
 	brs, err := b.store.GetBrokerRequests(ctx, sd)
 	require.NoError(t, err)
 	require.Len(t, brs, 2)
 	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
 	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
-	require.NotNil(t, sd2.CarUrl)
-	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid, sd2.CarUrl)
-	require.Equal(t, "", sd2.CarIpfsCid)
+	require.NotNil(t, sd2.Sources.CARURL)
+	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), sd2.Sources.CARURL.URL.String())
+	require.Nil(t, sd2.Sources.CARIPFS)
 	require.Zero(t, sd2.FilEpochDeadline)
 	require.False(t, sd2.DisallowRebatching)
 }
@@ -151,12 +151,15 @@ func TestCreatePrepared(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, brs, 1)
 	require.Contains(t, brs, br.BrokerRequest.ID)
-	require.Equal(t, carURLStr, sd.CarUrl)
-	require.Equal(t, sd.CarIpfsCid, pc.Sources.CARIPFS.Cid.String())
-	require.Contains(t, pc.Sources.CARIPFS.Multiaddrs[0].String(), sd.CarIpfsAddrs)
+	require.NotNil(t, sd.Sources.CARURL)
+	require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
+	require.NotNil(t, sd.Sources.CARIPFS)
+	require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
+	require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
+	require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
 	require.Equal(t, uint64(857142), sd.FilEpochDeadline)
-	require.Equal(t, payloadCid.String(), sd.PayloadCid)
-	require.Equal(t, pc.PieceCid.String(), sd.PieceCid)
+	require.Equal(t, payloadCid, sd.PayloadCid)
+	require.Equal(t, pc.PieceCid, sd.PieceCid)
 	require.Equal(t, pc.PieceSize, sd.PieceSize)
 
 	// 4- Check that we made the call to create the auction.
@@ -245,7 +248,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
 	require.Zero(t, auctioneer.calledFilEpochDeadline)
 	require.NotNil(t, auctioneer.calledSources.CARURL)
-	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid, auctioneer.calledSources.CARURL.URL.String())
+	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), auctioneer.calledSources.CARURL.URL.String())
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
@@ -323,8 +326,8 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Greater(t, sd2.UpdatedAt.Unix(), int64(0))
 	require.Equal(t, sd2.AuctionRetries, 0)
 	require.Empty(t, sd2.Error)
-	require.Equal(t, brgCid.String(), sd2.PayloadCid)
-	require.Equal(t, dpr.PieceCid.String(), sd2.PieceCid)
+	require.Equal(t, brgCid, sd2.PayloadCid)
+	require.Equal(t, dpr.PieceCid, sd2.PieceCid)
 	require.Equal(t, dpr.PieceSize, sd2.PieceSize)
 	for bidID, wb := range winningBids {
 		var found bool
@@ -657,7 +660,6 @@ func createBroker(t *testing.T) (
 	chainAPI := &dumbChainAPI{}
 	u, err := tests.PostgresURL()
 	require.NoError(t, err)
-	t.Logf("postgres URL: %s", u)
 	b, err := New(
 		u,
 		packer,
