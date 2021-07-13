@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +16,9 @@ import (
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
 	_ "github.com/jackc/pgx/v4/stdlib" /*nolint*/
+	"github.com/multiformats/go-multiaddr"
 	"github.com/oklog/ulid/v2"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/brokerd/store/migrations"
@@ -32,8 +35,23 @@ var (
 	log = logger.Logger("store")
 )
 
-// StorageDeal is a type alias to avoid circular import.
-type StorageDeal = db.StorageDeal
+// StorageDeal maps a storage deal in database.
+type StorageDeal struct {
+	ID                 broker.StorageDealID
+	Status             broker.StorageDealStatus
+	RepFactor          int
+	DealDuration       int
+	PayloadCid         cid.Cid
+	PieceCid           cid.Cid
+	PieceSize          uint64
+	Sources            auction.Sources
+	DisallowRebatching bool
+	AuctionRetries     int
+	FilEpochDeadline   uint64
+	Error              string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
 
 // Store provides a persistent layer for broker requests.
 type Store struct {
@@ -460,9 +478,12 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 
 // GetStorageDeal gets an existing storage deal by id. If the storage deal doesn't exists, it returns
 // ErrNotFound.
-func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (StorageDeal, error) {
+func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (*StorageDeal, error) {
 	sd, err := s.db.GetStorageDeal(ctx, id)
-	return StorageDeal(sd), err
+	if err != nil {
+		return nil, err
+	}
+	return storageDealFromDB(&sd)
 }
 
 // GetMinerDeals gets miner deals for a storage deal.
@@ -513,4 +534,55 @@ func (s *Store) newID() (string, error) {
 	}
 	s.lock.Unlock()
 	return strings.ToLower(id.String()), nil
+}
+
+func storageDealFromDB(sd *db.StorageDeal) (sd2 *StorageDeal, err error) {
+	var payloadCid cid.Cid
+	if sd.PayloadCid != "" {
+		payloadCid, err = cid.Parse(sd.PayloadCid)
+		if err != nil {
+			return nil, fmt.Errorf("parsing payload CID: %w", err)
+		}
+	}
+	var pieceCid cid.Cid
+	if sd.PieceCid != "" {
+		pieceCid, err = cid.Parse(sd.PieceCid)
+		if err != nil {
+			return nil, fmt.Errorf("parsing piece CID: %w", err)
+		}
+	}
+	var sources auction.Sources
+	if u, err := url.ParseRequestURI(sd.CarUrl); err == nil {
+		sources.CARURL = &auction.CARURL{*u}
+	}
+	if sd.CarIpfsCid != "" {
+		if id, err := cid.Parse(sd.CarIpfsCid); err == nil {
+			carIPFS := &auction.CARIPFS{Cid: id}
+			addrs := strings.Split(sd.CarIpfsAddrs, ",")
+			for _, addr := range addrs {
+				if ma, err := multiaddr.NewMultiaddr(addr); err == nil {
+					carIPFS.Multiaddrs = append(carIPFS.Multiaddrs, ma)
+				} else {
+					return nil, fmt.Errorf("parsing IPFS multiaddr: %w", err)
+				}
+			}
+			sources.CARIPFS = carIPFS
+		}
+	}
+	return &StorageDeal{
+		ID:                 sd.ID,
+		Status:             sd.Status,
+		RepFactor:          sd.RepFactor,
+		DealDuration:       sd.DealDuration,
+		PayloadCid:         payloadCid,
+		PieceCid:           pieceCid,
+		PieceSize:          sd.PieceSize,
+		Sources:            sources,
+		DisallowRebatching: sd.DisallowRebatching,
+		AuctionRetries:     sd.AuctionRetries,
+		FilEpochDeadline:   sd.FilEpochDeadline,
+		Error:              sd.Error,
+		CreatedAt:          sd.CreatedAt,
+		UpdatedAt:          sd.UpdatedAt,
+	}, nil
 }
