@@ -175,7 +175,8 @@ func (b *Broker) CreatePrepared(
 		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
 	}
 	sd := broker.StorageDeal{
-		ID:                 broker.StorageDealID(uuid.New().String()), // TODO(jsign): this should change to storaged providing the id.
+		// TODO(jsign): this might change depending if gRPC is still used for this API.
+		ID:                 broker.StorageDealID(uuid.New().String()),
 		RepFactor:          pc.RepFactor,
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.StorageDealAuctioning,

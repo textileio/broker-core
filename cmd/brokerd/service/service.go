@@ -141,7 +141,9 @@ func New(config Config) (*Service, error) {
 		broker: broker,
 	}
 
-	msgbroker.RegisterHandlers(mb, s)
+	if err := msgbroker.RegisterHandlers(mb, s); err != nil {
+		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
+	}
 
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
@@ -306,6 +308,7 @@ func (s *Service) GetBrokerRequestInfo(
 	return res, nil
 }
 
+// OnNewBatchCreated handles new messages in new-batch-created topic.
 func (s *Service) OnNewBatchCreated(id broker.StorageDealID, batchCid cid.Cid, brids []broker.BrokerRequestID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -338,8 +341,8 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
+// OnNewBatchPreparedHandler handles new messages in new-batch-prepared topic.
 func (s *Service) OnNewBatchPreparedHandler(id broker.StorageDealID, pr broker.DataPreparationResult) error {
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
