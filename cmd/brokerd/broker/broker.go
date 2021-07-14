@@ -539,7 +539,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 	log.Debug("received a finalized deal...")
 
 	// 1. Save the finalized deal in the storage-deal (successful or not)
-	if err := b.store.SaveFinalizedDeal(ctx, fad); err != nil {
+	if err := b.store.SaveMinerDeals(ctx, fad); err != nil {
 		return fmt.Errorf("adding finalized info to the store: %s", err)
 	}
 

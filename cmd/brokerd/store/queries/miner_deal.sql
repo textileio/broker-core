@@ -23,7 +23,7 @@ SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
 WHERE storage_deal_id = $1 AND miner_addr = $2
-RETURNING deal_id;
+RETURNING 0; -- for the caller to count number of rows affected
 
 
 -- name: GetMinerDeals :many

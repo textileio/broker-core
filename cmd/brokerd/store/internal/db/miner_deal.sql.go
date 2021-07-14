@@ -54,9 +54,12 @@ func (q *Queries) CreateMinerDeal(ctx context.Context, arg CreateMinerDealParams
 }
 
 const getMinerDeals = `-- name: GetMinerDeals :many
+
+
 SELECT storage_deal_id, auction_id, bid_id, miner_addr, deal_id, deal_expiration, error_cause, created_at, updated_at FROM miner_deals WHERE storage_deal_id = $1
 `
 
+// for the caller to count number of rows affected
 func (q *Queries) GetMinerDeals(ctx context.Context, storageDealID broker.StorageDealID) ([]MinerDeal, error) {
 	rows, err := q.query(ctx, q.getMinerDealsStmt, getMinerDeals, storageDealID)
 	if err != nil {
@@ -96,7 +99,7 @@ SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
 WHERE storage_deal_id = $1 AND miner_addr = $2
-RETURNING deal_id
+RETURNING 0
 `
 
 type UpdateMinerDealsParams struct {
@@ -107,7 +110,7 @@ type UpdateMinerDealsParams struct {
 	ErrorCause     string               `json:"errorCause"`
 }
 
-func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsParams) ([]int64, error) {
+func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsParams) ([]interface{}, error) {
 	rows, err := q.query(ctx, q.updateMinerDealsStmt, updateMinerDeals,
 		arg.StorageDealID,
 		arg.MinerAddr,
@@ -119,13 +122,13 @@ func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsPara
 		return nil, err
 	}
 	defer rows.Close()
-	var items []int64
+	var items []interface{}
 	for rows.Next() {
-		var deal_id int64
-		if err := rows.Scan(&deal_id); err != nil {
+		var column_1 interface{}
+		if err := rows.Scan(&column_1); err != nil {
 			return nil, err
 		}
-		items = append(items, deal_id)
+		items = append(items, column_1)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
