@@ -92,10 +92,6 @@ protos: $(BUF) $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC) clean-protos
 	$(BUF) generate --template '{"version":"v1beta1","plugins":[{"name":"go","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO)},{"name":"go-grpc","out":"gen","opt":"paths=source_relative","path":$(PROTOC_GEN_GO_GRPC)}]}'
 .PHONY: protos
 
-generate:
-	go generate ./...
-.PHONY: generate
-
 clean-protos:
 	find . -type f -name '*.pb.go' -delete
 	find . -type f -name '*pb_test.go' -delete
@@ -122,6 +118,18 @@ buf-https: $(BUF)
 buf-ssh: $(BUF)
 	$(BUF) check lint
 	# $(BUF) check breaking --against-input "$(SSH_GIT)#branch=main"
+
+define gen_sql_assets
+	for daemon in $(1); do \
+		cd cmd/$${daemon}d/store && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -; \
+	done
+endef
+
+sql-assets:
+	$(call gen_sql_assets,broker);
+.PHONY: migrations
+
+generate: protos sql-assets
 
 define docker_push_daemon_head
 	for daemon in $(1); do \
