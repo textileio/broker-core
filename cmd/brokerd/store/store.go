@@ -126,7 +126,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, b
 	if err != nil {
 		return err
 	}
-	defer txn.Rollback()
+	defer txn.Rollback() // nolint:errcheck
 
 	// 1- Get all involved BrokerRequests and validate that they exist.
 	for _, brID := range brIDs {
@@ -203,7 +203,8 @@ func (s *Store) StorageDealToAuctioning(
 	if err != nil {
 		return err
 	}
-	defer txn.Rollback()
+	defer txn.Rollback() // nolint:errcheck
+
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, id)
 	if err != nil {
 		return fmt.Errorf("get storage deal: %s", err)
@@ -260,7 +261,7 @@ func (s *Store) StorageDealError(
 	if err != nil {
 		return nil, err
 	}
-	defer txn.Rollback()
+	defer txn.Rollback() // nolint:errcheck
 
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, id)
 	if err != nil {
@@ -335,7 +336,7 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 	if err != nil {
 		return err
 	}
-	defer txn.Rollback()
+	defer txn.Rollback() // nolint:errcheck
 
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, id)
 	if err != nil {
@@ -405,7 +406,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 	if err != nil {
 		return err
 	}
-	defer txn.Rollback()
+	defer txn.Rollback() // nolint:errcheck
 
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, auction.StorageDealID)
 	if err != nil {

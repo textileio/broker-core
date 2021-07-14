@@ -92,7 +92,7 @@ func initURL() (err error) {
 				log.Warnf("postgres container is not up yet: %w", err)
 				return err
 			}
-			conn.Close(ctx)
+			_ = conn.Close(ctx)
 			return nil
 		})
 		if err == nil {
