@@ -51,13 +51,13 @@ func (q *Queries) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestI
 	return i, err
 }
 
-const getBrokerRequests = `-- name: GetBrokerRequests :many
+const getBrokerRequestIDs = `-- name: GetBrokerRequestIDs :many
 SELECT id FROM broker_requests
 WHERE storage_deal_id = $1
 `
 
-func (q *Queries) GetBrokerRequests(ctx context.Context, storageDealID sql.NullString) ([]broker.BrokerRequestID, error) {
-	rows, err := q.query(ctx, q.getBrokerRequestsStmt, getBrokerRequests, storageDealID)
+func (q *Queries) GetBrokerRequestIDs(ctx context.Context, storageDealID sql.NullString) ([]broker.BrokerRequestID, error) {
+	rows, err := q.query(ctx, q.getBrokerRequestIDsStmt, getBrokerRequestIDs, storageDealID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +79,13 @@ func (q *Queries) GetBrokerRequests(ctx context.Context, storageDealID sql.NullS
 	return items, nil
 }
 
-const getBrokerRequestsFull = `-- name: GetBrokerRequestsFull :many
+const getBrokerRequests = `-- name: GetBrokerRequests :many
 SELECT id, data_cid, storage_deal_id, status, rebatch_count, error_cause, created_at, updated_at FROM broker_requests
 WHERE storage_deal_id = $1
 `
 
-func (q *Queries) GetBrokerRequestsFull(ctx context.Context, storageDealID sql.NullString) ([]BrokerRequest, error) {
-	rows, err := q.query(ctx, q.getBrokerRequestsFullStmt, getBrokerRequestsFull, storageDealID)
+func (q *Queries) GetBrokerRequests(ctx context.Context, storageDealID sql.NullString) ([]BrokerRequest, error) {
+	rows, err := q.query(ctx, q.getBrokerRequestsStmt, getBrokerRequests, storageDealID)
 	if err != nil {
 		return nil, err
 	}

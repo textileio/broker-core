@@ -40,11 +40,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getBrokerRequestStmt, err = db.PrepareContext(ctx, getBrokerRequest); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBrokerRequest: %w", err)
 	}
+	if q.getBrokerRequestIDsStmt, err = db.PrepareContext(ctx, getBrokerRequestIDs); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBrokerRequestIDs: %w", err)
+	}
 	if q.getBrokerRequestsStmt, err = db.PrepareContext(ctx, getBrokerRequests); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBrokerRequests: %w", err)
-	}
-	if q.getBrokerRequestsFullStmt, err = db.PrepareContext(ctx, getBrokerRequestsFull); err != nil {
-		return nil, fmt.Errorf("error preparing query GetBrokerRequestsFull: %w", err)
 	}
 	if q.getMinerDealsStmt, err = db.PrepareContext(ctx, getMinerDeals); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMinerDeals: %w", err)
@@ -117,14 +117,14 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getBrokerRequestStmt: %w", cerr)
 		}
 	}
+	if q.getBrokerRequestIDsStmt != nil {
+		if cerr := q.getBrokerRequestIDsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBrokerRequestIDsStmt: %w", cerr)
+		}
+	}
 	if q.getBrokerRequestsStmt != nil {
 		if cerr := q.getBrokerRequestsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getBrokerRequestsStmt: %w", cerr)
-		}
-	}
-	if q.getBrokerRequestsFullStmt != nil {
-		if cerr := q.getBrokerRequestsFullStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getBrokerRequestsFullStmt: %w", cerr)
 		}
 	}
 	if q.getMinerDealsStmt != nil {
@@ -232,8 +232,8 @@ type Queries struct {
 	createUnpinJobStmt                  *sql.Stmt
 	deleteExecutingUnpinJobStmt         *sql.Stmt
 	getBrokerRequestStmt                *sql.Stmt
+	getBrokerRequestIDsStmt             *sql.Stmt
 	getBrokerRequestsStmt               *sql.Stmt
-	getBrokerRequestsFullStmt           *sql.Stmt
 	getMinerDealsStmt                   *sql.Stmt
 	getStorageDealStmt                  *sql.Stmt
 	nextUnpinJobStmt                    *sql.Stmt
@@ -258,8 +258,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createUnpinJobStmt:                  q.createUnpinJobStmt,
 		deleteExecutingUnpinJobStmt:         q.deleteExecutingUnpinJobStmt,
 		getBrokerRequestStmt:                q.getBrokerRequestStmt,
+		getBrokerRequestIDsStmt:             q.getBrokerRequestIDsStmt,
 		getBrokerRequestsStmt:               q.getBrokerRequestsStmt,
-		getBrokerRequestsFullStmt:           q.getBrokerRequestsFullStmt,
 		getMinerDealsStmt:                   q.getMinerDealsStmt,
 		getStorageDealStmt:                  q.getStorageDealStmt,
 		nextUnpinJobStmt:                    q.nextUnpinJobStmt,

@@ -277,7 +277,7 @@ func (s *Store) StorageDealError(
 		if sd.Error != errorCause {
 			return nil, fmt.Errorf("the error cause is different from the registeredon : %s %s", sd.Error, errorCause)
 		}
-		return s.db.WithTx(txn).GetBrokerRequests(ctx, storageDealIDToSQL(id))
+		return s.db.WithTx(txn).GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
 	default:
 		return nil, fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
@@ -325,7 +325,7 @@ func (s *Store) StorageDealError(
 		return nil, fmt.Errorf("committing transaction: %s", err)
 	}
 
-	return s.db.GetBrokerRequests(ctx, storageDealIDToSQL(id))
+	return s.db.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
 }
 
 // StorageDealSuccess moves a storage deal and the underlying broker requests to
@@ -364,7 +364,7 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 		return fmt.Errorf("updating  broker requests status: %s", err)
 	}
 
-	brs, err := s.db.WithTx(txn).GetBrokerRequestsFull(ctx, storageDealIDToSQL(id))
+	brs, err := s.db.WithTx(txn).GetBrokerRequests(ctx, storageDealIDToSQL(id))
 	if err != nil {
 		return fmt.Errorf("getting broker requests: %s", err)
 	}
@@ -474,9 +474,9 @@ func (s *Store) GetMinerDeals(ctx context.Context, id broker.StorageDealID) ([]d
 	return s.db.GetMinerDeals(ctx, id)
 }
 
-// GetBrokerRequests gets broker requests for a storage deal.
-func (s *Store) GetBrokerRequests(ctx context.Context, id broker.StorageDealID) ([]broker.BrokerRequestID, error) {
-	return s.db.GetBrokerRequests(ctx, storageDealIDToSQL(id))
+// GetBrokerRequestIDs gets the ids of the broker requests for a storage deal.
+func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.StorageDealID) ([]broker.BrokerRequestID, error) {
+	return s.db.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
 }
 
 // SaveFinalizedDeal saves a new finalized (succeeded or errored) auction deal
