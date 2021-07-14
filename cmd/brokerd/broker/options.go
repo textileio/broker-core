@@ -107,7 +107,7 @@ func WithCARExportURL(rawURL string) Option {
 	return func(c *config) error {
 		u, err := url.Parse(rawURL)
 		if err != nil {
-			return fmt.Errorf("parsing url: %w", err)
+			return fmt.Errorf("parsing url: %s", err)
 		}
 		c.carExportURL = u
 		return nil

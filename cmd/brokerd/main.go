@@ -52,7 +52,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
-		common.CheckErrf("setting log levels: %w", err)
+		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
 		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
@@ -60,7 +60,7 @@ var rootCmd = &cobra.Command{
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
-			log.Fatalf("booting instrumentation: %w", err)
+			log.Fatalf("booting instrumentation: %s", err)
 		}
 
 		serviceConfig := service.Config{
@@ -96,7 +96,7 @@ var rootCmd = &cobra.Command{
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
-				log.Errorf("closing http endpoint: %w", err)
+				log.Errorf("closing http endpoint: %s", err)
 			}
 		})
 	},
