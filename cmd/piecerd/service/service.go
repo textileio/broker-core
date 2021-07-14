@@ -52,11 +52,14 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	mbroker.RegisterHandlers(mb, &s)
+	if err := mbroker.RegisterHandlers(mb, &s); err != nil {
+		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
+	}
 
 	return s, nil
 }
 
+// OnNewBatchCreated handles messages for new-batch-created topic.
 func (s *Service) OnNewBatchCreated(sdID broker.StorageDealID, batchCid cid.Cid) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()

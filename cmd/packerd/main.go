@@ -71,7 +71,6 @@ var rootCmd = &cobra.Command{
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     v.GetSizeInBytes("batch-min-size"),
 
-			// TODO(jsign): config these env vars in k8.
 			GPubSubProjectID:     v.GetString("gpubsub-project-id"),
 			GPubSubAPIKey:        v.GetString("gpubsub-api-key"),
 			MsgBrokerTopicPrefix: v.GetString("msgbroker-topic-prefix"),

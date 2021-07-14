@@ -56,14 +56,13 @@ func TestE2E(t *testing.T) {
 		t.SkipNow() // Skipped by default, only useful when providing credentials.
 
 		secretProjectID := "fill-me"
-		secretApiKey, err := ioutil.ReadFile("testdata/create-me.json")
+		secretAPIKey, err := ioutil.ReadFile("testdata/create-me.json")
 		require.NoError(t, err)
 
-		ps, err := New(secretProjectID, string(secretApiKey), "test-", "testd")
+		ps, err := New(secretProjectID, string(secretAPIKey), "test-", "testd")
 		require.NoError(t, err)
 		rune2e(t, ps)
 	})
-
 }
 
 func rune2e(t *testing.T, ps *PubsubMsgBroker) {
@@ -73,8 +72,8 @@ func rune2e(t *testing.T, ps *PubsubMsgBroker) {
 	sentDataTopic1 := []byte("duke-ftw")
 	sentDataTopic2 := []byte("duke-ftw-2")
 
-	ps.subsPrefix = "sub-1"
-	ps.RegisterTopicHandler("topic-1", func(data []byte) error {
+	ps.subsName = "sub-1"
+	err := ps.RegisterTopicHandler("topic-1", func(data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 		require.True(t, bytes.Equal(sentDataTopic1, data))
@@ -86,9 +85,10 @@ func rune2e(t *testing.T, ps *PubsubMsgBroker) {
 
 		return nil
 	})
+	require.NoError(t, err)
 
-	ps.subsPrefix = "sub-2"
-	ps.RegisterTopicHandler("topic-2", func(data []byte) error {
+	ps.subsName = "sub-2"
+	err = ps.RegisterTopicHandler("topic-2", func(data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 
@@ -97,11 +97,12 @@ func rune2e(t *testing.T, ps *PubsubMsgBroker) {
 		close(waitChan)
 		return nil
 	})
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	lock.Lock()
-	err := ps.PublishMsg(ctx, "topic-1", sentDataTopic1)
+	err = ps.PublishMsg(ctx, "topic-1", sentDataTopic1)
 	lock.Unlock()
 	require.NoError(t, err)
 
@@ -121,21 +122,23 @@ func TestTwoSubscriptions(t *testing.T) {
 	ps, err := New("", "", "test-", "testd")
 	require.NoError(t, err)
 
-	ps.subsPrefix = "sub-1"
-	ps.RegisterTopicHandler("topic-1", func(data []byte) error {
+	ps.subsName = "sub-1"
+	err = ps.RegisterTopicHandler("topic-1", func(data []byte) error {
 		fmt.Println("sub-1 received")
 		waitCh <- struct{}{}
 
 		return nil
 	})
+	require.NoError(t, err)
 
-	ps.subsPrefix = "sub-2"
-	ps.RegisterTopicHandler("topic-1", func(data []byte) error {
+	ps.subsName = "sub-2"
+	err = ps.RegisterTopicHandler("topic-1", func(data []byte) error {
 		fmt.Println("sub-2 received")
 		waitCh <- struct{}{}
 
 		return nil
 	})
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
