@@ -23,64 +23,64 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
 	if q.createBrokerRequestStmt, err = db.PrepareContext(ctx, createBrokerRequest); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateBrokerRequest: %s", err)
+		return nil, fmt.Errorf("error preparing query CreateBrokerRequest: %w", err)
 	}
 	if q.createMinerDealStmt, err = db.PrepareContext(ctx, createMinerDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateMinerDeal: %s", err)
+		return nil, fmt.Errorf("error preparing query CreateMinerDeal: %w", err)
 	}
 	if q.createStorageDealStmt, err = db.PrepareContext(ctx, createStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateStorageDeal: %s", err)
+		return nil, fmt.Errorf("error preparing query CreateStorageDeal: %w", err)
 	}
 	if q.createUnpinJobStmt, err = db.PrepareContext(ctx, createUnpinJob); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateUnpinJob: %s", err)
+		return nil, fmt.Errorf("error preparing query CreateUnpinJob: %w", err)
 	}
 	if q.deleteExecutingUnpinJobStmt, err = db.PrepareContext(ctx, deleteExecutingUnpinJob); err != nil {
-		return nil, fmt.Errorf("error preparing query DeleteExecutingUnpinJob: %s", err)
+		return nil, fmt.Errorf("error preparing query DeleteExecutingUnpinJob: %w", err)
 	}
 	if q.getBrokerRequestStmt, err = db.PrepareContext(ctx, getBrokerRequest); err != nil {
-		return nil, fmt.Errorf("error preparing query GetBrokerRequest: %s", err)
+		return nil, fmt.Errorf("error preparing query GetBrokerRequest: %w", err)
 	}
 	if q.getBrokerRequestsStmt, err = db.PrepareContext(ctx, getBrokerRequests); err != nil {
-		return nil, fmt.Errorf("error preparing query GetBrokerRequests: %s", err)
+		return nil, fmt.Errorf("error preparing query GetBrokerRequests: %w", err)
 	}
 	if q.getBrokerRequestsFullStmt, err = db.PrepareContext(ctx, getBrokerRequestsFull); err != nil {
-		return nil, fmt.Errorf("error preparing query GetBrokerRequestsFull: %s", err)
+		return nil, fmt.Errorf("error preparing query GetBrokerRequestsFull: %w", err)
 	}
 	if q.getMinerDealsStmt, err = db.PrepareContext(ctx, getMinerDeals); err != nil {
-		return nil, fmt.Errorf("error preparing query GetMinerDeals: %s", err)
+		return nil, fmt.Errorf("error preparing query GetMinerDeals: %w", err)
 	}
 	if q.getStorageDealStmt, err = db.PrepareContext(ctx, getStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query GetStorageDeal: %s", err)
+		return nil, fmt.Errorf("error preparing query GetStorageDeal: %w", err)
 	}
 	if q.nextUnpinJobStmt, err = db.PrepareContext(ctx, nextUnpinJob); err != nil {
-		return nil, fmt.Errorf("error preparing query NextUnpinJob: %s", err)
+		return nil, fmt.Errorf("error preparing query NextUnpinJob: %w", err)
 	}
 	if q.reauctionStorageDealStmt, err = db.PrepareContext(ctx, reauctionStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query ReauctionStorageDeal: %s", err)
+		return nil, fmt.Errorf("error preparing query ReauctionStorageDeal: %w", err)
 	}
 	if q.rebatchBrokerRequestsStmt, err = db.PrepareContext(ctx, rebatchBrokerRequests); err != nil {
-		return nil, fmt.Errorf("error preparing query RebatchBrokerRequests: %s", err)
+		return nil, fmt.Errorf("error preparing query RebatchBrokerRequests: %w", err)
 	}
 	if q.unpinJobToPendingStmt, err = db.PrepareContext(ctx, unpinJobToPending); err != nil {
-		return nil, fmt.Errorf("error preparing query UnpinJobToPending: %s", err)
+		return nil, fmt.Errorf("error preparing query UnpinJobToPending: %w", err)
 	}
 	if q.updateBrokerRequestStmt, err = db.PrepareContext(ctx, updateBrokerRequest); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateBrokerRequest: %s", err)
+		return nil, fmt.Errorf("error preparing query UpdateBrokerRequest: %w", err)
 	}
 	if q.updateBrokerRequestsStatusStmt, err = db.PrepareContext(ctx, updateBrokerRequestsStatus); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateBrokerRequestsStatus: %s", err)
+		return nil, fmt.Errorf("error preparing query UpdateBrokerRequestsStatus: %w", err)
 	}
 	if q.updateMinerDealsStmt, err = db.PrepareContext(ctx, updateMinerDeals); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateMinerDeals: %s", err)
+		return nil, fmt.Errorf("error preparing query UpdateMinerDeals: %w", err)
 	}
 	if q.updateStorageDealStmt, err = db.PrepareContext(ctx, updateStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateStorageDeal: %s", err)
+		return nil, fmt.Errorf("error preparing query UpdateStorageDeal: %w", err)
 	}
 	if q.updateStorageDealStatusStmt, err = db.PrepareContext(ctx, updateStorageDealStatus); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateStorageDealStatus: %s", err)
+		return nil, fmt.Errorf("error preparing query UpdateStorageDealStatus: %w", err)
 	}
 	if q.updateStorageDealStatusAndErrorStmt, err = db.PrepareContext(ctx, updateStorageDealStatusAndError); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateStorageDealStatusAndError: %s", err)
+		return nil, fmt.Errorf("error preparing query UpdateStorageDealStatusAndError: %w", err)
 	}
 	return &q, nil
 }
