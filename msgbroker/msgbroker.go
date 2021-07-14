@@ -21,7 +21,7 @@ type MsgBroker interface {
 	// RegisterTopicHandler registers a handler to a topic, with a defined
 	// subscription defined by the underlying implementation. Is highly recommended
 	// to register handlers in a type-safe way using RegisterHandlers().
-	RegisterTopicHandler(topic TopicName, handler TopicHandler) error
+	RegisterTopicHandler(topic TopicName, handler TopicHandler, opts ...Option) error
 
 	// PublishMsg publishes a message to the desired topic.
 	PublishMsg(ctx context.Context, topicName TopicName, data []byte) error
@@ -50,7 +50,7 @@ type NewBatchPreparedListener interface {
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
 // s might satisfy on known XXXListener interfaces. This allows to automatically wire
 // s to receive messages from topics of implemented handlers.
-func RegisterHandlers(mb MsgBroker, s interface{}) error {
+func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 	if l, ok := s.(NewBatchCreatedListener); ok {
 		err := mb.RegisterTopicHandler(NewBatchCreatedTopic, func(data []byte) error {
 			r := &pbBroker.NewBatchCreated{}
@@ -81,7 +81,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}) error {
 				return fmt.Errorf("calling on-new-batch-created handler: %s", err)
 			}
 			return nil
-		})
+		}, opts...)
 		if err != nil {
 			return fmt.Errorf("registering handler for new-batch-created topic")
 		}
@@ -106,7 +106,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}) error {
 				return fmt.Errorf("calling on-new-batch-prepared handler: %s", err)
 			}
 			return nil
-		})
+		}, opts...)
 		if err != nil {
 			return fmt.Errorf("registering handler for new-batch-prepared topic")
 		}

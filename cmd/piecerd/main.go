@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"net"
 	_ "net/http/pprof"
-	"time"
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
-	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
@@ -25,11 +23,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
-		{Name: "daemon-frequency", DefValue: time.Second * 30, Description: "Daemon frequency to process pending data"},
-		{Name: "retry-delay", DefValue: time.Second * 20, Description: "Delay for reprocessing items"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
@@ -62,12 +56,6 @@ var rootCmd = &cobra.Command{
 		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
 		common.CheckErrf("creating listener: %v", err)
 
-		ds, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
-		common.CheckErrf("creating mongo datastore: %v", err)
-
-		daemonFrequency := v.GetDuration("daemon-frequency")
-		retryDelay := v.GetDuration("retry-delay")
-
 		ipfsMultiaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
 		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
 		for i, maStr := range ipfsMultiaddrsStr {
@@ -83,11 +71,8 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("creating google pubsub client: %s", err)
 
 		config := service.Config{
-			Listener:        listener,
-			IpfsMultiaddrs:  ipfsMultiaddrs,
-			Datastore:       ds,
-			DaemonFrequency: daemonFrequency,
-			RetryDelay:      retryDelay,
+			Listener:       listener,
+			IpfsMultiaddrs: ipfsMultiaddrs,
 		}
 		serv, err := service.New(mb, config)
 		common.CheckErr(err)

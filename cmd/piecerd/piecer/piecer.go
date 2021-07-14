@@ -19,9 +19,7 @@ import (
 	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
 	pbBroker "github.com/textileio/broker-core/gen/broker/v1"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	pieceri "github.com/textileio/broker-core/piecer"
@@ -37,10 +35,7 @@ type Piecer struct {
 	mb       mbroker.MsgBroker
 	ipfsApis []ipfsAPI
 
-	store           *store.Store
-	daemonFrequency time.Duration
-	retryDelay      time.Duration
-	newRequest      chan struct{}
+	newRequest chan struct{}
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -65,11 +60,8 @@ var _ pieceri.Piecer = (*Piecer)(nil)
 
 // New returns a new Piecer.
 func New(
-	ds txndswrap.TxnDatastore,
 	ipfsEndpoints []multiaddr.Multiaddr,
-	mb mbroker.MsgBroker,
-	daemonFrequency time.Duration,
-	retryDelay time.Duration) (*Piecer, error) {
+	mb mbroker.MsgBroker) (*Piecer, error) {
 	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
@@ -85,20 +77,16 @@ func New(
 
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
-		store:    store.New(txndswrap.Wrap(ds, "/store")),
 		ipfsApis: ipfsApis,
 		mb:       mb,
 
-		daemonFrequency: daemonFrequency,
-		retryDelay:      retryDelay,
-		newRequest:      make(chan struct{}, 1),
+		newRequest: make(chan struct{}, 1),
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
 		daemonClosed:    make(chan struct{}),
 	}
 	p.initMetrics()
-	go p.daemon()
 
 	return p, nil
 }
@@ -113,7 +101,7 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, da
 		return fmt.Errorf("data-cid is undefined")
 	}
 
-	if err := p.store.Create(id, dataCid); err != nil {
+	if err := p.prepare(ctx, id, dataCid); err != nil {
 		return fmt.Errorf("saving %s %s: %s", id, dataCid, err)
 	}
 
@@ -135,55 +123,13 @@ func (p *Piecer) Close() error {
 	return nil
 }
 
-func (p *Piecer) daemon() {
-	defer close(p.daemonClosed)
-
-	p.newRequest <- struct{}{}
-	for {
-		select {
-		case <-p.daemonCtx.Done():
-			log.Info("piecer closed")
-			return
-		case <-p.newRequest:
-		case <-time.After(p.daemonFrequency):
-		}
-		for {
-			usd, ok, err := p.store.GetNext()
-			if err != nil {
-				log.Errorf("get next unprepared batch: %s", err)
-				break
-			}
-			if !ok {
-				log.Debug("no remaning unprepared batches")
-				break
-			}
-
-			if err := p.prepare(p.daemonCtx, usd); err != nil {
-				log.Errorf("preparing: %s", err)
-				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
-					log.Errorf("moving again to pending: %s", err)
-				}
-				break
-			}
-
-			if err := p.store.Delete(usd.ID); err != nil {
-				log.Errorf("deleting: %s", err)
-				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
-					log.Errorf("moving again to pending: %s", err)
-				}
-				break
-			}
-		}
-	}
-}
-
-func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) error {
+func (p *Piecer) prepare(ctx context.Context, sdID broker.StorageDealID, dataCid cid.Cid) error {
 	start := time.Now()
-	log.Debugf("preparing storage deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
+	log.Debugf("preparing storage deal %s with data-cid %s", sdID, dataCid)
 
-	nodeGetter, err := p.getNodeGetterForCid(usd.DataCid)
+	nodeGetter, err := p.getNodeGetterForCid(dataCid)
 	if err != nil {
-		return fmt.Errorf("get node getter for cid %s: %s", usd.DataCid, err)
+		return fmt.Errorf("get node getter for cid %s: %s", dataCid, err)
 	}
 
 	prCAR, pwCAR := io.Pipe()
@@ -194,7 +140,7 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 				errCarGen = err
 			}
 		}()
-		if err := car.WriteCar(ctx, nodeGetter, []cid.Cid{usd.DataCid}, pwCAR); err != nil {
+		if err := car.WriteCar(ctx, nodeGetter, []cid.Cid{dataCid}, pwCAR); err != nil {
 			errCarGen = err
 			return
 		}
@@ -239,10 +185,10 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 
 	log.Debugf("piece-size: %s, piece-cid: %s", humanize.IBytes(dpr.PieceSize), dpr.PieceCid)
 	duration := time.Since(start).Seconds()
-	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, duration)
+	log.Debugf("preparation of storage deal %s took %.2f seconds", sdID, duration)
 
 	sdp := &pbBroker.NewBatchPrepared{
-		Id:        string(usd.StorageDealID),
+		Id:        string(sdID),
 		PieceCid:  dpr.PieceCid.Bytes(),
 		PieceSize: dpr.PieceSize,
 	}
