@@ -74,11 +74,7 @@ func New(postgresURI string) (*Store, error) {
 // CreateBrokerRequest creates the provided BrokerRequest in store.
 func (s *Store) CreateBrokerRequest(ctx context.Context, br broker.BrokerRequest) error {
 	return s.db.CreateBrokerRequest(ctx, db.CreateBrokerRequestParams{
-		ID:            br.ID,
-		DataCid:       br.DataCid.String(),
-		StorageDealID: br.StorageDealID,
-		Status:        br.Status,
-	})
+		ID: br.ID, DataCid: br.DataCid.String(), Status: br.Status})
 }
 
 // GetBrokerRequest gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
@@ -97,7 +93,7 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 		ID:            br.ID,
 		DataCid:       dataCid,
 		Status:        br.Status,
-		StorageDealID: br.StorageDealID,
+		StorageDealID: broker.StorageDealID(br.StorageDealID.String),
 		CreatedAt:     br.CreatedAt,
 		UpdatedAt:     br.UpdatedAt,
 	}, nil
@@ -107,6 +103,16 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, brIDs []broker.BrokerRequestID) error {
 	if sd.ID == "" {
 		return fmt.Errorf("storage deal id is empty")
+	}
+	var brStatus broker.BrokerRequestStatus
+	// BrokerRequests status should mirror the StorageDeal status.
+	switch sd.Status {
+	case broker.StorageDealPreparing:
+		brStatus = broker.RequestPreparing
+	case broker.StorageDealAuctioning:
+		brStatus = broker.RequestAuctioning
+	default:
+		return fmt.Errorf("unexpected storage deal initial status %d", sd.Status)
 	}
 
 	start := time.Now()
@@ -122,33 +128,15 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, b
 	}
 	defer txn.Rollback()
 
-	// 1- Get all involved BrokerRequests and validate that their in the correct
-	// statuses, and nothing unexpected/invalid is going on.
-	brs := make([]db.BrokerRequest, len(brIDs))
-	now := time.Now()
-	for i, brID := range brIDs {
-		br, err := s.db.WithTx(txn).GetBrokerRequest(ctx, brID)
+	// 1- Get all involved BrokerRequests and validate that they exist.
+	for _, brID := range brIDs {
+		_, err := s.db.WithTx(txn).GetBrokerRequest(ctx, brID)
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("unknown broker request id %s: %w", brID, ErrStorageDealContainsUnknownBrokerRequest)
 		}
-
-		// 2- Link all BrokerRequests with the StorageDeal, and change their status
-		// to `Preparing`, since they should mirror the StorageDeal status.
-		switch sd.Status {
-		case broker.StorageDealPreparing:
-			br.Status = broker.RequestPreparing
-		case broker.StorageDealAuctioning:
-			br.Status = broker.RequestAuctioning
-		default:
-			return fmt.Errorf("unexpected storage deal initial status %d", sd.Status)
-		}
-		br.UpdatedAt = now
-		br.StorageDealID = sd.ID
-
-		brs[i] = br
 	}
 
-	// 3- Persist the StorageDeal.
+	// 2- Persist the StorageDeal.
 	dsources := struct {
 		carURL         string
 		ipfsCid        string
@@ -187,11 +175,14 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, b
 		return fmt.Errorf("saving storage deal: %s", err)
 	}
 
-	for _, br := range brs {
-		if err := s.db.WithTx(txn).UpdateBrokerRequest(ctx,
-			db.UpdateBrokerRequestParams{br.ID, br.Status, sd.ID}); err != nil {
-			return fmt.Errorf("saving broker request: %s", err)
-		}
+	// 3- update the BrokerRequests with correct StorageDealID and status.
+	ids := make([]string, len(brIDs))
+	for i, id := range brIDs {
+		ids[i] = string(id)
+	}
+	if err := s.db.WithTx(txn).UpdateBrokerRequests(ctx, db.UpdateBrokerRequestsParams{
+		Column1: ids, Status: brStatus, StorageDealID: storageDealIDToSQL(sd.ID)}); err != nil {
+		return fmt.Errorf("saving broker request: %s", err)
 	}
 
 	if err := txn.Commit(); err != nil {
@@ -242,11 +233,12 @@ func (s *Store) StorageDealToAuctioning(
 		PieceCid:  pieceCid.String(),
 		PieceSize: pieceSize,
 	}); err != nil {
-		return fmt.Errorf("save storage deal: %s", err)
+		return fmt.Errorf("update storage deal: %s", err)
 	}
 
-	if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{Status: broker.RequestAuctioning, StorageDealID: sd.ID}); err != nil {
-		return fmt.Errorf("saving broker request: %s", err)
+	if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
+		Status: broker.RequestAuctioning, StorageDealID: storageDealIDToSQL(sd.ID)}); err != nil {
+		return fmt.Errorf("update broker requests status: %s", err)
 	}
 
 	if err := txn.Commit(); err != nil {
@@ -285,7 +277,7 @@ func (s *Store) StorageDealError(
 		if sd.Error != errorCause {
 			return nil, fmt.Errorf("the error cause is different from the registeredon : %s %s", sd.Error, errorCause)
 		}
-		return s.db.WithTx(txn).GetBrokerRequests(ctx, id)
+		return s.db.WithTx(txn).GetBrokerRequests(ctx, storageDealIDToSQL(id))
 	default:
 		return nil, fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
@@ -296,7 +288,8 @@ func (s *Store) StorageDealError(
 	sd.Error = errorCause
 	sd.UpdatedAt = now
 
-	if err := s.db.WithTx(txn).UpdateStorageDealStatusAndError(ctx, db.UpdateStorageDealStatusAndErrorParams{ID: id, Error: errorCause, Status: broker.StorageDealError}); err != nil {
+	if err := s.db.WithTx(txn).UpdateStorageDealStatusAndError(ctx, db.UpdateStorageDealStatusAndErrorParams{
+		ID: id, Error: errorCause, Status: broker.StorageDealError}); err != nil {
 		return nil, fmt.Errorf("save storage deal: %s", err)
 	}
 
@@ -306,12 +299,13 @@ func (s *Store) StorageDealError(
 		status = broker.RequestBatching
 	}
 
-	if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{StorageDealID: id, Status: status}); err != nil {
+	if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
+		StorageDealID: storageDealIDToSQL(id), Status: status}); err != nil {
 		return nil, fmt.Errorf("getting broker request: %s", err)
 	}
 	if rebatch {
-
-		if err := s.db.WithTx(txn).RebatchBrokerRequests(ctx, db.RebatchBrokerRequestsParams{StorageDealID: id, ErrorCause: errorCause}); err != nil {
+		if err := s.db.WithTx(txn).RebatchBrokerRequests(ctx, db.RebatchBrokerRequestsParams{
+			StorageDealID: storageDealIDToSQL(id), ErrorCause: errorCause}); err != nil {
 			return nil, fmt.Errorf("getting broker request: %s", err)
 		}
 	}
@@ -322,7 +316,8 @@ func (s *Store) StorageDealError(
 		return nil, fmt.Errorf("generating id for unpin job: %s", err)
 	}
 
-	if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
+	if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{
+		ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
 		return nil, fmt.Errorf("saving unpin job: %s", err)
 	}
 
@@ -330,7 +325,7 @@ func (s *Store) StorageDealError(
 		return nil, fmt.Errorf("committing transaction: %s", err)
 	}
 
-	return s.db.GetBrokerRequests(ctx, id)
+	return s.db.GetBrokerRequests(ctx, storageDealIDToSQL(id))
 }
 
 // StorageDealSuccess moves a storage deal and the underlying broker requests to
@@ -359,24 +354,27 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 		return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
 	}
 
-	if err := s.db.WithTx(txn).UpdateStorageDealStatus(ctx, db.UpdateStorageDealStatusParams{ID: id, Status: broker.StorageDealSuccess}); err != nil {
-		return err
+	if err := s.db.WithTx(txn).UpdateStorageDealStatus(ctx, db.UpdateStorageDealStatusParams{
+		ID: id, Status: broker.StorageDealSuccess}); err != nil {
+		return fmt.Errorf("updating storage deal status: %s", err)
 	}
 
 	if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
-		StorageDealID: id,
-		Status:        broker.RequestSuccess,
-	}); err != nil {
-		return err
+		StorageDealID: storageDealIDToSQL(id), Status: broker.RequestSuccess}); err != nil {
+		return fmt.Errorf("updating  broker requests status: %s", err)
 	}
 
-	brs, err := s.db.WithTx(txn).GetBrokerRequestsFull(ctx, id)
+	brs, err := s.db.WithTx(txn).GetBrokerRequestsFull(ctx, storageDealIDToSQL(id))
+	if err != nil {
+		return fmt.Errorf("getting broker requests: %s", err)
+	}
 	for _, br := range brs {
 		unpinID, err := s.newID()
 		if err != nil {
 			return fmt.Errorf("generating id for unpin job: %s", err)
 		}
-		if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{ID: unpinID, Cid: br.DataCid, Type: int16(UnpinTypeData)}); err != nil {
+		if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{
+			ID: unpinID, Cid: br.DataCid, Type: int16(UnpinTypeData)}); err != nil {
 			return fmt.Errorf("saving unpin job: %s", err)
 		}
 	}
@@ -385,7 +383,8 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 	if err != nil {
 		return fmt.Errorf("generating id for unpin job: %s", err)
 	}
-	if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
+	if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{
+		ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
 		return fmt.Errorf("saving unpin job: %s", err)
 	}
 	if err := txn.Commit(); err != nil {
@@ -433,7 +432,8 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 
 	moveBrokerRequestsToDealMaking := false
 	if sd.Status == broker.StorageDealAuctioning {
-		if err := s.db.WithTx(txn).UpdateStorageDealStatus(ctx, db.UpdateStorageDealStatusParams{ID: auction.StorageDealID, Status: broker.StorageDealDealMaking}); err != nil {
+		if err := s.db.WithTx(txn).UpdateStorageDealStatus(ctx, db.UpdateStorageDealStatusParams{
+			ID: auction.StorageDealID, Status: broker.StorageDealDealMaking}); err != nil {
 			return fmt.Errorf("save storage deal: %s", err)
 		}
 		moveBrokerRequestsToDealMaking = true
@@ -446,7 +446,8 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 	// This conditional is to only move the broker-request on the first successful auction
 	// that might happen. On further auctions, we don't need to do this again.
 	if moveBrokerRequestsToDealMaking {
-		if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{Status: broker.RequestDealMaking, StorageDealID: sd.ID}); err != nil {
+		if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
+			StorageDealID: storageDealIDToSQL(sd.ID), Status: broker.RequestDealMaking}); err != nil {
 			return fmt.Errorf("saving broker request: %s", err)
 		}
 	}
@@ -475,7 +476,7 @@ func (s *Store) GetMinerDeals(ctx context.Context, id broker.StorageDealID) ([]d
 
 // GetBrokerRequests gets broker requests for a storage deal.
 func (s *Store) GetBrokerRequests(ctx context.Context, id broker.StorageDealID) ([]broker.BrokerRequestID, error) {
-	return s.db.GetBrokerRequests(ctx, id)
+	return s.db.GetBrokerRequests(ctx, storageDealIDToSQL(id))
 }
 
 // SaveFinalizedDeal saves a new finalized (succeeded or errored) auction deal
@@ -535,7 +536,7 @@ func storageDealFromDB(sd *db.StorageDeal) (sd2 *broker.StorageDeal, err error) 
 	}
 	var sources auction.Sources
 	if u, err := url.ParseRequestURI(sd.CarUrl); err == nil {
-		sources.CARURL = &auction.CARURL{*u}
+		sources.CARURL = &auction.CARURL{URL: *u}
 	}
 	if sd.CarIpfsCid != "" {
 		if id, err := cid.Parse(sd.CarIpfsCid); err == nil {
@@ -567,4 +568,8 @@ func storageDealFromDB(sd *db.StorageDeal) (sd2 *broker.StorageDeal, err error) 
 		CreatedAt:          sd.CreatedAt,
 		UpdatedAt:          sd.UpdatedAt,
 	}, nil
+}
+
+func storageDealIDToSQL(id broker.StorageDealID) sql.NullString {
+	return sql.NullString{String: string(id), Valid: true}
 }

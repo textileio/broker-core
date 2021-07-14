@@ -33,6 +33,7 @@ require (
 	github.com/jackc/pgx/v4 v4.12.0
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.2.0
+	github.com/lib/pq v1.10.2
 	github.com/libp2p/go-libp2p v0.14.3
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5

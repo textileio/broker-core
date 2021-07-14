@@ -13,7 +13,7 @@ import (
 type BrokerRequest struct {
 	ID            broker.BrokerRequestID     `json:"id"`
 	DataCid       string                     `json:"dataCid"`
-	StorageDealID broker.StorageDealID       `json:"storageDealID"`
+	StorageDealID sql.NullString             `json:"storageDealID"`
 	Status        broker.BrokerRequestStatus `json:"status"`
 	RebatchCount  int32                      `json:"rebatchCount"`
 	ErrorCause    string                     `json:"errorCause"`
