@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ipfs/go-cid"
 
@@ -92,7 +93,6 @@ type Broker interface {
 type StorageDeal struct {
 	ID                 StorageDealID
 	Status             StorageDealStatus
-	BrokerRequestIDs   []BrokerRequestID
 	RepFactor          int
 	DealDuration       int
 	Sources            auction.Sources
@@ -107,9 +107,8 @@ type StorageDeal struct {
 	// Piecer calculates these fields after preparing the batched DAG.
 	PieceCid  cid.Cid
 	PieceSize uint64
-
-	// Dealer populates this field
-	Deals []MinerDeal
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // StorageDealID is the type of a StorageDeal identifier.

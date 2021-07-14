@@ -70,12 +70,12 @@ func TestCreateStorageDeal(t *testing.T) {
 
 	// 2- Create a storage deal linked with those two broker request.
 	sd := broker.StorageDeal{
-		ID:               "SD1",
-		PayloadCid:       castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jB1"),
-		Status:           broker.StorageDealPreparing,
-		BrokerRequestIDs: []broker.BrokerRequestID{br1.ID, br2.ID},
+		ID:         "SD1",
+		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jB1"),
+		Status:     broker.StorageDealPreparing,
 	}
-	err = s.CreateStorageDeal(ctx, &sd)
+	brIDs := []broker.BrokerRequestID{br1.ID, br2.ID}
+	err = s.CreateStorageDeal(ctx, &sd, brIDs)
 	require.NoError(t, err)
 
 	// 3- Get the created storage deal by id, and check that fields are coherent.
@@ -89,7 +89,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	// 4- Check that both broker requests are associated to the storage deal.
 	brs, err := s.db.GetBrokerRequests(ctx, sd.ID)
 	require.NoError(t, err)
-	assert.Equal(t, len(sd.BrokerRequestIDs), len(brs))
+	assert.Equal(t, len(brIDs), len(brs))
 
 	// 5- Check that the underlying storage request, moved to Preparing and are linked to the created
 	//    storage deal!

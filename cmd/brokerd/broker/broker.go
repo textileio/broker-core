@@ -179,7 +179,6 @@ func (b *Broker) CreatePrepared(
 		RepFactor:          pc.RepFactor,
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.StorageDealAuctioning,
-		BrokerRequestIDs:   []broker.BrokerRequestID{br.ID},
 		Sources:            pc.Sources,
 		DisallowRebatching: true,
 		FilEpochDeadline:   filEpochDeadline,
@@ -191,7 +190,7 @@ func (b *Broker) CreatePrepared(
 	}
 
 	log.Debugf("creating prepared storage deal")
-	if err := b.store.CreateStorageDeal(ctx, &sd); err != nil {
+	if err := b.store.CreateStorageDeal(ctx, &sd, []broker.BrokerRequestID{br.ID}); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
@@ -280,7 +279,6 @@ func (b *Broker) CreateNewBatch(
 		RepFactor:          int(b.conf.dealReplication),
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.StorageDealPreparing,
-		BrokerRequestIDs:   brids,
 		DisallowRebatching: false,
 		FilEpochDeadline:   0,
 		Sources: auction.Sources{
@@ -290,7 +288,7 @@ func (b *Broker) CreateNewBatch(
 		},
 	}
 
-	if err := b.store.CreateStorageDeal(ctx, &sd); err != nil {
+	if err := b.store.CreateStorageDeal(ctx, &sd, brids); err != nil {
 		return "", fmt.Errorf("creating storage deal: %w", err)
 	}
 	log.Debugf("new storage-deal created with id %s", sd.ID)
@@ -605,13 +603,13 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 
 // GetStorageDeal gets an existing storage deal. If the storage deal doesn't exists, it returns
 // ErrNotFound.
-func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (store.StorageDeal, error) {
+func (b *Broker) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (broker.StorageDeal, error) {
 	sd, err := b.store.GetStorageDeal(ctx, id)
 	if err == ErrNotFound {
-		return store.StorageDeal{}, ErrNotFound
+		return broker.StorageDeal{}, ErrNotFound
 	}
 	if err != nil {
-		return store.StorageDeal{}, fmt.Errorf("get storage deal from store: %w", err)
+		return broker.StorageDeal{}, fmt.Errorf("get storage deal from store: %w", err)
 	}
 
 	return *sd, nil

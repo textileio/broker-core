@@ -35,24 +35,6 @@ var (
 	log = logger.Logger("store")
 )
 
-// StorageDeal maps a storage deal in database.
-type StorageDeal struct {
-	ID                 broker.StorageDealID
-	Status             broker.StorageDealStatus
-	RepFactor          int
-	DealDuration       int
-	PayloadCid         cid.Cid
-	PieceCid           cid.Cid
-	PieceSize          uint64
-	Sources            auction.Sources
-	DisallowRebatching bool
-	AuctionRetries     int
-	FilEpochDeadline   uint64
-	Error              string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-}
-
 // Store provides a persistent layer for broker requests.
 type Store struct {
 	conn    *sql.DB
@@ -122,7 +104,7 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 }
 
 // CreateStorageDeal persists a storage deal. It populates the sd.ID field with the corresponding id.
-func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) error {
+func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, brIDs []broker.BrokerRequestID) error {
 	if sd.ID == "" {
 		return fmt.Errorf("storage deal id is empty")
 	}
@@ -130,7 +112,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 	start := time.Now()
 	defer log.Debugf(
 		"creating storage deal %s with group size %d took %dms",
-		sd.ID, len(sd.BrokerRequestIDs),
+		sd.ID, len(brIDs),
 		time.Since(start).Milliseconds(),
 	)
 
@@ -142,9 +124,9 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal) e
 
 	// 1- Get all involved BrokerRequests and validate that their in the correct
 	// statuses, and nothing unexpected/invalid is going on.
-	brs := make([]db.BrokerRequest, len(sd.BrokerRequestIDs))
+	brs := make([]db.BrokerRequest, len(brIDs))
 	now := time.Now()
-	for i, brID := range sd.BrokerRequestIDs {
+	for i, brID := range brIDs {
 		br, err := s.db.WithTx(txn).GetBrokerRequest(ctx, brID)
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("unknown broker request id %s: %w", brID, ErrStorageDealContainsUnknownBrokerRequest)
@@ -478,7 +460,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 
 // GetStorageDeal gets an existing storage deal by id. If the storage deal doesn't exists, it returns
 // ErrNotFound.
-func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (*StorageDeal, error) {
+func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (*broker.StorageDeal, error) {
 	sd, err := s.db.GetStorageDeal(ctx, id)
 	if err != nil {
 		return nil, err
@@ -536,7 +518,7 @@ func (s *Store) newID() (string, error) {
 	return strings.ToLower(id.String()), nil
 }
 
-func storageDealFromDB(sd *db.StorageDeal) (sd2 *StorageDeal, err error) {
+func storageDealFromDB(sd *db.StorageDeal) (sd2 *broker.StorageDeal, err error) {
 	var payloadCid cid.Cid
 	if sd.PayloadCid != "" {
 		payloadCid, err = cid.Parse(sd.PayloadCid)
@@ -569,7 +551,7 @@ func storageDealFromDB(sd *db.StorageDeal) (sd2 *StorageDeal, err error) {
 			sources.CARIPFS = carIPFS
 		}
 	}
-	return &StorageDeal{
+	return &broker.StorageDeal{
 		ID:                 sd.ID,
 		Status:             sd.Status,
 		RepFactor:          sd.RepFactor,
