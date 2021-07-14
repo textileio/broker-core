@@ -64,8 +64,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.unpinJobToPendingStmt, err = db.PrepareContext(ctx, unpinJobToPending); err != nil {
 		return nil, fmt.Errorf("error preparing query UnpinJobToPending: %w", err)
 	}
-	if q.updateBrokerRequestStmt, err = db.PrepareContext(ctx, updateBrokerRequest); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateBrokerRequest: %w", err)
+	if q.updateBrokerRequestsStmt, err = db.PrepareContext(ctx, updateBrokerRequests); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateBrokerRequests: %w", err)
 	}
 	if q.updateBrokerRequestsStatusStmt, err = db.PrepareContext(ctx, updateBrokerRequestsStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateBrokerRequestsStatus: %w", err)
@@ -157,9 +157,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing unpinJobToPendingStmt: %w", cerr)
 		}
 	}
-	if q.updateBrokerRequestStmt != nil {
-		if cerr := q.updateBrokerRequestStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateBrokerRequestStmt: %w", cerr)
+	if q.updateBrokerRequestsStmt != nil {
+		if cerr := q.updateBrokerRequestsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateBrokerRequestsStmt: %w", cerr)
 		}
 	}
 	if q.updateBrokerRequestsStatusStmt != nil {
@@ -240,7 +240,7 @@ type Queries struct {
 	reauctionStorageDealStmt            *sql.Stmt
 	rebatchBrokerRequestsStmt           *sql.Stmt
 	unpinJobToPendingStmt               *sql.Stmt
-	updateBrokerRequestStmt             *sql.Stmt
+	updateBrokerRequestsStmt            *sql.Stmt
 	updateBrokerRequestsStatusStmt      *sql.Stmt
 	updateMinerDealsStmt                *sql.Stmt
 	updateStorageDealStmt               *sql.Stmt
@@ -266,7 +266,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		reauctionStorageDealStmt:            q.reauctionStorageDealStmt,
 		rebatchBrokerRequestsStmt:           q.rebatchBrokerRequestsStmt,
 		unpinJobToPendingStmt:               q.unpinJobToPendingStmt,
-		updateBrokerRequestStmt:             q.updateBrokerRequestStmt,
+		updateBrokerRequestsStmt:            q.updateBrokerRequestsStmt,
 		updateBrokerRequestsStatusStmt:      q.updateBrokerRequestsStatusStmt,
 		updateMinerDealsStmt:                q.updateMinerDealsStmt,
 		updateStorageDealStmt:               q.updateStorageDealStmt,

@@ -5,7 +5,9 @@ package db
 
 import (
 	"context"
+	"database/sql"
 
+	"github.com/lib/pq"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -13,25 +15,18 @@ const createBrokerRequest = `-- name: CreateBrokerRequest :exec
 INSERT INTO broker_requests(
     id,
     data_cid,
-    storage_deal_id,
     status
-    ) VALUES ($1, $2, $3, $4)
+    ) VALUES ($1, $2, $3)
 `
 
 type CreateBrokerRequestParams struct {
-	ID            broker.BrokerRequestID     `json:"id"`
-	DataCid       string                     `json:"dataCid"`
-	StorageDealID broker.StorageDealID       `json:"storageDealID"`
-	Status        broker.BrokerRequestStatus `json:"status"`
+	ID      broker.BrokerRequestID     `json:"id"`
+	DataCid string                     `json:"dataCid"`
+	Status  broker.BrokerRequestStatus `json:"status"`
 }
 
 func (q *Queries) CreateBrokerRequest(ctx context.Context, arg CreateBrokerRequestParams) error {
-	_, err := q.exec(ctx, q.createBrokerRequestStmt, createBrokerRequest,
-		arg.ID,
-		arg.DataCid,
-		arg.StorageDealID,
-		arg.Status,
-	)
+	_, err := q.exec(ctx, q.createBrokerRequestStmt, createBrokerRequest, arg.ID, arg.DataCid, arg.Status)
 	return err
 }
 
@@ -61,7 +56,7 @@ SELECT id FROM broker_requests
 WHERE storage_deal_id = $1
 `
 
-func (q *Queries) GetBrokerRequests(ctx context.Context, storageDealID broker.StorageDealID) ([]broker.BrokerRequestID, error) {
+func (q *Queries) GetBrokerRequests(ctx context.Context, storageDealID sql.NullString) ([]broker.BrokerRequestID, error) {
 	rows, err := q.query(ctx, q.getBrokerRequestsStmt, getBrokerRequests, storageDealID)
 	if err != nil {
 		return nil, err
@@ -89,7 +84,7 @@ SELECT id, data_cid, storage_deal_id, status, rebatch_count, error_cause, create
 WHERE storage_deal_id = $1
 `
 
-func (q *Queries) GetBrokerRequestsFull(ctx context.Context, storageDealID broker.StorageDealID) ([]BrokerRequest, error) {
+func (q *Queries) GetBrokerRequestsFull(ctx context.Context, storageDealID sql.NullString) ([]BrokerRequest, error) {
 	rows, err := q.query(ctx, q.getBrokerRequestsFullStmt, getBrokerRequestsFull, storageDealID)
 	if err != nil {
 		return nil, err
@@ -130,8 +125,8 @@ WHERE storage_deal_id = $1
 `
 
 type RebatchBrokerRequestsParams struct {
-	StorageDealID broker.StorageDealID `json:"storageDealID"`
-	ErrorCause    string               `json:"errorCause"`
+	StorageDealID sql.NullString `json:"storageDealID"`
+	ErrorCause    string         `json:"errorCause"`
 }
 
 func (q *Queries) RebatchBrokerRequests(ctx context.Context, arg RebatchBrokerRequestsParams) error {
@@ -139,22 +134,22 @@ func (q *Queries) RebatchBrokerRequests(ctx context.Context, arg RebatchBrokerRe
 	return err
 }
 
-const updateBrokerRequest = `-- name: UpdateBrokerRequest :exec
+const updateBrokerRequests = `-- name: UpdateBrokerRequests :exec
 UPDATE broker_requests
 SET status = $2,
     storage_deal_id = $3,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE id = any ($1::TEXT[])
 `
 
-type UpdateBrokerRequestParams struct {
-	ID            broker.BrokerRequestID     `json:"id"`
+type UpdateBrokerRequestsParams struct {
+	Column1       []string                   `json:"column1"`
 	Status        broker.BrokerRequestStatus `json:"status"`
-	StorageDealID broker.StorageDealID       `json:"storageDealID"`
+	StorageDealID sql.NullString             `json:"storageDealID"`
 }
 
-func (q *Queries) UpdateBrokerRequest(ctx context.Context, arg UpdateBrokerRequestParams) error {
-	_, err := q.exec(ctx, q.updateBrokerRequestStmt, updateBrokerRequest, arg.ID, arg.Status, arg.StorageDealID)
+func (q *Queries) UpdateBrokerRequests(ctx context.Context, arg UpdateBrokerRequestsParams) error {
+	_, err := q.exec(ctx, q.updateBrokerRequestsStmt, updateBrokerRequests, pq.Array(arg.Column1), arg.Status, arg.StorageDealID)
 	return err
 }
 
@@ -166,7 +161,7 @@ WHERE storage_deal_id = $1
 `
 
 type UpdateBrokerRequestsStatusParams struct {
-	StorageDealID broker.StorageDealID       `json:"storageDealID"`
+	StorageDealID sql.NullString             `json:"storageDealID"`
 	Status        broker.BrokerRequestStatus `json:"status"`
 }
 

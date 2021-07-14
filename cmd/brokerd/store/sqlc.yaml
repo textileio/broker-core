@@ -20,12 +20,8 @@ overrides:
 
   - column: "broker_requests.id"
     go_type: "github.com/textileio/broker-core/broker.BrokerRequestID"
-  - column: "broker_requests.storage_deal_id"
-    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
   - column: "broker_requests.status"
     go_type: "github.com/textileio/broker-core/broker.BrokerRequestStatus"
-  - column: "broker_requests.storage_deal_id"
-    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
 
   - column: "storage_deals.id"
     go_type: "github.com/textileio/broker-core/broker.StorageDealID"

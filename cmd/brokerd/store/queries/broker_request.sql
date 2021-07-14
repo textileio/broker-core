@@ -2,9 +2,8 @@
 INSERT INTO broker_requests(
     id,
     data_cid,
-    storage_deal_id,
     status
-    ) VALUES ($1, $2, $3, $4);
+    ) VALUES ($1, $2, $3);
 
 -- name: GetBrokerRequest :one
 SELECT * FROM broker_requests
@@ -19,12 +18,12 @@ WHERE storage_deal_id = $1;
 SELECT * FROM broker_requests
 WHERE storage_deal_id = $1;
 
--- name: UpdateBrokerRequest :exec
+-- name: UpdateBrokerRequests :exec
 UPDATE broker_requests
 SET status = $2,
     storage_deal_id = $3,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1;
+WHERE id = any ($1::TEXT[]);
 
 -- name: UpdateBrokerRequestsStatus :exec
 UPDATE broker_requests

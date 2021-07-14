@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS storage_deals (
 CREATE TABLE IF NOT EXISTS broker_requests (
     id text PRIMARY KEY,
     data_cid text NOT NULL,
-    storage_deal_id text NOT NULL,
+    storage_deal_id text,
     status smallint NOT NULL,
     rebatch_count int NOT NULL DEFAULT 0,
     error_cause text NOT NULL DEFAULT '',

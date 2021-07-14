@@ -19,10 +19,9 @@ func TestSaveAndGetBrokerRequest(t *testing.T) {
 	s := newStore(t)
 
 	br := broker.BrokerRequest{
-		ID:            "BR1",
-		DataCid:       castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
-		Status:        broker.RequestBatching,
-		StorageDealID: broker.StorageDealID("SD1"),
+		ID:      "BR1",
+		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
+		Status:  broker.RequestBatching,
 	}
 
 	// Test not found.
@@ -37,7 +36,6 @@ func TestSaveAndGetBrokerRequest(t *testing.T) {
 	require.Equal(t, br.ID, br2.ID)
 	require.Equal(t, br.DataCid, br2.DataCid)
 	require.Equal(t, br.Status, br2.Status)
-	require.Equal(t, br.StorageDealID, br2.StorageDealID)
 	assert.True(t, time.Since(br2.CreatedAt) < 100*time.Millisecond, time.Since(br2.CreatedAt))
 	assert.True(t, time.Since(br2.UpdatedAt) < 100*time.Millisecond, time.Since(br2.UpdatedAt))
 }
@@ -87,7 +85,7 @@ func TestCreateStorageDeal(t *testing.T) {
 	assert.True(t, time.Since(sd2.UpdatedAt) < 100*time.Millisecond, time.Since(sd2.CreatedAt))
 
 	// 4- Check that both broker requests are associated to the storage deal.
-	brs, err := s.db.GetBrokerRequests(ctx, sd.ID)
+	brs, err := s.db.GetBrokerRequests(ctx, storageDealIDToSQL(sd.ID))
 	require.NoError(t, err)
 	assert.Equal(t, len(brIDs), len(brs))
 
