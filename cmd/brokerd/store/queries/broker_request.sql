@@ -10,11 +10,11 @@ SELECT * FROM broker_requests
 WHERE id = $1;
 
 
--- name: GetBrokerRequests :many
+-- name: GetBrokerRequestIDs :many
 SELECT id FROM broker_requests
 WHERE storage_deal_id = $1;
 
--- name: GetBrokerRequestsFull :many
+-- name: GetBrokerRequests :many
 SELECT * FROM broker_requests
 WHERE storage_deal_id = $1;
 
