@@ -479,10 +479,10 @@ func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.StorageDealID
 	return s.db.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
 }
 
-// SaveFinalizedDeal saves a new finalized (succeeded or errored) auction deal
+// SaveMinerDeals saves a new finalized (succeeded or errored) auction deal
 // into the storage deal.
-func (s *Store) SaveFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
-	dealIDs, err := s.db.UpdateMinerDeals(ctx,
+func (s *Store) SaveMinerDeals(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
+	rows, err := s.db.UpdateMinerDeals(ctx,
 		db.UpdateMinerDealsParams{
 			StorageDealID:  fad.StorageDealID,
 			MinerAddr:      fad.Miner,
@@ -493,7 +493,7 @@ func (s *Store) SaveFinalizedDeal(ctx context.Context, fad broker.FinalizedAucti
 	if err != nil {
 		return fmt.Errorf("get storage deal: %s", err)
 	}
-	if len(dealIDs) == 0 {
+	if len(rows) == 0 {
 		return fmt.Errorf("deal not found: %v", fad)
 	}
 	return nil
