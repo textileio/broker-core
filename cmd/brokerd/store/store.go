@@ -184,18 +184,18 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, b
 		CarIpfsAddrs:       strings.Join(dsources.ipfsMultiaddrs, ","),
 	}
 	if err := s.db.WithTx(txn).CreateStorageDeal(ctx, isd); err != nil {
-		return fmt.Errorf("saving storage deal: %w", err)
+		return fmt.Errorf("saving storage deal: %s", err)
 	}
 
 	for _, br := range brs {
 		if err := s.db.WithTx(txn).UpdateBrokerRequest(ctx,
 			db.UpdateBrokerRequestParams{br.ID, br.Status, sd.ID}); err != nil {
-			return fmt.Errorf("saving broker request: %w", err)
+			return fmt.Errorf("saving broker request: %s", err)
 		}
 	}
 
 	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %w", err)
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return nil
@@ -215,7 +215,7 @@ func (s *Store) StorageDealToAuctioning(
 	defer txn.Rollback()
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, id)
 	if err != nil {
-		return fmt.Errorf("get storage deal: %w", err)
+		return fmt.Errorf("get storage deal: %s", err)
 	}
 
 	// Take care of correct state transitions.
@@ -242,15 +242,15 @@ func (s *Store) StorageDealToAuctioning(
 		PieceCid:  pieceCid.String(),
 		PieceSize: pieceSize,
 	}); err != nil {
-		return fmt.Errorf("save storage deal: %w", err)
+		return fmt.Errorf("save storage deal: %s", err)
 	}
 
 	if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{Status: broker.RequestAuctioning, StorageDealID: sd.ID}); err != nil {
-		return fmt.Errorf("saving broker request: %w", err)
+		return fmt.Errorf("saving broker request: %s", err)
 	}
 
 	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %w", err)
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return nil
@@ -272,7 +272,7 @@ func (s *Store) StorageDealError(
 
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("get storage deal: %w", err)
+		return nil, fmt.Errorf("get storage deal: %s", err)
 	}
 
 	// 1. Verify some pre-state conditions.
@@ -297,7 +297,7 @@ func (s *Store) StorageDealError(
 	sd.UpdatedAt = now
 
 	if err := s.db.WithTx(txn).UpdateStorageDealStatusAndError(ctx, db.UpdateStorageDealStatusAndErrorParams{ID: id, Error: errorCause, Status: broker.StorageDealError}); err != nil {
-		return nil, fmt.Errorf("save storage deal: %w", err)
+		return nil, fmt.Errorf("save storage deal: %s", err)
 	}
 
 	// 3. Move every underlying BrokerRequest to batching again, since they will be re-batched.
@@ -307,27 +307,27 @@ func (s *Store) StorageDealError(
 	}
 
 	if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{StorageDealID: id, Status: status}); err != nil {
-		return nil, fmt.Errorf("getting broker request: %w", err)
+		return nil, fmt.Errorf("getting broker request: %s", err)
 	}
 	if rebatch {
 
 		if err := s.db.WithTx(txn).RebatchBrokerRequests(ctx, db.RebatchBrokerRequestsParams{StorageDealID: id, ErrorCause: errorCause}); err != nil {
-			return nil, fmt.Errorf("getting broker request: %w", err)
+			return nil, fmt.Errorf("getting broker request: %s", err)
 		}
 	}
 
 	// 4. Mark the batchCid as unpinnable, since it won't be used anymore for auctions or deals.
 	unpinID, err := s.newID()
 	if err != nil {
-		return nil, fmt.Errorf("generating id for unpin job: %w", err)
+		return nil, fmt.Errorf("generating id for unpin job: %s", err)
 	}
 
 	if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
-		return nil, fmt.Errorf("saving unpin job: %w", err)
+		return nil, fmt.Errorf("saving unpin job: %s", err)
 	}
 
 	if err := txn.Commit(); err != nil {
-		return nil, fmt.Errorf("committing transaction: %w", err)
+		return nil, fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return s.db.GetBrokerRequests(ctx, id)
@@ -344,7 +344,7 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, id)
 	if err != nil {
-		return fmt.Errorf("get storage deal: %w", err)
+		return fmt.Errorf("get storage deal: %s", err)
 	}
 
 	// Take care of correct state transitions.
@@ -374,22 +374,22 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 	for _, br := range brs {
 		unpinID, err := s.newID()
 		if err != nil {
-			return fmt.Errorf("generating id for unpin job: %w", err)
+			return fmt.Errorf("generating id for unpin job: %s", err)
 		}
 		if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{ID: unpinID, Cid: br.DataCid, Type: int16(UnpinTypeData)}); err != nil {
-			return fmt.Errorf("saving unpin job: %w", err)
+			return fmt.Errorf("saving unpin job: %s", err)
 		}
 	}
 
 	unpinID, err := s.newID()
 	if err != nil {
-		return fmt.Errorf("generating id for unpin job: %w", err)
+		return fmt.Errorf("generating id for unpin job: %s", err)
 	}
 	if err := s.db.WithTx(txn).CreateUnpinJob(ctx, db.CreateUnpinJobParams{ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
-		return fmt.Errorf("saving unpin job: %w", err)
+		return fmt.Errorf("saving unpin job: %s", err)
 	}
 	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %w", err)
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return nil
@@ -410,7 +410,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 
 	sd, err := s.db.WithTx(txn).GetStorageDeal(ctx, auction.StorageDealID)
 	if err != nil {
-		return fmt.Errorf("get storage deal: %w", err)
+		return fmt.Errorf("get storage deal: %s", err)
 	}
 
 	// Take care of correct state transitions.
@@ -427,14 +427,14 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 			MinerAddr:     bid.MinerAddr,
 		})
 		if err != nil {
-			return fmt.Errorf("save storage deal: %w", err)
+			return fmt.Errorf("save storage deal: %s", err)
 		}
 	}
 
 	moveBrokerRequestsToDealMaking := false
 	if sd.Status == broker.StorageDealAuctioning {
 		if err := s.db.WithTx(txn).UpdateStorageDealStatus(ctx, db.UpdateStorageDealStatusParams{ID: auction.StorageDealID, Status: broker.StorageDealDealMaking}); err != nil {
-			return fmt.Errorf("save storage deal: %w", err)
+			return fmt.Errorf("save storage deal: %s", err)
 		}
 		moveBrokerRequestsToDealMaking = true
 	}
@@ -447,12 +447,12 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 	// that might happen. On further auctions, we don't need to do this again.
 	if moveBrokerRequestsToDealMaking {
 		if err := s.db.WithTx(txn).UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{Status: broker.RequestDealMaking, StorageDealID: sd.ID}); err != nil {
-			return fmt.Errorf("saving broker request: %w", err)
+			return fmt.Errorf("saving broker request: %s", err)
 		}
 	}
 
 	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %w", err)
+		return fmt.Errorf("committing transaction: %s", err)
 	}
 
 	return nil
@@ -490,7 +490,7 @@ func (s *Store) SaveFinalizedDeal(ctx context.Context, fad broker.FinalizedAucti
 			ErrorCause:     fad.ErrorCause,
 		})
 	if err != nil {
-		return fmt.Errorf("get storage deal: %w", err)
+		return fmt.Errorf("get storage deal: %s", err)
 	}
 	if len(dealIDs) == 0 {
 		return fmt.Errorf("deal not found: %v", fad)
@@ -512,7 +512,7 @@ func (s *Store) newID() (string, error) {
 		return s.newID()
 	} else if err != nil {
 		s.lock.Unlock()
-		return "", fmt.Errorf("generating id: %w", err)
+		return "", fmt.Errorf("generating id: %v", err)
 	}
 	s.lock.Unlock()
 	return strings.ToLower(id.String()), nil
@@ -523,14 +523,14 @@ func storageDealFromDB(sd *db.StorageDeal) (sd2 *broker.StorageDeal, err error) 
 	if sd.PayloadCid != "" {
 		payloadCid, err = cid.Parse(sd.PayloadCid)
 		if err != nil {
-			return nil, fmt.Errorf("parsing payload CID: %w", err)
+			return nil, fmt.Errorf("parsing payload CID: %s", err)
 		}
 	}
 	var pieceCid cid.Cid
 	if sd.PieceCid != "" {
 		pieceCid, err = cid.Parse(sd.PieceCid)
 		if err != nil {
-			return nil, fmt.Errorf("parsing piece CID: %w", err)
+			return nil, fmt.Errorf("parsing piece CID: %s", err)
 		}
 	}
 	var sources auction.Sources
@@ -545,7 +545,7 @@ func storageDealFromDB(sd *db.StorageDeal) (sd2 *broker.StorageDeal, err error) 
 				if ma, err := multiaddr.NewMultiaddr(addr); err == nil {
 					carIPFS.Multiaddrs = append(carIPFS.Multiaddrs, ma)
 				} else {
-					return nil, fmt.Errorf("parsing IPFS multiaddr: %w", err)
+					return nil, fmt.Errorf("parsing IPFS multiaddr: %s", err)
 				}
 			}
 			sources.CARIPFS = carIPFS

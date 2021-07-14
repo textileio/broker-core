@@ -76,41 +76,41 @@ var _ pb.APIServiceServer = (*Service)(nil)
 // New returns a new Service.
 func New(config Config) (*Service, error) {
 	if err := validateConfig(config); err != nil {
-		return nil, fmt.Errorf("config is invalid: %w", err)
+		return nil, fmt.Errorf("config is invalid: %s", err)
 	}
 
 	listener, err := net.Listen("tcp", config.ListenAddr)
 	if err != nil {
-		return nil, fmt.Errorf("getting net listener: %w", err)
+		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
 	packer, err := packeri.New(config.PackerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating packer implementation: %w", err)
+		return nil, fmt.Errorf("creating packer implementation: %s", err)
 	}
 
 	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating auctioneer implementation: %w", err)
+		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
 	}
 
 	dealer, err := dealeri.New(config.DealerAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating dealer implementation: %w", err)
+		return nil, fmt.Errorf("creating dealer implementation: %s", err)
 	}
 
 	reporter, err := chainapii.New(config.ReporterAddr)
 	if err != nil {
-		return nil, fmt.Errorf("creating reporter implementation: %w", err)
+		return nil, fmt.Errorf("creating reporter implementation: %s", err)
 	}
 
 	ma, err := multiaddr.NewMultiaddr(config.IPFSAPIMultiaddr)
 	if err != nil {
-		return nil, fmt.Errorf("parsing ipfs client multiaddr: %w", err)
+		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
 	}
 	ipfsClient, err := httpapi.NewApi(ma)
 	if err != nil {
-		return nil, fmt.Errorf("creating ipfs client: %w", err)
+		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
 
 	mb, err := gpubsub.New(config.GPubSubProjectID, config.GPubSubAPIKey, config.MsgBrokerTopicPrefix, "brokerd")
@@ -132,7 +132,7 @@ func New(config Config) (*Service, error) {
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("creating broker implementation: %w", err)
+		return nil, fmt.Errorf("creating broker implementation: %s", err)
 	}
 
 	s := &Service{
@@ -146,7 +146,7 @@ func New(config Config) (*Service, error) {
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
 		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Errorf("server error: %w", err)
+			log.Errorf("server error: %v", err)
 		}
 	}()
 

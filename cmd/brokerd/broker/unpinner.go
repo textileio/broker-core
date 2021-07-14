@@ -28,7 +28,7 @@ func (b *Broker) daemonUnpinner() {
 		for {
 			uj, ok, err := b.store.UnpinJobGetNext(b.daemonCtx)
 			if err != nil {
-				log.Errorf("get next unpin job: %w", err)
+				log.Errorf("get next unpin job: %s", err)
 				break
 			}
 			if !ok {
@@ -39,15 +39,15 @@ func (b *Broker) daemonUnpinner() {
 			if err := b.unpinCid(b.daemonCtx, uj); err != nil {
 				log.Errorf("unpinning %s: %s", uj.Cid, err)
 				if err := b.store.UnpinJobMoveToPending(b.daemonCtx, uj.ID, b.conf.unpinnerRetryDelay); err != nil {
-					log.Errorf("moving again to pending: %w", err)
+					log.Errorf("moving again to pending: %s", err)
 				}
 				continue
 			}
 
 			if err := b.store.DeleteExecuting(b.daemonCtx, uj.ID); err != nil {
-				log.Errorf("removing finalized unpin job: %w", err)
+				log.Errorf("removing finalized unpin job: %s", err)
 				if err := b.store.UnpinJobMoveToPending(b.daemonCtx, uj.ID, b.conf.unpinnerRetryDelay); err != nil {
-					log.Errorf("unpin job moving again to pending: %w", err)
+					log.Errorf("unpin job moving again to pending: %s", err)
 				}
 			}
 		}
@@ -85,7 +85,7 @@ func (b *Broker) exportIPFSMetrics() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 		ch, err := b.ipfsClient.Pin().Ls(ctx, options.Pin.Ls.Recursive())
 		if err != nil {
-			log.Errorf("getting total pin count: %w", err)
+			log.Errorf("getting total pin count: %s", err)
 			cancel()
 			continue
 		}

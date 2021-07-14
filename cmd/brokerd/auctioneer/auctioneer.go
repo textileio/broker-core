@@ -15,7 +15,7 @@ func New(addr string) (auctioneer.Auctioneer, error) {
 	}
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
-		return nil, fmt.Errorf("creating client: %w", err)
+		return nil, fmt.Errorf("creating client: %v", err)
 	}
 	return client.New(conn), nil
 }
