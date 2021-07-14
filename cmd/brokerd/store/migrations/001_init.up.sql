@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS storage_deals (
     id text PRIMARY KEY,
     status smallint NOT NULL,
-    rep_factor int NOT NULL DEFAULT 1,
-    deal_duration int NOT NULL DEFAULT 1,
+    rep_factor int NOT NULL,
+    deal_duration int NOT NULL,
     payload_cid text NOT NULL,
     piece_cid text NOT NULL,
     piece_size bigint NOT NULL,
@@ -25,9 +25,9 @@ CREATE TABLE IF NOT EXISTS broker_requests (
     rebatch_count int NOT NULL DEFAULT 0,
     error_cause text NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_storage_deal_id FOREIGN KEY(storage_deal_id) REFERENCES storage_deals(id)
     );
-CREATE INDEX IF NOT EXISTS broker_requests_storage_deal_id ON broker_requests (storage_deal_id);
 
 CREATE TABLE IF NOT EXISTS miner_deals (
     storage_deal_id text NOT NULL,
@@ -38,9 +38,9 @@ CREATE TABLE IF NOT EXISTS miner_deals (
     deal_expiration bigint NOT NULL,
     error_cause text NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_storage_deal_id FOREIGN KEY(storage_deal_id) REFERENCES storage_deals(id)
     );
-CREATE INDEX IF NOT EXISTS miner_deals_storage_deal_id ON miner_deals (storage_deal_id);
 CREATE INDEX IF NOT EXISTS miner_deals_miner_addr ON miner_deals (miner_addr);
 
 CREATE TABLE IF NOT EXISTS unpin_jobs (
