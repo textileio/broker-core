@@ -119,6 +119,18 @@ buf-ssh: $(BUF)
 	$(BUF) check lint
 	# $(BUF) check breaking --against-input "$(SSH_GIT)#branch=main"
 
+define gen_sql_assets
+	for daemon in $(1); do \
+		cd cmd/$${daemon}d/store && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -; \
+	done
+endef
+
+sql-assets:
+	$(call gen_sql_assets,broker);
+.PHONY: migrations
+
+generate: protos sql-assets
+
 define docker_push_daemon_head
 	for daemon in $(1); do \
 		echo docker buildx build --platform linux/amd64 --push -t textile/$${daemon}:sha-$(HEAD_SHORT) -f cmd/$${daemon}d/Dockerfile .; \

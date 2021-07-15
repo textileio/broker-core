@@ -18,6 +18,7 @@ require (
 	github.com/filecoin-project/lotus v1.10.0
 	github.com/filecoin-project/specs-actors v0.9.13
 	github.com/gogo/status v1.1.0
+	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs/go-cid v0.0.7
@@ -29,8 +30,10 @@ require (
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/ipld/go-car v0.1.1-0.20201119040415-11b6074b6d4d
+	github.com/jackc/pgx/v4 v4.12.0
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.2.0
+	github.com/lib/pq v1.10.2
 	github.com/libp2p/go-libp2p v0.14.3
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5

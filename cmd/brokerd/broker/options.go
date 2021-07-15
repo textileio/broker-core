@@ -128,7 +128,7 @@ func WithAuctionMaxRetries(max int) Option {
 
 func (c config) validate() error {
 	if c.carExportURL == nil {
-		return fmt.Errorf("the CAR exporting URL can't be empty")
+		return errors.New("the CAR exporting URL can't be empty")
 	}
 	return nil
 }

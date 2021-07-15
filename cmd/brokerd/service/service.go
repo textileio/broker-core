@@ -24,7 +24,6 @@ import (
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logger "github.com/textileio/go-log/v2"
 
-	"github.com/textileio/bidbot/lib/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -45,8 +44,7 @@ type Config struct {
 	DealerAddr     string
 	ReporterAddr   string
 
-	MongoDBName string
-	MongoURI    string
+	PostgresURI string
 
 	IPFSAPIMultiaddr string
 
@@ -86,11 +84,6 @@ func New(config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	ds, err := dshelper.NewMongoTxnDatastore(config.MongoURI, config.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("creating datastore: %s", err)
-	}
-
 	packer, err := packeri.New(config.PackerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating packer implementation: %s", err)
@@ -126,7 +119,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	broker, err := brokeri.New(
-		ds,
+		config.PostgresURI,
 		packer,
 		auctioneer,
 		dealer,
@@ -454,11 +447,8 @@ func validateConfig(conf Config) error {
 	if conf.ReporterAddr == "" {
 		return errors.New("reporter api addr is empty")
 	}
-	if conf.MongoDBName == "" {
-		return errors.New("mongo db name is empty")
-	}
-	if conf.MongoURI == "" {
-		return errors.New("mongo uri is empty")
+	if conf.PostgresURI == "" {
+		return errors.New("postgres uri is empty")
 	}
 	if conf.IPFSAPIMultiaddr == "" {
 		return errors.New("ipfs api multiaddress is empty")

@@ -2,7 +2,7 @@ package broker
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"net/url"
 	"sort"
 	"testing"
@@ -89,7 +89,9 @@ func TestCreateStorageDeal(t *testing.T) {
 	require.Equal(t, sd, sd2.ID)
 	require.True(t, sd2.PayloadCid.Defined())
 	require.Equal(t, broker.StorageDealPreparing, sd2.Status)
-	require.Len(t, sd2.BrokerRequestIDs, 2)
+	brs, err := b.store.GetBrokerRequestIDs(ctx, sd)
+	require.NoError(t, err)
+	require.Len(t, brs, 2)
 	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
 	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
 	require.NotNil(t, sd2.Sources.CARURL)
@@ -145,8 +147,10 @@ func TestCreatePrepared(t *testing.T) {
 	require.True(t, sd.DisallowRebatching)
 	require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
 	require.Equal(t, broker.StorageDealAuctioning, sd.Status)
-	require.Len(t, sd.BrokerRequestIDs, 1)
-	require.Contains(t, sd.BrokerRequestIDs, br.BrokerRequest.ID)
+	brs, err := b.store.GetBrokerRequestIDs(ctx, br.BrokerRequest.StorageDealID)
+	require.NoError(t, err)
+	require.Len(t, brs, 1)
+	require.Contains(t, brs, br.BrokerRequest.ID)
 	require.NotNil(t, sd.Sources.CARURL)
 	require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
 	require.NotNil(t, sd.Sources.CARIPFS)
@@ -200,7 +204,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 
 		brgCid := createCidFromString("StorageDeal")
 		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
-		require.True(t, errors.Is(err, store.ErrStorageDealContainsUnknownBrokerRequest))
+		require.ErrorIs(t, err, store.ErrStorageDealContainsUnknownBrokerRequest)
 	})
 }
 
@@ -313,7 +317,9 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.StorageDealDealMaking, sd2.Status)
 	require.NotEmpty(t, sd2.ID)
-	require.Len(t, sd2.BrokerRequestIDs, 2)
+	deals, err := b.store.GetMinerDeals(ctx, sd)
+	require.NoError(t, err)
+	require.Len(t, deals, 2)
 	require.Equal(t, int(a.DealReplication), sd2.RepFactor)
 	require.Greater(t, sd2.DealDuration, 0)
 	require.Greater(t, sd2.CreatedAt.Unix(), int64(0))
@@ -323,16 +329,15 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Equal(t, brgCid, sd2.PayloadCid)
 	require.Equal(t, dpr.PieceCid, sd2.PieceCid)
 	require.Equal(t, dpr.PieceSize, sd2.PieceSize)
-	require.Len(t, sd2.Deals, 2)
 	for bidID, wb := range winningBids {
 		var found bool
-		for _, deal := range sd2.Deals {
+		for _, deal := range deals {
 			if deal.BidID == bidID {
 				require.Equal(t, sd, deal.StorageDealID)
 				require.Equal(t, a.ID, deal.AuctionID)
 				require.Greater(t, deal.CreatedAt.Unix(), int64(0))
 				require.Greater(t, deal.UpdatedAt.Unix(), int64(0))
-				require.Equal(t, wb.MinerAddr, deal.Miner)
+				require.Equal(t, wb.MinerAddr, deal.MinerAddr)
 				require.Equal(t, int64(0), deal.DealID)
 				require.Equal(t, uint64(0), deal.DealExpiration)
 				require.Empty(t, deal.ErrorCause)
@@ -619,11 +624,11 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	// 6- Verify that we have 3 unpin jobs: the batch cid, and the two data cids in the batch.
 	for i := 0; i < 3; i++ {
-		_, ok, err := b.store.UnpinJobGetNext()
+		_, ok, err := b.store.UnpinJobGetNext(ctx)
 		require.NoError(t, err)
-		require.True(t, ok)
+		require.True(t, ok, fmt.Sprintf("should have got unpin job in round %d", i))
 	}
-	_, ok, err := b.store.UnpinJobGetNext()
+	_, ok, err := b.store.UnpinJobGetNext(ctx)
 	require.NoError(t, err)
 	require.False(t, ok)
 
@@ -649,13 +654,14 @@ func createBroker(t *testing.T) (
 	*dumbAuctioneer,
 	*dumbDealer,
 	*dumbChainAPI) {
-	ds := tests.NewTxMapDatastore()
 	packer := &dumbPacker{}
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
 	chainAPI := &dumbChainAPI{}
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
 	b, err := New(
-		ds,
+		u,
 		packer,
 		auctioneer,
 		dealer,

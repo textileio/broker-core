@@ -1,0 +1,42 @@
+version: "1"
+packages:
+  - name: "db"
+    path: "internal/db"
+    queries: "./queries"
+    schema: "./migrations"
+    engine: "postgresql"
+    emit_prepared_queries: true
+    emit_interface: false
+    emit_exact_table_names: false
+    emit_empty_slices: false
+    emit_json_tags: true
+    json_tags_case_style: "camel"
+overrides:
+  - column: "broker_requests.id"
+    go_type: "github.com/textileio/broker-core/broker.BrokerRequestID"
+  - column: "broker_requests.status"
+    go_type: "github.com/textileio/broker-core/broker.BrokerRequestStatus"
+
+  - column: "storage_deals.id"
+    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+  - column: "storage_deals.status"
+    go_type: "github.com/textileio/broker-core/broker.StorageDealStatus"
+  - column: "storage_deals.rep_factor"
+    go_type: "int"
+  - column: "storage_deals.deal_duration"
+    go_type: "int"
+  - column: "storage_deals.auction_retries"
+    go_type: "int"
+  - column: "storage_deals.fil_epoch_deadline"
+    go_type: "uint64"
+  - column: "storage_deals.piece_size"
+    go_type: "uint64"
+
+  - column: "miner_deals.storage_deal_id"
+    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+  - column: "miner_deals.auction_id"
+    go_type: "github.com/textileio/bidbot/lib/auction.AuctionID"
+  - column: "miner_deals.bid_id"
+    go_type: "github.com/textileio/bidbot/lib/auction.BidID"
+  - column: "miner_deals.deal_expiration"
+    go_type: "uint64"
