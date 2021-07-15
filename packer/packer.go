@@ -9,7 +9,7 @@ import (
 
 // Packer batches and prepares data to be stored in Filecoin.
 type Packer interface {
-	// ReadyToPack signals the packer that this broker request
+	// ReadyToBatch signals the packer that this broker request
 	// is ready to be prepared. Depending on the packer configuration,
 	// this broker request data might be batched with others.
 	//
@@ -17,5 +17,5 @@ type Packer interface {
 	// work is done asyc. After some BrokerRequests are batched, the packer will notify
 	// the Broker that a new `StorageDeal` got prepared (which includes the
 	// provided BrokerRequest), so it can continue with bidding.
-	ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error
+	ReadyToBatch(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error
 }

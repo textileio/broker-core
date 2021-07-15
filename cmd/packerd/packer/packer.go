@@ -103,10 +103,10 @@ func New(
 	return p, nil
 }
 
-// ReadyToPack signals the packer that there's a new BrokerRequest that can be
+// ReadyToBatch signals the packer that there's a new BrokerRequest that can be
 // considered. Packer will notify the broker async when the final StorageDeal
 // that contains this BrokerRequest gets created.
-func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
+func (p *Packer) ReadyToBatch(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	log.Debugf("received ready to pack: %s %s", id, dataCid)
 
 	node, err := p.ipfs.Dag().Get(ctx, dataCid)

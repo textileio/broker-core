@@ -85,7 +85,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 // OnReadyToBatch process a message for data ready to be included in a batch.
 func (s *Service) OnReadyToBatch(ctx context.Context, readyDataCids []mbroker.ReadyToBatchData) error {
 	for _, rdc := range readyDataCids {
-		if err := s.packer.ReadyToPack(ctx, rdc.BrokerRequestID, rdc.DataCid); err != nil {
+		if err := s.packer.ReadyToBatch(ctx, rdc.BrokerRequestID, rdc.DataCid); err != nil {
 			return fmt.Errorf("queuing broker request: %s", err)
 		}
 	}
