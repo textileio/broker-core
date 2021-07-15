@@ -55,7 +55,7 @@ func TestPack(t *testing.T) {
 
 	// 3- Signal ready to pack these cids to Packer
 	for i, dataCid := range dataCids {
-		err = packer.ReadyToPack(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
+		err = packer.ReadyToBatch(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
 		require.NoError(t, err)
 	}
 
@@ -106,7 +106,7 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	// 3- Simulate multiple BrokerRequests but with the same data
 	numRepeatedBrokerRequest := 100
 	for i := 0; i < numRepeatedBrokerRequest; i++ {
-		err = packer.ReadyToPack(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
+		err = packer.ReadyToBatch(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
 		require.NoError(t, err)
 	}
 
