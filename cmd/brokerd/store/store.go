@@ -61,7 +61,7 @@ func New(postgresURI string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := m.Up(); err != nil {
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return nil, err
 	}
 	conn, err := sql.Open("pgx", postgresURI)
