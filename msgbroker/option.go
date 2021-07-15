@@ -1,15 +1,21 @@
 package msgbroker
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
+// DefaultRegisterHandlerConfig is the default configuration for topic subscriptions.
 var DefaultRegisterHandlerConfig = RegisterHandlerConfig{
 	AckDeadline: time.Second * 10,
 }
 
+// RegisterHandlerConfig contains configuration for topic subscriptions.
 type RegisterHandlerConfig struct {
 	AckDeadline time.Duration
 }
 
+// Option applies a configuration on RegisterHandlerConfig.
 type Option func(*RegisterHandlerConfig) error
 
 // WithACKDeadline configures the deadline for the message broker subscription.
@@ -21,11 +27,14 @@ func WithACKDeadline(deadline time.Duration) Option {
 	}
 }
 
-func ApplyRegisterHandlerOptions(opts ...Option) RegisterHandlerConfig {
+// ApplyRegisterHandlerOptions applies a list of Option to the default configuration.
+func ApplyRegisterHandlerOptions(opts ...Option) (RegisterHandlerConfig, error) {
 	config := DefaultRegisterHandlerConfig
 	for _, opt := range opts {
-		opt(&config)
+		if err := opt(&config); err != nil {
+			return RegisterHandlerConfig{}, fmt.Errorf("applying option: %s", err)
+		}
 	}
 
-	return config
+	return config, nil
 }
