@@ -121,7 +121,6 @@ services:
       - BROKER_RPC_ADDR=:5000
       # - BROKER_MONGO_URI=mongodb://mongo:27017
       # - BROKER_MONGO_DBNAME=brokerd
-      - BROKER_PACKER_ADDR=packerd:5000
       - BROKER_PIECER_ADDR=piecerd:5000
       - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
       - BROKER_DEALER_ADDR=dealerd:5000

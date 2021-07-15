@@ -18,7 +18,6 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
-	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 
@@ -37,7 +36,6 @@ type Config struct {
 	ListenAddr string
 
 	PiecerAddr     string
-	PackerAddr     string
 	AuctioneerAddr string
 	DealerAddr     string
 	ReporterAddr   string
@@ -78,11 +76,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	packer, err := packeri.New(config.PackerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating packer implementation: %s", err)
-	}
-
 	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
@@ -109,11 +102,11 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 
 	broker, err := brokeri.New(
 		config.PostgresURI,
-		packer,
 		auctioneer,
 		dealer,
 		reporter,
 		ipfsClient,
+		mb,
 		brokeri.WithDealDuration(config.DealDuration),
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
@@ -425,9 +418,6 @@ func validateConfig(conf Config) error {
 	}
 	if conf.PiecerAddr == "" {
 		return errors.New("piecer api addr is empty")
-	}
-	if conf.PackerAddr == "" {
-		return errors.New("packer api addr is empty")
 	}
 	if conf.AuctioneerAddr == "" {
 		return errors.New("auctioneer api addr is empty")

@@ -35,6 +35,8 @@ const (
 	NewBatchCreatedTopic TopicName = "new-batch-created"
 	// NewBatchPreparedTopic is the topic name for new-batch-prepared messages.
 	NewBatchPreparedTopic = "new-batch-prepared"
+	// ReadyToBatchTopic is the topic name for ready-to-batch messages.
+	ReadyToBatchTopic = "ready-to-batch"
 )
 
 // NewBatchCreatedListener is a handler for NewBatchCreated topic.
@@ -45,6 +47,11 @@ type NewBatchCreatedListener interface {
 // NewBatchPreparedListener is a handler for NewBatchPrepared topic.
 type NewBatchPreparedListener interface {
 	OnNewBatchPrepared(context.Context, broker.StorageDealID, broker.DataPreparationResult) error
+}
+
+// ReadyToBatchListener is a handler for ReadyToBatch topic.
+type ReadyToBatchListener interface {
+	OnReadyToBatch(context.Context, broker.BrokerRequestID, cid.Cid) error
 }
 
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
@@ -115,8 +122,50 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}
 	}
 
+	if l, ok := s.(ReadyToBatchListener); ok {
+		countRegistered++
+		err := mb.RegisterTopicHandler(ReadyToBatchTopic, func(ctx context.Context, data []byte) error {
+			r := &pbBroker.ReadyToBatch{}
+			if err := proto.Unmarshal(data, r); err != nil {
+				return fmt.Errorf("unmarshal ready to batch: %s", err)
+			}
+			if r.BrokerRequestId == "" {
+				return fmt.Errorf("broker request id is empty")
+			}
+			brID := broker.BrokerRequestID(r.BrokerRequestId)
+			dataCid, err := cid.Cast(r.DataCid)
+			if err != nil {
+				return fmt.Errorf("decoding data cid: %s", err)
+			}
+
+			if err := l.OnReadyToBatch(ctx, brID, dataCid); err != nil {
+				return fmt.Errorf("calling ready-to-batch handler: %s", err)
+			}
+			return nil
+		}, opts...)
+		if err != nil {
+			return fmt.Errorf("registering handler for new-batch-prepared topic")
+		}
+	}
+
 	if countRegistered == 0 {
 		return errors.New("no handlers were registered")
+	}
+
+	return nil
+}
+
+func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, brID broker.BrokerRequestID, dataCid cid.Cid) error {
+	msg := &pbBroker.ReadyToBatch{
+		BrokerRequestId: string(brID),
+		DataCid:         dataCid.Bytes(),
+	}
+	msgb, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("marshaling ready-to-batch message: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, ReadyToBatchTopic, msgb); err != nil {
+		return fmt.Errorf("publishing ready-to-batch message: %s", err)
 	}
 
 	return nil

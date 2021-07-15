@@ -56,6 +56,11 @@ message GetBrokerRequestInfoResponse {
   }
 }
 
+message ReadyToBatch {
+    string broker_request_id = 1;
+    bytes data_cid = 2;
+}
+
 message NewBatchCreated {
   string id = 1;
   bytes batch_cid = 2;
