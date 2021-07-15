@@ -146,6 +146,8 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(
 	go func() {
 		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
+			ctx, cancel := context.WithTimeout(ctx, config.AckDeadline)
+			defer cancel()
 			if err := handler(ctx, m.Data); err != nil {
 				log.Error(err)
 				m.Nack()
