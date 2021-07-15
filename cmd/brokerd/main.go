@@ -10,6 +10,7 @@ import (
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/service"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -83,12 +84,15 @@ var rootCmd = &cobra.Command{
 			CARExportURL: v.GetString("car-export-url"),
 
 			AuctionMaxRetries: v.GetInt("auction-max-retries"),
-
-			GPubSubProjectID:     v.GetString("gpubsub-project-id"),
-			GPubSubAPIKey:        v.GetString("gpubsub-api-key"),
-			MsgBrokerTopicPrefix: v.GetString("msgbroker-topic-prefix"),
 		}
-		serv, err := service.New(serviceConfig)
+
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "brokerd")
+		common.CheckErr(err)
+
+		serv, err := service.New(mb, serviceConfig)
 		common.CheckErr(err)
 
 		log.Info("listening to requests...")
