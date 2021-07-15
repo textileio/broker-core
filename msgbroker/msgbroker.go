@@ -172,6 +172,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 	return nil
 }
 
+// PublishMsgReadyToBatch publishes a message to the ready-to-batch topic.
 func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyToBatchData) error {
 	if len(dataCids) == 0 {
 		return errors.New("data cids is empty")
@@ -197,7 +198,13 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 	return nil
 }
 
-func PublishMsgNewBatchCreated(ctx context.Context, mb MsgBroker, batchID string, batchCid cid.Cid, brIDs []broker.BrokerRequestID) error {
+// PublishMsgNewBatchCreated publishes a message to the new-batch-created topic.
+func PublishMsgNewBatchCreated(
+	ctx context.Context,
+	mb MsgBroker,
+	batchID string,
+	batchCid cid.Cid,
+	brIDs []broker.BrokerRequestID) error {
 	brids := make([]string, len(brIDs))
 	for i, bbr := range brIDs {
 		brids[i] = string(bbr)
@@ -218,7 +225,13 @@ func PublishMsgNewBatchCreated(ctx context.Context, mb MsgBroker, batchID string
 	return nil
 }
 
-func PublishMsgNewBatchPrepared(ctx context.Context, mb MsgBroker, sdID broker.StorageDealID, pieceCid cid.Cid, pieceSize uint64) error {
+// PublishMsgNewBatchPrepared publishes a message to the new-batch-prepared topic.
+func PublishMsgNewBatchPrepared(
+	ctx context.Context,
+	mb MsgBroker,
+	sdID broker.StorageDealID,
+	pieceCid cid.Cid,
+	pieceSize uint64) error {
 	msg := &pbBroker.NewBatchPrepared{
 		Id:        string(sdID),
 		PieceCid:  pieceCid.Bytes(),
