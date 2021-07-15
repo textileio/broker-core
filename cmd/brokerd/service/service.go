@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -309,9 +308,10 @@ func (s *Service) GetBrokerRequestInfo(
 }
 
 // OnNewBatchCreated handles new messages in new-batch-created topic.
-func (s *Service) OnNewBatchCreated(id broker.StorageDealID, batchCid cid.Cid, brids []broker.BrokerRequestID) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (s *Service) OnNewBatchCreated(
+	ctx context.Context,
+	id broker.StorageDealID,
+	batchCid cid.Cid, brids []broker.BrokerRequestID) error {
 	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
 	}
@@ -342,9 +342,10 @@ func (s *Service) StorageDealAuctioned(
 }
 
 // OnNewBatchPreparedHandler handles new messages in new-batch-prepared topic.
-func (s *Service) OnNewBatchPrepared(id broker.StorageDealID, pr broker.DataPreparationResult) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (s *Service) OnNewBatchPrepared(
+	ctx context.Context,
+	id broker.StorageDealID,
+	pr broker.DataPreparationResult) error {
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
 		return fmt.Errorf("processing new prepared batch: %s", err)
 	}

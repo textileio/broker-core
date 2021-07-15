@@ -73,7 +73,7 @@ func rune2e(t *testing.T, ps *PubsubMsgBroker) {
 	sentDataTopic2 := []byte("duke-ftw-2")
 
 	ps.subsName = "sub-1"
-	err := ps.RegisterTopicHandler("topic-1", func(data []byte) error {
+	err := ps.RegisterTopicHandler("topic-1", func(_ context.Context, data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 		require.True(t, bytes.Equal(sentDataTopic1, data))
@@ -88,7 +88,7 @@ func rune2e(t *testing.T, ps *PubsubMsgBroker) {
 	require.NoError(t, err)
 
 	ps.subsName = "sub-2"
-	err = ps.RegisterTopicHandler("topic-2", func(data []byte) error {
+	err = ps.RegisterTopicHandler("topic-2", func(_ context.Context, data []byte) error {
 		lock.Lock()
 		defer lock.Unlock()
 
@@ -123,7 +123,7 @@ func TestTwoSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 
 	ps.subsName = "sub-1"
-	err = ps.RegisterTopicHandler("topic-1", func(data []byte) error {
+	err = ps.RegisterTopicHandler("topic-1", func(_ context.Context, data []byte) error {
 		fmt.Println("sub-1 received")
 		waitCh <- struct{}{}
 
@@ -132,7 +132,7 @@ func TestTwoSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 
 	ps.subsName = "sub-2"
-	err = ps.RegisterTopicHandler("topic-1", func(data []byte) error {
+	err = ps.RegisterTopicHandler("topic-1", func(_ context.Context, data []byte) error {
 		fmt.Println("sub-2 received")
 		waitCh <- struct{}{}
 

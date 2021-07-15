@@ -60,9 +60,11 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 }
 
 // OnNewBatchCreated handles messages for new-batch-created topic.
-func (s *Service) OnNewBatchCreated(sdID broker.StorageDealID, batchCid cid.Cid, _ []broker.BrokerRequestID) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (s *Service) OnNewBatchCreated(
+	ctx context.Context,
+	sdID broker.StorageDealID,
+	batchCid cid.Cid,
+	_ []broker.BrokerRequestID) error {
 	if err := s.piecer.ReadyToPrepare(ctx, sdID, batchCid); err != nil {
 		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}
