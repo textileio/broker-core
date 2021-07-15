@@ -72,7 +72,12 @@ func New(projectID, apiKey, topicPrefix, subsName string) (*PubsubMsgBroker, err
 //   as '<topic-prefix>-<topic-name>'.
 // - If a subscription doesn't exist in PubSub it's automatically created. The subscription name is
 //   defined as '<topic-prefix>-<topic-name>-<subs-name>' (e.g: "staging-new-batch-created-brokerd")
-func (p *PubsubMsgBroker) RegisterTopicHandler(tname mbroker.TopicName, handler mbroker.TopicHandler) error {
+func (p *PubsubMsgBroker) RegisterTopicHandler(
+	tname mbroker.TopicName,
+	handler mbroker.TopicHandler,
+	opts ...mbroker.Option) error {
+	config := mbroker.ApplyRegisterHandlerOptions(opts...)
+
 	topicName := p.topicPrefix + string(tname)
 
 	topic, err := p.getTopic(topicName)
@@ -104,7 +109,7 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(tname mbroker.TopicName, handler 
 		config := pubsub.SubscriptionConfig{
 			Topic:                 topic,
 			PushConfig:            pubsub.PushConfig{},
-			AckDeadline:           time.Second * 10,
+			AckDeadline:           config.AckDeadline,
 			RetainAckedMessages:   false,
 			RetentionDuration:     time.Hour * 24 * 7,
 			ExpirationPolicy:      time.Duration(0),
