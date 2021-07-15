@@ -101,6 +101,9 @@ var rootCmd = &cobra.Command{
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing http endpoint: %s", err)
 			}
+			if err := mb.Close(); err != nil {
+				log.Errorf("closing message broker: %s", err)
+			}
 		})
 	},
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/packerd/service"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -70,17 +71,23 @@ var rootCmd = &cobra.Command{
 
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     v.GetSizeInBytes("batch-min-size"),
-
-			GPubSubProjectID:     v.GetString("gpubsub-project-id"),
-			GPubSubAPIKey:        v.GetString("gpubsub-api-key"),
-			MsgBrokerTopicPrefix: v.GetString("msgbroker-topic-prefix"),
 		}
-		serv, err := service.New(config)
+
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "packerd")
+		common.CheckErr(err)
+
+		serv, err := service.New(mb, config)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
+			}
+			if err := mb.Close(); err != nil {
+				log.Errorf("closing message broker: %s", err)
 			}
 		})
 	},
