@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -20,8 +19,6 @@ var log = golog.Logger("piecer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Listener net.Listener
-
 	IpfsMultiaddrs []multiaddr.Multiaddr
 	Datastore      txndswrap.TxnDatastore
 
