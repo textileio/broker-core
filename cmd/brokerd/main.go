@@ -26,7 +26,6 @@ func init() {
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-api-multiaddr", DefValue: "", Description: "IPFS API multiaddress for unpinning data"},
 		{Name: "piecer-addr", DefValue: "", Description: "Piecer API address"},
-		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
 		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
 		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
@@ -68,7 +67,6 @@ var rootCmd = &cobra.Command{
 			ListenAddr: v.GetString("rpc-addr"),
 
 			PiecerAddr:     v.GetString("piecer-addr"),
-			PackerAddr:     v.GetString("packer-addr"),
 			AuctioneerAddr: v.GetString("auctioneer-addr"),
 			DealerAddr:     v.GetString("dealer-addr"),
 			ReporterAddr:   v.GetString("reporter-addr"),

@@ -18,14 +18,17 @@ import (
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
-	"github.com/textileio/broker-core/packer"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
+	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestCreateBrokerRequestSuccess(t *testing.T) {
 	t.Parallel()
 
-	b, packer, _, _, _ := createBroker(t)
+	b, mb, _, _, _ := createBroker(t)
 	c := createCidFromString("BrokerRequest1")
 
 	br, err := b.Create(context.Background(), c)
@@ -35,8 +38,17 @@ func TestCreateBrokerRequestSuccess(t *testing.T) {
 	require.True(t, time.Since(br.CreatedAt).Seconds() < 5)
 	require.True(t, time.Since(br.UpdatedAt).Seconds() < 5)
 
-	// Check that the packer was notified.
-	require.Len(t, packer.calledBrokerRequestIDs, 1)
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToBatchTopic))
+	data, err := mb.GetMsg(mbroker.ReadyToBatchTopic, 0)
+	require.NoError(t, err)
+	r := &pb.ReadyToBatch{}
+	err = proto.Unmarshal(data, r)
+	require.NoError(t, err)
+	require.NotEmpty(t, r.BrokerRequestId)
+	dataCid, err := cid.Cast(r.DataCid)
+	require.NoError(t, err)
+	require.Equal(t, c.String(), dataCid.String())
 }
 
 func TestCreateBrokerRequestFail(t *testing.T) {
@@ -650,45 +662,29 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 func createBroker(t *testing.T) (
 	*Broker,
-	*dumbPacker,
+	*fakemsgbroker.FakeMsgBroker,
 	*dumbAuctioneer,
 	*dumbDealer,
 	*dumbChainAPI) {
-	packer := &dumbPacker{}
 	auctioneer := &dumbAuctioneer{}
 	dealer := &dumbDealer{}
 	chainAPI := &dumbChainAPI{}
 	u, err := tests.PostgresURL()
 	require.NoError(t, err)
+
+	fmb := fakemsgbroker.New()
 	b, err := New(
 		u,
-		packer,
 		auctioneer,
 		dealer,
 		chainAPI,
 		nil,
+		fmb,
 		WithCARExportURL("http://duke.web3/car/"),
 	)
 	require.NoError(t, err)
 
-	return b, packer, auctioneer, dealer, chainAPI
-}
-
-type dumbPacker struct {
-	calledBrokerRequestIDs []brc
-}
-
-type brc struct {
-	id      broker.BrokerRequestID
-	dataCid cid.Cid
-}
-
-var _ packer.Packer = (*dumbPacker)(nil)
-
-func (dp *dumbPacker) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
-	dp.calledBrokerRequestIDs = append(dp.calledBrokerRequestIDs, brc{id: id, dataCid: dataCid})
-
-	return nil
+	return b, fmb, auctioneer, dealer, chainAPI
 }
 
 type dumbAuctioneer struct {
