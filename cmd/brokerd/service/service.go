@@ -331,7 +331,7 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
-// OnNewBatchPreparedHandler handles new messages in new-batch-prepared topic.
+// OnNewBatchPrepared handles new messages in new-batch-prepared topic.
 func (s *Service) OnNewBatchPrepared(
 	ctx context.Context,
 	id broker.StorageDealID,

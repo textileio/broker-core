@@ -76,7 +76,10 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(
 	tname mbroker.TopicName,
 	handler mbroker.TopicHandler,
 	opts ...mbroker.Option) error {
-	config := mbroker.ApplyRegisterHandlerOptions(opts...)
+	config, err := mbroker.ApplyRegisterHandlerOptions(opts...)
+	if err != nil {
+		return fmt.Errorf("applying options: %s", err)
+	}
 
 	topicName := p.topicPrefix + string(tname)
 
