@@ -54,6 +54,7 @@ spec:
         app: piecer-v1
     spec:
       containers:
+        terminationGracePeriodSeconds: 2700 # 45min
         - name: piecer
           image: textile/piecer
           imagePullPolicy: Always
