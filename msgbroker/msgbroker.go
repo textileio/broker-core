@@ -186,12 +186,50 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 			DataCid:         dataCids[i].DataCid.Bytes(),
 		}
 	}
-	msgb, err := proto.Marshal(msg)
+	data, err := proto.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshaling ready-to-batch message: %s", err)
 	}
-	if err := mb.PublishMsg(ctx, ReadyToBatchTopic, msgb); err != nil {
+	if err := mb.PublishMsg(ctx, ReadyToBatchTopic, data); err != nil {
 		return fmt.Errorf("publishing ready-to-batch message: %s", err)
+	}
+
+	return nil
+}
+
+func PublishMsgNewBatchCreated(ctx context.Context, mb MsgBroker, batchID string, batchCid cid.Cid, brIDs []broker.BrokerRequestID) error {
+	brids := make([]string, len(brIDs))
+	for i, bbr := range brIDs {
+		brids[i] = string(bbr)
+	}
+	msg := &pbBroker.NewBatchCreated{
+		Id:               batchID,
+		BatchCid:         batchCid.Bytes(),
+		BrokerRequestIds: brids,
+	}
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("marshaling new-batch-created message: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, NewBatchCreatedTopic, data); err != nil {
+		return fmt.Errorf("publishing new-batch-created message: %s", err)
+	}
+
+	return nil
+}
+
+func PublishMsgNewBatchPrepared(ctx context.Context, mb MsgBroker, sdID broker.StorageDealID, pieceCid cid.Cid, pieceSize uint64) error {
+	msg := &pbBroker.NewBatchPrepared{
+		Id:        string(sdID),
+		PieceCid:  pieceCid.Bytes(),
+		PieceSize: pieceSize,
+	}
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, NewBatchPreparedTopic, data); err != nil {
+		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
 	}
 
 	return nil
