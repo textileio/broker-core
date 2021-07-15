@@ -85,6 +85,7 @@ func TestCanceledPrepare(t *testing.T) {
 	}()
 	err = p.ReadyToPrepare(ctx, id, dataCid)
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "context canceled")
 	require.Equal(t, 0, mb.TotalPublished())
 }
 
