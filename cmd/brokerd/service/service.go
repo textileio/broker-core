@@ -342,7 +342,7 @@ func (s *Service) StorageDealAuctioned(
 }
 
 // OnNewBatchPreparedHandler handles new messages in new-batch-prepared topic.
-func (s *Service) OnNewBatchPreparedHandler(id broker.StorageDealID, pr broker.DataPreparationResult) error {
+func (s *Service) OnNewBatchPrepared(id broker.StorageDealID, pr broker.DataPreparationResult) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
