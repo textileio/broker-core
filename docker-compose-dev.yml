@@ -150,7 +150,6 @@ services:
     environment:
       - PACKER_LOG_DEBUG=true
       - PACKER_LOG_JSON=false
-      - PACKER_RPC_ADDR=:5000
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
       - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001

@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -28,8 +26,6 @@ var log = golog.Logger("packer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	ListenAddr string
-
 	MongoDBName string
 	MongoURI    string
 
@@ -93,18 +89,6 @@ func New(mb msgbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	listener, err := net.Listen("tcp", conf.ListenAddr)
-	if err != nil {
-		return nil, fmt.Errorf("getting net listener: %v", err)
-	}
-	go func() {
-		pb.RegisterAPIServiceServer(s.server, s)
-		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Errorf("server error: %v", err)
-		}
-	}()
-
-	log.Infof("service listening at %s", conf.ListenAddr)
 	return s, nil
 }
 
@@ -141,9 +125,6 @@ func (s *Service) Close() error {
 func validateConfig(conf Config) error {
 	if conf.IpfsAPIMultiaddr == "" {
 		return fmt.Errorf("ipfs api multiaddr is empty")
-	}
-	if conf.ListenAddr == "" {
-		return fmt.Errorf("service listen addr is empty")
 	}
 	if conf.MongoDBName == "" {
 		return fmt.Errorf("mongo db name is empty")
