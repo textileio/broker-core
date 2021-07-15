@@ -529,21 +529,23 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, mbr2.BrokerRequest.Status)
 
-	// 6- Verify that on ready-to-batch messages was generated to re-batch all
-	//    the BrokerRequest that failed the auction.
-	require.Equal(t, 1, mb.TotalPublished())
-	data, err := mb.GetMsg(mbroker.ReadyToBatchTopic, 0)
+	// 6- Verify that there were 3 published messages.
+	//    Two of them are from `b.Create` for creating the first two BrokerRequests.
+	//    The third one is the important one for this test, which is a signal that the failed auction
+	//    sent to be re-batched both storage deals due to the failing auction.
+	require.Equal(t, 3, mb.TotalPublished())
+	data, err := mb.GetMsg(mbroker.ReadyToBatchTopic, 2) // Take the third msg in the topic (0-based idx).
 	require.NoError(t, err)
 	r := &pb.ReadyToBatch{}
 	err = proto.Unmarshal(data, r)
 	require.NoError(t, err)
 	require.Len(t, r.DataCids, 2)
 
-	require.Equal(t, br1.ID, r.DataCids[0].BrokerRequestId)
+	require.Equal(t, string(br1.ID), r.DataCids[0].BrokerRequestId)
 	dataCid0, err := cid.Cast(r.DataCids[0].DataCid)
 	require.NoError(t, err)
 	require.Equal(t, br1.DataCid, dataCid0)
-	require.Equal(t, br2.ID, r.DataCids[1].BrokerRequestId)
+	require.Equal(t, string(br2.ID), r.DataCids[1].BrokerRequestId)
 	dataCid1, err := cid.Cast(r.DataCids[1].DataCid)
 	require.NoError(t, err)
 	require.Equal(t, br2.DataCid, dataCid1)
