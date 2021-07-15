@@ -634,7 +634,6 @@ func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.Stora
 			return fmt.Errorf("get broker request: %s", err)
 		}
 		dataCids[i] = mbroker.ReadyToBatchData{BrokerRequestID: br.ID, DataCid: br.DataCid}
-
 	}
 	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
 		return fmt.Errorf("publishing to msg broker: %s", err)
