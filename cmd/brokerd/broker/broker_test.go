@@ -45,8 +45,9 @@ func TestCreateBrokerRequestSuccess(t *testing.T) {
 	r := &pb.ReadyToBatch{}
 	err = proto.Unmarshal(data, r)
 	require.NoError(t, err)
-	require.NotEmpty(t, r.BrokerRequestId)
-	dataCid, err := cid.Cast(r.DataCid)
+	require.Len(t, r.DataCids, 1)
+	require.NotEmpty(t, r.DataCids[0].BrokerRequestId)
+	dataCid, err := cid.Cast(r.DataCids[0].DataCid)
 	require.NoError(t, err)
 	require.Equal(t, c.String(), dataCid.String())
 }
@@ -474,7 +475,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 func TestStorageDealFailedAuction(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, packer, _, dealerd, _ := createBroker(t)
+	b, mb, _, dealerd, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -496,7 +497,6 @@ func TestStorageDealFailedAuction(t *testing.T) {
 
 	// Empty the call stack of the mocks, since it has calls from before.
 	dealerd.calledAuctionDeals = dealer.AuctionDeals{}
-	packer.calledBrokerRequestIDs = nil
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	a := broker.ClosedAuction{
@@ -529,13 +529,24 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, mbr2.BrokerRequest.Status)
 
-	// 6- Verify that Packerd was called again with the new liberated broker requests
-	//    that can be batched again.
-	require.Len(t, packer.calledBrokerRequestIDs, 2)
-	require.Equal(t, br1.ID, packer.calledBrokerRequestIDs[0].id)
-	require.Equal(t, br1.DataCid, packer.calledBrokerRequestIDs[0].dataCid)
-	require.Equal(t, br2.ID, packer.calledBrokerRequestIDs[1].id)
-	require.Equal(t, br2.DataCid, packer.calledBrokerRequestIDs[1].dataCid)
+	// 6- Verify that on ready-to-batch messages was generated to re-batch all
+	//    the BrokerRequest that failed the auction.
+	require.Equal(t, 1, mb.TotalPublished())
+	data, err := mb.GetMsg(mbroker.ReadyToBatchTopic, 0)
+	require.NoError(t, err)
+	r := &pb.ReadyToBatch{}
+	err = proto.Unmarshal(data, r)
+	require.NoError(t, err)
+	require.Len(t, r.DataCids, 2)
+
+	require.Equal(t, br1.ID, r.DataCids[0].BrokerRequestId)
+	dataCid0, err := cid.Cast(r.DataCids[0].DataCid)
+	require.NoError(t, err)
+	require.Equal(t, br1.DataCid, dataCid0)
+	require.Equal(t, br2.ID, r.DataCids[1].BrokerRequestId)
+	dataCid1, err := cid.Cast(r.DataCids[1].DataCid)
+	require.NoError(t, err)
+	require.Equal(t, br2.DataCid, dataCid1)
 }
 
 func TestStorageDealFinalizedDeals(t *testing.T) {

@@ -132,7 +132,8 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, e
 	}
 
 	log.Debugf("publishing in ready-to-batch topic")
-	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, br.ID, br.DataCid); err != nil {
+	dataCids := []mbroker.ReadyToBatchData{{BrokerRequestID: br.ID, DataCid: br.DataCid}}
+	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("publishing to msg broker: %s", err)
 	}
 
@@ -626,15 +627,17 @@ func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.Stora
 	}
 
 	log.Debugf("erroring storage deal %s, rebatching %d broker-requests: %s", id, len(brs), errCause)
+	dataCids := make([]mbroker.ReadyToBatchData, len(brs))
 	for i := range brs {
 		br, err := b.store.GetBrokerRequest(ctx, brs[i])
 		if err != nil {
 			return fmt.Errorf("get broker request: %s", err)
 		}
-		if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, br.ID, br.DataCid); err != nil {
-			return fmt.Errorf("publishing to msg broker: %s", err)
-		}
+		dataCids[i] = mbroker.ReadyToBatchData{BrokerRequestID: br.ID, DataCid: br.DataCid}
 
+	}
+	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
+		return fmt.Errorf("publishing to msg broker: %s", err)
 	}
 
 	return nil
