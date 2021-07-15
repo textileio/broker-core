@@ -16,7 +16,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	pb "github.com/textileio/broker-core/gen/broker/packer/v1"
-	"github.com/textileio/broker-core/msgbroker/gpubsub"
+	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
@@ -40,10 +40,6 @@ type Config struct {
 
 	TargetSectorSize int64
 	BatchMinSize     uint
-
-	GPubSubProjectID     string
-	GPubSubAPIKey        string
-	MsgBrokerTopicPrefix string
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -58,7 +54,7 @@ type Service struct {
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config) (*Service, error) {
+func New(mb msgbroker.MsgBroker, conf Config) (*Service, error) {
 	if err := validateConfig(conf); err != nil {
 		return nil, fmt.Errorf("config is invalid: %s", err)
 	}
@@ -84,10 +80,7 @@ func New(conf Config) (*Service, error) {
 		packer.WithSectorSize(conf.TargetSectorSize),
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
-	mb, err := gpubsub.New(conf.GPubSubProjectID, conf.GPubSubAPIKey, conf.MsgBrokerTopicPrefix, "packerd")
-	if err != nil {
-		return nil, fmt.Errorf("creating google pubsub message broker: %s", err)
-	}
+
 	lib, err := packer.New(ds, ipfsClient, mb, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
