@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"net"
 	_ "net/http/pprof"
 	"time"
 
@@ -24,7 +23,6 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
@@ -59,9 +57,6 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
-		common.CheckErrf("creating listener: %v", err)
-
 		ds, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
 		common.CheckErrf("creating mongo datastore: %v", err)
 
@@ -83,7 +78,6 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("creating google pubsub client: %s", err)
 
 		config := service.Config{
-			Listener:        listener,
 			IpfsMultiaddrs:  ipfsMultiaddrs,
 			Datastore:       ds,
 			DaemonFrequency: daemonFrequency,
