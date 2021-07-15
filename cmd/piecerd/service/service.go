@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -20,8 +19,6 @@ var log = golog.Logger("piecer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Listener net.Listener
-
 	IpfsMultiaddrs []multiaddr.Multiaddr
 	Datastore      txndswrap.TxnDatastore
 
@@ -52,7 +49,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	if err := mbroker.RegisterHandlers(mb, &s); err != nil {
+	if err := mbroker.RegisterHandlers(mb, s); err != nil {
 		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
 	}
 
@@ -60,9 +57,11 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 }
 
 // OnNewBatchCreated handles messages for new-batch-created topic.
-func (s *Service) OnNewBatchCreated(sdID broker.StorageDealID, batchCid cid.Cid) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (s *Service) OnNewBatchCreated(
+	ctx context.Context,
+	sdID broker.StorageDealID,
+	batchCid cid.Cid,
+	_ []broker.BrokerRequestID) error {
 	if err := s.piecer.ReadyToPrepare(ctx, sdID, batchCid); err != nil {
 		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}

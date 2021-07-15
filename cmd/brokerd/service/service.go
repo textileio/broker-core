@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -21,7 +20,6 @@ import (
 	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
 	"github.com/textileio/broker-core/msgbroker"
-	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logger "github.com/textileio/go-log/v2"
 
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -55,10 +53,6 @@ type Config struct {
 	CARExportURL string
 
 	AuctionMaxRetries int
-
-	GPubSubProjectID     string
-	GPubSubAPIKey        string
-	MsgBrokerTopicPrefix string
 }
 
 // Service provides an implementation of the broker API.
@@ -74,7 +68,7 @@ type Service struct {
 var _ pb.APIServiceServer = (*Service)(nil)
 
 // New returns a new Service.
-func New(config Config) (*Service, error) {
+func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 	if err := validateConfig(config); err != nil {
 		return nil, fmt.Errorf("config is invalid: %s", err)
 	}
@@ -111,11 +105,6 @@ func New(config Config) (*Service, error) {
 	ipfsClient, err := httpapi.NewApi(ma)
 	if err != nil {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
-	}
-
-	mb, err := gpubsub.New(config.GPubSubProjectID, config.GPubSubAPIKey, config.MsgBrokerTopicPrefix, "brokerd")
-	if err != nil {
-		return nil, fmt.Errorf("creating google pubsub message broker: %s", err)
 	}
 
 	broker, err := brokeri.New(
@@ -309,9 +298,10 @@ func (s *Service) GetBrokerRequestInfo(
 }
 
 // OnNewBatchCreated handles new messages in new-batch-created topic.
-func (s *Service) OnNewBatchCreated(id broker.StorageDealID, batchCid cid.Cid, brids []broker.BrokerRequestID) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (s *Service) OnNewBatchCreated(
+	ctx context.Context,
+	id broker.StorageDealID,
+	batchCid cid.Cid, brids []broker.BrokerRequestID) error {
 	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
 	}
@@ -341,10 +331,11 @@ func (s *Service) StorageDealAuctioned(
 	return &pb.StorageDealAuctionedResponse{}, nil
 }
 
-// OnNewBatchPreparedHandler handles new messages in new-batch-prepared topic.
-func (s *Service) OnNewBatchPreparedHandler(id broker.StorageDealID, pr broker.DataPreparationResult) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+// OnNewBatchPrepared handles new messages in new-batch-prepared topic.
+func (s *Service) OnNewBatchPrepared(
+	ctx context.Context,
+	id broker.StorageDealID,
+	pr broker.DataPreparationResult) error {
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
 		return fmt.Errorf("processing new prepared batch: %s", err)
 	}

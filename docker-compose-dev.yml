@@ -175,7 +175,6 @@ services:
     environment:
       - PIECER_LOG_DEBUG=true
       - PIECER_LOG_JSON=false
-      - PIECER_RPC_ADDR=:5000
       - PIECER_MONGO_URI=mongodb://mongo:27017
       - PIECER_MONGO_DBNAME=piecerd
       - PIECER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
