@@ -51,7 +51,13 @@ type NewBatchPreparedListener interface {
 
 // ReadyToBatchListener is a handler for ReadyToBatch topic.
 type ReadyToBatchListener interface {
-	OnReadyToBatch(context.Context, broker.BrokerRequestID, cid.Cid) error
+	OnReadyToBatch(context.Context, []ReadyToBatchData) error
+}
+
+// ReadyToBatchData contains broker request data information to be batched.
+type ReadyToBatchData struct {
+	BrokerRequestID broker.BrokerRequestID
+	DataCid         cid.Cid
 }
 
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
@@ -129,16 +135,27 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal ready to batch: %s", err)
 			}
-			if r.BrokerRequestId == "" {
-				return fmt.Errorf("broker request id is empty")
-			}
-			brID := broker.BrokerRequestID(r.BrokerRequestId)
-			dataCid, err := cid.Cast(r.DataCid)
-			if err != nil {
-				return fmt.Errorf("decoding data cid: %s", err)
+			if len(r.DataCids) == 0 {
+				return errors.New("data cids list can't be empty")
 			}
 
-			if err := l.OnReadyToBatch(ctx, brID, dataCid); err != nil {
+			rtb := make([]ReadyToBatchData, len(r.DataCids))
+			for i := range r.DataCids {
+				if r.DataCids[i].BrokerRequestId == "" {
+					return fmt.Errorf("broker request id is empty")
+				}
+				brID := broker.BrokerRequestID(r.DataCids[i].BrokerRequestId)
+				dataCid, err := cid.Cast(r.DataCids[i].DataCid)
+				if err != nil {
+					return fmt.Errorf("decoding data cid: %s", err)
+				}
+				rtb[i] = ReadyToBatchData{
+					BrokerRequestID: brID,
+					DataCid:         dataCid,
+				}
+			}
+
+			if err := l.OnReadyToBatch(ctx, rtb); err != nil {
 				return fmt.Errorf("calling ready-to-batch handler: %s", err)
 			}
 			return nil
@@ -155,10 +172,19 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 	return nil
 }
 
-func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, brID broker.BrokerRequestID, dataCid cid.Cid) error {
+func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyToBatchData) error {
+	if len(dataCids) == 0 {
+		return errors.New("data cids is empty")
+	}
 	msg := &pbBroker.ReadyToBatch{
-		BrokerRequestId: string(brID),
-		DataCid:         dataCid.Bytes(),
+		DataCids: make([]*pbBroker.ReadyToBatch_ReadyToBatchBR, len(dataCids)),
+	}
+
+	for i := range dataCids {
+		msg.DataCids[i] = &pbBroker.ReadyToBatch_ReadyToBatchBR{
+			BrokerRequestId: string(dataCids[i].BrokerRequestID),
+			DataCid:         dataCids[i].DataCid.Bytes(),
+		}
 	}
 	msgb, err := proto.Marshal(msg)
 	if err != nil {

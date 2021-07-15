@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/finalizer"
-	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	golog "github.com/textileio/go-log/v2"
@@ -85,9 +83,11 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 }
 
 // OnReadyToBatch process a message for data ready to be included in a batch.
-func (s *Service) ReadyToBatch(ctx context.Context, brID broker.BrokerRequestID, dataCid cid.Cid) error {
-	if err := s.packer.ReadyToPack(ctx, brID, dataCid); err != nil {
-		return fmt.Errorf("queuing broker request: %s", err)
+func (s *Service) ReadyToBatch(ctx context.Context, readyDataCids []mbroker.ReadyToBatchData) error {
+	for _, rdc := range readyDataCids {
+		if err := s.packer.ReadyToPack(ctx, rdc.BrokerRequestID, rdc.DataCid); err != nil {
+			return fmt.Errorf("queuing broker request: %s", err)
+		}
 	}
 
 	return nil
