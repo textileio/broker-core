@@ -52,7 +52,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	if err := mbroker.RegisterHandlers(mb, &s); err != nil {
+	if err := mbroker.RegisterHandlers(mb, s); err != nil {
 		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
 	}
 
