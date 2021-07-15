@@ -20,7 +20,7 @@ import (
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
-	"github.com/textileio/broker-core/packer"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 )
 
 const (
@@ -44,11 +44,11 @@ var (
 // the Filecoin network.
 type Broker struct {
 	store      *store.Store
-	packer     packer.Packer
 	auctioneer auctioneer.Auctioneer
 	dealer     dealer.Dealer
 	chainAPI   chainapi.ChainAPI
 	ipfsClient *httpapi.HttpApi
+	mb         mbroker.MsgBroker
 
 	conf config
 
@@ -65,11 +65,11 @@ type Broker struct {
 // New creates a Broker backed by the provided `ds`.
 func New(
 	postgresURI string,
-	packer packer.Packer,
 	auctioneer auctioneer.Auctioneer,
 	dealer dealer.Dealer,
 	chainAPI chainapi.ChainAPI,
 	ipfsClient *httpapi.HttpApi,
+	mb mbroker.MsgBroker,
 	opts ...Option,
 ) (*Broker, error) {
 	s, err := store.New(postgresURI)
@@ -90,11 +90,11 @@ func New(
 	ctx, cls := context.WithCancel(context.Background())
 	b := &Broker{
 		store:      s,
-		packer:     packer,
 		dealer:     dealer,
 		auctioneer: auctioneer,
 		chainAPI:   chainAPI,
 		ipfsClient: ipfsClient,
+		mb:         mb,
 
 		conf: conf,
 
@@ -131,12 +131,10 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, e
 		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
 	}
 
-	// We notify the Packer that this BrokerRequest is ready to be considered.
-	// We'll receive a call to `(*Broker).CreateStorageDeal(...)` which will contain
-	// this BrokerRequest, and continue with the bidding process..
-	log.Debugf("signaling packer")
-	if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("notifying packer of ready broker request: %s", err)
+	log.Debugf("publishing in ready-to-batch topic")
+	dataCids := []mbroker.ReadyToBatchData{{BrokerRequestID: br.ID, DataCid: br.DataCid}}
+	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("publishing to msg broker: %s", err)
 	}
 
 	return br, nil
@@ -629,14 +627,16 @@ func (b *Broker) errorStorageDealAndRebatch(ctx context.Context, id broker.Stora
 	}
 
 	log.Debugf("erroring storage deal %s, rebatching %d broker-requests: %s", id, len(brs), errCause)
+	dataCids := make([]mbroker.ReadyToBatchData, len(brs))
 	for i := range brs {
 		br, err := b.store.GetBrokerRequest(ctx, brs[i])
 		if err != nil {
 			return fmt.Errorf("get broker request: %s", err)
 		}
-		if err := b.packer.ReadyToPack(ctx, br.ID, br.DataCid); err != nil {
-			return fmt.Errorf("notifying packer of ready broker request: %s", err)
-		}
+		dataCids[i] = mbroker.ReadyToBatchData{BrokerRequestID: br.ID, DataCid: br.DataCid}
+	}
+	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
+		return fmt.Errorf("publishing to msg broker: %s", err)
 	}
 
 	return nil

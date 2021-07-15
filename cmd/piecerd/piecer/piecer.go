@@ -22,12 +22,10 @@ import (
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
-	pbBroker "github.com/textileio/broker-core/gen/broker/v1"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	pieceri "github.com/textileio/broker-core/piecer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
-	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.Logger("piecer")
@@ -241,17 +239,8 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	duration := time.Since(start).Seconds()
 	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, duration)
 
-	sdp := &pbBroker.NewBatchPrepared{
-		Id:        string(usd.StorageDealID),
-		PieceCid:  dpr.PieceCid.Bytes(),
-		PieceSize: dpr.PieceSize,
-	}
-	sdpBytes, err := proto.Marshal(sdp)
-	if err != nil {
-		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
-	}
-	if err := p.mb.PublishMsg(ctx, mbroker.NewBatchPreparedTopic, sdpBytes); err != nil {
-		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
+	if err := mbroker.PublishMsgNewBatchPrepared(ctx, p.mb, usd.StorageDealID, dpr.PieceCid, dpr.PieceSize); err != nil {
+		return fmt.Errorf("publish message to message broker: %s", err)
 	}
 
 	p.metricNewPrepare.Add(ctx, 1)

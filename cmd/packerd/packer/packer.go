@@ -18,12 +18,10 @@ import (
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/packer/store"
-	pb "github.com/textileio/broker-core/gen/broker/v1"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	packeri "github.com/textileio/broker-core/packer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -105,10 +103,10 @@ func New(
 	return p, nil
 }
 
-// ReadyToPack signals the packer that there's a new BrokerRequest that can be
+// ReadyToBatch signals the packer that there's a new BrokerRequest that can be
 // considered. Packer will notify the broker async when the final StorageDeal
 // that contains this BrokerRequest gets created.
-func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
+func (p *Packer) ReadyToBatch(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	log.Debugf("received ready to pack: %s %s", id, dataCid)
 
 	node, err := p.ipfs.Dag().Get(ctx, dataCid)
@@ -182,31 +180,20 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
 
-	brids := make([]string, len(bbrs))
-	for i, bbr := range bbrs {
-		brids[i] = string(bbr.BrokerRequestID)
-	}
-
 	id, err := p.newID()
 	if err != nil {
 		return 0, fmt.Errorf("creating new id: %s", err)
 	}
-	msg := &pb.NewBatchCreated{
-		Id:               id,
-		BatchCid:         batchCid.Bytes(),
-		BrokerRequestIds: brids,
-	}
-	msgb, err := proto.Marshal(msg)
-	if err != nil {
-		return 0, fmt.Errorf("marshaling new-batch-created message: %s", err)
-	}
-
 	if err := p.store.DeleteBatch(batch.ID); err != nil {
 		return 0, fmt.Errorf("delete batch: %s", err)
 	}
 
-	if err := p.mb.PublishMsg(ctx, mbroker.NewBatchCreatedTopic, msgb); err != nil {
-		return 0, fmt.Errorf("publishing new-batch-created message: %s", err)
+	brids := make([]broker.BrokerRequestID, len(bbrs))
+	for i, bbr := range bbrs {
+		brids[i] = bbr.BrokerRequestID
+	}
+	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, id, batchCid, brids); err != nil {
+		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
 	p.metricNewBatch.Add(ctx, 1)
