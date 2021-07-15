@@ -35,13 +35,6 @@ type Piecer struct {
 	mb       mbroker.MsgBroker
 	ipfsApis []ipfsAPI
 
-	newRequest chan struct{}
-
-	onceClose       sync.Once
-	daemonCtx       context.Context
-	daemonCancelCtx context.CancelFunc
-	daemonClosed    chan struct{}
-
 	statLastSize              int64
 	metricLastSize            metric.Int64ValueObserver
 	statLastDurationSeconds   int64
@@ -75,16 +68,9 @@ func New(
 		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
 	}
 
-	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
 		ipfsApis: ipfsApis,
 		mb:       mb,
-
-		newRequest: make(chan struct{}, 1),
-
-		daemonCtx:       ctx,
-		daemonCancelCtx: cls,
-		daemonClosed:    make(chan struct{}),
 	}
 	p.initMetrics()
 
@@ -102,24 +88,9 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, da
 	}
 
 	if err := p.prepare(ctx, id, dataCid); err != nil {
-		return fmt.Errorf("saving %s %s: %s", id, dataCid, err)
+		return fmt.Errorf("preparing storage deal id %s with dataCid %s: %s", id, dataCid, err)
 	}
 
-	select {
-	case p.newRequest <- struct{}{}:
-	default:
-	}
-
-	return nil
-}
-
-// Close closes the piecer.
-func (p *Piecer) Close() error {
-	log.Info("closing piecer...")
-	p.onceClose.Do(func() {
-		p.daemonCancelCtx()
-		<-p.daemonClosed
-	})
 	return nil
 }
 

@@ -22,7 +22,10 @@ func New() *FakeMsgBroker {
 }
 
 // RegisterTopicHandler registers a handler for a topic.
-func (b *FakeMsgBroker) RegisterTopicHandler(topicName mbroker.TopicName, handler mbroker.TopicHandler) error {
+func (b *FakeMsgBroker) RegisterTopicHandler(
+	topicName mbroker.TopicName,
+	handler mbroker.TopicHandler,
+	opts ...mbroker.Option) error {
 	panic("not implemented")
 }
 

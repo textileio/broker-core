@@ -8,7 +8,6 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
@@ -22,33 +21,28 @@ type Config struct {
 	Listener net.Listener
 
 	IpfsMultiaddrs []multiaddr.Multiaddr
+	AckDeadline    time.Duration
 }
 
 // Service is a gRPC service wrapper around a piecer.
 type Service struct {
-	mb        mbroker.MsgBroker
-	piecer    *piecer.Piecer
-	finalizer *finalizer.Finalizer
+	mb     mbroker.MsgBroker
+	piecer *piecer.Piecer
 }
 
 // New returns a new Service.
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
-	fin := finalizer.NewFinalizer()
-
 	lib, err := piecer.New(conf.IpfsMultiaddrs, mb)
 	if err != nil {
-		return nil, fin.Cleanupf("creating piecer: %v", err)
+		return nil, fmt.Errorf("creating piecer: %v", err)
 	}
-	fin.Add(lib)
 
 	s := &Service{
-		mb:        mb,
-		piecer:    lib,
-		finalizer: fin,
+		mb:     mb,
+		piecer: lib,
 	}
 
-	// TODO(jsign): increase ACK deadline & check cancelation works correctly.
-	if err := mbroker.RegisterHandlers(mb, &s, mbroker.WithACKDeadline(time.Hour)); err != nil {
+	if err := mbroker.RegisterHandlers(mb, &s, mbroker.WithACKDeadline(conf.AckDeadline)); err != nil {
 		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
 	}
 
@@ -64,11 +58,4 @@ func (s *Service) OnNewBatchCreated(sdID broker.StorageDealID, batchCid cid.Cid)
 	}
 
 	return nil
-}
-
-// Close the service.
-func (s *Service) Close() error {
-	defer log.Info("service was shutdown")
-
-	return s.finalizer.Cleanup(nil)
 }

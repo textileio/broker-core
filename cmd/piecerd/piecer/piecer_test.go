@@ -59,6 +59,35 @@ func TestPrepare(t *testing.T) {
 	require.Equal(t, uint64(1024*1024*4), r.PieceSize)
 }
 
+func TestCanceledPrepare(t *testing.T) {
+	t.Parallel()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPI := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	ma, err := multiaddr.NewMultiaddr(ipfsAPI)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	mb := fakemsgbroker.New()
+
+	p, err := New([]multiaddr.Multiaddr{ma}, mb)
+	require.NoError(t, err)
+
+	id := broker.StorageDealID("invented-id")
+	dataCid := addRandomData(t, ipfs)
+
+	ctx, cls := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(time.Nanosecond * 100)
+		cls()
+	}()
+	err = p.ReadyToPrepare(ctx, id, dataCid)
+	require.Error(t, err)
+	require.Equal(t, 0, mb.TotalPublished())
+}
+
 func addRandomData(t *testing.T, ipfs *httpapi.HttpApi) cid.Cid {
 	t.Helper()
 	r := rand.New(rand.NewSource(22))

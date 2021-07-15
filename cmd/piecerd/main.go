@@ -27,6 +27,7 @@ func init() {
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+		{Name: "ack-deadline", DefValue: "45m", Description: "Longest expected timeout for data preparation"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -73,12 +74,13 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			Listener:       listener,
 			IpfsMultiaddrs: ipfsMultiaddrs,
+			AckDeadline:    v.GetDuration("ack-deadline"),
 		}
-		serv, err := service.New(mb, config)
+		_, err = service.New(mb, config)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
-			if err := serv.Close(); err != nil {
+			if err := mb.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
 			}
 		})

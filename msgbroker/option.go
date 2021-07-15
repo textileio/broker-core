@@ -2,16 +2,29 @@ package msgbroker
 
 import "time"
 
-type config struct {
-	ackDeadline time.Duration
+var DefaultRegisterHandlerConfig = RegisterHandlerConfig{
+	AckDeadline: time.Second * 10,
 }
 
-type Option func(*config) error
+type RegisterHandlerConfig struct {
+	AckDeadline time.Duration
+}
+
+type Option func(*RegisterHandlerConfig) error
 
 // WithACKDeadline configures the deadline for the message broker subscription.
 func WithACKDeadline(deadline time.Duration) Option {
-	return func(c *config) error {
-		c.ackDeadline = deadline
+	return func(c *RegisterHandlerConfig) error {
+		c.AckDeadline = deadline
 		return nil
 	}
+}
+
+func ApplyRegisterHandlerOptions(opts ...Option) RegisterHandlerConfig {
+	config := DefaultRegisterHandlerConfig
+	for _, opt := range opts {
+		opt(&config)
+	}
+
+	return config
 }
