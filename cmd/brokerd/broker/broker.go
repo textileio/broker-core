@@ -45,7 +45,6 @@ var (
 type Broker struct {
 	store      *store.Store
 	auctioneer auctioneer.Auctioneer
-	dealer     dealer.Dealer
 	chainAPI   chainapi.ChainAPI
 	ipfsClient *httpapi.HttpApi
 	mb         mbroker.MsgBroker
@@ -66,7 +65,6 @@ type Broker struct {
 func New(
 	postgresURI string,
 	auctioneer auctioneer.Auctioneer,
-	dealer dealer.Dealer,
 	chainAPI chainapi.ChainAPI,
 	ipfsClient *httpapi.HttpApi,
 	mb mbroker.MsgBroker,
@@ -90,7 +88,6 @@ func New(
 	ctx, cls := context.WithCancel(context.Background())
 	b := &Broker{
 		store:      s,
-		dealer:     dealer,
 		auctioneer: auctioneer,
 		chainAPI:   chainAPI,
 		ipfsClient: ipfsClient,
@@ -504,9 +501,8 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 		i++
 	}
 
-	log.Debug("signaling dealer...")
-	if err := b.dealer.ReadyToCreateDeals(ctx, ads); err != nil {
-		return fmt.Errorf("signaling dealer to execute winning bids: %s", err)
+	if err := mbroker.PublishMsgReadyToCreateDeals(ctx, b.mb, ads); err != nil {
+		return fmt.Errorf("sending ready to create deals message to msg broker: %s", err)
 	}
 
 	if err := b.store.AddMinerDeals(ctx, au); err != nil {

@@ -17,7 +17,6 @@ import (
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
-	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 
@@ -37,7 +36,6 @@ type Config struct {
 
 	PiecerAddr     string
 	AuctioneerAddr string
-	DealerAddr     string
 	ReporterAddr   string
 
 	PostgresURI string
@@ -81,11 +79,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
 	}
 
-	dealer, err := dealeri.New(config.DealerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating dealer implementation: %s", err)
-	}
-
 	reporter, err := chainapii.New(config.ReporterAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating reporter implementation: %s", err)
@@ -103,7 +96,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 	broker, err := brokeri.New(
 		config.PostgresURI,
 		auctioneer,
-		dealer,
 		reporter,
 		ipfsClient,
 		mb,
