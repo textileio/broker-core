@@ -62,6 +62,17 @@ spec:
               containerPort: 5000
             - name: metrics
               containerPort: 9090
+          env:
+            - name: PIECER_GPUBSUB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+            - name: PIECER_GPUBSUB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-api-key
           envFrom:
             - configMapRef:
                 name: configmap-piecer
