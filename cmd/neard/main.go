@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"time"
 
@@ -66,7 +65,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := marshalConfig(v)
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "client-private-key")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -131,12 +130,4 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	common.CheckErr(rootCmd.Execute())
-}
-
-func marshalConfig(v *viper.Viper) ([]byte, error) {
-	all := v.AllSettings()
-	if all["client-private-key"].(string) != "" {
-		all["client-private-key"] = "***"
-	}
-	return json.MarshalIndent(all, "", "  ")
 }
