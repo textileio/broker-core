@@ -414,9 +414,6 @@ func validateConfig(conf Config) error {
 	if conf.AuctioneerAddr == "" {
 		return errors.New("auctioneer api addr is empty")
 	}
-	if conf.DealerAddr == "" {
-		return errors.New("dealer api addr is empty")
-	}
 	if conf.ReporterAddr == "" {
 		return errors.New("reporter api addr is empty")
 	}

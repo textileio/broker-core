@@ -12,6 +12,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
+	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
 )
 
@@ -206,7 +207,9 @@ func newDealer(t *testing.T, broker broker.Broker) *Dealer {
 		WithDealWatchingFreq(time.Hour),
 		WithDealReportingFreq(time.Hour),
 	}
-	dealer, err := New(ds, broker, fc, opts...)
+
+	mb := fakemsgbroker.New()
+	dealer, err := New(ds, mb, fc, opts...)
 	require.NoError(t, err)
 
 	return dealer
