@@ -8,7 +8,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/dealer"
-	pbBroker "github.com/textileio/broker-core/gen/broker/v1"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -76,7 +76,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 	if l, ok := s.(NewBatchCreatedListener); ok {
 		countRegistered++
 		err := mb.RegisterTopicHandler(NewBatchCreatedTopic, func(ctx context.Context, data []byte) error {
-			r := &pbBroker.NewBatchCreated{}
+			r := &pb.NewBatchCreated{}
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal new batch created: %s", err)
 			}
@@ -113,7 +113,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 	if l, ok := s.(NewBatchPreparedListener); ok {
 		countRegistered++
 		err := mb.RegisterTopicHandler(NewBatchPreparedTopic, func(ctx context.Context, data []byte) error {
-			r := &pbBroker.NewBatchPrepared{}
+			r := &pb.NewBatchPrepared{}
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal new batch prepared: %s", err)
 			}
@@ -139,7 +139,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 	if l, ok := s.(ReadyToBatchListener); ok {
 		countRegistered++
 		err := mb.RegisterTopicHandler(ReadyToBatchTopic, func(ctx context.Context, data []byte) error {
-			r := &pbBroker.ReadyToBatch{}
+			r := &pb.ReadyToBatch{}
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal ready to batch: %s", err)
 			}
@@ -176,7 +176,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 	if l, ok := s.(ReadyToCreateDeals); ok {
 		countRegistered++
 		err := mb.RegisterTopicHandler(ReadyToCreateDealsTopic, func(ctx context.Context, data []byte) error {
-			r := &pbBroker.ReadyToCreateDeals{}
+			r := &pb.ReadyToCreateDeals{}
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal ready to batch: %s", err)
 			}
@@ -241,12 +241,12 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 	if len(dataCids) == 0 {
 		return errors.New("data cids is empty")
 	}
-	msg := &pbBroker.ReadyToBatch{
-		DataCids: make([]*pbBroker.ReadyToBatch_ReadyToBatchBR, len(dataCids)),
+	msg := &pb.ReadyToBatch{
+		DataCids: make([]*pb.ReadyToBatch_ReadyToBatchBR, len(dataCids)),
 	}
 
 	for i := range dataCids {
-		msg.DataCids[i] = &pbBroker.ReadyToBatch_ReadyToBatchBR{
+		msg.DataCids[i] = &pb.ReadyToBatch_ReadyToBatchBR{
 			BrokerRequestId: string(dataCids[i].BrokerRequestID),
 			DataCid:         dataCids[i].DataCid.Bytes(),
 		}
@@ -273,7 +273,7 @@ func PublishMsgNewBatchCreated(
 	for i, bbr := range brIDs {
 		brids[i] = string(bbr)
 	}
-	msg := &pbBroker.NewBatchCreated{
+	msg := &pb.NewBatchCreated{
 		Id:               batchID,
 		BatchCid:         batchCid.Bytes(),
 		BrokerRequestIds: brids,
@@ -296,7 +296,7 @@ func PublishMsgNewBatchPrepared(
 	sdID broker.StorageDealID,
 	pieceCid cid.Cid,
 	pieceSize uint64) error {
-	msg := &pbBroker.NewBatchPrepared{
+	msg := &pb.NewBatchPrepared{
 		Id:        string(sdID),
 		PieceCid:  pieceCid.Bytes(),
 		PieceSize: pieceSize,
@@ -307,6 +307,39 @@ func PublishMsgNewBatchPrepared(
 	}
 	if err := mb.PublishMsg(ctx, NewBatchPreparedTopic, data); err != nil {
 		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
+	}
+
+	return nil
+}
+
+// PublishMsgReadyToCreateDeals publishes a message to the ready-to-create-deals topic.
+func PublishMsgReadyToCreateDeals(
+	ctx context.Context,
+	mb MsgBroker,
+	ads dealer.AuctionDeals) error {
+	msg := &pb.ReadyToCreateDeals{
+		StorageDealId: string(ads.StorageDealID),
+		PayloadCid:    ads.PayloadCid.String(),
+		PieceCid:      ads.PieceCid.String(),
+		PieceSize:     ads.PieceSize,
+		Duration:      ads.Duration,
+		Proposals:     make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
+	}
+	for i, t := range ads.Proposals {
+		msg.Proposals[i] = &pb.ReadyToCreateDeals_Proposal{
+			Miner:               t.Miner,
+			PricePerGibPerEpoch: t.PricePerGiBPerEpoch,
+			StartEpoch:          t.StartEpoch,
+			Verified:            t.Verified,
+			FastRetrieval:       t.FastRetrieval,
+		}
+	}
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("mashaling ready-to-create-deals message: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, ReadyToCreateDealsTopic, data); err != nil {
+		return fmt.Errorf("publishing ready-to-create-deals message: %s", err)
 	}
 
 	return nil

@@ -7,9 +7,9 @@ import (
 
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/logging"
-	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -19,7 +19,6 @@ var log = logger.Logger("dealer")
 type Dealer struct {
 	config    config
 	store     *store.Store
-	broker    broker.Broker
 	filclient FilClient
 
 	onceClose       sync.Once
@@ -34,7 +33,7 @@ var _ dealeri.Dealer = (*Dealer)(nil)
 // New returns a new Dealer.
 func New(
 	ds txndswrap.TxnDatastore,
-	broker broker.Broker,
+	mb mbroker.MsgBroker,
 	fc FilClient,
 	opts ...Option) (*Dealer, error) {
 	cfg := defaultConfig
@@ -53,7 +52,6 @@ func New(
 	d := &Dealer{
 		config:    cfg,
 		store:     store,
-		broker:    broker,
 		filclient: fc,
 
 		daemonCtx:       ctx,

@@ -677,10 +677,8 @@ func createBroker(t *testing.T) (
 	*Broker,
 	*fakemsgbroker.FakeMsgBroker,
 	*dumbAuctioneer,
-	*dumbDealer,
 	*dumbChainAPI) {
 	auctioneer := &dumbAuctioneer{}
-	dealer := &dumbDealer{}
 	chainAPI := &dumbChainAPI{}
 	u, err := tests.PostgresURL()
 	require.NoError(t, err)
@@ -689,7 +687,6 @@ func createBroker(t *testing.T) (
 	b, err := New(
 		u,
 		auctioneer,
-		dealer,
 		chainAPI,
 		nil,
 		fmb,
@@ -697,7 +694,7 @@ func createBroker(t *testing.T) (
 	)
 	require.NoError(t, err)
 
-	return b, fmb, auctioneer, dealer, chainAPI
+	return b, fmb, auctioneer, chainAPI
 }
 
 type dumbAuctioneer struct {
@@ -742,17 +739,6 @@ func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id auction.AuctionID) 
 
 func (dp *dumbAuctioneer) ProposalAccepted(context.Context, auction.AuctionID, auction.BidID, cid.Cid) error {
 	panic("shouldn't be called")
-}
-
-type dumbDealer struct {
-	calledAuctionDeals dealer.AuctionDeals
-}
-
-var _ dealer.Dealer = (*dumbDealer)(nil)
-
-func (dd *dumbDealer) ReadyToCreateDeals(ctx context.Context, ads dealer.AuctionDeals) error {
-	dd.calledAuctionDeals = ads
-	return nil
 }
 
 func createCidFromString(s string) cid.Cid {
