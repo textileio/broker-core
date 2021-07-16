@@ -32,7 +32,7 @@ type Auctioneer interface {
 
 // Auction defines the core auction model.
 type Auction struct {
-	ID               auction.AuctionID
+	ID               auction.AuctionID // TODO(jsign): verify assignement and tests.
 	StorageDealID    broker.StorageDealID
 	PayloadCid       cid.Cid
 	DealSize         uint64

@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/dealer"
@@ -45,6 +47,8 @@ const (
 	FinalizedDealTopic = "finalized-deal"
 	// DealProposalAcceptedTopic is the topic name for deal-proposal-accepted messages.
 	DealProposalAcceptedTopic = "deal-proposal-accepted"
+	// ReadyToAuctionTopic is the topic name for ready-to-auction messages.
+	ReadyToAuctionTopic = "ready-to-auction"
 )
 
 // NewBatchCreatedListener is a handler for new-batch-created topic.
@@ -73,9 +77,29 @@ type ReadyToCreateDealsListener interface {
 	OnReadyToCreateDeals(context.Context, dealer.AuctionDeals) error
 }
 
-// FinalizedDeal is a handler for finalized-deal topic.
+// FinalizedDealListener is a handler for finalized-deal topic.
 type FinalizedDealListener interface {
 	OnFinalizedDeal(context.Context, broker.FinalizedDeal) error
+}
+
+// DealProposalAcceptedListener is a handler for deal-proposal-accepted topic.
+type DealProposalAcceptedListener interface {
+	OnDealProposalAccepted(context.Context, auction.AuctionID, auction.BidID, cid.Cid) error
+}
+
+// ReadyToAuctionListener is a handler for finalized-deal topic.
+type ReadyToAuctionListener interface {
+	OnReadyToAuction(
+		ctx context.Context,
+		id auction.AuctionID,
+		storageDealID broker.StorageDealID,
+		payloadCid cid.Cid,
+		dealSize, dealDuration, dealReplication int,
+		dealVerified bool,
+		excludedMiners []string,
+		filEpochDeadline uint64,
+		sources auction.Sources,
+	) error
 }
 
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
@@ -295,6 +319,90 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}
 	}
 
+	if l, ok := s.(DealProposalAcceptedListener); ok {
+		countRegistered++
+		err := mb.RegisterTopicHandler(DealProposalAcceptedTopic, func(ctx context.Context, data []byte) error {
+			r := &pb.DealProposalAccepted{}
+			if err := proto.Unmarshal(data, r); err != nil {
+				return fmt.Errorf("unmarshal ready to batch: %s", err)
+			}
+			if r.AuctionId == "" {
+				return errors.New("auction id is required")
+			}
+			if r.BidId == "" {
+				return errors.New("bid id is required")
+			}
+			proposalCid, err := cid.Decode(r.ProposalCid)
+			if err != nil || !proposalCid.Defined() {
+				return errors.New("invalid proposal cid")
+			}
+
+			if err := l.OnDealProposalAccepted(ctx, auction.AuctionID(r.AuctionId), auction.BidID(r.BidId), proposalCid); err != nil {
+				return fmt.Errorf("calling deal-proposal-accepted handler: %s", err)
+			}
+			return nil
+		}, opts...)
+		if err != nil {
+			return fmt.Errorf("registering handler for ready-to-batch topic")
+		}
+	}
+
+	if l, ok := s.(ReadyToAuctionListener); ok {
+		countRegistered++
+		err := mb.RegisterTopicHandler(ReadyToAuctionTopic, func(ctx context.Context, data []byte) error {
+			req := &pb.ReadyToAuction{}
+			if err := proto.Unmarshal(data, req); err != nil {
+				return fmt.Errorf("unmarshal finalized deal msg: %s", err)
+			}
+			if req.Id == "" {
+				return errors.New("auction-id is empty")
+			}
+			if req.StorageDealId == "" {
+				return errors.New("storage deal id is empty")
+			}
+			if req.PayloadCid == "" {
+				return errors.New("payload cid is empty")
+			}
+			payloadCid, err := cid.Parse(req.PayloadCid)
+			if err != nil || !payloadCid.Defined() {
+				return errors.New("payload cid invalid")
+			}
+			if req.DealSize == 0 {
+				return errors.New("deal size must be greater than zero")
+			}
+			if req.DealDuration == 0 {
+				return errors.New("deal duration must be greater than zero")
+			}
+			if req.DealReplication == 0 {
+				return errors.New("deal replication must be greater than zero")
+			}
+			sources, err := sourcesFromPb(req.Sources)
+			if err != nil {
+				return fmt.Errorf("decoding sources: %v", err)
+			}
+
+			if err := l.OnReadyToAuction(
+				ctx,
+				auction.AuctionID(req.Id),
+				broker.StorageDealID(req.StorageDealId),
+				payloadCid,
+				int(req.DealSize),
+				int(req.DealDuration),
+				int(req.DealReplication),
+				req.DealVerified,
+				req.ExcludedMiners,
+				req.FilEpochDeadline,
+				sources,
+			); err != nil {
+				return fmt.Errorf("calling finalized-deal handler: %s", err)
+			}
+			return nil
+		}, opts...)
+		if err != nil {
+			return fmt.Errorf("registering handler for finalized-deal topic")
+		}
+	}
+
 	if countRegistered == 0 {
 		return errors.New("no handlers were registered")
 	}
@@ -452,12 +560,16 @@ func PublishMsgDealProposalAccepted(
 	ctx context.Context,
 	mb MsgBroker,
 	sdID broker.StorageDealID,
+	auctionID auction.AuctionID,
+	bidID auction.BidID,
 	miner string,
 	propCid cid.Cid) error {
 	msg := &pb.DealProposalAccepted{
 		StorageDealId: string(sdID),
 		Miner:         miner,
 		ProposalCid:   propCid.String(),
+		AuctionId:     string(auctionID),
+		BidId:         string(bidID),
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -468,4 +580,90 @@ func PublishMsgDealProposalAccepted(
 	}
 
 	return nil
+}
+
+// PublishMsgReadyToAuction publishes a message to the ready-to-auction topic.
+func PublishMsgReadyToAuction(
+	ctx context.Context,
+	mb MsgBroker,
+	id auction.AuctionID,
+	storageDealID broker.StorageDealID,
+	payloadCid cid.Cid,
+	dealSize, dealDuration, dealReplication int,
+	dealVerified bool,
+	excludedMiners []string,
+	filEpochDeadline uint64,
+	sources auction.Sources) error {
+	msg := &pb.ReadyToAuction{
+		Id:               string(id),
+		StorageDealId:    string(storageDealID),
+		PayloadCid:       payloadCid.String(),
+		DealSize:         uint64(dealSize),
+		DealDuration:     uint64(dealDuration),
+		DealReplication:  uint32(dealReplication),
+		DealVerified:     dealVerified,
+		ExcludedMiners:   excludedMiners,
+		FilEpochDeadline: filEpochDeadline,
+		Sources:          sourcesToPb(sources),
+	}
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("mashaling ready-to-auction message: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, ReadyToAuctionTopic, data); err != nil {
+		return fmt.Errorf("publishing ready-to-auction message: %s", err)
+	}
+
+	return nil
+}
+
+func sourcesToPb(sources auction.Sources) *pb.Sources {
+	var carIPFS *pb.Sources_CARIPFS
+	if sources.CARIPFS != nil {
+		var multiaddrs []string
+		for _, addr := range sources.CARIPFS.Multiaddrs {
+			multiaddrs = append(multiaddrs, addr.String())
+		}
+		carIPFS = &pb.Sources_CARIPFS{
+			Cid:        sources.CARIPFS.Cid.String(),
+			Multiaddrs: multiaddrs,
+		}
+	}
+	var carURL *pb.Sources_CARURL
+	if sources.CARURL != nil {
+		carURL = &pb.Sources_CARURL{
+			URL: sources.CARURL.URL.String(),
+		}
+	}
+	return &pb.Sources{
+		CarUrl:  carURL,
+		CarIpfs: carIPFS,
+	}
+}
+
+func sourcesFromPb(pbs *pb.Sources) (sources auction.Sources, err error) {
+	if pbs.CarUrl != nil {
+		u, err := url.Parse(pbs.CarUrl.URL)
+		if err != nil {
+			return auction.Sources{}, err
+		}
+		sources.CARURL = &auction.CARURL{URL: *u}
+	}
+
+	if pbs.CarIpfs != nil {
+		id, err := cid.Parse(pbs.CarIpfs.Cid)
+		if err != nil {
+			return auction.Sources{}, err
+		}
+		var multiaddrs []multiaddr.Multiaddr
+		for _, s := range pbs.CarIpfs.Multiaddrs {
+			addr, err := multiaddr.NewMultiaddr(s)
+			if err != nil {
+				return auction.Sources{}, err
+			}
+			multiaddrs = append(multiaddrs, addr)
+		}
+		sources.CARIPFS = &auction.CARIPFS{Cid: id, Multiaddrs: multiaddrs}
+	}
+	return
 }

@@ -65,7 +65,6 @@ services:
     environment:
       - AUCTIONEER_LOG_DEBUG=true
       - AUCTIONEER_LOG_JSON=false
-      - AUCTIONEER_RPC_ADDR=:5000
       - AUCTIONEER_MONGO_URI=mongodb://mongo:27017
       - AUCTIONEER_MONGO_DBNAME=auctioneerd
       - AUCTIONEER_BROKER_ADDR=brokerd:5000
