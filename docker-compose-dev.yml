@@ -195,7 +195,6 @@ services:
     environment:
       - DEALER_LOG_DEBUG=true
       - DEALER_LOG_JSON=false
-      - DEALER_RPC_ADDR=:5000
       - DEALER_MONGO_URI=mongodb://mongo:27017
       - DEALER_MONGO_DBNAME=dealerd
       - DEALER_BROKER_ADDR=brokerd:5000

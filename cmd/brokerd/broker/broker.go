@@ -489,12 +489,12 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 		PieceCid:      sd.PieceCid,
 		PieceSize:     sd.PieceSize,
 		Duration:      au.DealDuration,
-		Targets:       make([]dealer.AuctionDealsTarget, len(au.WinningBids)),
+		Proposals:     make([]dealer.Proposal, len(au.WinningBids)),
 	}
 
 	var i int
 	for _, bid := range au.WinningBids {
-		ads.Targets[i] = dealer.AuctionDealsTarget{
+		ads.Proposals[i] = dealer.Proposal{
 			Miner:               bid.MinerAddr,
 			PricePerGiBPerEpoch: bid.Price,
 			StartEpoch:          bid.StartEpoch,
@@ -530,7 +530,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 		for _, deal := range deals {
 			excludedMiners = append(excludedMiners, deal.MinerAddr)
 		}
-		for _, deal := range ads.Targets {
+		for _, deal := range ads.Proposals {
 			excludedMiners = append(excludedMiners, deal.Miner)
 		}
 		log.Infof("creating new auction for %d/%d missing bids", deltaRepFactor, len(au.WinningBids))

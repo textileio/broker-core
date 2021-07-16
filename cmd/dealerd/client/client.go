@@ -32,9 +32,9 @@ func (c *Client) ReadyToCreateDeals(ctx context.Context, sdb dealer.AuctionDeals
 		PieceCid:      sdb.PieceCid.String(),
 		PieceSize:     sdb.PieceSize,
 		Duration:      sdb.Duration,
-		Targets:       make([]*pb.ReadyToCreateDealsRequest_AuctionDealsTarget, len(sdb.Targets)),
+		Targets:       make([]*pb.ReadyToCreateDealsRequest_AuctionDealsTarget, len(sdb.Proposals)),
 	}
-	for i, t := range sdb.Targets {
+	for i, t := range sdb.Proposals {
 		req.Targets[i] = &pb.ReadyToCreateDealsRequest_AuctionDealsTarget{
 			Miner:               t.Miner,
 			PricePerGibPerEpoch: t.PricePerGiBPerEpoch,

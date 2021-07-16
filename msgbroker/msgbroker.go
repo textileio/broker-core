@@ -7,6 +7,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/dealer"
 	pbBroker "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -37,6 +38,8 @@ const (
 	NewBatchPreparedTopic = "new-batch-prepared"
 	// ReadyToBatchTopic is the topic name for ready-to-batch messages.
 	ReadyToBatchTopic = "ready-to-batch"
+	// ReadyToCreateDealsTopic is the topic name for ready-to-create-deals messages.
+	ReadyToCreateDealsTopic = "ready-to-create-deals"
 )
 
 // NewBatchCreatedListener is a handler for NewBatchCreated topic.
@@ -58,6 +61,11 @@ type ReadyToBatchListener interface {
 type ReadyToBatchData struct {
 	BrokerRequestID broker.BrokerRequestID
 	DataCid         cid.Cid
+}
+
+// ReadyDealmaking is a handler for ReadyDealMaking topic.
+type ReadyToCreateDeals interface {
+	OnReadyToCreateDeals(context.Context, dealer.AuctionDeals) error
 }
 
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
@@ -161,7 +169,63 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for new-batch-prepared topic")
+			return fmt.Errorf("registering handler for ready-to-batch topic")
+		}
+	}
+
+	if l, ok := s.(ReadyToCreateDeals); ok {
+		countRegistered++
+		err := mb.RegisterTopicHandler(ReadyToCreateDealsTopic, func(ctx context.Context, data []byte) error {
+			r := &pbBroker.ReadyToCreateDeals{}
+			if err := proto.Unmarshal(data, r); err != nil {
+				return fmt.Errorf("unmarshal ready to batch: %s", err)
+			}
+			if r.StorageDealId == "" {
+				return errors.New("storage deal id is empty")
+			}
+
+			payloadCid, err := cid.Decode(r.PayloadCid)
+			if err != nil {
+				return fmt.Errorf("parsing payload cid %s: %s", r.PayloadCid, err)
+			}
+			pieceCid, err := cid.Decode(r.PieceCid)
+			if err != nil {
+				return fmt.Errorf("parsing piece cid %s: %s", r.PieceCid, err)
+			}
+
+			ads := dealer.AuctionDeals{
+				StorageDealID: broker.StorageDealID(r.StorageDealId),
+				PayloadCid:    payloadCid,
+				PieceCid:      pieceCid,
+				PieceSize:     r.PieceSize,
+				Duration:      r.Duration,
+				Proposals:     make([]dealer.Proposal, len(r.Proposals)),
+			}
+			for i, t := range r.Proposals {
+				if t.Miner == "" {
+					return errors.New("miner addr is empty")
+				}
+				if t.PricePerGibPerEpoch < 0 {
+					return errors.New("price per gib per epoch is negative")
+				}
+				if t.StartEpoch == 0 {
+					return errors.New("start epoch should be positive")
+				}
+				ads.Proposals[i] = dealer.Proposal{
+					Miner:               t.Miner,
+					PricePerGiBPerEpoch: t.PricePerGibPerEpoch,
+					StartEpoch:          t.StartEpoch,
+					Verified:            t.Verified,
+					FastRetrieval:       t.FastRetrieval,
+				}
+			}
+			if err := l.OnReadyToCreateDeals(ctx, ads); err != nil {
+				return fmt.Errorf("calling ready-to-create-deals handler: %s", err)
+			}
+			return nil
+		}, opts...)
+		if err != nil {
+			return fmt.Errorf("registering handler for ready-to-create-deals topic")
 		}
 	}
 
