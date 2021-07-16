@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-cloud-sql
+  annotations:
+    iam.gke.io/gcp-service-account: storage-broker-cloud-sql@textile-310716.iam.gserviceaccount.com

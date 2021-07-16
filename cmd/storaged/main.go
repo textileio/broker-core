@@ -94,7 +94,7 @@ func main() {
 func marshalConfig(v *viper.Viper) ([]byte, error) {
 	all := v.AllSettings()
 	if _, exists := all["bearer-tokens"]; exists {
-		all["bearer-tokens"] = "<redacted>"
+		all["bearer-tokens"] = "***"
 	}
 	return json.MarshalIndent(all, "", "  ")
 }
