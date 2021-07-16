@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -42,7 +41,6 @@ func init() {
 	rootCmd.AddCommand(initCmd, daemonCmd)
 
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
@@ -123,9 +121,6 @@ var daemonCmd = &cobra.Command{
 		err = common.SetupInstrumentation(v.GetString("metrics-addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
-		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
-		common.CheckErrf("creating listener: %v", err)
-
 		store, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
 		common.CheckErrf("creating datastore: %v", err)
 
@@ -139,8 +134,7 @@ var daemonCmd = &cobra.Command{
 		fin.Add(fc)
 
 		config := service.Config{
-			Listener: listener,
-			Peer:     pconfig,
+			Peer: pconfig,
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 				Attempts: v.GetUint32("auction-attempts"),
@@ -157,6 +151,8 @@ var daemonCmd = &cobra.Command{
 		b, err := json.MarshalIndent(info, "", "\t")
 		common.CheckErrf("marshaling peer information: %v", err)
 		log.Infof("peer information:: %s", string(b))
+
+		fin.Add(mb)
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

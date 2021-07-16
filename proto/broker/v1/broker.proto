@@ -39,8 +39,6 @@ message CreatePreparedBrokerRequestResponse {
   BrokerRequest request = 1;
 }
 
-
-
 message GetBrokerRequestInfoRequest {
   string id = 1;
 }
@@ -56,6 +54,32 @@ message GetBrokerRequestInfoResponse {
   }
 }
 
+message Sources {
+  CARURL car_url = 1;
+  CARIPFS car_ipfs = 2;
+
+  message CARURL {
+    string URL = 1;
+  }
+
+  message CARIPFS {
+    string cid = 1;
+    repeated string multiaddrs = 2;
+  }
+}
+
+message ReadyToAuction {
+    string id = 1;
+    string storage_deal_id = 2;
+    string payload_cid = 3;
+    uint64 deal_size = 4;
+    uint64 deal_duration = 5;
+    uint32 deal_replication = 6;
+    bool deal_verified = 7;
+    repeated string excluded_miners = 8;
+    uint64 fil_epoch_deadline = 9;
+    Sources sources = 10;
+}
 message ReadyToCreateDeals {
   string storage_deal_id = 1;
   string payload_cid = 2;
@@ -95,9 +119,11 @@ message DealProposalAccepted {
   string storage_deal_id = 1;
   string miner = 2;
   string proposal_cid = 3;
+  string auction_id = 4;
+  string bid_id = 5;
 }
 
-message StorageDealAuctionedRequest {
+message AuctionClosed {
     string id = 1;
     string storage_deal_id = 2;
     uint64 deal_duration = 3;
@@ -120,9 +146,6 @@ message StorageDealAuctionedRequest {
         uint64 start_epoch = 3;
         bool fast_retrieval = 4;
     }
-}
-
-message StorageDealAuctionedResponse {
 }
 
 message NewBatchPrepared {
@@ -164,5 +187,4 @@ service APIService {
   rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
   rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
   rpc GetBrokerRequestInfo(GetBrokerRequestInfoRequest) returns (GetBrokerRequestInfoResponse) {}
-  rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
 }

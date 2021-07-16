@@ -169,15 +169,14 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queued if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, error) {
+func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
 	auction.Status = broker.AuctionStatusUnspecified
 	auction.Duration = a.auctionConf.Duration
-	id, err := a.queue.CreateAuction(auction)
-	if err != nil {
-		return "", fmt.Errorf("creating auction: %v", err)
+	if err := a.queue.CreateAuction(auction); err != nil {
+		return fmt.Errorf("creating auction: %v", err)
 	}
 
-	log.Debugf("created auction %s", id)
+	log.Debugf("created auction %s", auction.ID)
 
 	labels := []attribute.KeyValue{
 		attribute.Int("replication", int(auction.DealReplication)),
@@ -186,7 +185,7 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, 
 	a.metricNewAuction.Add(context.Background(), 1, labels...)
 	a.statLastCreatedAuction = time.Now()
 
-	return id, nil
+	return nil
 }
 
 // GetAuction returns an auction by id.
