@@ -40,19 +40,21 @@ const (
 	ReadyToBatchTopic = "ready-to-batch"
 	// ReadyToCreateDealsTopic is the topic name for ready-to-create-deals messages.
 	ReadyToCreateDealsTopic = "ready-to-create-deals"
+	// FinalizedDealTopic is the topic name for finalized-deal messages.
+	FinalizedDealTopic = "finalized-deal"
 )
 
-// NewBatchCreatedListener is a handler for NewBatchCreated topic.
+// NewBatchCreatedListener is a handler for new-batch-created topic.
 type NewBatchCreatedListener interface {
 	OnNewBatchCreated(context.Context, broker.StorageDealID, cid.Cid, []broker.BrokerRequestID) error
 }
 
-// NewBatchPreparedListener is a handler for NewBatchPrepared topic.
+// NewBatchPreparedListener is a handler for new-batch-prepared topic.
 type NewBatchPreparedListener interface {
 	OnNewBatchPrepared(context.Context, broker.StorageDealID, broker.DataPreparationResult) error
 }
 
-// ReadyToBatchListener is a handler for ReadyToBatch topic.
+// ReadyToBatchListener is a handler for ready-to-batch topic.
 type ReadyToBatchListener interface {
 	OnReadyToBatch(context.Context, []ReadyToBatchData) error
 }
@@ -63,9 +65,14 @@ type ReadyToBatchData struct {
 	DataCid         cid.Cid
 }
 
-// ReadyDealmaking is a handler for ReadyDealMaking topic.
-type ReadyToCreateDeals interface {
+// ReadyToCreateDealsListener is a handler for ready-to-create-deals topic.
+type ReadyToCreateDealsListener interface {
 	OnReadyToCreateDeals(context.Context, dealer.AuctionDeals) error
+}
+
+// FinalizedDeal is a handler for finalized-deal topic.
+type FinalizedDealListener interface {
+	OnFinalizedDeal(context.Context, broker.FinalizedDeal) error
 }
 
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
@@ -173,7 +180,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}
 	}
 
-	if l, ok := s.(ReadyToCreateDeals); ok {
+	if l, ok := s.(ReadyToCreateDealsListener); ok {
 		countRegistered++
 		err := mb.RegisterTopicHandler(ReadyToCreateDealsTopic, func(ctx context.Context, data []byte) error {
 			r := &pb.ReadyToCreateDeals{}
@@ -226,6 +233,46 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}, opts...)
 		if err != nil {
 			return fmt.Errorf("registering handler for ready-to-create-deals topic")
+		}
+	}
+
+	if l, ok := s.(FinalizedDealListener); ok {
+		countRegistered++
+		err := mb.RegisterTopicHandler(FinalizedDealTopic, func(ctx context.Context, data []byte) error {
+			r := &pb.FinalizedDeal{}
+			if err := proto.Unmarshal(data, r); err != nil {
+				return fmt.Errorf("unmarshal finalized deal msg: %s", err)
+			}
+			if r.StorageDealId == "" {
+				return fmt.Errorf("storage deal id is empty")
+			}
+			if r.ErrorCause == "" {
+				if r.DealId <= 0 {
+					return fmt.Errorf(
+						"deal id is %d and should be positive",
+						r.DealId)
+				}
+				if r.DealExpiration <= 0 {
+					return fmt.Errorf(
+						"deal expiration is %d and should be positive",
+						r.DealExpiration)
+				}
+			}
+			fd := broker.FinalizedDeal{
+				StorageDealID:  broker.StorageDealID(r.StorageDealId),
+				DealID:         r.DealId,
+				DealExpiration: r.DealExpiration,
+				Miner:          r.MinerId,
+				ErrorCause:     r.ErrorCause,
+			}
+
+			if err := l.OnFinalizedDeal(ctx, fd); err != nil {
+				return fmt.Errorf("calling finalized-deal handler: %s", err)
+			}
+			return nil
+		}, opts...)
+		if err != nil {
+			return fmt.Errorf("registering handler for finalized-deal topic")
 		}
 	}
 
@@ -340,6 +387,26 @@ func PublishMsgReadyToCreateDeals(
 	}
 	if err := mb.PublishMsg(ctx, ReadyToCreateDealsTopic, data); err != nil {
 		return fmt.Errorf("publishing ready-to-create-deals message: %s", err)
+	}
+
+	return nil
+}
+
+// PublishMsgFinalizedDeal publishes a message to the finalized-deal topic.
+func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.FinalizedDeal) error {
+	msg := &pb.FinalizedDeal{
+		StorageDealId:  string(fd.StorageDealID),
+		MinerId:        fd.Miner,
+		DealId:         fd.DealID,
+		DealExpiration: fd.DealExpiration,
+		ErrorCause:     fd.ErrorCause,
+	}
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("mashaling finalized-deal message: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, FinalizedDealTopic, data); err != nil {
+		return fmt.Errorf("publishing finalized-deal message: %s", err)
 	}
 
 	return nil

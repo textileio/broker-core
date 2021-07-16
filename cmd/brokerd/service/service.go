@@ -328,44 +328,13 @@ func (s *Service) OnNewBatchPrepared(
 	return nil
 }
 
-// StorageDealFinalizedDeal reports the result of finalized deals.
-func (s *Service) StorageDealFinalizedDeal(
-	ctx context.Context,
-	r *pb.StorageDealFinalizedDealRequest) (*pb.StorageDealFinalizedDealResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+// OnFinalizedDeal handles new messages in the finalized-deal topic.
+func (s *Service) OnFinalizedDeal(ctx context.Context, fd broker.FinalizedDeal) error {
+	if err := s.broker.StorageDealFinalizedDeal(ctx, fd); err != nil {
+		return fmt.Errorf("processing finalized deal: %s", err)
 	}
 
-	if r.StorageDealId == "" {
-		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
-	}
-	if r.ErrorCause == "" {
-		if r.DealId <= 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"deal id is %d and should be positive",
-				r.DealId)
-		}
-		if r.DealExpiration <= 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"deal expiration is %d and should be positive",
-				r.DealExpiration)
-		}
-	}
-	fad := broker.FinalizedAuctionDeal{
-		StorageDealID:  broker.StorageDealID(r.StorageDealId),
-		DealID:         r.DealId,
-		DealExpiration: r.DealExpiration,
-		Miner:          r.MinerId,
-		ErrorCause:     r.ErrorCause,
-	}
-
-	if err := s.broker.StorageDealFinalizedDeal(ctx, fad); err != nil {
-		return nil, status.Errorf(codes.Internal, "processing finalized deals: %s", err)
-	}
-
-	return &pb.StorageDealFinalizedDealResponse{}, nil
+	return nil
 }
 
 // StorageDealProposalAccepted notifies the auctioneer that the miner accepted the deal.

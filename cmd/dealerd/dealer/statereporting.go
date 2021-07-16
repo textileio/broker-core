@@ -7,6 +7,7 @@ import (
 
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 )
 
 func (d *Dealer) daemonDealReporter() {
@@ -52,7 +53,7 @@ func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
 	if err != nil {
 		return fmt.Errorf("get auction data: %s", err)
 	}
-	fad := broker.FinalizedAuctionDeal{
+	fad := broker.FinalizedDeal{
 		StorageDealID:  ad.StorageDealID,
 		ErrorCause:     aud.ErrorCause,
 		DealID:         aud.DealID,
@@ -63,16 +64,15 @@ func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	log.Debugf("reporting finalized auction deal (errorcause=%s)", aud.ErrorCause)
-	// We report finalized Auction Deals to the broker.
-	if err := d.broker.StorageDealFinalizedDeal(ctx, fad); err != nil {
-		return fmt.Errorf("reporting auction deal results to the broker: %s", err)
+	log.Debugf("reporting finalized deal (errorcause=%s)", aud.ErrorCause)
+	if err := mbroker.PublishMsgFinalizedDeal(ctx, d.mb, fad); err != nil {
+		return fmt.Errorf("publishing finalized-deal msg to msgbroker: %s", err)
 	}
 
 	// We are safe to remove it from our store. This will indirectly remove also the linked
 	// AuctionData, if no pending/in-progress AuctionDeals exist for them.
 	if err := d.store.RemoveAuctionDeal(aud); err != nil {
-		return fmt.Errorf("removing auction deals: %s", err)
+		return fmt.Errorf("removing deals: %s", err)
 	}
 
 	return nil

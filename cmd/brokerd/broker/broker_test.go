@@ -605,7 +605,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	// 2- Call StorageDealFinalizedDeals with the first deal having
 	//    success. We'll make a further call to the second one.
-	fad1 := broker.FinalizedAuctionDeal{
+	fad1 := broker.FinalizedDeal{
 		StorageDealID:  auction.StorageDealID,
 		DealID:         100,
 		DealExpiration: 200,
@@ -628,7 +628,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	// 4- Let's finalize the other one.
 	chainAPI.clean() // clean the previous call stack
-	fad2 := broker.FinalizedAuctionDeal{
+	fad2 := broker.FinalizedDeal{
 		StorageDealID:  auction.StorageDealID,
 		Miner:          "f0012",
 		DealID:         101,

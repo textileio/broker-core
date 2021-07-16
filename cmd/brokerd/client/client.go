@@ -140,21 +140,6 @@ func (c *Client) StorageDealProposalAccepted(
 	return nil
 }
 
-// StorageDealFinalizedDeal report a finalized deal to the broker.
-func (c *Client) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
-	req := &pb.StorageDealFinalizedDealRequest{
-		StorageDealId:  string(fad.StorageDealID),
-		MinerId:        fad.Miner,
-		DealId:         fad.DealID,
-		DealExpiration: fad.DealExpiration,
-		ErrorCause:     fad.ErrorCause,
-	}
-	if _, err := c.c.StorageDealFinalizedDeal(ctx, req); err != nil {
-		return fmt.Errorf("calling storage finalized deals api: %s", err)
-	}
-	return nil
-}
-
 // Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {

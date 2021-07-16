@@ -80,9 +80,6 @@ type Broker interface {
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
 	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
 
-	// StorageDealFinalizedDeal signals to the broker results about deal making.
-	StorageDealFinalizedDeal(ctx context.Context, fad FinalizedAuctionDeal) error
-
 	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
 	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
 }
@@ -183,8 +180,8 @@ func (dpr DataPreparationResult) Validate() error {
 	return nil
 }
 
-// FinalizedAuctionDeal contains information about a finalized deal.
-type FinalizedAuctionDeal struct {
+// FinalizedDeal contains information about a finalized deal.
+type FinalizedDeal struct {
 	StorageDealID  StorageDealID
 	Miner          string
 	DealID         int64

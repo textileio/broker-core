@@ -555,7 +555,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 }
 
 // StorageDealFinalizedDeal report a deal that reached final status in the Filecoin network.
-func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) (err error) {
+func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedDeal) (err error) {
 	log.Debug("received a finalized deal...")
 
 	ctx, err = b.store.CtxWithTx(ctx)

@@ -132,15 +132,12 @@ message NewBatchPrepared {
   uint64 piece_size = 3;
 }
 
-message StorageDealFinalizedDealRequest {
+message FinalizedDeal {
     string storage_deal_id = 1;
     int64 deal_id = 2;
     uint64 deal_expiration = 3;
     string miner_id = 4;
     string error_cause = 5;
-}
-
-message StorageDealFinalizedDealResponse {
 }
 
 message BrokerRequest {
@@ -167,6 +164,5 @@ service APIService {
   rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
   rpc GetBrokerRequestInfo(GetBrokerRequestInfoRequest) returns (GetBrokerRequestInfoResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
-  rpc StorageDealFinalizedDeal(StorageDealFinalizedDealRequest) returns (StorageDealFinalizedDealResponse) {}
   rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
 }
