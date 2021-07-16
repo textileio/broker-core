@@ -197,7 +197,6 @@ services:
       - DEALER_LOG_JSON=false
       - DEALER_MONGO_URI=mongodb://mongo:27017
       - DEALER_MONGO_DBNAME=dealerd
-      - DEALER_BROKER_ADDR=brokerd:5000
       - DEALER_MOCK=true
     security_opt:
       - "seccomp:unconfined"
