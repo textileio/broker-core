@@ -20,6 +20,7 @@ type Dealer struct {
 	config    config
 	store     *store.Store
 	filclient FilClient
+	mb        mbroker.MsgBroker
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -53,6 +54,7 @@ func New(
 		config:    cfg,
 		store:     store,
 		filclient: fc,
+		mb:        mb,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,

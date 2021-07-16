@@ -258,7 +258,7 @@ func (fc *fcMock) CheckDealStatusWithMiner(
 }
 
 type brokerMock struct {
-	calledFAD broker.FinalizedAuctionDeal
+	calledFAD broker.FinalizedDeal
 
 	callerPASdID        broker.StorageDealID
 	calledPAMiner       string
@@ -294,7 +294,7 @@ func (b *brokerMock) StorageDealProposalAccepted(
 	return nil
 }
 
-func (b *brokerMock) StorageDealFinalizedDeal(ctx context.Context, res broker.FinalizedAuctionDeal) error {
+func (b *brokerMock) StorageDealFinalizedDeal(ctx context.Context, res broker.FinalizedDeal) error {
 	b.calledFAD = res
 	return nil
 }
