@@ -15,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
@@ -44,7 +43,6 @@ var (
 // the Filecoin network.
 type Broker struct {
 	store      *store.Store
-	auctioneer auctioneer.Auctioneer
 	chainAPI   chainapi.ChainAPI
 	ipfsClient *httpapi.HttpApi
 	mb         mbroker.MsgBroker
@@ -64,7 +62,6 @@ type Broker struct {
 // New creates a Broker backed by the provided `ds`.
 func New(
 	postgresURI string,
-	auctioneer auctioneer.Auctioneer,
 	chainAPI chainapi.ChainAPI,
 	ipfsClient *httpapi.HttpApi,
 	mb mbroker.MsgBroker,
@@ -88,7 +85,6 @@ func New(
 	ctx, cls := context.WithCancel(context.Background())
 	b := &Broker{
 		store:      s,
-		auctioneer: auctioneer,
 		chainAPI:   chainAPI,
 		ipfsClient: ipfsClient,
 		mb:         mb,
@@ -198,9 +194,12 @@ func (b *Broker) CreatePrepared(
 		return broker.BrokerRequest{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
-	var auctionID auction.AuctionID
-	auctionID, err = b.auctioneer.ReadyToAuction(
+	// TODO(jsign): generate ID for auction.
+	auctionID := auction.AuctionID(uuid.New().String())
+	if err = mbroker.PublishMsgReadyToAuction(
 		ctx,
+		b.mb,
+		auctionID,
 		sd.ID,
 		sd.PayloadCid,
 		int(sd.PieceSize),
@@ -210,8 +209,7 @@ func (b *Broker) CreatePrepared(
 		nil,
 		sd.FilEpochDeadline,
 		sd.Sources,
-	)
-	if err != nil {
+	); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("signaling auctioneer to create auction: %s", err)
 	}
 	log.Debugf("created prepared auction %s", auctionID)
