@@ -26,7 +26,7 @@ var (
 		PieceCid:      castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
 		Duration:      123,
 		PieceSize:     456,
-		Targets: []dealeri.AuctionDealsTarget{
+		Proposals: []dealeri.Proposal{
 			{
 				Miner:               "f0001",
 				FastRetrieval:       true,
@@ -54,11 +54,11 @@ func TestReadyToCreateDeals(t *testing.T) {
 	// Check that the corresponding AuctionDeal has correct values.
 	require.NotEmpty(t, aud.ID)
 	require.NotEmpty(t, aud.AuctionDataID)
-	require.Equal(t, auds.Targets[0].Miner, aud.Miner)
-	require.Equal(t, auds.Targets[0].PricePerGiBPerEpoch, aud.PricePerGiBPerEpoch)
-	require.Equal(t, auds.Targets[0].StartEpoch, aud.StartEpoch)
-	require.Equal(t, auds.Targets[0].Verified, aud.Verified)
-	require.Equal(t, auds.Targets[0].FastRetrieval, aud.FastRetrieval)
+	require.Equal(t, auds.Proposals[0].Miner, aud.Miner)
+	require.Equal(t, auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGiBPerEpoch)
+	require.Equal(t, auds.Proposals[0].StartEpoch, aud.StartEpoch)
+	require.Equal(t, auds.Proposals[0].Verified, aud.Verified)
+	require.Equal(t, auds.Proposals[0].FastRetrieval, aud.FastRetrieval)
 	require.Equal(t, store.ExecutingDealMaking, aud.Status)
 	require.Empty(t, aud.ErrorCause)
 	require.True(t, time.Since(aud.CreatedAt) < time.Minute)
@@ -142,7 +142,7 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 
 	// Check that dealer has notified broker of accepted proposal.
 	require.Equal(t, auds.StorageDealID, broker.callerPASdID)
-	require.Equal(t, auds.Targets[0].Miner, broker.calledPAMiner)
+	require.Equal(t, auds.Proposals[0].Miner, broker.calledPAMiner)
 	require.Equal(t, fakeProposalCid, broker.calledPAProposalCid)
 }
 

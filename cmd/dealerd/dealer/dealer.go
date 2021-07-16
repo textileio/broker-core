@@ -76,8 +76,8 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 		Duration:      ad.Duration,
 	}
 	log.Debugf("ready to create deals auction data: %s", logging.MustJSONIndent(auctionData))
-	auctionDeals := make([]*store.AuctionDeal, len(ad.Targets))
-	for i, t := range ad.Targets {
+	auctionDeals := make([]*store.AuctionDeal, len(ad.Proposals))
+	for i, t := range ad.Proposals {
 		auctionDeal := &store.AuctionDeal{
 			Miner:               t.Miner,
 			PricePerGiBPerEpoch: t.PricePerGiBPerEpoch,

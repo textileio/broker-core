@@ -18,7 +18,6 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
@@ -73,7 +72,6 @@ var rootCmd = &cobra.Command{
 		}
 
 		config := service.Config{
-			ListenAddr:    v.GetString("rpc-addr"),
 			BrokerAPIAddr: v.GetString("broker-addr"),
 
 			MongoURI:    v.GetString("mongo-uri"),
@@ -94,6 +92,9 @@ var rootCmd = &cobra.Command{
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
+			}
+			if err := mb.Close(); err != nil {
+				log.Errorf("closing message broker: %s", err)
 			}
 		})
 	},

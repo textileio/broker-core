@@ -368,9 +368,9 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Equal(t, dpr.PieceCid, calledADS.PieceCid)
 	require.Equal(t, dpr.PieceSize, calledADS.PieceSize)
 	require.Equal(t, auction.MaxDealDuration, calledADS.Duration)
-	require.Len(t, calledADS.Targets, 2)
+	require.Len(t, calledADS.Proposals, 2)
 
-	for _, tr := range calledADS.Targets {
+	for _, tr := range calledADS.Proposals {
 		var bid broker.WinningBid
 		for _, b := range winningBids {
 			if tr.Miner == b.MinerAddr {

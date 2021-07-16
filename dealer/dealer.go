@@ -19,11 +19,11 @@ type AuctionDeals struct {
 	PieceCid      cid.Cid
 	PieceSize     uint64
 	Duration      uint64
-	Targets       []AuctionDealsTarget
+	Proposals     []Proposal
 }
 
-// AuctionDealsTarget describes a target miner for making deals.
-type AuctionDealsTarget struct {
+// Proposal describes information for deal making with a miner.
+type Proposal struct {
 	Miner               string
 	PricePerGiBPerEpoch int64
 	StartEpoch          uint64
