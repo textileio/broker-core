@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	_ "net/http/pprof"
 
 	"github.com/spf13/cobra"
@@ -50,7 +49,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
