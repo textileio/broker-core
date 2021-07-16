@@ -125,24 +125,22 @@ func (q *Queue) Close() error {
 
 // CreateAuction adds a new auction to the queue.
 // The new auction will be handled immediately if workers are not busy.
-func (q *Queue) CreateAuction(auction auctioneer.Auction) (auction.AuctionID, error) {
+func (q *Queue) CreateAuction(auction auctioneer.Auction) error {
 	if err := validate(auction); err != nil {
-		return "", fmt.Errorf("invalid auction data: %s", err)
+		return fmt.Errorf("invalid auction data: %s", err)
 	}
-	id, err := q.newID(time.Now())
-	if err != nil {
-		return "", fmt.Errorf("creating id: %v", err)
-	}
-	auction.ID = id
 	if err := q.enqueue(nil, &auction); err != nil {
-		return "", fmt.Errorf("enqueueing: %v", err)
+		return fmt.Errorf("enqueueing: %v", err)
 	}
 
-	log.Infof("created auction %s", id)
-	return id, nil
+	log.Infof("created auction %s", auction.ID)
+	return nil
 }
 
 func validate(a auctioneer.Auction) error {
+	if a.ID == "" {
+		return errors.New("auction id is empty")
+	}
 	if a.StorageDealID == "" {
 		return errors.New("storage deal id is empty")
 	}
