@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
@@ -59,6 +60,8 @@ func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
 		DealID:         aud.DealID,
 		DealExpiration: aud.DealExpiration,
 		Miner:          aud.Miner,
+		AuctionID:      auction.AuctionID(aud.AuctionID),
+		BidID:          auction.BidID(aud.BidID),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

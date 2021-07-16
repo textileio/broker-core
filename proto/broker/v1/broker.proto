@@ -70,6 +70,8 @@ message ReadyToCreateDeals {
     uint64 start_epoch = 3;
     bool verified = 4;
     bool fast_retrieval = 5;
+    string auction_id = 6;
+    string bid_id = 7;
   }
 }
 
@@ -89,13 +91,10 @@ message NewBatchCreated {
 }
 
 
-message StorageDealProposalAcceptedRequest {
+message DealProposalAccepted {
   string storage_deal_id = 1;
   string miner = 2;
   string proposal_cid = 3;
-}
-
-message StorageDealProposalAcceptedResponse {
 }
 
 message StorageDealAuctionedRequest {
@@ -138,6 +137,8 @@ message FinalizedDeal {
     uint64 deal_expiration = 3;
     string miner_id = 4;
     string error_cause = 5;
+    string auction_id = 6;
+    string bid_id = 7;
 }
 
 message BrokerRequest {
@@ -164,5 +165,4 @@ service APIService {
   rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
   rpc GetBrokerRequestInfo(GetBrokerRequestInfoRequest) returns (GetBrokerRequestInfoResponse) {}
   rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
-  rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
 }

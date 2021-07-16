@@ -40,6 +40,8 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		StartEpoch:          754395,
 		Verified:            false,
 		FastRetrieval:       true,
+		AuctionID:           "auction-1",
+		BidID:               "bid-1",
 	}
 	propCid, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud)
 	require.NoError(t, err)

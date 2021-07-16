@@ -353,41 +353,6 @@ func (b *Broker) NewBatchPrepared(
 	return nil
 }
 
-// StorageDealProposalAccepted indicates that a miner has accepted a proposed deal.
-func (b *Broker) StorageDealProposalAccepted(
-	ctx context.Context,
-	sdID broker.StorageDealID,
-	miner string,
-	proposal cid.Cid) error {
-	log.Debugf("accepted proposal %s from miner %s, signaling auctioneer to start download for bidbot", proposal, miner)
-
-	deals, err := b.store.GetMinerDeals(ctx, sdID)
-	if err != nil {
-		return fmt.Errorf("miner deals not found: %s", err)
-	}
-
-	var auctionID auction.AuctionID
-	var bidID auction.BidID
-	for _, deal := range deals {
-		if deal.MinerAddr == miner {
-			auctionID = deal.AuctionID
-			bidID = deal.BidID
-			break
-		}
-	}
-
-	if bidID == "" {
-		return fmt.Errorf("coudn't find mienr deal in storage-deal: %s", err)
-	}
-
-	log.Debugf("proposal accepted: %s %s %s", auctionID, bidID, proposal)
-	if err := b.auctioneer.ProposalAccepted(ctx, auctionID, bidID, proposal); err != nil {
-		return fmt.Errorf("signaling auctioneer about accepted proposal: %s", err)
-	}
-
-	return nil
-}
-
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
 func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) (err error) {
 	log.Debugf("storage deal %s was auctioned with %d winning bids", au.StorageDealID, len(au.WinningBids))
@@ -490,19 +455,21 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 	}
 
 	var i int
-	for _, bid := range au.WinningBids {
+	for id, bid := range au.WinningBids {
 		ads.Proposals[i] = dealer.Proposal{
 			Miner:               bid.MinerAddr,
 			PricePerGiBPerEpoch: bid.Price,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            au.DealVerified,
 			FastRetrieval:       bid.FastRetrieval,
+			AuctionID:           au.ID,
+			BidID:               id,
 		}
 		i++
 	}
 
 	if err := mbroker.PublishMsgReadyToCreateDeals(ctx, b.mb, ads); err != nil {
-		return fmt.Errorf("sending ready to create deals message to msg broker: %s", err)
+		return fmt.Errorf("sending ready to create deals msg to msgbroker: %s", err)
 	}
 
 	if err := b.store.AddMinerDeals(ctx, au); err != nil {

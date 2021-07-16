@@ -36,13 +36,17 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, sdb dealeri.AuctionDeal
 func (d *Dealer) reportToBroker(sdb dealeri.AuctionDeals) {
 	time.Sleep(time.Second)
 
-	fd := broker.FinalizedDeal{
-		StorageDealID:  sdb.StorageDealID,
-		DealID:         rand.Int63(),
-		DealExpiration: uint64(rand.Int63()),
-		Miner:          "f0001",
-	}
-	if err := mbroker.PublishMsgFinalizedDeal(context.Background(), d.mb, fd); err != nil {
-		log.Errorf("publishing finalized-deal msg to msgbroker: %s", err)
+	for _, p := range sdb.Proposals {
+		fd := broker.FinalizedDeal{
+			StorageDealID:  sdb.StorageDealID,
+			DealID:         rand.Int63(),
+			DealExpiration: uint64(rand.Int63()),
+			Miner:          p.Miner,
+			AuctionID:      p.AuctionID,
+			BidID:          p.BidID,
+		}
+		if err := mbroker.PublishMsgFinalizedDeal(context.Background(), d.mb, fd); err != nil {
+			log.Errorf("publishing finalized-deal msg to msgbroker: %s", err)
+		}
 	}
 }

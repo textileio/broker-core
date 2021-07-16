@@ -123,23 +123,6 @@ func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.Closed
 	return nil
 }
 
-// StorageDealProposalAccepted notifies that a proposal has been accepted by a miner.
-func (c *Client) StorageDealProposalAccepted(
-	ctx context.Context,
-	sdID broker.StorageDealID,
-	miner string,
-	proposalCid cid.Cid) error {
-	req := &pb.StorageDealProposalAcceptedRequest{
-		StorageDealId: string(sdID),
-		Miner:         miner,
-		ProposalCid:   proposalCid.String(),
-	}
-	if _, err := c.c.StorageDealProposalAccepted(ctx, req); err != nil {
-		return fmt.Errorf("calling proposal accepted deals api: %s", err)
-	}
-	return nil
-}
-
 // Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {

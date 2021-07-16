@@ -84,6 +84,8 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 			StartEpoch:          t.StartEpoch,
 			Verified:            t.Verified,
 			FastRetrieval:       t.FastRetrieval,
+			AuctionID:           string(t.AuctionID),
+			BidID:               string(t.BidID),
 		}
 		auctionDeals[i] = auctionDeal
 		log.Debugf("%s auction deal: %s", auctionData.StorageDealID, logging.MustJSONIndent(auctionDeal))

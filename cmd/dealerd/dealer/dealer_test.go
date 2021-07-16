@@ -34,6 +34,8 @@ var (
 				PricePerGiBPerEpoch: 100,
 				StartEpoch:          200,
 				Verified:            true,
+				AuctionID:           "auction-1",
+				BidID:               "bid-1",
 			},
 		},
 	}
@@ -60,6 +62,8 @@ func TestReadyToCreateDeals(t *testing.T) {
 	require.Equal(t, auds.Proposals[0].StartEpoch, aud.StartEpoch)
 	require.Equal(t, auds.Proposals[0].Verified, aud.Verified)
 	require.Equal(t, auds.Proposals[0].FastRetrieval, aud.FastRetrieval)
+	require.Equal(t, auds.Proposals[0].AuctionID, aud.AuctionID)
+	require.Equal(t, auds.Proposals[0].BidID, aud.BidID)
 	require.Equal(t, store.ExecutingDealMaking, aud.Status)
 	require.Empty(t, aud.ErrorCause)
 	require.True(t, time.Since(aud.CreatedAt) < time.Minute)
