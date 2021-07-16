@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/dealer"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -42,6 +43,8 @@ const (
 	ReadyToCreateDealsTopic = "ready-to-create-deals"
 	// FinalizedDealTopic is the topic name for finalized-deal messages.
 	FinalizedDealTopic = "finalized-deal"
+	// DealProposalAcceptedTopic is the topic name for deal-proposal-accepted messages.
+	DealProposalAcceptedTopic = "deal-proposal-accepted"
 )
 
 // NewBatchCreatedListener is a handler for new-batch-created topic.
@@ -218,12 +221,20 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				if t.StartEpoch == 0 {
 					return errors.New("start epoch should be positive")
 				}
+				if t.AuctionId == "" {
+					return errors.New("auction-id is empty")
+				}
+				if t.BidId == "" {
+					return errors.New("bid-id is empty")
+				}
 				ads.Proposals[i] = dealer.Proposal{
 					Miner:               t.Miner,
 					PricePerGiBPerEpoch: t.PricePerGibPerEpoch,
 					StartEpoch:          t.StartEpoch,
 					Verified:            t.Verified,
 					FastRetrieval:       t.FastRetrieval,
+					AuctionID:           auction.AuctionID(t.AuctionId),
+					BidID:               auction.BidID(t.BidId),
 				}
 			}
 			if err := l.OnReadyToCreateDeals(ctx, ads); err != nil {
@@ -258,12 +269,20 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 						r.DealExpiration)
 				}
 			}
+			if r.AuctionId == "" {
+				return errors.New("auction-id is empty")
+			}
+			if r.BidId == "" {
+				return errors.New("bid-id is empty")
+			}
 			fd := broker.FinalizedDeal{
 				StorageDealID:  broker.StorageDealID(r.StorageDealId),
 				DealID:         r.DealId,
 				DealExpiration: r.DealExpiration,
 				Miner:          r.MinerId,
 				ErrorCause:     r.ErrorCause,
+				AuctionID:      auction.AuctionID(r.AuctionId),
+				BidID:          auction.BidID(r.BidId),
 			}
 
 			if err := l.OnFinalizedDeal(ctx, fd); err != nil {
@@ -373,12 +392,26 @@ func PublishMsgReadyToCreateDeals(
 		Proposals:     make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
 	}
 	for i, t := range ads.Proposals {
+		if t.Miner == "" {
+			return errors.New("miner is empty")
+		}
+		if t.StartEpoch == 0 {
+			return errors.New("start-epoch is zero")
+		}
+		if t.AuctionID == "" {
+			return errors.New("auction-id is empty")
+		}
+		if t.BidID == "" {
+			return errors.New("bid-id is empty")
+		}
 		msg.Proposals[i] = &pb.ReadyToCreateDeals_Proposal{
 			Miner:               t.Miner,
 			PricePerGibPerEpoch: t.PricePerGiBPerEpoch,
 			StartEpoch:          t.StartEpoch,
 			Verified:            t.Verified,
 			FastRetrieval:       t.FastRetrieval,
+			AuctionId:           string(t.AuctionID),
+			BidId:               string(t.BidID),
 		}
 	}
 	data, err := proto.Marshal(msg)
@@ -400,6 +433,8 @@ func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.Finali
 		DealId:         fd.DealID,
 		DealExpiration: fd.DealExpiration,
 		ErrorCause:     fd.ErrorCause,
+		AuctionId:      string(fd.AuctionID),
+		BidId:          string(fd.BidID),
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -407,6 +442,29 @@ func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.Finali
 	}
 	if err := mb.PublishMsg(ctx, FinalizedDealTopic, data); err != nil {
 		return fmt.Errorf("publishing finalized-deal message: %s", err)
+	}
+
+	return nil
+}
+
+// PublishMsgDealProposalAccepted publishes a message to the deal-proposal-accepted topic.
+func PublishMsgDealProposalAccepted(
+	ctx context.Context,
+	mb MsgBroker,
+	sdID broker.StorageDealID,
+	miner string,
+	propCid cid.Cid) error {
+	msg := &pb.DealProposalAccepted{
+		StorageDealId: string(sdID),
+		Miner:         miner,
+		ProposalCid:   propCid.String(),
+	}
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("mashaling deal-proposal-accepted message: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, DealProposalAcceptedTopic, data); err != nil {
+		return fmt.Errorf("publishing deal-proposal-accepted message: %s", err)
 	}
 
 	return nil

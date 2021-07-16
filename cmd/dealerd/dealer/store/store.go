@@ -80,6 +80,8 @@ type AuctionDeal struct {
 	StartEpoch          uint64
 	Verified            bool
 	FastRetrieval       bool
+	AuctionID           string
+	BidID               string
 
 	Status     AuctionDealStatus
 	ErrorCause string

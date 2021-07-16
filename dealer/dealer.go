@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -29,4 +30,6 @@ type Proposal struct {
 	StartEpoch          uint64
 	Verified            bool
 	FastRetrieval       bool
+	AuctionID           auction.AuctionID
+	BidID               auction.BidID
 }

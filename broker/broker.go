@@ -79,9 +79,6 @@ type Broker interface {
 
 	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
 	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
-
-	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
-	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
 }
 
 // StorageDeal is the underlying entity that gets into bidding and
@@ -187,4 +184,6 @@ type FinalizedDeal struct {
 	DealID         int64
 	DealExpiration uint64
 	ErrorCause     string
+	AuctionID      auction.AuctionID
+	BidID          auction.BidID
 }
