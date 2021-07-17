@@ -339,6 +339,10 @@ func (b *Broker) StorageDealPrepared(
 		return fmt.Errorf("storage deal not found: %s", err)
 	}
 
+	if err := b.store.StorageDealToAuctioning(ctx, id, dpr.PieceCid, dpr.PieceSize); err != nil {
+		return fmt.Errorf("saving piecer output in storage deal: %s", err)
+	}
+
 	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
 	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
 	// us about who won things.
@@ -356,10 +360,6 @@ func (b *Broker) StorageDealPrepared(
 	)
 	if err != nil {
 		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
-	}
-
-	if err := b.store.StorageDealToAuctioning(ctx, id, dpr.PieceCid, dpr.PieceSize); err != nil {
-		return fmt.Errorf("saving piecer output in storage deal: %s", err)
 	}
 
 	log.Debugf("created auction %s", auctionID)
