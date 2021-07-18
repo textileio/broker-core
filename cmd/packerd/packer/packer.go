@@ -19,7 +19,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/packer/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
-	packeri "github.com/textileio/broker-core/packer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -56,8 +55,6 @@ type Packer struct {
 	statLastBatchDuration   int64
 	metricLastBatchDuration metric.Int64ValueObserver
 }
-
-var _ packeri.Packer = (*Packer)(nil)
 
 // New returns a new Packer.
 func New(

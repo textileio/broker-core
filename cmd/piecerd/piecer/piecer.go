@@ -23,7 +23,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
-	pieceri "github.com/textileio/broker-core/piecer"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -58,8 +57,6 @@ type ipfsAPI struct {
 	address multiaddr.Multiaddr
 	api     iface.CoreAPI
 }
-
-var _ pieceri.Piecer = (*Piecer)(nil)
 
 // New returns a new Piecer.
 func New(
