@@ -339,7 +339,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.BidId == "" {
 				return errors.New("bid id is required")
 			}
-			proposalCid, err := cid.Decode(r.ProposalCid)
+			proposalCid, err := cid.Cast(r.ProposalCid)
 			if err != nil || !proposalCid.Defined() {
 				return errors.New("invalid proposal cid")
 			}
@@ -595,7 +595,7 @@ func PublishMsgDealProposalAccepted(
 	msg := &pb.DealProposalAccepted{
 		StorageDealId: string(sdID),
 		Miner:         miner,
-		ProposalCid:   propCid.String(),
+		ProposalCid:   propCid.Bytes(),
 		AuctionId:     string(auctionID),
 		BidId:         string(bidID),
 	}
