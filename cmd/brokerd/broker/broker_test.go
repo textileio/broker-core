@@ -13,7 +13,6 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
@@ -27,7 +26,7 @@ import (
 func TestCreateBrokerRequestSuccess(t *testing.T) {
 	t.Parallel()
 
-	b, mb, _, _ := createBroker(t)
+	b, mb, _ := createBroker(t)
 	c := createCidFromString("BrokerRequest1")
 
 	br, err := b.Create(context.Background(), c)
@@ -56,7 +55,7 @@ func TestCreateBrokerRequestFail(t *testing.T) {
 
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
-		b, _, _, _ := createBroker(t)
+		b, _, _ := createBroker(t)
 		_, err := b.Create(context.Background(), cid.Undef)
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -65,7 +64,7 @@ func TestCreateBrokerRequestFail(t *testing.T) {
 func TestCreateStorageDeal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, _ := createBroker(t)
+	b, _, _ := createBroker(t)
 
 	// 1- Create two broker requests.
 	c := createCidFromString("BrokerRequest1")
@@ -116,7 +115,7 @@ func TestCreateStorageDeal(t *testing.T) {
 func TestCreatePrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, auctioneer, _ := createBroker(t)
+	b, mb, _ := createBroker(t)
 
 	// 1- Create some prepared data setup.
 	deadline, _ := time.Parse(time.RFC3339, "2021-06-18T12:51:00+00:00")
@@ -195,7 +194,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _ := createBroker(t)
+		b, _, _ := createBroker(t)
 		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
@@ -203,7 +202,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("empty group", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _ := createBroker(t)
+		b, _, _ := createBroker(t)
 		brgCid := createCidFromString("StorageDeal")
 		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, nil)
 		require.Equal(t, ErrEmptyGroup, err)
@@ -212,7 +211,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 	t.Run("group contains unknown broker request id", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
-		b, _, _, _ := createBroker(t)
+		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("StorageDeal")
 		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
@@ -223,7 +222,7 @@ func TestCreateStorageDealFail(t *testing.T) {
 func TestStorageDealPrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, auctioneer, _ := createBroker(t)
+	b, mb, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal.
 	c := createCidFromString("BrokerRequest1")
@@ -275,7 +274,7 @@ func TestStorageDealPrepared(t *testing.T) {
 func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, mb, auctioneer, _ := createBroker(t)
+	b, mb, _ := createBroker(t)
 	b.conf.dealReplication = 2
 
 	// 1- Create two broker requests and a corresponding storage deal, and
@@ -678,9 +677,7 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 func createBroker(t *testing.T) (
 	*Broker,
 	*fakemsgbroker.FakeMsgBroker,
-	*dumbAuctioneer,
 	*dumbChainAPI) {
-	auctioneer := &dumbAuctioneer{}
 	chainAPI := &dumbChainAPI{}
 	u, err := tests.PostgresURL()
 	require.NoError(t, err)
@@ -688,7 +685,6 @@ func createBroker(t *testing.T) (
 	fmb := fakemsgbroker.New()
 	b, err := New(
 		u,
-		auctioneer,
 		chainAPI,
 		nil,
 		fmb,
@@ -696,51 +692,7 @@ func createBroker(t *testing.T) (
 	)
 	require.NoError(t, err)
 
-	return b, fmb, auctioneer, chainAPI
-}
-
-type dumbAuctioneer struct {
-	calledStorageDealID    broker.StorageDealID
-	calledPayloadCid       cid.Cid
-	calledPieceSize        int
-	calledDealDuration     int
-	calledDealReplication  int
-	calledDealVerified     bool
-	calledExcludedMiners   []string
-	calledCount            int
-	calledSources          auction.Sources
-	calledFilEpochDeadline uint64
-}
-
-func (dp *dumbAuctioneer) ReadyToAuction(
-	ctx context.Context,
-	id broker.StorageDealID,
-	payloadCid cid.Cid,
-	dealSize, dealDuration, dealReplication int,
-	dealVerified bool,
-	excludedMiners []string,
-	filEpochDeadline uint64,
-	sources auction.Sources,
-) (auction.AuctionID, error) {
-	dp.calledStorageDealID = id
-	dp.calledPayloadCid = payloadCid
-	dp.calledPieceSize = dealSize
-	dp.calledDealDuration = dealDuration
-	dp.calledDealReplication = dealReplication
-	dp.calledDealVerified = dealVerified
-	dp.calledExcludedMiners = excludedMiners
-	dp.calledCount++
-	dp.calledSources = sources
-	dp.calledFilEpochDeadline = filEpochDeadline
-	return auction.AuctionID("AUCTION1"), nil
-}
-
-func (dp *dumbAuctioneer) GetAuction(ctx context.Context, id auction.AuctionID) (auctioneer.Auction, error) {
-	panic("shouldn't be called")
-}
-
-func (dp *dumbAuctioneer) ProposalAccepted(context.Context, auction.AuctionID, auction.BidID, cid.Cid) error {
-	panic("shouldn't be called")
+	return b, fmb, chainAPI
 }
 
 func createCidFromString(s string) cid.Cid {

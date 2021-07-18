@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/ratelim"
@@ -106,7 +107,14 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 	}
 
 	log.Debugf("accepted deal proposal %s from payloadcid %s", proposalCid, ad.PayloadCid)
-	if err := mbroker.PublishMsgDealProposalAccepted(ctx, d.mb, ad.StorageDealID, aud.Miner, proposalCid); err != nil {
+	if err := mbroker.PublishMsgDealProposalAccepted(
+		ctx,
+		d.mb,
+		ad.StorageDealID,
+		auction.AuctionID(aud.AuctionID),
+		auction.BidID(aud.BidID),
+		aud.Miner,
+		proposalCid); err != nil {
 		return fmt.Errorf("publish deal-proposal-accepted msg of proposal %s to msgbroker: %s", proposalCid, err)
 	}
 

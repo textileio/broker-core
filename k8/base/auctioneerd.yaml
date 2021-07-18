@@ -51,6 +51,17 @@ spec:
         - name: auctioneer
           image: textile/auctioneer
           imagePullPolicy: Always
+          env:
+            - name: AUCTIONEER_GPUBSUB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+            - name: AUCTIONEER_GPUBSUB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-api-key
           ports:
             - name: api
               containerPort: 5000
