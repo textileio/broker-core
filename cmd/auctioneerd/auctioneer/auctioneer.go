@@ -415,7 +415,6 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 		return fmt.Errorf("invalid final status: %s", auction.Status)
 	}
 	a.metricNewFinalizedAuction.Add(ctx, 1, labels...)
-	// TODO(jsign): make mocks.
 	if err := mbroker.PublishMsgAuctionClosed(ctx, a.mb, toClosedAuction(auction)); err != nil {
 		return fmt.Errorf("publishing closed auction msg: %v", err)
 	}
