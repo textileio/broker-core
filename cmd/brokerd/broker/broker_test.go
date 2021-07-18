@@ -255,7 +255,7 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.StorageDealAuctioning, sd2.Status)
 
 	// 4- Verify that Auctioneer was called to auction the data.
-	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 3, mb.TotalPublished())
 	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
 	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
 	require.NoError(t, err)
@@ -473,11 +473,12 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, sd2.AuctionRetries)
 
-	// 4- We received two winning bids instead of three. Check that the Auctioneer
-	//    was called to create a new auction with rep factor 1.
-	require.Equal(t, 2, mb.TotalPublished()) // One for the first call, the other for re-acution.
+	// 4- Check we received 5 messages:
+	//    Two from Create(), one for NewBatchCreated(), one from NewBatchPrepared(),
+	//    and two from AuctionClosed() (the second is fill-the-gap reauctioning)
+	require.Equal(t, 5, mb.TotalPublished())
 	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
-	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 1) // Inspect re-auction auction.
 	require.NoError(t, err)
 	rda := &pb.ReadyToAuction{}
 	proto.Unmarshal(data, rda)
@@ -547,10 +548,10 @@ func TestStorageDealFailedAuction(t *testing.T) {
 	require.Equal(t, broker.RequestBatching, mbr2.BrokerRequest.Status)
 
 	// 6- Verify that there were 3 published messages.
-	//    Two of them are from `b.Create` for creating the first two BrokerRequests.
-	//    The third one is the important one for this test, which is a signal that the failed auction
-	//    sent to be re-batched both storage deals due to the failing auction.
-	require.Equal(t, 3, mb.TotalPublished())
+	//    Two from `b.Create` for creating the first two BrokerRequests.
+	//    One from NewBatchPrepared.
+	//    One from the re-auctioning auction when the failed auction was notified.
+	require.Equal(t, 4, mb.TotalPublished())
 	data, err := mb.GetMsg(mbroker.ReadyToBatchTopic, 2) // Take the third msg in the topic (0-based idx).
 	require.NoError(t, err)
 	r := &pb.ReadyToBatch{}
