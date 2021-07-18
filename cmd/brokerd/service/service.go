@@ -13,7 +13,6 @@ import (
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/broker"
-	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
@@ -34,9 +33,7 @@ var (
 type Config struct {
 	ListenAddr string
 
-	PiecerAddr     string
-	AuctioneerAddr string
-	ReporterAddr   string
+	ReporterAddr string
 
 	PostgresURI string
 
@@ -74,11 +71,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
-	}
-
 	reporter, err := chainapii.New(config.ReporterAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating reporter implementation: %s", err)
@@ -95,7 +87,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 
 	broker, err := brokeri.New(
 		config.PostgresURI,
-		auctioneer,
 		reporter,
 		ipfsClient,
 		mb,
@@ -353,12 +344,6 @@ func (s *Service) Close() error {
 func validateConfig(conf Config) error {
 	if conf.ListenAddr == "" {
 		return errors.New("service listen addr is empty")
-	}
-	if conf.PiecerAddr == "" {
-		return errors.New("piecer api addr is empty")
-	}
-	if conf.AuctioneerAddr == "" {
-		return errors.New("auctioneer api addr is empty")
 	}
 	if conf.ReporterAddr == "" {
 		return errors.New("reporter api addr is empty")

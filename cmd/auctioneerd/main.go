@@ -19,6 +19,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 )
@@ -47,6 +48,10 @@ func init() {
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration"},
 		{Name: "auction-attempts", DefValue: 10, Description: "Number of attempts an auction will run before failing"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -140,7 +145,14 @@ var daemonCmd = &cobra.Command{
 				Attempts: v.GetUint32("auction-attempts"),
 			},
 		}
-		serv, err := service.New(config, store, broker, fc)
+
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "piecerd")
+		common.CheckErrf("creating google pubsub client: %s", err)
+
+		serv, err := service.New(config, store, mb, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 		err = serv.Start(true)

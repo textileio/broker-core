@@ -30,6 +30,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 )
 
 var (
@@ -74,8 +75,6 @@ type Auctioneer struct {
 	fc       filclient.FilClient
 	auctions *pubsub.Topic
 
-	broker broker.Broker
-
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
 
@@ -92,7 +91,7 @@ type Auctioneer struct {
 func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
-	broker broker.Broker,
+	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
@@ -103,7 +102,6 @@ func New(
 	a := &Auctioneer{
 		peer:        peer,
 		fc:          fc,
-		broker:      broker,
 		auctionConf: auctionConf,
 		finalizer:   finalizer.NewFinalizer(),
 	}
@@ -415,6 +413,7 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 		return fmt.Errorf("invalid final status: %s", auction.Status)
 	}
 	a.metricNewFinalizedAuction.Add(ctx, 1, labels...)
+	// TODO(jsign): make mocks.
 	if err := a.broker.StorageDealAuctioned(ctx, toClosedAuction(auction)); err != nil {
 		return fmt.Errorf("signaling broker: %v", err)
 	}
