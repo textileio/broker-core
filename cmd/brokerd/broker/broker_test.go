@@ -174,18 +174,23 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, pc.PieceSize, sd.PieceSize)
 
 	// 4- Check that we made the call to create the auction.
-	require.Equal(t, b.conf.dealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, payloadCid, auctioneer.calledPayloadCid)
-	require.Equal(t, int(sd.PieceSize), auctioneer.calledPieceSize)
-	require.Equal(t, sd.ID, auctioneer.calledStorageDealID)
-	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
-	require.Equal(t, pc.RepFactor, auctioneer.calledDealReplication)
-	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
-	require.NotNil(t, auctioneer.calledFilEpochDeadline)
-	require.Equal(t, uint64(857142), auctioneer.calledFilEpochDeadline)
-	require.NotNil(t, auctioneer.calledSources.CARURL)
-	require.Equal(t, pc.Sources.CARIPFS.Cid, auctioneer.calledSources.CARIPFS.Cid)
-	require.Len(t, auctioneer.calledSources.CARIPFS.Multiaddrs, 1)
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	rda := &pb.ReadyToAuction{}
+	proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Equal(t, b.conf.dealDuration, rda.DealDuration)
+	require.Equal(t, payloadCid.String(), rda.PayloadCid)
+	require.Equal(t, sd.PieceSize, rda.DealSize)
+	require.Equal(t, string(sd.ID), rda.StorageDealId)
+	require.Equal(t, pc.RepFactor, int(rda.DealReplication))
+	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
+	require.Equal(t, uint64(857142), rda.FilEpochDeadline)
+	require.NotNil(t, rda.Sources.CarUrl)
+	require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
+	require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
 }
 
 func TestCreateStorageDealFail(t *testing.T) {
@@ -250,16 +255,22 @@ func TestStorageDealPrepared(t *testing.T) {
 	require.Equal(t, broker.StorageDealAuctioning, sd2.Status)
 
 	// 4- Verify that Auctioneer was called to auction the data.
-	require.Equal(t, auction.MaxDealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, brgCid, auctioneer.calledPayloadCid)
-	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
-	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
-	require.Equal(t, int(b.conf.dealReplication), auctioneer.calledDealReplication)
-	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
-	require.Zero(t, auctioneer.calledFilEpochDeadline)
-	require.NotNil(t, auctioneer.calledSources.CARURL)
-	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), auctioneer.calledSources.CARURL.URL.String())
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	rda := &pb.ReadyToAuction{}
+	proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Equal(t, auction.MaxDealDuration, uint64(rda.DealDuration))
+	require.Equal(t, brgCid.String(), rda.PayloadCid)
+	require.Equal(t, dpr.PieceSize, rda.DealSize)
+	require.Equal(t, string(sd), rda.StorageDealId)
+	require.Equal(t, b.conf.dealReplication, rda.DealReplication)
+	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
+	require.Zero(t, rda.FilEpochDeadline)
+	require.NotNil(t, rda.Sources.CarUrl)
+	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), rda.Sources.CarUrl.URL)
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
@@ -403,13 +414,13 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	// 6- Verify that the auctioneer wasn't called again for a new auction.
 	//    The replication factor was 2, and we had 2 winning bids so a new auction
 	//    isn't necessary.
-	require.Equal(t, 1, auctioneer.calledCount)
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
 }
 
 func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, auctioneer, _ := createBroker(t)
+	b, mb, _ := createBroker(t)
 	b.conf.dealReplication = 3
 
 	// 1- Create two broker requests and a corresponding storage deal, and
@@ -421,13 +432,13 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("StorageDeal")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sdID, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.NewBatchPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, sdID, dpr)
 	require.NoError(t, err)
 
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
@@ -447,7 +458,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	}
 	a := broker.ClosedAuction{
 		ID:              auction.AuctionID("AUCTION1"),
-		StorageDealID:   sd,
+		StorageDealID:   sdID,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
@@ -458,28 +469,33 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3- Check that the broker deal has bumped the auction retry counter.
-	sd2, err := b.GetStorageDeal(ctx, sd)
+	sd2, err := b.GetStorageDeal(ctx, sdID)
 	require.NoError(t, err)
 	require.Equal(t, 1, sd2.AuctionRetries)
 
 	// 4- We received two winning bids instead of three. Check that the Auctioneer
 	//    was called to create a new auction with rep factor 1.
-	require.Equal(t, 2, auctioneer.calledCount)
-	require.Equal(t, auction.MaxDealDuration, uint64(auctioneer.calledDealDuration))
-	require.Equal(t, brgCid, auctioneer.calledPayloadCid)
-	require.Equal(t, int(dpr.PieceSize), auctioneer.calledPieceSize)
-	require.Equal(t, sd, auctioneer.calledStorageDealID)
-	require.Equal(t, int(b.conf.dealDuration), auctioneer.calledDealDuration)
-	require.Equal(t, 1, auctioneer.calledDealReplication)
-	require.Equal(t, b.conf.verifiedDeals, auctioneer.calledDealVerified)
-	require.Contains(t, auctioneer.calledExcludedMiners, "f01111")
-	require.Contains(t, auctioneer.calledExcludedMiners, "f02222")
+	require.Equal(t, 2, mb.TotalPublished()) // One for the first call, the other for re-acution.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	rda := &pb.ReadyToAuction{}
+	proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Equal(t, auction.MaxDealDuration, rda.DealDuration)
+	require.Equal(t, brgCid.String(), rda.PayloadCid)
+	require.Equal(t, dpr.PieceSize, rda.DealSize)
+	require.Equal(t, string(sdID), rda.StorageDealId)
+	require.Equal(t, uint32(1), rda.DealReplication)
+	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
+	require.Contains(t, rda.ExcludedMiners, "f01111")
+	require.Contains(t, rda.ExcludedMiners, "f02222")
 }
 
 func TestStorageDealFailedAuction(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, mb, _, _ := createBroker(t)
+	b, mb, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
@@ -555,7 +571,7 @@ func TestStorageDealFailedAuction(t *testing.T) {
 func TestStorageDealFinalizedDeals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, _, chainAPI := createBroker(t)
+	b, _, chainAPI := createBroker(t)
 	b.conf.dealReplication = 2
 
 	// 1- Create two broker requests and a corresponding storage deal, and
