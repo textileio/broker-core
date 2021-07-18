@@ -10,7 +10,7 @@ import (
 
 // Auction defines the core auction model.
 type Auction struct {
-	ID               auction.AuctionID // TODO(jsign): verify assignement and tests.
+	ID               auction.AuctionID
 	StorageDealID    broker.StorageDealID
 	PayloadCid       cid.Cid
 	DealSize         uint64
