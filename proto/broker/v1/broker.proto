@@ -118,7 +118,7 @@ message NewBatchCreated {
 message DealProposalAccepted {
   string storage_deal_id = 1;
   string miner = 2;
-  string proposal_cid = 3;
+  bytes proposal_cid = 3;
   string auction_id = 4;
   string bid_id = 5;
 }

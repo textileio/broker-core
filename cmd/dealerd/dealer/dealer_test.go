@@ -11,8 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -43,7 +46,7 @@ var (
 func TestReadyToCreateDeals(t *testing.T) {
 	t.Parallel()
 
-	dealer := newDealer(t)
+	dealer, _ := newDealer(t)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -83,7 +86,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 func TestStateMachineExecPending(t *testing.T) {
 	t.Parallel()
 
-	dealer := newDealer(t)
+	dealer, _ := newDealer(t)
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
 
@@ -112,7 +115,7 @@ func TestStateMachineExecPending(t *testing.T) {
 func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	t.Parallel()
 
-	dealer := newDealer(t)
+	dealer, mb := newDealer(t)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -142,13 +145,22 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.Equal(t, fakeExpiration, finalized.DealExpiration) // Crucial check
 
 	// Check that dealer has notified broker of accepted proposal.
-	require.Equal(t, auds.StorageDealID, broker.callerPASdID)
-	require.Equal(t, auds.Proposals[0].Miner, broker.calledPAMiner)
-	require.Equal(t, fakeProposalCid, broker.calledPAProposalCid)
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.DealProposalAcceptedTopic))
+	data, err := mb.GetMsg(mbroker.DealProposalAcceptedTopic, 0)
+	require.NoError(t, err)
+	dpa := &pb.DealProposalAccepted{}
+	err = proto.Unmarshal(data, dpa)
+	require.NoError(t, err)
+	require.Equal(t, string(auds.Proposals[0].AuctionID), dpa.AuctionId)
+	require.Equal(t, string(auds.Proposals[0].BidID), dpa.BidId)
+	require.Equal(t, string(auds.StorageDealID), dpa.StorageDealId)
+	require.Equal(t, auds.Proposals[0].Miner, dpa.Miner)
+	require.Equal(t, fakeProposalCid.Bytes(), dpa.ProposalCid)
 }
 
 func TestStateMachineExecReporting(t *testing.T) {
-	dealer := newDealer(t)
+	dealer, mb := newDealer(t)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -174,16 +186,22 @@ func TestStateMachineExecReporting(t *testing.T) {
 		require.False(t, ok)
 	}
 
-	// Check that the broker was reported with the deal
-	// results.
-	report := broker.calledFAD
-	require.Equal(t, auds.StorageDealID, report.StorageDealID)
-	require.Equal(t, fakeDealID, report.DealID)
-	require.Equal(t, fakeExpiration, report.DealExpiration)
-	require.Empty(t, report.ErrorCause)
+	// Msg 1: Proposal accepted, Msg 2: report finalized.
+	require.Equal(t, 2, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.FinalizedDealTopic))
+	data, err := mb.GetMsg(mbroker.FinalizedDealTopic, 0)
+	require.NoError(t, err)
+	fd := &pb.FinalizedDeal{}
+	err = proto.Unmarshal(data, fd)
+	require.NoError(t, err)
+
+	require.Equal(t, string(auds.StorageDealID), fd.StorageDealId)
+	require.Equal(t, fakeDealID, fd.DealId)
+	require.Equal(t, fakeExpiration, fd.DealExpiration)
+	require.Empty(t, fd.ErrorCause)
 }
 
-func newDealer(t *testing.T) *Dealer {
+func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
 	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
@@ -211,7 +229,7 @@ func newDealer(t *testing.T) *Dealer {
 	dealer, err := New(ds, mb, fc, opts...)
 	require.NoError(t, err)
 
-	return dealer
+	return dealer, mb
 }
 
 func castCid(cidStr string) cid.Cid {
