@@ -287,7 +287,7 @@ func (s *Service) OnNewBatchCreated(
 }
 
 // OnAuctionClosed handles new messages in auction-closed topic.
-func (s *Service) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) error {
+func (s *Service) OnAuctionClosed(ctx context.Context, au broker.ClosedAuction) error {
 	if err := s.broker.StorageDealAuctioned(ctx, au); err != nil {
 		return fmt.Errorf("processing closed auction: %s", err)
 	}

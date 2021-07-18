@@ -344,7 +344,11 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("invalid proposal cid")
 			}
 
-			if err := l.OnDealProposalAccepted(ctx, auction.AuctionID(r.AuctionId), auction.BidID(r.BidId), proposalCid); err != nil {
+			if err := l.OnDealProposalAccepted(
+				ctx,
+				auction.AuctionID(r.AuctionId),
+				auction.BidID(r.BidId),
+				proposalCid); err != nil {
 				return fmt.Errorf("calling deal-proposal-accepted handler: %s", err)
 			}
 			return nil
