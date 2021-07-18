@@ -130,7 +130,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
-	assert.NotEmpty(t, got.ID)
+	assert.Equal(t, id, got.ID)
 	assert.NotEmpty(t, got.StorageDealID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Equal(t, "https://foo.com/cid/123", got.Sources.CARURL.URL.String())
