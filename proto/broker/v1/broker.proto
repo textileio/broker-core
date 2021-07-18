@@ -71,7 +71,7 @@ message Sources {
 message ReadyToAuction {
     string id = 1;
     string storage_deal_id = 2;
-    string payload_cid = 3;
+    bytes payload_cid = 3;
     uint64 deal_size = 4;
     uint64 deal_duration = 5;
     uint32 deal_replication = 6;
@@ -82,8 +82,8 @@ message ReadyToAuction {
 }
 message ReadyToCreateDeals {
   string storage_deal_id = 1;
-  string payload_cid = 2;
-  string piece_cid = 3;
+  bytes payload_cid = 2;
+  bytes piece_cid = 3;
   uint64 piece_size = 4;
   uint64 duration = 5;
   repeated Proposal proposals = 6;
@@ -166,7 +166,7 @@ message FinalizedDeal {
 
 message BrokerRequest {
   string id = 1;
-  string data_cid = 2;
+  bytes data_cid = 2;
   Status status = 3;
   string storage_deal_id = 4;
   google.protobuf.Timestamp created_at = 5; 
