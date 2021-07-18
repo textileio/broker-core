@@ -49,6 +49,8 @@ const (
 	DealProposalAcceptedTopic = "deal-proposal-accepted"
 	// ReadyToAuctionTopic is the topic name for ready-to-auction messages.
 	ReadyToAuctionTopic = "ready-to-auction"
+	// AuctionClosedTopic is the topic name for auction-closed messages.
+	AuctionClosedTopic = "auction-closed"
 )
 
 // NewBatchCreatedListener is a handler for new-batch-created topic.
@@ -100,6 +102,11 @@ type ReadyToAuctionListener interface {
 		filEpochDeadline uint64,
 		sources auction.Sources,
 	) error
+}
+
+// AuctionClosedListener is a handler for auction-closed topic.
+type AuctionClosedListener interface {
+	OnAuctionClosed(context.Context, broker.ClosedAuction) error
 }
 
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
@@ -343,7 +350,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for ready-to-batch topic")
+			return fmt.Errorf("registering handler for deal-proposal-accepted topic")
 		}
 	}
 
@@ -400,6 +407,27 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}, opts...)
 		if err != nil {
 			return fmt.Errorf("registering handler for finalized-deal topic")
+		}
+	}
+
+	if l, ok := s.(AuctionClosedListener); ok {
+		countRegistered++
+		err := mb.RegisterTopicHandler(AuctionClosedTopic, func(ctx context.Context, data []byte) error {
+			r := &pb.AuctionClosed{}
+			if err := proto.Unmarshal(data, r); err != nil {
+				return fmt.Errorf("unmarshal auction closed: %s", err)
+			}
+			auction, err := closedAuctionFromPb(r)
+			if err != nil {
+				return fmt.Errorf("invalid auction closed: %s", err)
+			}
+			if err := l.OnAuctionClosed(ctx, auction); err != nil {
+				return fmt.Errorf("calling auction-closed handler: %s", err)
+			}
+			return nil
+		}, opts...)
+		if err != nil {
+			return fmt.Errorf("registering handler for auction-closed topic")
 		}
 	}
 
@@ -617,6 +645,20 @@ func PublishMsgReadyToAuction(
 	return nil
 }
 
+// PublishMsgAuctionClosed publishes a message to the auction-closed topic.
+func PublishMsgAuctionClosed(ctx context.Context, mb MsgBroker, au broker.ClosedAuction) error {
+	msg := closedAuctionToPb(au)
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("mashaling auction-closed message: %s", err)
+	}
+	if err := mb.PublishMsg(ctx, AuctionClosedTopic, data); err != nil {
+		return fmt.Errorf("publishing auction-closed message: %s", err)
+	}
+
+	return nil
+}
+
 func sourcesToPb(sources auction.Sources) *pb.Sources {
 	var carIPFS *pb.Sources_CARIPFS
 	if sources.CARIPFS != nil {
@@ -666,4 +708,96 @@ func sourcesFromPb(pbs *pb.Sources) (sources auction.Sources, err error) {
 		sources.CARIPFS = &auction.CARIPFS{Cid: id, Multiaddrs: multiaddrs}
 	}
 	return
+}
+
+func closedAuctionToPb(a broker.ClosedAuction) *pb.AuctionClosed {
+	pba := &pb.AuctionClosed{
+		Id:              string(a.ID),
+		StorageDealId:   string(a.StorageDealID),
+		DealDuration:    a.DealDuration,
+		DealReplication: a.DealReplication,
+		DealVerified:    a.DealVerified,
+		Status:          auctionStatusToPb(a.Status),
+		WinningBids:     auctionWinningBidsToPb(a.WinningBids),
+		Error:           a.ErrorCause,
+	}
+	return pba
+}
+
+func auctionStatusToPb(s broker.AuctionStatus) pb.AuctionClosed_Status {
+	switch s {
+	case broker.AuctionStatusUnspecified:
+		return pb.AuctionClosed_STATUS_UNSPECIFIED
+	case broker.AuctionStatusQueued:
+		return pb.AuctionClosed_STATUS_QUEUED
+	case broker.AuctionStatusStarted:
+		return pb.AuctionClosed_STATUS_STARTED
+	case broker.AuctionStatusFinalized:
+		return pb.AuctionClosed_STATUS_FINALIZED
+	default:
+		return pb.AuctionClosed_STATUS_UNSPECIFIED
+	}
+}
+
+func auctionWinningBidsToPb(
+	bids map[auction.BidID]broker.WinningBid,
+) map[string]*pb.AuctionClosed_WinningBid {
+	pbbids := make(map[string]*pb.AuctionClosed_WinningBid)
+	for k, v := range bids {
+		pbbids[string(k)] = &pb.AuctionClosed_WinningBid{
+			MinerAddr:     v.MinerAddr,
+			Price:         v.Price,
+			StartEpoch:    v.StartEpoch,
+			FastRetrieval: v.FastRetrieval,
+		}
+	}
+	return pbbids
+}
+
+func closedAuctionFromPb(pba *pb.AuctionClosed) (broker.ClosedAuction, error) {
+	wbids, err := auctionWinningBidsFromPb(pba.WinningBids)
+	if err != nil {
+		return broker.ClosedAuction{}, fmt.Errorf("decoding bids: %v", err)
+	}
+	a := broker.ClosedAuction{
+		ID:              auction.AuctionID(pba.Id),
+		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
+		DealDuration:    pba.DealDuration,
+		DealReplication: pba.DealReplication,
+		DealVerified:    pba.DealVerified,
+		Status:          auctionStatusFromPb(pba.Status),
+		WinningBids:     wbids,
+		ErrorCause:      pba.Error,
+	}
+	return a, nil
+}
+
+func auctionStatusFromPb(pbs pb.AuctionClosed_Status) broker.AuctionStatus {
+	switch pbs {
+	case pb.AuctionClosed_STATUS_UNSPECIFIED:
+		return broker.AuctionStatusUnspecified
+	case pb.AuctionClosed_STATUS_QUEUED:
+		return broker.AuctionStatusQueued
+	case pb.AuctionClosed_STATUS_STARTED:
+		return broker.AuctionStatusStarted
+	case pb.AuctionClosed_STATUS_FINALIZED:
+		return broker.AuctionStatusFinalized
+	default:
+		return broker.AuctionStatusUnspecified
+	}
+}
+
+func auctionWinningBidsFromPb(
+	pbbids map[string]*pb.AuctionClosed_WinningBid,
+) (map[auction.BidID]broker.WinningBid, error) {
+	wbids := make(map[auction.BidID]broker.WinningBid)
+	for k, v := range pbbids {
+		wbids[auction.BidID(k)] = broker.WinningBid{
+			MinerAddr:     v.MinerAddr,
+			Price:         v.Price,
+			StartEpoch:    v.StartEpoch,
+			FastRetrieval: v.FastRetrieval,
+		}
+	}
+	return wbids, nil
 }

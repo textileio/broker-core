@@ -114,15 +114,6 @@ func (c *Client) GetBrokerRequestInfo(
 	return br, nil
 }
 
-// StorageDealAuctioned indicates the storage deal auction has completed.
-func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
-	req := cast.ClosedAuctionToPb(auction)
-	if _, err := c.c.StorageDealAuctioned(ctx, req); err != nil {
-		return fmt.Errorf("calling storage deal winners api: %s", err)
-	}
-	return nil
-}
-
 // Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {

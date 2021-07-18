@@ -286,25 +286,12 @@ func (s *Service) OnNewBatchCreated(
 	return nil
 }
 
-// StorageDealAuctioned indicated that an auction has completed.
-func (s *Service) StorageDealAuctioned(
-	ctx context.Context,
-	r *pb.StorageDealAuctionedRequest) (*pb.StorageDealAuctionedResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+// OnAuctionClosed handles new messages in auction-closed topic.
+func (s *Service) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) error {
+	if err := s.broker.StorageDealAuctioned(ctx, au); err != nil {
+		return fmt.Errorf("processing closed auction: %s", err)
 	}
-
-	auction, err := cast.ClosedAuctionFromPb(r)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid auction: %s", err)
-	}
-
-	if err := s.broker.StorageDealAuctioned(ctx, auction); err != nil {
-		log.Errorf("storage deal auctioned: %s", err)
-		return nil, status.Errorf(codes.Internal, "storage deal auctioned: %s", err)
-	}
-
-	return &pb.StorageDealAuctionedResponse{}, nil
+	return nil
 }
 
 // OnNewBatchPrepared handles new messages in new-batch-prepared topic.
