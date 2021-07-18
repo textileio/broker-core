@@ -149,7 +149,7 @@ var daemonCmd = &cobra.Command{
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "piecerd")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "auctioneerd")
 		common.CheckErrf("creating google pubsub client: %s", err)
 
 		serv, err := service.New(config, store, mb, fc)
