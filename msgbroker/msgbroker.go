@@ -133,6 +133,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if !batchCid.Defined() {
 				return errors.New("data cid is undefined")
 			}
+			if len(r.BrokerRequestIds) == 0 {
+				return errors.New("broker requests list is empty")
+			}
 			brids := make([]broker.BrokerRequestID, len(r.BrokerRequestIds))
 			for i, id := range r.BrokerRequestIds {
 				if id == "" {
@@ -158,15 +161,21 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal new batch prepared: %s", err)
 			}
+			if r.Id == "" {
+				return errors.New("batch id is empty")
+			}
 			pieceCid, err := cid.Cast(r.PieceCid)
 			if err != nil {
 				return fmt.Errorf("decoding piece cid: %s", err)
 			}
-			id := broker.StorageDealID(r.Id)
+			if r.PieceSize == 0 {
+				return fmt.Errorf("piece size is zero")
+			}
 			pr := broker.DataPreparationResult{
 				PieceCid:  pieceCid,
 				PieceSize: r.PieceSize,
 			}
+			id := broker.StorageDealID(r.Id)
 			if err := l.OnNewBatchPrepared(ctx, id, pr); err != nil {
 				return fmt.Errorf("calling on-new-batch-prepared handler: %s", err)
 			}
@@ -198,6 +207,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				if err != nil {
 					return fmt.Errorf("decoding data cid: %s", err)
 				}
+				if !dataCid.Defined() {
+					return fmt.Errorf("data cid is undefined")
+				}
 				rtb[i] = ReadyToBatchData{
 					BrokerRequestID: brID,
 					DataCid:         dataCid,
@@ -219,21 +231,32 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		err := mb.RegisterTopicHandler(ReadyToCreateDealsTopic, func(ctx context.Context, data []byte) error {
 			r := &pb.ReadyToCreateDeals{}
 			if err := proto.Unmarshal(data, r); err != nil {
-				return fmt.Errorf("unmarshal ready to batch: %s", err)
+				return fmt.Errorf("unmarshal ready-to-create-deals: %s", err)
 			}
 			if r.StorageDealId == "" {
 				return errors.New("storage deal id is empty")
 			}
 
-			payloadCid, err := cid.Decode(r.PayloadCid)
+			payloadCid, err := cid.Cast(r.PayloadCid)
 			if err != nil {
 				return fmt.Errorf("parsing payload cid %s: %s", r.PayloadCid, err)
 			}
-			pieceCid, err := cid.Decode(r.PieceCid)
+			if !payloadCid.Defined() {
+				return errors.New("payloadcid is undefined")
+			}
+			pieceCid, err := cid.Cast(r.PieceCid)
 			if err != nil {
 				return fmt.Errorf("parsing piece cid %s: %s", r.PieceCid, err)
 			}
-
+			if !pieceCid.Defined() {
+				return errors.New("piececid is undefined")
+			}
+			if r.Duration == 0 {
+				return errors.New("duration is zero")
+			}
+			if len(r.Proposals) == 0 {
+				return errors.New("list of proposals is empty")
+			}
 			ads := dealer.AuctionDeals{
 				StorageDealID: broker.StorageDealID(r.StorageDealId),
 				PayloadCid:    payloadCid,
@@ -286,7 +309,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return fmt.Errorf("unmarshal finalized deal msg: %s", err)
 			}
 			if r.StorageDealId == "" {
-				return fmt.Errorf("storage deal id is empty")
+				return errors.New("storage deal id is empty")
 			}
 			if r.ErrorCause == "" {
 				if r.DealId <= 0 {
@@ -299,6 +322,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 						"deal expiration is %d and should be positive",
 						r.DealExpiration)
 				}
+			}
+			if r.MinerId == "" {
+				return errors.New("miner id is empty")
 			}
 			if r.AuctionId == "" {
 				return errors.New("auction-id is empty")
@@ -331,17 +357,26 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		err := mb.RegisterTopicHandler(DealProposalAcceptedTopic, func(ctx context.Context, data []byte) error {
 			r := &pb.DealProposalAccepted{}
 			if err := proto.Unmarshal(data, r); err != nil {
-				return fmt.Errorf("unmarshal ready to batch: %s", err)
+				return fmt.Errorf("unmarshal deal-proposal-accepted msg: %s", err)
+			}
+			if r.StorageDealId == "" {
+				return errors.New("storage deal id is empty")
+			}
+			if r.Miner == "" {
+				return errors.New("miner id is empty")
+			}
+			proposalCid, err := cid.Cast(r.ProposalCid)
+			if err != nil || !proposalCid.Defined() {
+				return errors.New("invalid proposal cid")
+			}
+			if !proposalCid.Defined() {
+				return errors.New("proposal cid is undefined")
 			}
 			if r.AuctionId == "" {
 				return errors.New("auction id is required")
 			}
 			if r.BidId == "" {
 				return errors.New("bid id is required")
-			}
-			proposalCid, err := cid.Cast(r.ProposalCid)
-			if err != nil || !proposalCid.Defined() {
-				return errors.New("invalid proposal cid")
 			}
 
 			if err := l.OnDealProposalAccepted(
@@ -363,7 +398,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		err := mb.RegisterTopicHandler(ReadyToAuctionTopic, func(ctx context.Context, data []byte) error {
 			req := &pb.ReadyToAuction{}
 			if err := proto.Unmarshal(data, req); err != nil {
-				return fmt.Errorf("unmarshal finalized deal msg: %s", err)
+				return fmt.Errorf("unmarshal ready-to-auction msg: %s", err)
 			}
 			if req.Id == "" {
 				return errors.New("auction-id is empty")
@@ -371,12 +406,12 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if req.StorageDealId == "" {
 				return errors.New("storage deal id is empty")
 			}
-			if req.PayloadCid == "" {
-				return errors.New("payload cid is empty")
-			}
-			payloadCid, err := cid.Parse(req.PayloadCid)
-			if err != nil || !payloadCid.Defined() {
+			payloadCid, err := cid.Cast(req.PayloadCid)
+			if err != nil {
 				return errors.New("payload cid invalid")
+			}
+			if !payloadCid.Defined() {
+				return errors.New("payload cid is undefined")
 			}
 			if req.DealSize == 0 {
 				return errors.New("deal size must be greater than zero")
@@ -405,12 +440,12 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				req.FilEpochDeadline,
 				sources,
 			); err != nil {
-				return fmt.Errorf("calling finalized-deal handler: %s", err)
+				return fmt.Errorf("calling ready-to-auction handler: %s", err)
 			}
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for finalized-deal topic")
+			return fmt.Errorf("registering handler for ready-to-auction topic")
 		}
 	}
 
@@ -525,8 +560,8 @@ func PublishMsgReadyToCreateDeals(
 	ads dealer.AuctionDeals) error {
 	msg := &pb.ReadyToCreateDeals{
 		StorageDealId: string(ads.StorageDealID),
-		PayloadCid:    ads.PayloadCid.String(),
-		PieceCid:      ads.PieceCid.String(),
+		PayloadCid:    ads.PayloadCid.Bytes(),
+		PieceCid:      ads.PieceCid.Bytes(),
 		PieceSize:     ads.PieceSize,
 		Duration:      ads.Duration,
 		Proposals:     make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
@@ -629,7 +664,7 @@ func PublishMsgReadyToAuction(
 	msg := &pb.ReadyToAuction{
 		Id:               string(id),
 		StorageDealId:    string(storageDealID),
-		PayloadCid:       payloadCid.String(),
+		PayloadCid:       payloadCid.Bytes(),
 		DealSize:         uint64(dealSize),
 		DealDuration:     uint64(dealDuration),
 		DealReplication:  uint32(dealReplication),
@@ -694,7 +729,7 @@ func sourcesFromPb(pbs *pb.Sources) (sources auction.Sources, err error) {
 	if pbs.CarUrl != nil {
 		u, err := url.Parse(pbs.CarUrl.URL)
 		if err != nil {
-			return auction.Sources{}, err
+			return auction.Sources{}, fmt.Errorf("parsing %s: %s", pbs.CarUrl.URL, err)
 		}
 		sources.CARURL = &auction.CARURL{URL: *u}
 	}
@@ -702,13 +737,13 @@ func sourcesFromPb(pbs *pb.Sources) (sources auction.Sources, err error) {
 	if pbs.CarIpfs != nil {
 		id, err := cid.Parse(pbs.CarIpfs.Cid)
 		if err != nil {
-			return auction.Sources{}, err
+			return auction.Sources{}, fmt.Errorf("parsing url %s: %s", pbs.CarIpfs.Cid, err)
 		}
 		var multiaddrs []multiaddr.Multiaddr
 		for _, s := range pbs.CarIpfs.Multiaddrs {
 			addr, err := multiaddr.NewMultiaddr(s)
 			if err != nil {
-				return auction.Sources{}, err
+				return auction.Sources{}, fmt.Errorf("parsing multiaddr %s: %s", s, err)
 			}
 			multiaddrs = append(multiaddrs, addr)
 		}
@@ -827,6 +862,9 @@ func auctionWinningBidsFromPb(
 	for k, v := range pbbids {
 		if v.MinerAddr == "" {
 			return nil, errors.New("miner id is empty")
+		}
+		if v.Price < 0 {
+			return nil, errors.New("price is negative")
 		}
 		if v.StartEpoch == 0 {
 			return nil, errors.New("start-epoch is zero")

@@ -1,6 +1,7 @@
 package cast
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -11,9 +12,12 @@ import (
 
 // FromProtoBrokerRequest transforms a pb.BrokerRequest to broker.BrokerRequest.
 func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, error) {
-	c, err := cid.Decode(brproto.DataCid)
+	dataCid, err := cid.Cast(brproto.DataCid)
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("decoding cid: %s", err)
+	}
+	if !dataCid.Defined() {
+		return broker.BrokerRequest{}, errors.New("data cid is undefined")
 	}
 
 	var status broker.BrokerRequestStatus
@@ -38,7 +42,7 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 
 	return broker.BrokerRequest{
 		ID:            broker.BrokerRequestID(brproto.Id),
-		DataCid:       c,
+		DataCid:       dataCid,
 		Status:        status,
 		StorageDealID: broker.StorageDealID(brproto.StorageDealId),
 		CreatedAt:     brproto.CreatedAt.AsTime(),
@@ -93,7 +97,7 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 
 	return &pb.BrokerRequest{
 		Id:            string(br.ID),
-		DataCid:       br.DataCid.String(),
+		DataCid:       br.DataCid.Bytes(),
 		Status:        pbStatus,
 		StorageDealId: string(br.StorageDealID),
 		CreatedAt:     timestamppb.New(br.CreatedAt),
