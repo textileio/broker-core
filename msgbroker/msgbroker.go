@@ -651,7 +651,10 @@ func PublishMsgReadyToAuction(
 
 // PublishMsgAuctionClosed publishes a message to the auction-closed topic.
 func PublishMsgAuctionClosed(ctx context.Context, mb MsgBroker, au broker.ClosedAuction) error {
-	msg := closedAuctionToPb(au)
+	msg, err := closedAuctionToPb(au)
+	if err != nil {
+		return fmt.Errorf("converting to pb: %s", err)
+	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("mashaling auction-closed message: %s", err)
@@ -714,40 +717,54 @@ func sourcesFromPb(pbs *pb.Sources) (sources auction.Sources, err error) {
 	return
 }
 
-func closedAuctionToPb(a broker.ClosedAuction) *pb.AuctionClosed {
+func closedAuctionToPb(a broker.ClosedAuction) (*pb.AuctionClosed, error) {
+	wb, err := auctionWinningBidsToPb(a.WinningBids)
+	if err != nil {
+		return nil, fmt.Errorf("converting winning bids to pb: %s", err)
+	}
+	status, err := auctionStatusToPb(a.Status)
+	if err != nil {
+		return nil, fmt.Errorf("converting status to pb: %s", err)
+	}
 	pba := &pb.AuctionClosed{
 		Id:              string(a.ID),
 		StorageDealId:   string(a.StorageDealID),
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
 		DealVerified:    a.DealVerified,
-		Status:          auctionStatusToPb(a.Status),
-		WinningBids:     auctionWinningBidsToPb(a.WinningBids),
+		Status:          status,
+		WinningBids:     wb,
 		Error:           a.ErrorCause,
 	}
-	return pba
+	return pba, nil
 }
 
-func auctionStatusToPb(s broker.AuctionStatus) pb.AuctionClosed_Status {
+func auctionStatusToPb(s broker.AuctionStatus) (pb.AuctionClosed_Status, error) {
 	switch s {
 	case broker.AuctionStatusUnspecified:
-		return pb.AuctionClosed_STATUS_UNSPECIFIED
+		return pb.AuctionClosed_STATUS_UNSPECIFIED, nil
 	case broker.AuctionStatusQueued:
-		return pb.AuctionClosed_STATUS_QUEUED
+		return pb.AuctionClosed_STATUS_QUEUED, nil
 	case broker.AuctionStatusStarted:
-		return pb.AuctionClosed_STATUS_STARTED
+		return pb.AuctionClosed_STATUS_STARTED, nil
 	case broker.AuctionStatusFinalized:
-		return pb.AuctionClosed_STATUS_FINALIZED
+		return pb.AuctionClosed_STATUS_FINALIZED, nil
 	default:
-		return pb.AuctionClosed_STATUS_UNSPECIFIED
+		return pb.AuctionClosed_STATUS_UNSPECIFIED, fmt.Errorf("unknown status %s", s)
 	}
 }
 
 func auctionWinningBidsToPb(
 	bids map[auction.BidID]broker.WinningBid,
-) map[string]*pb.AuctionClosed_WinningBid {
+) (map[string]*pb.AuctionClosed_WinningBid, error) {
 	pbbids := make(map[string]*pb.AuctionClosed_WinningBid)
 	for k, v := range bids {
+		if v.MinerAddr == "" {
+			return nil, errors.New("miner id is empty")
+		}
+		if v.StartEpoch == 0 {
+			return nil, errors.New("start epoch is zero")
+		}
 		pbbids[string(k)] = &pb.AuctionClosed_WinningBid{
 			MinerAddr:     v.MinerAddr,
 			Price:         v.Price,
@@ -755,13 +772,25 @@ func auctionWinningBidsToPb(
 			FastRetrieval: v.FastRetrieval,
 		}
 	}
-	return pbbids
+	return pbbids, nil
 }
 
 func closedAuctionFromPb(pba *pb.AuctionClosed) (broker.ClosedAuction, error) {
 	wbids, err := auctionWinningBidsFromPb(pba.WinningBids)
 	if err != nil {
 		return broker.ClosedAuction{}, fmt.Errorf("decoding bids: %v", err)
+	}
+	if pba.Id == "" {
+		return broker.ClosedAuction{}, errors.New("closed auction id is empty")
+	}
+	if pba.StorageDealId == "" {
+		return broker.ClosedAuction{}, errors.New("storage deal id is empty")
+	}
+	if pba.DealDuration == 0 {
+		return broker.ClosedAuction{}, errors.New("deal duration is zero")
+	}
+	if pba.DealReplication == 0 {
+		return broker.ClosedAuction{}, errors.New("deal replication is zero")
 	}
 	a := broker.ClosedAuction{
 		ID:              auction.AuctionID(pba.Id),
@@ -796,6 +825,12 @@ func auctionWinningBidsFromPb(
 ) (map[auction.BidID]broker.WinningBid, error) {
 	wbids := make(map[auction.BidID]broker.WinningBid)
 	for k, v := range pbbids {
+		if v.MinerAddr == "" {
+			return nil, errors.New("miner id is empty")
+		}
+		if v.StartEpoch == 0 {
+			return nil, errors.New("start-epoch is zero")
+		}
 		wbids[auction.BidID(k)] = broker.WinningBid{
 			MinerAddr:     v.MinerAddr,
 			Price:         v.Price,
