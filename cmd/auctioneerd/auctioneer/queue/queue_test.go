@@ -66,7 +66,7 @@ func TestQueue_ListAuctions(t *testing.T) {
 	ids := make([]auction.AuctionID, limit)
 	for i := 0; i < limit; i++ {
 		now = now.Add(time.Millisecond)
-		id := auction.AuctionID(fmt.Sprintf("ID-%d", i))
+		id := auction.AuctionID(fmt.Sprintf("%03d", i))
 		err := q.CreateAuction(auctioneer.Auction{
 			ID:              id,
 			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
