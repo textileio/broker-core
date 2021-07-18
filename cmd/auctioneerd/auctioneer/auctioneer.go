@@ -67,6 +67,7 @@ type AuctionConfig struct {
 
 // Auctioneer handles deal auctions for a broker.
 type Auctioneer struct {
+	mb          mbroker.MsgBroker
 	queue       *q.Queue
 	started     bool
 	auctionConf AuctionConfig
@@ -100,6 +101,7 @@ func New(
 	}
 
 	a := &Auctioneer{
+		mb:          mb,
 		peer:        peer,
 		fc:          fc,
 		auctionConf: auctionConf,
@@ -414,8 +416,8 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 	}
 	a.metricNewFinalizedAuction.Add(ctx, 1, labels...)
 	// TODO(jsign): make mocks.
-	if err := a.broker.StorageDealAuctioned(ctx, toClosedAuction(auction)); err != nil {
-		return fmt.Errorf("signaling broker: %v", err)
+	if err := mbroker.PublishMsgAuctionClosed(ctx, a.mb, toClosedAuction(auction)); err != nil {
+		return fmt.Errorf("publishing closed auction msg: %v", err)
 	}
 	return nil
 }

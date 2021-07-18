@@ -2,15 +2,17 @@ package broker
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	"github.com/oklog/ulid/v2"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 
@@ -53,6 +55,9 @@ type Broker struct {
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
+
+	lock    sync.Mutex
+	entropy *ulid.MonotonicEntropy
 
 	metricUnpinTotal        metric.Int64Counter
 	statTotalRecursivePins  int64
@@ -112,8 +117,12 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, e
 	}
 
 	now := time.Now()
+	brID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating id: %s", err)
+	}
 	br := broker.BrokerRequest{
-		ID:        broker.BrokerRequestID(uuid.New().String()),
+		ID:        broker.BrokerRequestID(brID),
 		DataCid:   c,
 		Status:    broker.RequestBatching,
 		CreatedAt: now,
@@ -144,8 +153,12 @@ func (b *Broker) CreatePrepared(
 	}
 
 	now := time.Now()
+	brID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating id: %s", err)
+	}
 	br = broker.BrokerRequest{
-		ID:        broker.BrokerRequestID(uuid.New().String()),
+		ID:        broker.BrokerRequestID(brID),
 		DataCid:   payloadCid,
 		Status:    broker.RequestAuctioning,
 		CreatedAt: now,
@@ -160,9 +173,13 @@ func (b *Broker) CreatePrepared(
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
 	}
+	sdID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating storage deal id: %s", err)
+	}
 	sd := broker.StorageDeal{
 		// TODO(jsign): this might change depending if gRPC is still used for this API.
-		ID:                 broker.StorageDealID(uuid.New().String()),
+		ID:                 broker.StorageDealID(sdID),
 		RepFactor:          pc.RepFactor,
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.StorageDealAuctioning,
@@ -194,12 +211,14 @@ func (b *Broker) CreatePrepared(
 		return broker.BrokerRequest{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
-	// TODO(jsign): generate ID for auction.
-	auctionID := auction.AuctionID(uuid.New().String())
+	auctionID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating auction id: %s", err)
+	}
 	if err = mbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
-		auctionID,
+		auction.AuctionID(auctionID),
 		sd.ID,
 		sd.PayloadCid,
 		int(sd.PieceSize),
@@ -301,10 +320,10 @@ func (b *Broker) CreateNewBatch(
 // NewBatchPrepared contains information of a prepared batch.
 func (b *Broker) NewBatchPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	sdID broker.StorageDealID,
 	dpr broker.DataPreparationResult,
 ) (err error) {
-	if id == "" {
+	if sdID == "" {
 		return fmt.Errorf("the storage deal id is empty")
 	}
 	if err := dpr.Validate(); err != nil {
@@ -319,21 +338,21 @@ func (b *Broker) NewBatchPrepared(
 		err = b.store.FinishTxForCtx(ctx, err)
 	}()
 
-	sd, err := b.store.GetStorageDeal(ctx, id)
+	sd, err := b.store.GetStorageDeal(ctx, sdID)
 	if err != nil {
 		return fmt.Errorf("get stoarge deal: %s", err)
 	}
 
-	if err := b.store.StorageDealToAuctioning(ctx, id, dpr.PieceCid, dpr.PieceSize); err != nil {
-		return fmt.Errorf("saving piecer output in storage deal: %s", err)
+	log.Debugf("storage deal %s was prepared, publishing to topicr...", sdID)
+	auctionID, err := b.newID()
+	if err != nil {
+		return fmt.Errorf("generating auction id: %s", err)
 	}
-
-	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
-	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
-	// us about who won things.
-	auctionID, err := b.auctioneer.ReadyToAuction(
+	if err := mbroker.PublishMsgReadyToAuction(
 		ctx,
-		id,
+		b.mb,
+		auction.AuctionID(auctionID),
+		sdID,
 		sd.PayloadCid,
 		int(dpr.PieceSize),
 		sd.DealDuration,
@@ -342,9 +361,12 @@ func (b *Broker) NewBatchPrepared(
 		nil,
 		sd.FilEpochDeadline,
 		sd.Sources,
-	)
-	if err != nil {
-		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
+	); err != nil {
+		return fmt.Errorf("publishing ready to create auction msg: %s", err)
+	}
+
+	if err := b.store.StorageDealToAuctioning(ctx, sdID, dpr.PieceCid, dpr.PieceSize); err != nil {
+		return fmt.Errorf("saving piecer output in storage deal: %s", err)
 	}
 
 	log.Debugf("created auction %s", auctionID)
@@ -395,8 +417,14 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 
 			// The batch can't be rebatched, since it's a prepared CAR file.
 			// We simply foce to create a new auction.
-			auctionID, err := b.auctioneer.ReadyToAuction(
+			auctionID, err := b.newID()
+			if err != nil {
+				return fmt.Errorf("generating auction id: %s", err)
+			}
+			if err := mbroker.PublishMsgReadyToAuction(
 				ctx,
+				b.mb,
+				auction.AuctionID(auctionID),
 				sd.ID,
 				sd.PayloadCid,
 				int(sd.PieceSize),
@@ -406,9 +434,8 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 				nil,
 				sd.FilEpochDeadline,
 				sd.Sources,
-			)
-			if err != nil {
-				return fmt.Errorf("signaling auctioneer to re-create auction for prepared data: %s", err)
+			); err != nil {
+				return fmt.Errorf("publish ready to auction re-auctioning for prepared data: %s", err)
 			}
 			log.Debugf("re-created new auction for prepared prepared data: %s", auctionID)
 			if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
@@ -495,8 +522,14 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 			excludedMiners = append(excludedMiners, deal.Miner)
 		}
 		log.Infof("creating new auction for %d/%d missing bids", deltaRepFactor, len(au.WinningBids))
-		_, err = b.auctioneer.ReadyToAuction(
+		auctionID, err := b.newID()
+		if err != nil {
+			return fmt.Errorf("generating auction id: %s", err)
+		}
+		if err := mbroker.PublishMsgReadyToAuction(
 			ctx,
+			b.mb,
+			auction.AuctionID(auctionID),
 			sd.ID,
 			sd.PayloadCid,
 			int(sd.PieceSize),
@@ -506,9 +539,8 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 			excludedMiners,
 			sd.FilEpochDeadline,
 			sd.Sources,
-		)
-		if err != nil {
-			return fmt.Errorf("creating new auction for missing bids %d: %s", deltaRepFactor, err)
+		); err != nil {
+			return fmt.Errorf("publish ready to auction for missing bids %d: %s", deltaRepFactor, err)
 		}
 
 		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
@@ -554,8 +586,14 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		}
 		log.Infof("creating new auction for failed deal with miner %s", fad.Miner)
 
-		_, err = b.auctioneer.ReadyToAuction(
+		auctionID, err := b.newID()
+		if err != nil {
+			return fmt.Errorf("generating auction id: %s", err)
+		}
+		if err := mbroker.PublishMsgReadyToAuction(
 			ctx,
+			b.mb,
+			auction.AuctionID(auctionID),
 			sd.ID,
 			sd.PayloadCid,
 			int(sd.PieceSize),
@@ -565,8 +603,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 			excludedMiners,
 			sd.FilEpochDeadline,
 			sd.Sources,
-		)
-		if err != nil {
+		); err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
 		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
@@ -644,6 +681,26 @@ func (b *Broker) Close() error {
 		<-b.daemonClosed
 	})
 	return nil
+}
+
+func (b *Broker) newID() (string, error) {
+	b.lock.Lock()
+	// Not deferring unlock since can be recursive.
+
+	if b.entropy == nil {
+		b.entropy = ulid.Monotonic(rand.Reader, 0)
+	}
+	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), b.entropy)
+	if errors.Is(err, ulid.ErrMonotonicOverflow) {
+		b.entropy = nil
+		b.lock.Unlock()
+		return b.newID()
+	} else if err != nil {
+		b.lock.Unlock()
+		return "", fmt.Errorf("generating id: %v", err)
+	}
+	b.lock.Unlock()
+	return strings.ToLower(id.String()), nil
 }
 
 func timeToFilEpoch(t time.Time) (uint64, error) {
