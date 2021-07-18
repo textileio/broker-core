@@ -179,7 +179,7 @@ func TestCreatePrepared(t *testing.T) {
 	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
 	require.NoError(t, err)
 	rda := &pb.ReadyToAuction{}
-	proto.Unmarshal(data, rda)
+	err = proto.Unmarshal(data, rda)
 	require.NoError(t, err)
 	require.Equal(t, b.conf.dealDuration, rda.DealDuration)
 	require.Equal(t, payloadCid.String(), rda.PayloadCid)
@@ -260,9 +260,9 @@ func TestStorageDealPrepared(t *testing.T) {
 	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
 	require.NoError(t, err)
 	rda := &pb.ReadyToAuction{}
-	proto.Unmarshal(data, rda)
+	err = proto.Unmarshal(data, rda)
 	require.NoError(t, err)
-	require.Equal(t, auction.MaxDealDuration, uint64(rda.DealDuration))
+	require.Equal(t, auction.MaxDealDuration, rda.DealDuration)
 	require.Equal(t, brgCid.String(), rda.PayloadCid)
 	require.Equal(t, dpr.PieceSize, rda.DealSize)
 	require.Equal(t, string(sd), rda.StorageDealId)
@@ -481,7 +481,7 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 1) // Inspect re-auction auction.
 	require.NoError(t, err)
 	rda := &pb.ReadyToAuction{}
-	proto.Unmarshal(data, rda)
+	err = proto.Unmarshal(data, rda)
 	require.NoError(t, err)
 	require.Equal(t, auction.MaxDealDuration, rda.DealDuration)
 	require.Equal(t, brgCid.String(), rda.PayloadCid)
