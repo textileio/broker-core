@@ -16,8 +16,8 @@ type Packer struct {
 	mock.Mock
 }
 
-// ReadyToPack provides a mock function with given fields: ctx, id, dataCid
-func (_m *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
+// ReadyToBatch provides a mock function with given fields: ctx, id, dataCid
+func (_m *Packer) ReadyToBatch(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
 	ret := _m.Called(ctx, id, dataCid)
 
 	var r0 error

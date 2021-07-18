@@ -9,7 +9,6 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
@@ -44,8 +43,7 @@ var (
 func TestReadyToCreateDeals(t *testing.T) {
 	t.Parallel()
 
-	broker := &brokerMock{}
-	dealer := newDealer(t, broker)
+	dealer := newDealer(t)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -62,8 +60,8 @@ func TestReadyToCreateDeals(t *testing.T) {
 	require.Equal(t, auds.Proposals[0].StartEpoch, aud.StartEpoch)
 	require.Equal(t, auds.Proposals[0].Verified, aud.Verified)
 	require.Equal(t, auds.Proposals[0].FastRetrieval, aud.FastRetrieval)
-	require.Equal(t, auds.Proposals[0].AuctionID, aud.AuctionID)
-	require.Equal(t, auds.Proposals[0].BidID, aud.BidID)
+	require.Equal(t, string(auds.Proposals[0].AuctionID), aud.AuctionID)
+	require.Equal(t, string(auds.Proposals[0].BidID), aud.BidID)
 	require.Equal(t, store.ExecutingDealMaking, aud.Status)
 	require.Empty(t, aud.ErrorCause)
 	require.True(t, time.Since(aud.CreatedAt) < time.Minute)
@@ -85,8 +83,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 func TestStateMachineExecPending(t *testing.T) {
 	t.Parallel()
 
-	broker := &brokerMock{}
-	dealer := newDealer(t, broker)
+	dealer := newDealer(t)
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
 
@@ -115,8 +112,7 @@ func TestStateMachineExecPending(t *testing.T) {
 func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	t.Parallel()
 
-	broker := &brokerMock{}
-	dealer := newDealer(t, broker)
+	dealer := newDealer(t)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -152,8 +148,7 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 }
 
 func TestStateMachineExecReporting(t *testing.T) {
-	broker := &brokerMock{}
-	dealer := newDealer(t, broker)
+	dealer := newDealer(t)
 
 	err := dealer.ReadyToCreateDeals(context.Background(), auds)
 	require.NoError(t, err)
@@ -188,7 +183,7 @@ func TestStateMachineExecReporting(t *testing.T) {
 	require.Empty(t, report.ErrorCause)
 }
 
-func newDealer(t *testing.T, broker broker.Broker) *Dealer {
+func newDealer(t *testing.T) *Dealer {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
 	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
@@ -259,58 +254,4 @@ func (fc *fcMock) CheckDealStatusWithMiner(
 	args := fc.Called(ctx, minerAddr, propCid)
 
 	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)
-}
-
-type brokerMock struct {
-	calledFAD broker.FinalizedDeal
-
-	callerPASdID        broker.StorageDealID
-	calledPAMiner       string
-	calledPAProposalCid cid.Cid
-}
-
-func (b *brokerMock) CreateStorageDeal(
-	ctx context.Context,
-	batchCid cid.Cid,
-	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
-	panic("shouldn't be called")
-}
-
-func (b *brokerMock) StorageDealPrepared(
-	ctx context.Context,
-	id broker.StorageDealID,
-	pr broker.DataPreparationResult) error {
-	panic("shouldn't be called")
-}
-
-func (b *brokerMock) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
-	panic("shouldn't be called")
-}
-
-func (b *brokerMock) StorageDealProposalAccepted(
-	_ context.Context,
-	sdID broker.StorageDealID,
-	miner string,
-	proposalCid cid.Cid) error {
-	b.callerPASdID = sdID
-	b.calledPAMiner = miner
-	b.calledPAProposalCid = proposalCid
-	return nil
-}
-
-func (b *brokerMock) StorageDealFinalizedDeal(ctx context.Context, res broker.FinalizedDeal) error {
-	b.calledFAD = res
-	return nil
-}
-
-func (b *brokerMock) Create(context.Context, cid.Cid) (broker.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func (b *brokerMock) CreatePrepared(context.Context, cid.Cid, broker.PreparedCAR) (broker.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func (b *brokerMock) GetBrokerRequestInfo(context.Context, broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
-	panic("shouldn't be called")
 }
