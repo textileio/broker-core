@@ -27,5 +27,6 @@ SELECT 'CREATE DATABASE $DB_NAME WITH OWNER $DB_USER'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
 ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD'
 EOD
+[ $? -eq 0 ] || quit "fail to initialize postgres database"
 unset POSTGRES_PASSWORD
 $1 --postgres-uri="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME?sslmode=disable&timezone=UTC"
