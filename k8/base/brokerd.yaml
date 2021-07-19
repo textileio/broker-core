@@ -76,7 +76,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: broker-secret
-                  key: db-password
+                  key: broker-db-password
           envFrom:
             - configMapRef:
                 name: configmap-broker
