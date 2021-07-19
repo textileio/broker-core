@@ -16,19 +16,16 @@ DB_NAME=${DAEMON}
 POSTGRES_PASSWORD=$(echo -n $POSTGRES_PASSWORD | tr -d \\n)
 DB_PASSWORD=$(echo -n $DB_PASSWORD | tr -d \\n)
 
-# when run the pod for the first time, connect to postgres with admin
-# privilege, create user and database if not exist, and force change password,
-# then starts daemon with the correct postgres URI.
-if [ ! -f .postgres-initialized ]; then
-  psql "postgres://postgres:$POSTGRES_PASSWORD@$DB_HOST" <<EOD
-  SELECT 'CREATE USER $DB_USER'
-  WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_USER')\gexec
-  GRANT $DB_USER TO postgres;
-  SELECT 'CREATE DATABASE $DB_NAME WITH OWNER $DB_USER'
-  WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
-  ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD'
+# when starting the pod, connect to postgres with admin privilege, create user
+# and database if not exist, and force change password, then starts daemon with
+# the correct postgres URI.
+psql "postgres://postgres:$POSTGRES_PASSWORD@$DB_HOST" <<EOD
+SELECT 'CREATE USER $DB_USER'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_USER')\gexec
+GRANT $DB_USER TO postgres;
+SELECT 'CREATE DATABASE $DB_NAME WITH OWNER $DB_USER'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
+ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD'
 EOD
-[ $? -eq 0 ] && touch .postgres-initialized
-fi
-
+unset POSTGRES_PASSWORD
 $1 --postgres-uri="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME?sslmode=disable&timezone=UTC"
