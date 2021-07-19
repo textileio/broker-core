@@ -18,12 +18,13 @@ WHERE storage_deal_id = $1;
 SELECT * FROM broker_requests
 WHERE storage_deal_id = $1;
 
--- name: UpdateBrokerRequests :exec
+-- name: BatchUpdateBrokerRequests :many
 UPDATE broker_requests
-SET status = $2,
-    storage_deal_id = $3,
+SET status = @status,
+    storage_deal_id = @storage_deal_id,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = any ($1::TEXT[]);
+WHERE id = any (@ids::TEXT[])
+RETURNING id;
 
 -- name: UpdateBrokerRequestsStatus :exec
 UPDATE broker_requests
