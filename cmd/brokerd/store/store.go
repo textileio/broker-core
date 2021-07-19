@@ -32,7 +32,8 @@ var (
 	// unknown broker request.
 	ErrStorageDealContainsUnknownBrokerRequest = fmt.Errorf("storage deal contains an unknown broker request")
 
-	log = logger.Logger("store")
+	log      = logger.Logger("store")
+	ctxKeyTx = "ctx-key-transaction"
 )
 
 // Store provides a persistent layer for broker requests.
@@ -90,9 +91,45 @@ func TxReadonly() func(o *sql.TxOptions) *sql.TxOptions {
 	}
 }
 
+// CtxWithTx attach a database transaction to the context. It returns the
+// context unchanged if there's error starting the transaction.
+func (s *Store) CtxWithTx(ctx context.Context, opts ...TxOptions) (context.Context, error) {
+	o := &sql.TxOptions{Isolation: sql.LevelSerializable}
+	for _, opt := range opts {
+		o = opt(o)
+	}
+	txn, err := s.conn.BeginTx(ctx, o)
+	if err != nil {
+		return ctx, err
+	}
+	return context.WithValue(ctx, ctxKeyTx, txn), nil
+}
+
+// FinishTxForCtx commits or rolls back the transaction attatched to the
+// context depending on the error passed in and returns the result. It errors
+// if the context doesn't have a transaction attached.
+func (s *Store) FinishTxForCtx(ctx context.Context, err error) error {
+	tx := ctx.Value(ctxKeyTx)
+	txn, ok := tx.(*sql.Tx)
+	if !ok {
+		return errors.New("the context has no transcation attached")
+	}
+	if err != nil {
+		return txn.Rollback()
+	}
+	return txn.Commit()
+}
+
 // WithTx runs the provided closure in a transaction. It commits the
 // transaction if the closure returns no error, and rolls back otherwise.
+// It reuses the transaction attached to the context if it's present, and
+// doesn't commit or rollback automatically.
 func (s *Store) WithTx(ctx context.Context, f func(*db.Queries) error, opts ...TxOptions) (err error) {
+	tx := ctx.Value(ctxKeyTx)
+	if txn, ok := tx.(*sql.Tx); ok {
+		return f(s.db.WithTx(txn))
+	}
+
 	o := &sql.TxOptions{Isolation: sql.LevelSerializable}
 	for _, opt := range opts {
 		o = opt(o)
@@ -104,44 +141,62 @@ func (s *Store) WithTx(ctx context.Context, f func(*db.Queries) error, opts ...T
 	}
 	defer func() {
 		if err != nil {
-			_ = txn.Rollback() // nolint:errcheck
+			_ = txn.Rollback()
 		} else {
-			err = txn.Commit() // nolint:errcheck
+			err = txn.Commit()
 		}
 	}()
 	err = f(s.db.WithTx(txn))
 	return
 }
 
+func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
+	tx := ctx.Value(ctxKeyTx)
+	if txn, ok := tx.(*sql.Tx); ok {
+		return f(s.db.WithTx(txn))
+	}
+	return f(s.db)
+}
+
 // CreateBrokerRequest creates the provided BrokerRequest in store.
 func (s *Store) CreateBrokerRequest(ctx context.Context, br broker.BrokerRequest) error {
-	return s.db.CreateBrokerRequest(ctx, db.CreateBrokerRequestParams{
-		ID: br.ID, DataCid: br.DataCid.String(), Status: br.Status})
+	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		return q.CreateBrokerRequest(ctx, db.CreateBrokerRequestParams{
+			ID: br.ID, DataCid: br.DataCid.String(), Status: br.Status})
+	})
 }
 
 // GetBrokerRequest gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
-func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID) (broker.BrokerRequest, error) {
-	br, err := s.db.GetBrokerRequest(ctx, id)
-	if err == sql.ErrNoRows {
-		return broker.BrokerRequest{}, ErrNotFound
-	} else if err != nil {
-		return broker.BrokerRequest{}, err
-	}
-	dataCid, err := cid.Parse(br.DataCid)
-	if err != nil {
-		return broker.BrokerRequest{}, err
-	}
-	return broker.BrokerRequest{
-		ID:            br.ID,
-		DataCid:       dataCid,
-		Status:        br.Status,
-		StorageDealID: broker.StorageDealID(br.StorageDealID.String),
-		CreatedAt:     br.CreatedAt,
-		UpdatedAt:     br.UpdatedAt,
-	}, nil
+func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID) (br broker.BrokerRequest, err error) {
+	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		r, err := s.db.GetBrokerRequest(ctx, id)
+		if err == sql.ErrNoRows {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		if err != nil {
+			return err
+		}
+
+		dataCid, err := cid.Parse(r.DataCid)
+		if err != nil {
+			return err
+		}
+		br = broker.BrokerRequest{
+			ID:            r.ID,
+			DataCid:       dataCid,
+			Status:        r.Status,
+			StorageDealID: broker.StorageDealID(r.StorageDealID.String),
+			CreatedAt:     r.CreatedAt,
+			UpdatedAt:     r.UpdatedAt,
+		}
+		return err
+	})
+	return
 }
 
-// CreateStorageDeal persists a storage deal. It populates the sd.ID field with the corresponding id.
+// CreateStorageDeal persists a storage deal.
 func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, brIDs []broker.BrokerRequestID) error {
 	if sd.ID == "" {
 		return fmt.Errorf("storage deal id is empty")
@@ -340,7 +395,7 @@ func (s *Store) StorageDealError(
 			return fmt.Errorf("saving unpin job: %s", err)
 		}
 
-		brIDs, err = s.db.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
+		brIDs, err = txn.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
 		return err
 	})
 	return
@@ -406,7 +461,9 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 
 // CountAuctionRetry increases the number of auction retries counter for a storage deal.
 func (s *Store) CountAuctionRetry(ctx context.Context, id broker.StorageDealID) error {
-	return s.db.ReauctionStorageDeal(ctx, id)
+	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		return q.ReauctionStorageDeal(ctx, id)
+	})
 }
 
 // AddMinerDeals includes new deals from a finalized auction.
@@ -462,42 +519,57 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 
 // GetStorageDeal gets an existing storage deal by id. If the storage deal doesn't exists, it returns
 // ErrNotFound.
-func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (*broker.StorageDeal, error) {
-	sd, err := s.db.GetStorageDeal(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return storageDealFromDB(&sd)
+func (s *Store) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (sd *broker.StorageDeal, err error) {
+	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		var dbSD db.StorageDeal
+		dbSD, err = q.GetStorageDeal(ctx, id)
+		if err != nil {
+			return err
+		}
+		sd, err = storageDealFromDB(&dbSD)
+		return err
+	})
+	return
 }
 
 // GetMinerDeals gets miner deals for a storage deal.
-func (s *Store) GetMinerDeals(ctx context.Context, id broker.StorageDealID) ([]db.MinerDeal, error) {
-	return s.db.GetMinerDeals(ctx, id)
+func (s *Store) GetMinerDeals(ctx context.Context, id broker.StorageDealID) (deals []db.MinerDeal, err error) {
+	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		deals, err = q.GetMinerDeals(ctx, id)
+		return err
+	})
+	return
 }
 
 // GetBrokerRequestIDs gets the ids of the broker requests for a storage deal.
-func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.StorageDealID) ([]broker.BrokerRequestID, error) {
-	return s.db.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
+func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.StorageDealID) (brIDs []broker.BrokerRequestID, err error) {
+	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		brIDs, err = q.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
+		return err
+	})
+	return
 }
 
 // SaveMinerDeals saves a new finalized (succeeded or errored) auction deal
 // into the storage deal.
 func (s *Store) SaveMinerDeals(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
-	rows, err := s.db.UpdateMinerDeals(ctx,
-		db.UpdateMinerDealsParams{
-			StorageDealID:  fad.StorageDealID,
-			MinerAddr:      fad.Miner,
-			DealExpiration: fad.DealExpiration,
-			DealID:         fad.DealID,
-			ErrorCause:     fad.ErrorCause,
-		})
-	if err != nil {
-		return fmt.Errorf("get storage deal: %s", err)
-	}
-	if rows == 0 {
-		return fmt.Errorf("deal not found: %v", fad)
-	}
-	return nil
+	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		rows, err := q.UpdateMinerDeals(ctx,
+			db.UpdateMinerDealsParams{
+				StorageDealID:  fad.StorageDealID,
+				MinerAddr:      fad.Miner,
+				DealExpiration: fad.DealExpiration,
+				DealID:         fad.DealID,
+				ErrorCause:     fad.ErrorCause,
+			})
+		if err != nil {
+			return fmt.Errorf("get storage deal: %s", err)
+		}
+		if rows == 0 {
+			return fmt.Errorf("deal not found: %v", fad)
+		}
+		return nil
+	})
 }
 
 func (s *Store) newID() (string, error) {
