@@ -54,12 +54,9 @@ func (q *Queries) CreateMinerDeal(ctx context.Context, arg CreateMinerDealParams
 }
 
 const getMinerDeals = `-- name: GetMinerDeals :many
-
-
 SELECT storage_deal_id, auction_id, bid_id, miner_addr, deal_id, deal_expiration, error_cause, created_at, updated_at FROM miner_deals WHERE storage_deal_id = $1
 `
 
-// for the caller to count number of rows affected
 func (q *Queries) GetMinerDeals(ctx context.Context, storageDealID broker.StorageDealID) ([]MinerDeal, error) {
 	rows, err := q.query(ctx, q.getMinerDealsStmt, getMinerDeals, storageDealID)
 	if err != nil {
@@ -93,13 +90,12 @@ func (q *Queries) GetMinerDeals(ctx context.Context, storageDealID broker.Storag
 	return items, nil
 }
 
-const updateMinerDeals = `-- name: UpdateMinerDeals :many
+const updateMinerDeals = `-- name: UpdateMinerDeals :execrows
 UPDATE miner_deals
 SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
 WHERE storage_deal_id = $1 AND miner_addr = $2
-RETURNING 0
 `
 
 type UpdateMinerDealsParams struct {
@@ -110,8 +106,8 @@ type UpdateMinerDealsParams struct {
 	ErrorCause     string               `json:"errorCause"`
 }
 
-func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsParams) ([]interface{}, error) {
-	rows, err := q.query(ctx, q.updateMinerDealsStmt, updateMinerDeals,
+func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsParams) (int64, error) {
+	result, err := q.exec(ctx, q.updateMinerDealsStmt, updateMinerDeals,
 		arg.StorageDealID,
 		arg.MinerAddr,
 		arg.DealID,
@@ -119,22 +115,7 @@ func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsPara
 		arg.ErrorCause,
 	)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	defer rows.Close()
-	var items []interface{}
-	for rows.Next() {
-		var column_1 interface{}
-		if err := rows.Scan(&column_1); err != nil {
-			return nil, err
-		}
-		items = append(items, column_1)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return result.RowsAffected()
 }

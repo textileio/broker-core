@@ -17,13 +17,12 @@ INSERT INTO miner_deals(
       $7
       );
 
--- name: UpdateMinerDeals :many
+-- name: UpdateMinerDeals :execrows
 UPDATE miner_deals
 SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
-WHERE storage_deal_id = $1 AND miner_addr = $2
-RETURNING 0; -- for the caller to count number of rows affected
+WHERE storage_deal_id = $1 AND miner_addr = $2;
 
 
 -- name: GetMinerDeals :many
