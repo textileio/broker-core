@@ -74,7 +74,7 @@ func New(postgresURI string) (*Store, error) {
 	return &Store{conn: conn, db: db.New(conn)}, nil
 }
 
-// TxOptions is how the transaction options are passed to `WithTx`.
+// TxOptions is how the transaction options are passed to `withTx`.
 type TxOptions func(o *sql.TxOptions) *sql.TxOptions
 
 // TxWithIsolation tells the DB driver the isolation level of the transaction.
@@ -117,16 +117,19 @@ func (s *Store) FinishTxForCtx(ctx context.Context, err error) error {
 		return errors.New("the context has no transcation attached")
 	}
 	if err != nil {
-		return txn.Rollback()
+		// intentionlly ignore the error to avoid shadowing the real
+		// error causing the rollback.
+		_ = txn.Rollback()
 	}
 	return txn.Commit()
 }
 
-// WithTx runs the provided closure in a transaction. It commits the
+// withTx runs the provided closure in a transaction. It commits the
 // transaction if the closure returns no error, and rolls back otherwise.
 // It reuses the transaction attached to the context if it's present, and
 // doesn't commit or rollback automatically.
-func (s *Store) WithTx(ctx context.Context, f func(*db.Queries) error, opts ...TxOptions) (err error) {
+//nolint:unparam
+func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...TxOptions) (err error) {
 	tx := ctx.Value(ctxKeyTx)
 	if txn, ok := tx.(*sql.Tx); ok {
 		return f(s.db.WithTx(txn))
@@ -143,6 +146,8 @@ func (s *Store) WithTx(ctx context.Context, f func(*db.Queries) error, opts ...T
 	}
 	defer func() {
 		if err != nil {
+			// intentionlly ignore the error to avoid shadowing the
+			// real error causing the rollback.
 			_ = txn.Rollback()
 		} else {
 			err = txn.Commit()
@@ -261,7 +266,7 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, b
 		ids[i] = string(id)
 	}
 
-	return s.WithTx(ctx, func(txn *db.Queries) error {
+	return s.withTx(ctx, func(txn *db.Queries) error {
 		if err := txn.CreateStorageDeal(ctx, isd); err != nil {
 			return fmt.Errorf("creating storage deal: %s", err)
 		}
@@ -286,7 +291,7 @@ func (s *Store) StorageDealToAuctioning(
 	id broker.StorageDealID,
 	pieceCid cid.Cid,
 	pieceSize uint64) error {
-	return s.WithTx(ctx, func(txn *db.Queries) error {
+	return s.withTx(ctx, func(txn *db.Queries) error {
 		sd, err := txn.GetStorageDeal(ctx, id)
 		if err != nil {
 			return fmt.Errorf("get storage deal: %s", err)
@@ -336,7 +341,7 @@ func (s *Store) StorageDealError(
 	id broker.StorageDealID,
 	errorCause string,
 	rebatch bool) (brIDs []broker.BrokerRequestID, err error) {
-	err = s.WithTx(ctx, func(txn *db.Queries) error {
+	err = s.withTx(ctx, func(txn *db.Queries) error {
 		sd, err := txn.GetStorageDeal(ctx, id)
 		if err != nil {
 			return fmt.Errorf("get storage deal: %s", err)
@@ -406,7 +411,7 @@ func (s *Store) StorageDealError(
 // StorageDealSuccess moves a storage deal and the underlying broker requests to
 // Success status.
 func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID) error {
-	return s.WithTx(ctx, func(txn *db.Queries) error {
+	return s.withTx(ctx, func(txn *db.Queries) error {
 		sd, err := txn.GetStorageDeal(ctx, id)
 		if err != nil {
 			return fmt.Errorf("get storage deal: %s", err)
@@ -470,7 +475,7 @@ func (s *Store) CountAuctionRetry(ctx context.Context, id broker.StorageDealID) 
 
 // AddMinerDeals includes new deals from a finalized auction.
 func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction) error {
-	return s.WithTx(ctx, func(txn *db.Queries) error {
+	return s.withTx(ctx, func(txn *db.Queries) error {
 		sd, err := txn.GetStorageDeal(ctx, auction.StorageDealID)
 		if err != nil {
 			return fmt.Errorf("get storage deal: %s", err)
