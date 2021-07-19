@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	_ "net/http/pprof"
 
 	"github.com/multiformats/go-multiaddr"
@@ -48,7 +47,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := marshalConfig(v)
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "bearer-tokens")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -89,12 +88,4 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	common.CheckErr(rootCmd.Execute())
-}
-
-func marshalConfig(v *viper.Viper) ([]byte, error) {
-	all := v.AllSettings()
-	if _, exists := all["bearer-tokens"]; exists {
-		all["bearer-tokens"] = "<redacted>"
-	}
-	return json.MarshalIndent(all, "", "  ")
 }
