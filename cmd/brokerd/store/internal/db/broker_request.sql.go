@@ -11,6 +11,44 @@ import (
 	"github.com/textileio/broker-core/broker"
 )
 
+const batchUpdateBrokerRequests = `-- name: BatchUpdateBrokerRequests :many
+UPDATE broker_requests
+SET status = $1,
+    storage_deal_id = $2,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = any ($3::TEXT[])
+RETURNING id
+`
+
+type BatchUpdateBrokerRequestsParams struct {
+	Status        broker.BrokerRequestStatus `json:"status"`
+	StorageDealID sql.NullString             `json:"storageDealID"`
+	Ids           []string                   `json:"ids"`
+}
+
+func (q *Queries) BatchUpdateBrokerRequests(ctx context.Context, arg BatchUpdateBrokerRequestsParams) ([]broker.BrokerRequestID, error) {
+	rows, err := q.query(ctx, q.batchUpdateBrokerRequestsStmt, batchUpdateBrokerRequests, arg.Status, arg.StorageDealID, pq.Array(arg.Ids))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []broker.BrokerRequestID
+	for rows.Next() {
+		var id broker.BrokerRequestID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createBrokerRequest = `-- name: CreateBrokerRequest :exec
 INSERT INTO broker_requests(
     id,
@@ -131,25 +169,6 @@ type RebatchBrokerRequestsParams struct {
 
 func (q *Queries) RebatchBrokerRequests(ctx context.Context, arg RebatchBrokerRequestsParams) error {
 	_, err := q.exec(ctx, q.rebatchBrokerRequestsStmt, rebatchBrokerRequests, arg.StorageDealID, arg.ErrorCause)
-	return err
-}
-
-const updateBrokerRequests = `-- name: UpdateBrokerRequests :exec
-UPDATE broker_requests
-SET status = $2,
-    storage_deal_id = $3,
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = any ($1::TEXT[])
-`
-
-type UpdateBrokerRequestsParams struct {
-	Column1       []string                   `json:"column1"`
-	Status        broker.BrokerRequestStatus `json:"status"`
-	StorageDealID sql.NullString             `json:"storageDealID"`
-}
-
-func (q *Queries) UpdateBrokerRequests(ctx context.Context, arg UpdateBrokerRequestsParams) error {
-	_, err := q.exec(ctx, q.updateBrokerRequestsStmt, updateBrokerRequests, pq.Array(arg.Column1), arg.Status, arg.StorageDealID)
 	return err
 }
 
