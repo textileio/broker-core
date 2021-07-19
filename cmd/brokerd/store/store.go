@@ -25,6 +25,8 @@ import (
 	logger "github.com/textileio/go-log/v2"
 )
 
+type ctxKeyType string
+
 var (
 	// ErrNotFound is returned if the broker request doesn't exist.
 	ErrNotFound = fmt.Errorf("not found")
@@ -33,7 +35,7 @@ var (
 	ErrStorageDealContainsUnknownBrokerRequest = fmt.Errorf("storage deal contains an unknown broker request")
 
 	log      = logger.Logger("store")
-	ctxKeyTx = "ctx-key-transaction"
+	ctxKeyTx = ctxKeyType("ctx-key-transaction")
 )
 
 // Store provides a persistent layer for broker requests.
@@ -542,7 +544,8 @@ func (s *Store) GetMinerDeals(ctx context.Context, id broker.StorageDealID) (dea
 }
 
 // GetBrokerRequestIDs gets the ids of the broker requests for a storage deal.
-func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.StorageDealID) (brIDs []broker.BrokerRequestID, err error) {
+func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.StorageDealID) (
+	brIDs []broker.BrokerRequestID, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
 		brIDs, err = q.GetBrokerRequestIDs(ctx, storageDealIDToSQL(id))
 		return err

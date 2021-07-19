@@ -144,14 +144,14 @@ func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, e
 func (b *Broker) CreatePrepared(
 	ctx context.Context,
 	payloadCid cid.Cid,
-	pc broker.PreparedCAR) (broker.BrokerRequest, error) {
+	pc broker.PreparedCAR) (br broker.BrokerRequest, err error) {
 	log.Debugf("creating prepared car broker request")
 	if !payloadCid.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
 	}
 
 	now := time.Now()
-	br := broker.BrokerRequest{
+	br = broker.BrokerRequest{
 		ID:        broker.BrokerRequestID(uuid.New().String()),
 		DataCid:   payloadCid,
 		Status:    broker.RequestAuctioning,
