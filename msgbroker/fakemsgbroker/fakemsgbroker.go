@@ -26,7 +26,7 @@ func (b *FakeMsgBroker) RegisterTopicHandler(
 	topicName mbroker.TopicName,
 	handler mbroker.TopicHandler,
 	opts ...mbroker.Option) error {
-	panic("not implemented")
+	return nil
 }
 
 // PublishMsg publishes a payload to a topic.
