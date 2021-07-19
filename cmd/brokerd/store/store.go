@@ -74,7 +74,7 @@ func New(postgresURI string) (*Store, error) {
 	return &Store{conn: conn, db: db.New(conn)}, nil
 }
 
-// TxOptions is how the transaction options are passed to `withTx`.
+// TxOptions allows the coller of CtxWithTx to control various options to the transaction.
 type TxOptions func(o *sql.TxOptions) *sql.TxOptions
 
 // TxWithIsolation tells the DB driver the isolation level of the transaction.
