@@ -159,11 +159,6 @@ func (b *Broker) CreatePrepared(
 		UpdatedAt: now,
 	}
 
-	log.Debugf("creating prepared broker request")
-	if err := b.store.CreateBrokerRequest(ctx, br); err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
-	}
-
 	if pc.RepFactor == 0 {
 		pc.RepFactor = int(b.conf.dealReplication)
 	}
@@ -188,12 +183,26 @@ func (b *Broker) CreatePrepared(
 		PieceSize:  pc.PieceSize,
 	}
 
+	ctx, err = b.store.CtxWithTx(ctx)
+	if err != nil {
+		return broker.BrokerRequest{}, err
+	}
+	defer func() {
+		err = b.store.FinishTxForCtx(ctx, err)
+	}()
+
+	log.Debugf("creating prepared broker request")
+	if err = b.store.CreateBrokerRequest(ctx, br); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
+	}
+
 	log.Debugf("creating prepared storage deal")
-	if err := b.store.CreateStorageDeal(ctx, &sd, []broker.BrokerRequestID{br.ID}); err != nil {
+	if err = b.store.CreateStorageDeal(ctx, &sd, []broker.BrokerRequestID{br.ID}); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
-	auctionID, err := b.auctioneer.ReadyToAuction(
+	var auctionID auction.AuctionID
+	auctionID, err = b.auctioneer.ReadyToAuction(
 		ctx,
 		sd.ID,
 		sd.PayloadCid,
@@ -299,13 +308,21 @@ func (b *Broker) NewBatchPrepared(
 	ctx context.Context,
 	id broker.StorageDealID,
 	dpr broker.DataPreparationResult,
-) error {
+) (err error) {
 	if id == "" {
 		return fmt.Errorf("the storage deal id is empty")
 	}
 	if err := dpr.Validate(); err != nil {
 		return fmt.Errorf("the data preparation result is invalid: %s", err)
 	}
+
+	ctx, err = b.store.CtxWithTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = b.store.FinishTxForCtx(ctx, err)
+	}()
 
 	sd, err := b.store.GetStorageDeal(ctx, id)
 	if err != nil {
@@ -375,12 +392,20 @@ func (b *Broker) StorageDealProposalAccepted(
 }
 
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
-func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) error {
+func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) (err error) {
 	log.Debugf("storage deal %s was auctioned with %d winning bids", au.StorageDealID, len(au.WinningBids))
 
 	if au.Status != broker.AuctionStatusFinalized {
 		return errors.New("auction status should be final")
 	}
+
+	ctx, err = b.store.CtxWithTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = b.store.FinishTxForCtx(ctx, err)
+	}()
 
 	sd, err := b.store.GetStorageDeal(ctx, au.StorageDealID)
 	if err != nil {
@@ -534,8 +559,16 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 }
 
 // StorageDealFinalizedDeal report a deal that reached final status in the Filecoin network.
-func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
+func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) (err error) {
 	log.Debug("received a finalized deal...")
+
+	ctx, err = b.store.CtxWithTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = b.store.FinishTxForCtx(ctx, err)
+	}()
 
 	// 1. Save the finalized deal in the storage-deal (successful or not)
 	if err := b.store.SaveMinerDeals(ctx, fad); err != nil {

@@ -145,25 +145,25 @@ func TestCreatePrepared(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2- Check that the created BrokerRequest moved directly to Auctioning.
-	br, err := b.GetBrokerRequestInfo(ctx, createdBr.ID)
+	br, err := b.store.GetBrokerRequest(ctx, createdBr.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestAuctioning, br.BrokerRequest.Status)
-	require.NotEmpty(t, br.BrokerRequest.StorageDealID)
+	require.Equal(t, broker.RequestAuctioning, br.Status)
+	require.NotEmpty(t, br.StorageDealID)
 
 	// 3- Check that the storage deal was created correctly, in particular:
 	//    - The download sources URL and IPFS.
 	//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
 	//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
-	sd, err := b.GetStorageDeal(ctx, br.BrokerRequest.StorageDealID)
+	sd, err := b.GetStorageDeal(ctx, br.StorageDealID)
 	require.NoError(t, err)
 	require.Equal(t, pc.RepFactor, sd.RepFactor)
 	require.True(t, sd.DisallowRebatching)
 	require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
 	require.Equal(t, broker.StorageDealAuctioning, sd.Status)
-	brs, err := b.store.GetBrokerRequestIDs(ctx, br.BrokerRequest.StorageDealID)
+	brs, err := b.store.GetBrokerRequestIDs(ctx, br.StorageDealID)
 	require.NoError(t, err)
 	require.Len(t, brs, 1)
-	require.Contains(t, brs, br.BrokerRequest.ID)
+	require.Contains(t, brs, br.ID)
 	require.NotNil(t, sd.Sources.CARURL)
 	require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
 	require.NotNil(t, sd.Sources.CARIPFS)
