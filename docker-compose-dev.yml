@@ -115,6 +115,7 @@ services:
       context: .
       dockerfile: ./cmd/brokerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./brokerd"]
     environment:
       - BROKER_LOG_DEBUG=true
       - BROKER_LOG_JSON=false
@@ -127,16 +128,18 @@ services:
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
       - BROKER_CAR_EXPORT_URL=http://storaged:8888/car/
-      - BROKER_POSTGRES_URI=postgres://dev_user:dev_password@postgres:5432?sslmode=disable&timezone=UTC
       - BROKER_MSGBROKER_TOPIC_PREFIX=test
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=brokerd
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - packerd
-      - mongo
       - ipfs
       - gpubsub
     restart: unless-stopped
@@ -170,20 +173,24 @@ services:
       context: .
       dockerfile: ./cmd/piecerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./piecerd"]
     environment:
       - PIECER_LOG_DEBUG=true
       - PIECER_LOG_JSON=false
       - PIECER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
       - PIECER_DAEMON_FREQUENCY=3s
       - PIECER_MSGBROKER_TOPIC_PREFIX=test
-      - PIECER_POSTGRES_URI=postgres://dev_user:dev_password@postgres:5432?sslmode=disable&timezone=UTC
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=piecerd
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - mongo
       - ipfs
       - gpubsub
     restart: unless-stopped
