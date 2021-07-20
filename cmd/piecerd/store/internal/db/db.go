@@ -31,6 +31,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNextPendingStmt, err = db.PrepareContext(ctx, getNextPending); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNextPending: %w", err)
 	}
+	if q.moveToPendingStmt, err = db.PrepareContext(ctx, moveToPending); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveToPending: %w", err)
+	}
 	return &q, nil
 }
 
@@ -49,6 +52,11 @@ func (q *Queries) Close() error {
 	if q.getNextPendingStmt != nil {
 		if cerr := q.getNextPendingStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNextPendingStmt: %w", cerr)
+		}
+	}
+	if q.moveToPendingStmt != nil {
+		if cerr := q.moveToPendingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveToPendingStmt: %w", cerr)
 		}
 	}
 	return err
@@ -93,6 +101,7 @@ type Queries struct {
 	createUnpreparedBatchStmt *sql.Stmt
 	deleteUnpreparedBatchStmt *sql.Stmt
 	getNextPendingStmt        *sql.Stmt
+	moveToPendingStmt         *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -102,5 +111,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createUnpreparedBatchStmt: q.createUnpreparedBatchStmt,
 		deleteUnpreparedBatchStmt: q.deleteUnpreparedBatchStmt,
 		getNextPendingStmt:        q.getNextPendingStmt,
+		moveToPendingStmt:         q.moveToPendingStmt,
 	}
 }

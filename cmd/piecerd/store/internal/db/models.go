@@ -4,15 +4,17 @@ package db
 
 import (
 	"time"
+
+	"github.com/textileio/broker-core/broker"
 )
 
 type UnpreparedBatch struct {
-	StorageDealID string    `json:"storageDealID"`
-	Status        int16     `json:"status"`
-	DataCid       string    `json:"dataCid"`
-	ReadyAt       time.Time `json:"readyAt"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	StorageDealID broker.StorageDealID `json:"storageDealID"`
+	Status        int16                `json:"status"`
+	DataCid       string               `json:"dataCid"`
+	ReadyAt       time.Time            `json:"readyAt"`
+	CreatedAt     time.Time            `json:"createdAt"`
+	UpdatedAt     time.Time            `json:"updatedAt"`
 }
 
 type UnpreparedBatchesStatus struct {

@@ -5,6 +5,9 @@ package db
 
 import (
 	"context"
+	"time"
+
+	"github.com/textileio/broker-core/broker"
 )
 
 const createUnpreparedBatch = `-- name: CreateUnpreparedBatch :exec
@@ -16,9 +19,9 @@ INSERT INTO unprepared_batches(
 `
 
 type CreateUnpreparedBatchParams struct {
-	StorageDealID string `json:"storageDealID"`
-	Status        int16  `json:"status"`
-	DataCid       string `json:"dataCid"`
+	StorageDealID broker.StorageDealID `json:"storageDealID"`
+	Status        int16                `json:"status"`
+	DataCid       string               `json:"dataCid"`
 }
 
 func (q *Queries) CreateUnpreparedBatch(ctx context.Context, arg CreateUnpreparedBatchParams) error {
@@ -26,15 +29,18 @@ func (q *Queries) CreateUnpreparedBatch(ctx context.Context, arg CreateUnprepare
 	return err
 }
 
-const deleteUnpreparedBatch = `-- name: DeleteUnpreparedBatch :exec
+const deleteUnpreparedBatch = `-- name: DeleteUnpreparedBatch :execrows
 DELETE FROM unprepared_batches 
 WHERE storage_deal_id = $1 AND 
       status = 2
 `
 
-func (q *Queries) DeleteUnpreparedBatch(ctx context.Context, storageDealID string) error {
-	_, err := q.exec(ctx, q.deleteUnpreparedBatchStmt, deleteUnpreparedBatch, storageDealID)
-	return err
+func (q *Queries) DeleteUnpreparedBatch(ctx context.Context, storageDealID broker.StorageDealID) (int64, error) {
+	result, err := q.exec(ctx, q.deleteUnpreparedBatchStmt, deleteUnpreparedBatch, storageDealID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getNextPending = `-- name: GetNextPending :one
@@ -61,4 +67,24 @@ func (q *Queries) GetNextPending(ctx context.Context) (UnpreparedBatch, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const moveToPending = `-- name: MoveToPending :execrows
+UPDATE unprepared_batches 
+SET status = 1, updated_at = CURRENT_TIMESTAMP, ready_at=$2
+WHERE storage_deal_id = $1 AND 
+      status = 2
+`
+
+type MoveToPendingParams struct {
+	StorageDealID broker.StorageDealID `json:"storageDealID"`
+	ReadyAt       time.Time            `json:"readyAt"`
+}
+
+func (q *Queries) MoveToPending(ctx context.Context, arg MoveToPendingParams) (int64, error) {
+	result, err := q.exec(ctx, q.moveToPendingStmt, moveToPending, arg.StorageDealID, arg.ReadyAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

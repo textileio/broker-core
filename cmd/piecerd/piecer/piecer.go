@@ -145,7 +145,7 @@ func (p *Piecer) daemon() {
 		case <-time.After(p.daemonFrequency):
 		}
 		for {
-			usd, ok, err := p.s.GetNextUnpreparedBatch()
+			usd, ok, err := p.s.GetNextPending(p.daemonCtx)
 			if err != nil {
 				log.Errorf("get next unprepared batch: %s", err)
 				break
@@ -157,15 +157,15 @@ func (p *Piecer) daemon() {
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
 				log.Errorf("preparing: %s", err)
-				if err := p.s.MoveToPending(usd.ID, p.retryDelay); err != nil {
+				if err := p.s.MoveToPending(p.daemonCtx, usd.StorageDealID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
 
-			if err := p.s.Delete(usd.ID); err != nil {
+			if err := p.s.DeleteUnpreparedBatch(p.daemonCtx, usd.StorageDealID); err != nil {
 				log.Errorf("deleting: %s", err)
-				if err := p.s.MoveToPending(usd.ID, p.retryDelay); err != nil {
+				if err := p.s.MoveToPending(p.daemonCtx, usd.StorageDealID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
@@ -174,7 +174,7 @@ func (p *Piecer) daemon() {
 	}
 }
 
-func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) error {
+func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	start := time.Now()
 	log.Debugf("preparing storage deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
 

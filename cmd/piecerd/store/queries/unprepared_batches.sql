@@ -16,7 +16,16 @@ WHERE storage_deal_id = (SELECT id FROM unprepared_batches ub
                   LIMIT 1)
 RETURNING *;
 
--- name: DeleteUnpreparedBatch :exec
+-- name: DeleteUnpreparedBatch :execrows
 DELETE FROM unprepared_batches 
 WHERE storage_deal_id = $1 AND 
       status = 2;
+
+
+-- name: MoveToPending :execrows
+UPDATE unprepared_batches 
+SET status = 1, updated_at = CURRENT_TIMESTAMP, ready_at=$2
+WHERE storage_deal_id = $1 AND 
+      status = 2;
+
+
