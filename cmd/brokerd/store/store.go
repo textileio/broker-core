@@ -49,8 +49,9 @@ func New(postgresURI string) (*Store, error) {
 		})
 	conn, err := storeutil.MigrateAndConnectToDB(postgresURI, as)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
+
 	return &Store{conn: conn, db: db.New(conn)}, nil
 }
 
