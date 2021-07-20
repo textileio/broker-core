@@ -2,12 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
@@ -19,8 +19,8 @@ var log = golog.Logger("piecer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
+	PostgresURI    string
 	IpfsMultiaddrs []multiaddr.Multiaddr
-	Datastore      txndswrap.TxnDatastore
 
 	DaemonFrequency time.Duration
 	RetryDelay      time.Duration
@@ -35,9 +35,12 @@ type Service struct {
 
 // New returns a new Service.
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
+	if err := validateConfig(conf); err != nil {
+		return nil, fmt.Errorf("config is invalid: %s", err)
+	}
 	fin := finalizer.NewFinalizer()
 
-	lib, err := piecer.New(conf.Datastore, conf.IpfsMultiaddrs, mb, conf.DaemonFrequency, conf.RetryDelay)
+	lib, err := piecer.New(conf.PostgresURI, conf.IpfsMultiaddrs, mb, conf.DaemonFrequency, conf.RetryDelay)
 	if err != nil {
 		return nil, fin.Cleanupf("creating piecer: %v", err)
 	}
@@ -74,4 +77,21 @@ func (s *Service) Close() error {
 	defer log.Info("service was shutdown")
 
 	return s.finalizer.Cleanup(nil)
+}
+
+func validateConfig(conf Config) error {
+	if len(conf.IpfsMultiaddrs) == 0 {
+		return fmt.Errorf("ipfs multiaddr list is empty")
+	}
+	if conf.DaemonFrequency == 0 {
+		return fmt.Errorf("daemon frequency is zero")
+	}
+	if conf.RetryDelay == 0 {
+		return fmt.Errorf("retry delay is zero")
+	}
+	if conf.PostgresURI == "" {
+		return errors.New("postgres uri is empty")
+	}
+
+	return nil
 }

@@ -11,3 +11,8 @@ packages:
     emit_empty_slices: false
     emit_json_tags: true
     json_tags_case_style: "camel"
+
+overrides:
+  - column: "unprepared_batches.storage_deal_id"
+    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+

@@ -92,12 +92,46 @@ func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, erro
 		return UnpreparedBatch{}, false, fmt.Errorf("db get next pending: %s", err)
 	}
 
+	dataCid, err := cid.Decode(ub.DataCid)
+	if err != nil {
+		return UnpreparedBatch{}, false, fmt.Errorf("parsing cid %s: %s", ub.DataCid, err)
+	}
+
 	return UnpreparedBatch{
 		StorageDealID: ub.StorageDealID,
-		DataCid: 
-	ReadyAt       time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-
+		DataCid:       dataCid,
+		ReadyAt:       ub.ReadyAt,
+		CreatedAt:     ub.CreatedAt,
+		UpdatedAt:     ub.UpdatedAt,
 	}, true, nil
+}
+
+// DeleteUnpreparedBatch deletes an Executing unprepared batch.
+func (s *Store) DeleteUnpreparedBatch(ctx context.Context, sdID broker.StorageDealID) error {
+	count, err := s.db.DeleteUnpreparedBatch(ctx, sdID)
+	if err != nil {
+		return fmt.Errorf("delete from database: %s", err)
+	}
+	if count != 1 {
+		return fmt.Errorf("unexpected update count, got: %d, expected: 1", count)
+	}
+
+	return nil
+}
+
+// MoveToPending moves an executing unprepared job to pending status.
+func (s *Store) MoveToPending(ctx context.Context, sdID broker.StorageDealID, delay time.Duration) error {
+	params := db.MoveToPendingParams{
+		StorageDealID: sdID,
+		ReadyAt:       time.Now().Add(delay),
+	}
+	count, err := s.db.MoveToPending(ctx, params)
+	if err != nil {
+		return fmt.Errorf("delete from database: %s", err)
+	}
+	if count != 1 {
+		return fmt.Errorf("unexpected update count, got: %d, expected: 1", count)
+	}
+
+	return nil
 }

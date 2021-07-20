@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
-	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
@@ -22,8 +21,7 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "daemon-frequency", DefValue: time.Second * 30, Description: "Daemon frequency to process pending data"},
 		{Name: "retry-delay", DefValue: time.Second * 20, Description: "Delay for reprocessing items"},
@@ -48,16 +46,13 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key")
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "postgres-uri")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
-
-		ds, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
-		common.CheckErrf("creating mongo datastore: %v", err)
 
 		daemonFrequency := v.GetDuration("daemon-frequency")
 		retryDelay := v.GetDuration("retry-delay")
@@ -78,9 +73,9 @@ var rootCmd = &cobra.Command{
 
 		config := service.Config{
 			IpfsMultiaddrs:  ipfsMultiaddrs,
-			Datastore:       ds,
 			DaemonFrequency: daemonFrequency,
 			RetryDelay:      retryDelay,
+			PostgresURI:     v.GetString("postgres-uri"),
 		}
 		serv, err := service.New(mb, config)
 		common.CheckErr(err)
