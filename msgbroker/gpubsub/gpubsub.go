@@ -56,7 +56,7 @@ func New(projectID, apiKey, topicPrefix, subsName string) (*PubsubMsgBroker, err
 	}
 
 	return &PubsubMsgBroker{
-		topicPrefix: topicPrefix,
+		topicPrefix: topicPrefix + "-",
 		subsName:    subsName,
 
 		client:          client,
