@@ -2008,8 +2008,8 @@ github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpP
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954 h1:xQdMZ1WLrgkkvOZ/LDQxjVxMLdby7osSh4ZEVa5sIjs=
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954/go.mod h1:u2MKkTVTVJWe5D1rCvame8WqhBd88EuIwODJZ1VHCPM=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
-github.com/textileio/bidbot v0.0.4-0.20210716195818-664602ac9d38 h1:7Dhe+DrbNDco+s3SFZoAPZxqHfWJNssfs75wzO8vyO4=
-github.com/textileio/bidbot v0.0.4-0.20210716195818-664602ac9d38/go.mod h1:ukN5+Re+UZyiAHUt5RwZC7xoKyz9rXWy1nqucGfyNlk=
+github.com/textileio/bidbot v0.0.5-0.20210720130729-168109d189e2 h1:u2ama6Xd63oABAgTrYYQb/pSQv7dccd37IhgDq0kN90=
+github.com/textileio/bidbot v0.0.5-0.20210720130729-168109d189e2/go.mod h1:ukN5+Re+UZyiAHUt5RwZC7xoKyz9rXWy1nqucGfyNlk=
 github.com/textileio/go-datastore-extensions v1.0.1 h1:qIJGqJaigQ1wD4TdwS/hf73u0HChhXvvUSJuxBEKS+c=
 github.com/textileio/go-datastore-extensions v1.0.1/go.mod h1:Pzj9FDRkb55910dr/FX8M7WywvnS26gBgEDez1ZBuLE=
 github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c h1:iOWa9/AXFssCi7VhbEvVkpCYXqq/n3E2zKH6u+9pIfM=
