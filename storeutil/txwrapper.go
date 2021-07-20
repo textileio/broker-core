@@ -98,7 +98,7 @@ func WithTx(ctx context.Context, db *sql.DB, f func(*sql.Tx) error, opts ...TxOp
 	return
 }
 
-// UseTxFromCtx calls withTx if a transaction is attached to the context, or calls noTx
+// UseTxFromCtx calls withTx if a transaction is attached to the context, or calls noTx.
 func UseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error, noTx func() error) (err error) {
 	tx := ctx.Value(ctxKeyTx)
 	if txn, ok := tx.(*sql.Tx); ok {

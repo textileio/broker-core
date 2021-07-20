@@ -86,6 +86,7 @@ func (s *Store) FinishTxForCtx(ctx context.Context, err error) error {
 	return storeutil.FinishTxForCtx(ctx, err)
 }
 
+//nolint:unparam
 func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...storeutil.TxOptions) (err error) {
 	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
 		return f(s.db.WithTx(tx))
