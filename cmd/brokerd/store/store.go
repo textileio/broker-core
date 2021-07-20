@@ -11,17 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" /*nolint*/
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
-	_ "github.com/jackc/pgx/v4/stdlib" /*nolint*/
 	"github.com/multiformats/go-multiaddr"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/brokerd/store/migrations"
+	"github.com/textileio/broker-core/storeutil"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -48,26 +46,11 @@ type Store struct {
 
 // New returns a new Store backed by `postgresURI`.
 func New(postgresURI string) (*Store, error) {
-	// To avoid dealing with time zone issues, we just enforce UTC timezone
-	if !strings.Contains(postgresURI, "timezone=UTC") {
-		return nil, errors.New("timezone=UTC is required in postgres URI")
-	}
-	s := bindata.Resource(migrations.AssetNames(),
+	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
 		})
-	d, err := bindata.WithInstance(s)
-	if err != nil {
-		return nil, err
-	}
-	m, err := migrate.NewWithSourceInstance("go-bindata", d, postgresURI)
-	if err != nil {
-		return nil, err
-	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return nil, err
-	}
-	conn, err := sql.Open("pgx", postgresURI)
+	conn, err := storeutil.MigrateAndConnectToDB(postgresURI, as)
 	if err != nil {
 		return nil, err
 	}
