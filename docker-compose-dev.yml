@@ -65,7 +65,6 @@ services:
     environment:
       - AUCTIONEER_LOG_DEBUG=true
       - AUCTIONEER_LOG_JSON=false
-      - AUCTIONEER_RPC_ADDR=:5000
       - AUCTIONEER_MONGO_URI=mongodb://mongo:27017
       - AUCTIONEER_MONGO_DBNAME=auctioneerd
       - AUCTIONEER_BROKER_ADDR=brokerd:5000
@@ -73,6 +72,7 @@ services:
       - AUCTIONEER_AUCTION_ATTEMPTS=10
       - AUCTIONEER_MDNS=true
       - AUCTIONEER_FAKE_MODE=true
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -121,9 +121,6 @@ services:
       - BROKER_RPC_ADDR=:5000
       # - BROKER_MONGO_URI=mongodb://mongo:27017
       # - BROKER_MONGO_DBNAME=brokerd
-      - BROKER_PIECER_ADDR=piecerd:5000
-      - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
-      - BROKER_DEALER_ADDR=dealerd:5000
       - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_REPLICATION=1
       - BROKER_DEAL_DURATION=1051200
@@ -195,11 +192,10 @@ services:
     environment:
       - DEALER_LOG_DEBUG=true
       - DEALER_LOG_JSON=false
-      - DEALER_RPC_ADDR=:5000
       - DEALER_MONGO_URI=mongodb://mongo:27017
       - DEALER_MONGO_DBNAME=dealerd
-      - DEALER_BROKER_ADDR=brokerd:5000
       - DEALER_MOCK=true
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:

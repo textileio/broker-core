@@ -24,9 +24,6 @@ func init() {
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-api-multiaddr", DefValue: "", Description: "IPFS API multiaddress for unpinning data"},
-		{Name: "piecer-addr", DefValue: "", Description: "Piecer API address"},
-		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
-		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
 		{Name: "deal-duration", DefValue: auction.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
@@ -65,10 +62,7 @@ var rootCmd = &cobra.Command{
 		serviceConfig := service.Config{
 			ListenAddr: v.GetString("rpc-addr"),
 
-			PiecerAddr:     v.GetString("piecer-addr"),
-			AuctioneerAddr: v.GetString("auctioneer-addr"),
-			DealerAddr:     v.GetString("dealer-addr"),
-			ReporterAddr:   v.GetString("reporter-addr"),
+			ReporterAddr: v.GetString("reporter-addr"),
 
 			PostgresURI: v.GetString("postgres-uri"),
 

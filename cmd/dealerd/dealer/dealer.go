@@ -7,9 +7,9 @@ import (
 
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/logging"
-	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
 	dealeri "github.com/textileio/broker-core/dealer"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -19,8 +19,8 @@ var log = logger.Logger("dealer")
 type Dealer struct {
 	config    config
 	store     *store.Store
-	broker    broker.Broker
 	filclient FilClient
+	mb        mbroker.MsgBroker
 
 	onceClose       sync.Once
 	daemonCtx       context.Context
@@ -34,7 +34,7 @@ var _ dealeri.Dealer = (*Dealer)(nil)
 // New returns a new Dealer.
 func New(
 	ds txndswrap.TxnDatastore,
-	broker broker.Broker,
+	mb mbroker.MsgBroker,
 	fc FilClient,
 	opts ...Option) (*Dealer, error) {
 	cfg := defaultConfig
@@ -53,8 +53,8 @@ func New(
 	d := &Dealer{
 		config:    cfg,
 		store:     store,
-		broker:    broker,
 		filclient: fc,
+		mb:        mb,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
@@ -76,14 +76,16 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 		Duration:      ad.Duration,
 	}
 	log.Debugf("ready to create deals auction data: %s", logging.MustJSONIndent(auctionData))
-	auctionDeals := make([]*store.AuctionDeal, len(ad.Targets))
-	for i, t := range ad.Targets {
+	auctionDeals := make([]*store.AuctionDeal, len(ad.Proposals))
+	for i, t := range ad.Proposals {
 		auctionDeal := &store.AuctionDeal{
 			Miner:               t.Miner,
 			PricePerGiBPerEpoch: t.PricePerGiBPerEpoch,
 			StartEpoch:          t.StartEpoch,
 			Verified:            t.Verified,
 			FastRetrieval:       t.FastRetrieval,
+			AuctionID:           string(t.AuctionID),
+			BidID:               string(t.BidID),
 		}
 		auctionDeals[i] = auctionDeal
 		log.Debugf("%s auction deal: %s", auctionData.StorageDealID, logging.MustJSONIndent(auctionDeal))

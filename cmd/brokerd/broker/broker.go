@@ -2,20 +2,21 @@ package broker
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	"github.com/oklog/ulid/v2"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
@@ -44,8 +45,6 @@ var (
 // the Filecoin network.
 type Broker struct {
 	store      *store.Store
-	auctioneer auctioneer.Auctioneer
-	dealer     dealer.Dealer
 	chainAPI   chainapi.ChainAPI
 	ipfsClient *httpapi.HttpApi
 	mb         mbroker.MsgBroker
@@ -57,6 +56,9 @@ type Broker struct {
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
 
+	lock    sync.Mutex
+	entropy *ulid.MonotonicEntropy
+
 	metricUnpinTotal        metric.Int64Counter
 	statTotalRecursivePins  int64
 	metricRecursivePinCount metric.Int64ValueObserver
@@ -65,8 +67,6 @@ type Broker struct {
 // New creates a Broker backed by the provided `ds`.
 func New(
 	postgresURI string,
-	auctioneer auctioneer.Auctioneer,
-	dealer dealer.Dealer,
 	chainAPI chainapi.ChainAPI,
 	ipfsClient *httpapi.HttpApi,
 	mb mbroker.MsgBroker,
@@ -90,8 +90,6 @@ func New(
 	ctx, cls := context.WithCancel(context.Background())
 	b := &Broker{
 		store:      s,
-		dealer:     dealer,
-		auctioneer: auctioneer,
 		chainAPI:   chainAPI,
 		ipfsClient: ipfsClient,
 		mb:         mb,
@@ -113,25 +111,29 @@ var _ broker.Broker = (*Broker)(nil)
 
 // Create creates a new BrokerRequest with the provided Cid and
 // Metadata configuration.
-func (b *Broker) Create(ctx context.Context, c cid.Cid) (broker.BrokerRequest, error) {
-	if !c.Defined() {
+func (b *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequest, error) {
+	if !dataCid.Defined() {
 		return broker.BrokerRequest{}, ErrInvalidCid
 	}
 
 	now := time.Now()
+	brID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating id: %s", err)
+	}
 	br := broker.BrokerRequest{
-		ID:        broker.BrokerRequestID(uuid.New().String()),
-		DataCid:   c,
+		ID:        broker.BrokerRequestID(brID),
+		DataCid:   dataCid,
 		Status:    broker.RequestBatching,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	log.Debugf("saving broker request in store")
+	log.Debugf("creating broker-request %s with dataCid %s", brID, dataCid)
 	if err := b.store.CreateBrokerRequest(ctx, br); err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
+		return broker.BrokerRequest{}, fmt.Errorf("create broker request in store: %s", err)
 	}
 
-	log.Debugf("publishing in ready-to-batch topic")
+	log.Debugf("publishing broker-request %s with dataCid %s in ready-to-batch topic", brID, dataCid)
 	dataCids := []mbroker.ReadyToBatchData{{BrokerRequestID: br.ID, DataCid: br.DataCid}}
 	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("publishing to msg broker: %s", err)
@@ -151,8 +153,12 @@ func (b *Broker) CreatePrepared(
 	}
 
 	now := time.Now()
+	brID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating id: %s", err)
+	}
 	br = broker.BrokerRequest{
-		ID:        broker.BrokerRequestID(uuid.New().String()),
+		ID:        broker.BrokerRequestID(brID),
 		DataCid:   payloadCid,
 		Status:    broker.RequestAuctioning,
 		CreatedAt: now,
@@ -167,9 +173,13 @@ func (b *Broker) CreatePrepared(
 	if err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("calculating FIL epoch deadline: %s", err)
 	}
+	sdID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating storage deal id: %s", err)
+	}
 	sd := broker.StorageDeal{
 		// TODO(jsign): this might change depending if gRPC is still used for this API.
-		ID:                 broker.StorageDealID(uuid.New().String()),
+		ID:                 broker.StorageDealID(sdID),
 		RepFactor:          pc.RepFactor,
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.StorageDealAuctioning,
@@ -196,14 +206,19 @@ func (b *Broker) CreatePrepared(
 		return broker.BrokerRequest{}, fmt.Errorf("saving broker request in store: %s", err)
 	}
 
-	log.Debugf("creating prepared storage deal")
-	if err = b.store.CreateStorageDeal(ctx, &sd, []broker.BrokerRequestID{br.ID}); err != nil {
+	log.Debugf("creating prepared broker-request payload-cid %s, storage-deal %s", payloadCid, sdID)
+	if err := b.store.CreateStorageDeal(ctx, &sd, []broker.BrokerRequestID{br.ID}); err != nil {
 		return broker.BrokerRequest{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
-	var auctionID auction.AuctionID
-	auctionID, err = b.auctioneer.ReadyToAuction(
+	auctionID, err := b.newID()
+	if err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("generating auction id: %s", err)
+	}
+	if err = mbroker.PublishMsgReadyToAuction(
 		ctx,
+		b.mb,
+		auction.AuctionID(auctionID),
 		sd.ID,
 		sd.PayloadCid,
 		int(sd.PieceSize),
@@ -213,11 +228,10 @@ func (b *Broker) CreatePrepared(
 		nil,
 		sd.FilEpochDeadline,
 		sd.Sources,
-	)
-	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("signaling auctioneer to create auction: %s", err)
+	); err != nil {
+		return broker.BrokerRequest{}, fmt.Errorf("publish ready to auction %s: %s", sd.ID, err)
 	}
-	log.Debugf("created prepared auction %s", auctionID)
+	log.Debugf("created prepared auction %s for storage-deal %s", auctionID, sdID)
 
 	return br, nil
 }
@@ -225,8 +239,8 @@ func (b *Broker) CreatePrepared(
 // GetBrokerRequestInfo gets a BrokerRequest by id. If doesn't exist, it returns ErrNotFound.
 func (b *Broker) GetBrokerRequestInfo(
 	ctx context.Context,
-	ID broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
-	br, err := b.store.GetBrokerRequest(ctx, ID)
+	brID broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
+	br, err := b.store.GetBrokerRequest(ctx, brID)
 	if err == store.ErrNotFound {
 		return broker.BrokerRequestInfo{}, ErrNotFound
 	}
@@ -255,6 +269,7 @@ func (b *Broker) GetBrokerRequestInfo(
 			bri.Deals = append(bri.Deals, di)
 		}
 	}
+	log.Debugf("get broker-request info with id %s, storage-deal %s", brID, br.StorageDealID)
 
 	return bri, nil
 }
@@ -264,15 +279,15 @@ func (b *Broker) CreateNewBatch(
 	ctx context.Context,
 	batchID broker.StorageDealID,
 	batchCid cid.Cid,
-	brids []broker.BrokerRequestID) (broker.StorageDealID, error) {
+	brIDs []broker.BrokerRequestID) (broker.StorageDealID, error) {
 	if !batchCid.Defined() {
 		return "", ErrInvalidCid
 	}
-	if len(brids) == 0 {
+	if len(brIDs) == 0 {
 		return "", ErrEmptyGroup
 	}
-	for i := range brids {
-		if len(brids[i]) == 0 {
+	for i := range brIDs {
+		if len(brIDs[i]) == 0 {
 			return "", fmt.Errorf("storage requests id can't be empty")
 		}
 	}
@@ -296,20 +311,21 @@ func (b *Broker) CreateNewBatch(
 		},
 	}
 
-	if err := b.store.CreateStorageDeal(ctx, &sd, brids); err != nil {
+	if err := b.store.CreateStorageDeal(ctx, &sd, brIDs); err != nil {
 		return "", fmt.Errorf("creating storage deal: %w", err)
 	}
-	log.Debugf("new storage-deal created with id %s", sd.ID)
+	log.Debugf("new storage-deal %s created with batchCid %s with %d broker-requests", sd.ID, batchCid, len(brIDs))
+
 	return sd.ID, nil
 }
 
 // NewBatchPrepared contains information of a prepared batch.
 func (b *Broker) NewBatchPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	sdID broker.StorageDealID,
 	dpr broker.DataPreparationResult,
 ) (err error) {
-	if id == "" {
+	if sdID == "" {
 		return fmt.Errorf("the storage deal id is empty")
 	}
 	if err := dpr.Validate(); err != nil {
@@ -324,17 +340,25 @@ func (b *Broker) NewBatchPrepared(
 		err = b.store.FinishTxForCtx(ctx, err)
 	}()
 
-	sd, err := b.store.GetStorageDeal(ctx, id)
+	sd, err := b.store.GetStorageDeal(ctx, sdID)
 	if err != nil {
 		return fmt.Errorf("get stoarge deal: %s", err)
 	}
 
-	log.Debugf("storage deal %s was prepared, signaling auctioneer...", id)
-	// Signal the Auctioneer to create an auction. It will eventually call StorageDealAuctioned(..) to tell
-	// us about who won things.
-	auctionID, err := b.auctioneer.ReadyToAuction(
+	auctionID, err := b.newID()
+	if err != nil {
+		return fmt.Errorf("generating auction id: %s", err)
+	}
+
+	if err := b.store.StorageDealToAuctioning(ctx, sdID, dpr.PieceCid, dpr.PieceSize); err != nil {
+		return fmt.Errorf("saving piecer output in storage deal: %s", err)
+	}
+
+	if err := mbroker.PublishMsgReadyToAuction(
 		ctx,
-		id,
+		b.mb,
+		auction.AuctionID(auctionID),
+		sdID,
 		sd.PayloadCid,
 		int(dpr.PieceSize),
 		sd.DealDuration,
@@ -343,57 +367,20 @@ func (b *Broker) NewBatchPrepared(
 		nil,
 		sd.FilEpochDeadline,
 		sd.Sources,
-	)
-	if err != nil {
-		return fmt.Errorf("signaling auctioneer to create auction: %s", err)
+	); err != nil {
+		return fmt.Errorf("publishing ready to create auction msg: %s", err)
 	}
 
-	if err := b.store.StorageDealToAuctioning(ctx, id, dpr.PieceCid, dpr.PieceSize); err != nil {
-		return fmt.Errorf("saving piecer output in storage deal: %s", err)
-	}
-
-	log.Debugf("created auction %s", auctionID)
-	return nil
-}
-
-// StorageDealProposalAccepted indicates that a miner has accepted a proposed deal.
-func (b *Broker) StorageDealProposalAccepted(
-	ctx context.Context,
-	sdID broker.StorageDealID,
-	miner string,
-	proposal cid.Cid) error {
-	log.Debugf("accepted proposal %s from miner %s, signaling auctioneer to start download for bidbot", proposal, miner)
-
-	deals, err := b.store.GetMinerDeals(ctx, sdID)
-	if err != nil {
-		return fmt.Errorf("miner deals not found: %s", err)
-	}
-
-	var auctionID auction.AuctionID
-	var bidID auction.BidID
-	for _, deal := range deals {
-		if deal.MinerAddr == miner {
-			auctionID = deal.AuctionID
-			bidID = deal.BidID
-			break
-		}
-	}
-
-	if bidID == "" {
-		return fmt.Errorf("coudn't find mienr deal in storage-deal: %s", err)
-	}
-
-	log.Debugf("proposal accepted: %s %s %s", auctionID, bidID, proposal)
-	if err := b.auctioneer.ProposalAccepted(ctx, auctionID, bidID, proposal); err != nil {
-		return fmt.Errorf("signaling auctioneer about accepted proposal: %s", err)
-	}
+	log.Debugf("storage-deal %s was prepared piece-cid %s piece-size %d in auction %s...",
+		sdID, dpr.PieceCid, dpr.PieceSize, auctionID)
 
 	return nil
 }
 
 // StorageDealAuctioned is called by the Auctioneer with the result of the StorageDeal auction.
 func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAuction) (err error) {
-	log.Debugf("storage deal %s was auctioned with %d winning bids", au.StorageDealID, len(au.WinningBids))
+	log.Debugf("auction %s closed storage-deal %s  with %d winning bids, errorCause %s",
+		au.ID, au.StorageDealID, len(au.WinningBids), au.ErrorCause)
 
 	if au.Status != broker.AuctionStatusFinalized {
 		return errors.New("auction status should be final")
@@ -409,7 +396,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 
 	sd, err := b.store.GetStorageDeal(ctx, au.StorageDealID)
 	if err != nil {
-		return fmt.Errorf("storage deal not found: %s", err)
+		return fmt.Errorf("storage-deal not found: %s", err)
 	}
 
 	// If the auction failed, we didn't have at least 1 bid.
@@ -419,13 +406,13 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 			// The batch can be rebatched. We switch the storage deal to error status,
 			// and also signal the store to liberate the underlying broker requests to Pending.
 			// This way they can be signaled to be re-batched.
-			log.Debugf("the auction %s finalized with error %s, rebatching...", au.ID, au.ErrorCause)
+			log.Debugf("auction %s closed with error %s, rebatching...", au.ID, au.ErrorCause)
 			if err := b.errorStorageDealAndRebatch(ctx, au.StorageDealID, au.ErrorCause); err != nil {
 				return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 			}
 		case true:
 			if sd.AuctionRetries >= b.conf.auctionMaxRetries {
-				log.Warnf("stop prepared SD %s re-auctioning after %d retries", sd.ID, sd.AuctionRetries)
+				log.Warnf("auction %s reached max-retries %d, erroring...", sd.ID, sd.AuctionRetries)
 				_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
 				if err != nil {
 					return fmt.Errorf("moving storage deal to error status: %s", err)
@@ -435,8 +422,14 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 
 			// The batch can't be rebatched, since it's a prepared CAR file.
 			// We simply foce to create a new auction.
-			auctionID, err := b.auctioneer.ReadyToAuction(
+			auctionID, err := b.newID()
+			if err != nil {
+				return fmt.Errorf("generating auction id: %s", err)
+			}
+			if err := mbroker.PublishMsgReadyToAuction(
 				ctx,
+				b.mb,
+				auction.AuctionID(auctionID),
 				sd.ID,
 				sd.PayloadCid,
 				int(sd.PieceSize),
@@ -446,11 +439,10 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 				nil,
 				sd.FilEpochDeadline,
 				sd.Sources,
-			)
-			if err != nil {
-				return fmt.Errorf("signaling auctioneer to re-create auction for prepared data: %s", err)
+			); err != nil {
+				return fmt.Errorf("publish ready to auction re-auctioning for prepared data: %s", err)
 			}
-			log.Debugf("re-created new auction for prepared prepared data: %s", auctionID)
+			log.Debugf("re-auctioned direct auction %s in new auction %s ", au.ID, auctionID)
 			if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
 				return fmt.Errorf("increasing auction retry: %s", err)
 			}
@@ -467,7 +459,6 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 	}
 
 	if sd.Status != broker.StorageDealAuctioning && sd.Status != broker.StorageDealDealMaking {
-		log.Errorf("auction finished for a storage-deal in an unexpected status %s", sd.Status)
 		return fmt.Errorf("storage-deal isn't in expected status: %s", sd.Status)
 	}
 
@@ -489,24 +480,21 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 		PieceCid:      sd.PieceCid,
 		PieceSize:     sd.PieceSize,
 		Duration:      au.DealDuration,
-		Targets:       make([]dealer.AuctionDealsTarget, len(au.WinningBids)),
+		Proposals:     make([]dealer.Proposal, len(au.WinningBids)),
 	}
 
 	var i int
-	for _, bid := range au.WinningBids {
-		ads.Targets[i] = dealer.AuctionDealsTarget{
+	for id, bid := range au.WinningBids {
+		ads.Proposals[i] = dealer.Proposal{
 			Miner:               bid.MinerAddr,
 			PricePerGiBPerEpoch: bid.Price,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            au.DealVerified,
 			FastRetrieval:       bid.FastRetrieval,
+			AuctionID:           au.ID,
+			BidID:               id,
 		}
 		i++
-	}
-
-	log.Debug("signaling dealer...")
-	if err := b.dealer.ReadyToCreateDeals(ctx, ads); err != nil {
-		return fmt.Errorf("signaling dealer to execute winning bids: %s", err)
 	}
 
 	if err := b.store.AddMinerDeals(ctx, au); err != nil {
@@ -530,12 +518,17 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 		for _, deal := range deals {
 			excludedMiners = append(excludedMiners, deal.MinerAddr)
 		}
-		for _, deal := range ads.Targets {
+		for _, deal := range ads.Proposals {
 			excludedMiners = append(excludedMiners, deal.Miner)
 		}
-		log.Infof("creating new auction for %d/%d missing bids", deltaRepFactor, len(au.WinningBids))
-		_, err = b.auctioneer.ReadyToAuction(
+		auctionID, err := b.newID()
+		if err != nil {
+			return fmt.Errorf("generating auction id: %s", err)
+		}
+		if err := mbroker.PublishMsgReadyToAuction(
 			ctx,
+			b.mb,
+			auction.AuctionID(auctionID),
 			sd.ID,
 			sd.PayloadCid,
 			int(sd.PieceSize),
@@ -545,22 +538,30 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 			excludedMiners,
 			sd.FilEpochDeadline,
 			sd.Sources,
-		)
-		if err != nil {
-			return fmt.Errorf("creating new auction for missing bids %d: %s", deltaRepFactor, err)
+		); err != nil {
+			return fmt.Errorf("publish ready to auction for missing bids %d: %s", deltaRepFactor, err)
 		}
 
 		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
 			return fmt.Errorf("increasing auction retry: %s", err)
 		}
+
+		log.Infof("auction %s re-auctioning in new auction %s for %d/%d missing bids",
+			auctionID, deltaRepFactor, len(au.WinningBids))
+	}
+
+	log.Debugf("publishing ready to create deals for auction %s, storage-deal", au.ID, au.StorageDealID)
+	if err := mbroker.PublishMsgReadyToCreateDeals(ctx, b.mb, ads); err != nil {
+		return fmt.Errorf("sending ready to create deals msg to msgbroker: %s", err)
 	}
 
 	return nil
 }
 
 // StorageDealFinalizedDeal report a deal that reached final status in the Filecoin network.
-func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) (err error) {
-	log.Debug("received a finalized deal...")
+func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedDeal) (err error) {
+	log.Debugf("finalized deal from auction (%s, %s), storage-deal %s, deal-id %s, miner %s",
+		fad.AuctionID, fad.BidID, fad.StorageDealID, fad.DealID, fad.Miner)
 
 	ctx, err = b.store.CtxWithTx(ctx)
 	if err != nil {
@@ -593,8 +594,14 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		}
 		log.Infof("creating new auction for failed deal with miner %s", fad.Miner)
 
-		_, err = b.auctioneer.ReadyToAuction(
+		auctionID, err := b.newID()
+		if err != nil {
+			return fmt.Errorf("generating auction id: %s", err)
+		}
+		if err := mbroker.PublishMsgReadyToAuction(
 			ctx,
+			b.mb,
+			auction.AuctionID(auctionID),
 			sd.ID,
 			sd.PayloadCid,
 			int(sd.PieceSize),
@@ -604,8 +611,7 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 			excludedMiners,
 			sd.FilEpochDeadline,
 			sd.Sources,
-		)
-		if err != nil {
+		); err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
 		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
@@ -623,11 +629,13 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 		}
 	}
 
+	log.Debugf("auction %s, storage-deal %s finalized deal: %d/%d", fad.AuctionID, sd.ID, numConfirmedDeals, sd.RepFactor)
 	// Are we done?
 	if numConfirmedDeals == sd.RepFactor {
 		if err := b.store.StorageDealSuccess(ctx, sd.ID); err != nil {
 			return fmt.Errorf("moving to storage deal success: %s", err)
 		}
+		log.Debugf("storage deal %s success", sd.ID)
 	}
 
 	return nil
@@ -683,6 +691,26 @@ func (b *Broker) Close() error {
 		<-b.daemonClosed
 	})
 	return nil
+}
+
+func (b *Broker) newID() (string, error) {
+	b.lock.Lock()
+	// Not deferring unlock since can be recursive.
+
+	if b.entropy == nil {
+		b.entropy = ulid.Monotonic(rand.Reader, 0)
+	}
+	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), b.entropy)
+	if errors.Is(err, ulid.ErrMonotonicOverflow) {
+		b.entropy = nil
+		b.lock.Unlock()
+		return b.newID()
+	} else if err != nil {
+		b.lock.Unlock()
+		return "", fmt.Errorf("generating id: %v", err)
+	}
+	b.lock.Unlock()
+	return strings.ToLower(id.String()), nil
 }
 
 func timeToFilEpoch(t time.Time) (uint64, error) {

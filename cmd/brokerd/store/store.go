@@ -560,7 +560,7 @@ func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.StorageDealID
 
 // SaveMinerDeals saves a new finalized (succeeded or errored) auction deal
 // into the storage deal.
-func (s *Store) SaveMinerDeals(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
+func (s *Store) SaveMinerDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
 		rows, err := q.UpdateMinerDeals(ctx,
 			db.UpdateMinerDealsParams{

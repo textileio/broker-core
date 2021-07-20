@@ -8,8 +8,6 @@ spec:
   selector:
     app: auctioneer-v1
   ports:
-    - port: 5000
-      name: api
     - port: 9090
       name: metrics
   type: ClusterIP

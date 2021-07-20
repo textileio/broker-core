@@ -76,15 +76,6 @@ type Broker interface {
 
 	// GetBrokerRequestInfo returns a broker request information by id.
 	GetBrokerRequestInfo(ctx context.Context, ID BrokerRequestID) (BrokerRequestInfo, error)
-
-	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
-	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
-
-	// StorageDealFinalizedDeal signals to the broker results about deal making.
-	StorageDealFinalizedDeal(ctx context.Context, fad FinalizedAuctionDeal) error
-
-	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
-	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
 }
 
 // StorageDeal is the underlying entity that gets into bidding and
@@ -183,11 +174,13 @@ func (dpr DataPreparationResult) Validate() error {
 	return nil
 }
 
-// FinalizedAuctionDeal contains information about a finalized deal.
-type FinalizedAuctionDeal struct {
+// FinalizedDeal contains information about a finalized deal.
+type FinalizedDeal struct {
 	StorageDealID  StorageDealID
 	Miner          string
 	DealID         int64
 	DealExpiration uint64
 	ErrorCause     string
+	AuctionID      auction.AuctionID
+	BidID          auction.BidID
 }

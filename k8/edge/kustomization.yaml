@@ -54,5 +54,3 @@ patchesStrategicMerge:
 - mongo-patch.yaml
 - storaged-patch.yaml
 - brokerd-patch.yaml
-- piecerd-patch.yaml
-- packerd-patch.yaml

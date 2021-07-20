@@ -2,18 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
-	"net"
+	"fmt"
 
-	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	golog "github.com/textileio/go-log/v2"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/bidbot/lib/finalizer"
@@ -21,35 +16,28 @@ import (
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
-	"github.com/textileio/broker-core/cmd/auctioneerd/cast"
-	pb "github.com/textileio/broker-core/gen/broker/auctioneer/v1"
-	"github.com/textileio/broker-core/rpc"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 )
 
 var log = golog.Logger("auctioneer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Listener net.Listener
-	Peer     marketpeer.Config
-	Auction  auctioneer.AuctionConfig
+	Peer    marketpeer.Config
+	Auction auctioneer.AuctionConfig
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
 type Service struct {
-	pb.UnimplementedAPIServiceServer
-
-	server *grpc.Server
-	peer   *marketpeer.Peer
-	lib    *auctioneer.Auctioneer
+	mb   mbroker.MsgBroker
+	peer *marketpeer.Peer
+	lib  *auctioneer.Auctioneer
 
 	finalizer *finalizer.Finalizer
 }
 
-var _ pb.APIServiceServer = (*Service)(nil)
-
 // New returns a new Service.
-func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc filclient.FilClient) (*Service, error) {
+func New(conf Config, store txndswrap.TxnDatastore, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer
@@ -60,25 +48,22 @@ func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc fil
 	fin.Add(p)
 
 	// Create auctioneer
-	lib, err := auctioneer.New(p, store, broker, fc, conf.Auction)
+	lib, err := auctioneer.New(p, store, mb, fc, conf.Auction)
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctioneer: %v", err)
 	}
 	fin.Add(lib)
 
 	s := &Service{
-		server:    grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
+		mb:        mb,
 		peer:      p,
 		lib:       lib,
 		finalizer: fin,
 	}
 
-	go func() {
-		pb.RegisterAPIServiceServer(s.server, s)
-		if err := s.server.Serve(conf.Listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Errorf("server error: %v", err)
-		}
-	}()
+	if err := mbroker.RegisterHandlers(mb, s); err != nil {
+		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
+	}
 
 	log.Info("service started")
 	return s, nil
@@ -87,9 +72,6 @@ func New(conf Config, store txndswrap.TxnDatastore, broker broker.Broker, fc fil
 // Close the service.
 func (s *Service) Close() error {
 	defer log.Info("service was shutdown")
-
-	log.Info("closing gRPC server...")
-	rpc.StopServer(s.server)
 
 	return s.finalizer.Cleanup(nil)
 }
@@ -116,74 +98,47 @@ func (s *Service) GetAuction(id auction.AuctionID) (*core.Auction, error) {
 	return s.lib.GetAuction(id)
 }
 
-// ReadyToAuction creates a new auction.
-func (s *Service) ReadyToAuction(_ context.Context, req *pb.ReadyToAuctionRequest) (*pb.ReadyToAuctionResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-	if req.StorageDealId == "" {
-		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
-	}
-	if req.PayloadCid == "" {
-		return nil, status.Error(codes.InvalidArgument, "payload cid is empty")
-	}
-	payloadCid, err := cid.Parse(req.PayloadCid)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "payload cid unparseable")
-	}
-	if req.DealSize == 0 {
-		return nil, status.Error(codes.InvalidArgument, "deal size must be greater than zero")
-	}
-	if req.DealDuration == 0 {
-		return nil, status.Error(codes.InvalidArgument, "deal duration must be greater than zero")
-	}
-	if req.DealReplication == 0 {
-		return nil, status.Error(codes.InvalidArgument, "deal replication must be greater than zero")
-	}
-	sources, err := cast.SourcesFromPb(req.Sources)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "decoding sources: %v", err)
-	}
-
-	id, err := s.lib.CreateAuction(core.Auction{
-		StorageDealID:    broker.StorageDealID(req.StorageDealId),
+// OnReadyToAuction handles messagse from ready-to-auction topic.
+func (s *Service) OnReadyToAuction(
+	ctx context.Context,
+	id auction.AuctionID,
+	sdID broker.StorageDealID,
+	payloadCid cid.Cid,
+	dealSize, dealDuration uint64,
+	dealReplication uint32,
+	dealVerified bool,
+	excludedMiners []string,
+	filEpochDeadline uint64,
+	sources auction.Sources,
+) error {
+	err := s.lib.CreateAuction(core.Auction{
+		ID:               id,
+		StorageDealID:    sdID,
 		PayloadCid:       payloadCid,
-		DealSize:         req.DealSize,
-		DealDuration:     req.DealDuration,
-		DealReplication:  req.DealReplication,
-		DealVerified:     req.DealVerified,
-		ExcludedMiners:   req.ExcludedMiners,
-		FilEpochDeadline: req.FilEpochDeadline,
+		DealSize:         dealSize,
+		DealDuration:     dealDuration,
+		DealReplication:  dealReplication,
+		DealVerified:     dealVerified,
+		ExcludedMiners:   excludedMiners,
+		FilEpochDeadline: filEpochDeadline,
 		Sources:          sources,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "%v", err)
+		return fmt.Errorf("processing ready-to-auction msg: %s", err)
 	}
-	return &pb.ReadyToAuctionResponse{
-		Id: string(id),
-	}, nil
+
+	return nil
 }
 
-// ProposalAccepted receives an accepted deal proposal from a miner.
-func (s *Service) ProposalAccepted(
-	_ context.Context,
-	req *pb.ProposalAcceptedRequest,
-) (*pb.ProposalAcceptedResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+// OnDealProposalAccepted receives an accepted deal proposal from a miner.
+func (s *Service) OnDealProposalAccepted(
+	ctx context.Context,
+	auctionID auction.AuctionID,
+	bidID auction.BidID,
+	proposalCid cid.Cid,
+) error {
+	if err := s.lib.DeliverProposal(auctionID, bidID, proposalCid); err != nil {
+		return fmt.Errorf("procesing deal-proposal-accepted msgg : %v", err)
 	}
-	if req.AuctionId == "" {
-		return nil, status.Error(codes.InvalidArgument, "auction id is required")
-	}
-	if req.BidId == "" {
-		return nil, status.Error(codes.InvalidArgument, "bid id is required")
-	}
-	proposalCid, err := cid.Decode(req.ProposalCid)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid proposal cid")
-	}
-	if err := s.lib.DeliverProposal(auction.AuctionID(req.AuctionId), auction.BidID(req.BidId), proposalCid); err != nil {
-		return nil, status.Errorf(codes.Internal, "delivering proposal: %v", err)
-	}
-	return &pb.ProposalAcceptedResponse{}, nil
+	return nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -20,6 +19,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 )
@@ -42,13 +42,16 @@ func init() {
 	rootCmd.AddCommand(initCmd, daemonCmd)
 
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration"},
 		{Name: "auction-attempts", DefValue: 10, Description: "Number of attempts an auction will run before failing"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -123,9 +126,6 @@ var daemonCmd = &cobra.Command{
 		err = common.SetupInstrumentation(v.GetString("metrics-addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
 
-		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
-		common.CheckErrf("creating listener: %v", err)
-
 		store, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
 		common.CheckErrf("creating datastore: %v", err)
 
@@ -139,14 +139,20 @@ var daemonCmd = &cobra.Command{
 		fin.Add(fc)
 
 		config := service.Config{
-			Listener: listener,
-			Peer:     pconfig,
+			Peer: pconfig,
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 				Attempts: v.GetUint32("auction-attempts"),
 			},
 		}
-		serv, err := service.New(config, store, broker, fc)
+
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "auctioneerd")
+		common.CheckErrf("creating google pubsub client: %s", err)
+
+		serv, err := service.New(config, store, mb, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 		err = serv.Start(true)
@@ -157,6 +163,8 @@ var daemonCmd = &cobra.Command{
 		b, err := json.MarshalIndent(info, "", "\t")
 		common.CheckErrf("marshaling peer information: %v", err)
 		log.Infof("peer information:: %s", string(b))
+
+		fin.Add(mb)
 
 		common.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanupf("closing service: %v", nil))

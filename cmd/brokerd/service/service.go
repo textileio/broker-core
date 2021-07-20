@@ -13,11 +13,9 @@ import (
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/broker"
-	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
-	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
 	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 
@@ -35,10 +33,7 @@ var (
 type Config struct {
 	ListenAddr string
 
-	PiecerAddr     string
-	AuctioneerAddr string
-	DealerAddr     string
-	ReporterAddr   string
+	ReporterAddr string
 
 	PostgresURI string
 
@@ -76,16 +71,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
-	}
-
-	dealer, err := dealeri.New(config.DealerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating dealer implementation: %s", err)
-	}
-
 	reporter, err := chainapii.New(config.ReporterAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating reporter implementation: %s", err)
@@ -102,8 +87,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 
 	broker, err := brokeri.New(
 		config.PostgresURI,
-		auctioneer,
-		dealer,
 		reporter,
 		ipfsClient,
 		mb,
@@ -303,25 +286,12 @@ func (s *Service) OnNewBatchCreated(
 	return nil
 }
 
-// StorageDealAuctioned indicated that an auction has completed.
-func (s *Service) StorageDealAuctioned(
-	ctx context.Context,
-	r *pb.StorageDealAuctionedRequest) (*pb.StorageDealAuctionedResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+// OnAuctionClosed handles new messages in auction-closed topic.
+func (s *Service) OnAuctionClosed(ctx context.Context, au broker.ClosedAuction) error {
+	if err := s.broker.StorageDealAuctioned(ctx, au); err != nil {
+		return fmt.Errorf("processing closed auction: %s", err)
 	}
-
-	auction, err := cast.ClosedAuctionFromPb(r)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid auction: %s", err)
-	}
-
-	if err := s.broker.StorageDealAuctioned(ctx, auction); err != nil {
-		log.Errorf("storage deal auctioned: %s", err)
-		return nil, status.Errorf(codes.Internal, "storage deal auctioned: %s", err)
-	}
-
-	return &pb.StorageDealAuctionedResponse{}, nil
+	return nil
 }
 
 // OnNewBatchPrepared handles new messages in new-batch-prepared topic.
@@ -336,67 +306,13 @@ func (s *Service) OnNewBatchPrepared(
 	return nil
 }
 
-// StorageDealFinalizedDeal reports the result of finalized deals.
-func (s *Service) StorageDealFinalizedDeal(
-	ctx context.Context,
-	r *pb.StorageDealFinalizedDealRequest) (*pb.StorageDealFinalizedDealResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+// OnFinalizedDeal handles new messages in the finalized-deal topic.
+func (s *Service) OnFinalizedDeal(ctx context.Context, fd broker.FinalizedDeal) error {
+	if err := s.broker.StorageDealFinalizedDeal(ctx, fd); err != nil {
+		return fmt.Errorf("processing finalized deal: %s", err)
 	}
 
-	if r.StorageDealId == "" {
-		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
-	}
-	if r.ErrorCause == "" {
-		if r.DealId <= 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"deal id is %d and should be positive",
-				r.DealId)
-		}
-		if r.DealExpiration <= 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"deal expiration is %d and should be positive",
-				r.DealExpiration)
-		}
-	}
-	fad := broker.FinalizedAuctionDeal{
-		StorageDealID:  broker.StorageDealID(r.StorageDealId),
-		DealID:         r.DealId,
-		DealExpiration: r.DealExpiration,
-		Miner:          r.MinerId,
-		ErrorCause:     r.ErrorCause,
-	}
-
-	if err := s.broker.StorageDealFinalizedDeal(ctx, fad); err != nil {
-		return nil, status.Errorf(codes.Internal, "processing finalized deals: %s", err)
-	}
-
-	return &pb.StorageDealFinalizedDealResponse{}, nil
-}
-
-// StorageDealProposalAccepted notifies the auctioneer that the miner accepted the deal.
-func (s *Service) StorageDealProposalAccepted(
-	ctx context.Context,
-	r *pb.StorageDealProposalAcceptedRequest) (*pb.StorageDealProposalAcceptedResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-
-	proposalCid, err := cid.Decode(r.ProposalCid)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid cid %s: %s", r.ProposalCid, err)
-	}
-
-	if err := s.broker.StorageDealProposalAccepted(
-		ctx,
-		broker.StorageDealID(r.StorageDealId),
-		r.Miner, proposalCid); err != nil {
-		return nil, status.Errorf(codes.Internal, "notifying proposal accepted: %s", err)
-	}
-
-	return &pb.StorageDealProposalAcceptedResponse{}, nil
+	return nil
 }
 
 // Close gracefully closes the service.
@@ -415,15 +331,6 @@ func (s *Service) Close() error {
 func validateConfig(conf Config) error {
 	if conf.ListenAddr == "" {
 		return errors.New("service listen addr is empty")
-	}
-	if conf.PiecerAddr == "" {
-		return errors.New("piecer api addr is empty")
-	}
-	if conf.AuctioneerAddr == "" {
-		return errors.New("auctioneer api addr is empty")
-	}
-	if conf.DealerAddr == "" {
-		return errors.New("dealer api addr is empty")
 	}
 	if conf.ReporterAddr == "" {
 		return errors.New("reporter api addr is empty")

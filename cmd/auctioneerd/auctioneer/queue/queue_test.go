@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -65,7 +66,9 @@ func TestQueue_ListAuctions(t *testing.T) {
 	ids := make([]auction.AuctionID, limit)
 	for i := 0; i < limit; i++ {
 		now = now.Add(time.Millisecond)
-		id, err := q.CreateAuction(auctioneer.Auction{
+		id := auction.AuctionID(fmt.Sprintf("%03d", i))
+		err := q.CreateAuction(auctioneer.Auction{
+			ID:              id,
 			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 			PayloadCid:      testCid,
 			DealSize:        1024,
@@ -109,7 +112,9 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(auctioneer.Auction{
+	id := auction.AuctionID("ID-1")
+	err := q.CreateAuction(auctioneer.Auction{
+		ID:              id,
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		DealSize:        1024,
@@ -125,7 +130,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
-	assert.NotEmpty(t, got.ID)
+	assert.Equal(t, id, got.ID)
 	assert.NotEmpty(t, got.StorageDealID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Equal(t, "https://foo.com/cid/123", got.Sources.CARURL.URL.String())
@@ -145,7 +150,9 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id, err := q.CreateAuction(auctioneer.Auction{
+	id := auction.AuctionID("ID-1")
+	err := q.CreateAuction(auctioneer.Auction{
+		ID:              id,
 		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		Sources:         testSources,

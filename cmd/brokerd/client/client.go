@@ -114,47 +114,6 @@ func (c *Client) GetBrokerRequestInfo(
 	return br, nil
 }
 
-// StorageDealAuctioned indicates the storage deal auction has completed.
-func (c *Client) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
-	req := cast.ClosedAuctionToPb(auction)
-	if _, err := c.c.StorageDealAuctioned(ctx, req); err != nil {
-		return fmt.Errorf("calling storage deal winners api: %s", err)
-	}
-	return nil
-}
-
-// StorageDealProposalAccepted notifies that a proposal has been accepted by a miner.
-func (c *Client) StorageDealProposalAccepted(
-	ctx context.Context,
-	sdID broker.StorageDealID,
-	miner string,
-	proposalCid cid.Cid) error {
-	req := &pb.StorageDealProposalAcceptedRequest{
-		StorageDealId: string(sdID),
-		Miner:         miner,
-		ProposalCid:   proposalCid.String(),
-	}
-	if _, err := c.c.StorageDealProposalAccepted(ctx, req); err != nil {
-		return fmt.Errorf("calling proposal accepted deals api: %s", err)
-	}
-	return nil
-}
-
-// StorageDealFinalizedDeal report a finalized deal to the broker.
-func (c *Client) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
-	req := &pb.StorageDealFinalizedDealRequest{
-		StorageDealId:  string(fad.StorageDealID),
-		MinerId:        fad.Miner,
-		DealId:         fad.DealID,
-		DealExpiration: fad.DealExpiration,
-		ErrorCause:     fad.ErrorCause,
-	}
-	if _, err := c.c.StorageDealFinalizedDeal(ctx, req); err != nil {
-		return fmt.Errorf("calling storage finalized deals api: %s", err)
-	}
-	return nil
-}
-
 // Close closes gracefully the client.
 func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {

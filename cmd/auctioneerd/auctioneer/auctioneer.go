@@ -30,6 +30,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 )
 
 var (
@@ -66,6 +67,7 @@ type AuctionConfig struct {
 
 // Auctioneer handles deal auctions for a broker.
 type Auctioneer struct {
+	mb          mbroker.MsgBroker
 	queue       *q.Queue
 	started     bool
 	auctionConf AuctionConfig
@@ -73,8 +75,6 @@ type Auctioneer struct {
 	peer     *marketpeer.Peer
 	fc       filclient.FilClient
 	auctions *pubsub.Topic
-
-	broker broker.Broker
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
@@ -92,7 +92,7 @@ type Auctioneer struct {
 func New(
 	peer *marketpeer.Peer,
 	store txndswrap.TxnDatastore,
-	broker broker.Broker,
+	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
@@ -101,9 +101,9 @@ func New(
 	}
 
 	a := &Auctioneer{
+		mb:          mb,
 		peer:        peer,
 		fc:          fc,
-		broker:      broker,
 		auctionConf: auctionConf,
 		finalizer:   finalizer.NewFinalizer(),
 	}
@@ -169,15 +169,14 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queued if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, error) {
+func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
 	auction.Status = broker.AuctionStatusUnspecified
 	auction.Duration = a.auctionConf.Duration
-	id, err := a.queue.CreateAuction(auction)
-	if err != nil {
-		return "", fmt.Errorf("creating auction: %v", err)
+	if err := a.queue.CreateAuction(auction); err != nil {
+		return fmt.Errorf("creating auction: %v", err)
 	}
 
-	log.Debugf("created auction %s", id)
+	log.Debugf("created auction %s", auction.ID)
 
 	labels := []attribute.KeyValue{
 		attribute.Int("replication", int(auction.DealReplication)),
@@ -186,7 +185,7 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, 
 	a.metricNewAuction.Add(context.Background(), 1, labels...)
 	a.statLastCreatedAuction = time.Now()
 
-	return id, nil
+	return nil
 }
 
 // GetAuction returns an auction by id.
@@ -416,8 +415,8 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 		return fmt.Errorf("invalid final status: %s", auction.Status)
 	}
 	a.metricNewFinalizedAuction.Add(ctx, 1, labels...)
-	if err := a.broker.StorageDealAuctioned(ctx, toClosedAuction(auction)); err != nil {
-		return fmt.Errorf("signaling broker: %v", err)
+	if err := mbroker.PublishMsgAuctionClosed(ctx, a.mb, toClosedAuction(auction)); err != nil {
+		return fmt.Errorf("publishing closed auction msg: %v", err)
 	}
 	return nil
 }
