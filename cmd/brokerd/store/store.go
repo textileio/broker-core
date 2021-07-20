@@ -23,8 +23,6 @@ import (
 	logger "github.com/textileio/go-log/v2"
 )
 
-type ctxKeyType string
-
 var (
 	// ErrNotFound is returned if the broker request doesn't exist.
 	ErrNotFound = fmt.Errorf("not found")
@@ -32,8 +30,7 @@ var (
 	// unknown broker request.
 	ErrStorageDealContainsUnknownBrokerRequest = fmt.Errorf("storage deal contains an unknown broker request")
 
-	log      = logger.Logger("store")
-	ctxKeyTx = ctxKeyType("ctx-key-transaction")
+	log = logger.Logger("store")
 )
 
 // Store provides a persistent layer for broker requests.
