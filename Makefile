@@ -125,11 +125,12 @@ define gen_sql_assets
 	done
 endef
 
-sql-assets:
+sql-assets: $(GO_BINDATA) $(SQLC)
 	$(call gen_sql_assets,broker);
-.PHONY: migrations
+.PHONY: sql-assets
 
 generate: protos sql-assets
+.PHONY: generate
 
 define docker_push_daemon_head
 	for daemon in $(1); do \
