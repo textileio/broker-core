@@ -150,7 +150,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for new-batch-created topic")
+			return fmt.Errorf("registering handler for new-batch-created topic: %s", err)
 		}
 	}
 
@@ -182,7 +182,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for new-batch-prepared topic")
+			return fmt.Errorf("registering handler for new-batch-prepared topic: %s", err)
 		}
 	}
 
@@ -222,7 +222,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for ready-to-batch topic")
+			return fmt.Errorf("registering handler for ready-to-batch topic: %s", err)
 		}
 	}
 
@@ -297,7 +297,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for ready-to-create-deals topic")
+			return fmt.Errorf("registering handler for ready-to-create-deals topic: %s", err)
 		}
 	}
 
@@ -348,7 +348,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for finalized-deal topic")
+			return fmt.Errorf("registering handler for finalized-deal topic: %s", err)
 		}
 	}
 
@@ -389,7 +389,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for deal-proposal-accepted topic")
+			return fmt.Errorf("registering handler for deal-proposal-accepted topic: %s", err)
 		}
 	}
 
@@ -445,7 +445,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for ready-to-auction topic")
+			return fmt.Errorf("registering handler for ready-to-auction topic: %s", err)
 		}
 	}
 
@@ -466,7 +466,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for auction-closed topic")
+			return fmt.Errorf("registering handler for auction-closed topic: %s")
 		}
 	}
 
