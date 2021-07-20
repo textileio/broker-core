@@ -19,9 +19,8 @@ import (
 	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
+	store "github.com/textileio/broker-core/cmd/piecerd/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
@@ -34,7 +33,7 @@ type Piecer struct {
 	mb       mbroker.MsgBroker
 	ipfsApis []ipfsAPI
 
-	store           *store.Store
+	s               *store.Store
 	daemonFrequency time.Duration
 	retryDelay      time.Duration
 	newRequest      chan struct{}
@@ -60,7 +59,7 @@ type ipfsAPI struct {
 
 // New returns a new Piecer.
 func New(
-	ds txndswrap.TxnDatastore,
+	postgresURI string,
 	ipfsEndpoints []multiaddr.Multiaddr,
 	mb mbroker.MsgBroker,
 	daemonFrequency time.Duration,
@@ -78,9 +77,13 @@ func New(
 		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
 	}
 
+	s, err := store.New(postgresURI)
+	if err != nil {
+		return nil, fmt.Errorf("initializing store: %s", err)
+	}
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
-		store:    store.New(txndswrap.Wrap(ds, "/store")),
+		s:        s,
 		ipfsApis: ipfsApis,
 		mb:       mb,
 
@@ -98,18 +101,17 @@ func New(
 	return p, nil
 }
 
-// ReadyToPrepare signals the Piecer that a new StorageDeal is ready to be prepared.
-// Piecer will call the broker async with the end result.
-func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, dataCid cid.Cid) error {
-	if id == "" {
-		return fmt.Errorf("storage deal id is empty")
+// ReadyToPrepare signals the Piecer that a new batch is ready to be prepared.
+func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.StorageDealID, dataCid cid.Cid) error {
+	if sdID == "" {
+		return fmt.Errorf("storage-deal id is empty")
 	}
 	if !dataCid.Defined() {
 		return fmt.Errorf("data-cid is undefined")
 	}
 
-	if err := p.store.Create(id, dataCid); err != nil {
-		return fmt.Errorf("saving %s %s: %s", id, dataCid, err)
+	if err := p.s.CreateUnpreparedBatch(ctx, sdID, dataCid); err != nil {
+		return fmt.Errorf("creating unprepared-batch %s %s: %s", sdID, dataCid, err)
 	}
 
 	select {
@@ -143,7 +145,7 @@ func (p *Piecer) daemon() {
 		case <-time.After(p.daemonFrequency):
 		}
 		for {
-			usd, ok, err := p.store.GetNext()
+			usd, ok, err := p.s.GetNextUnpreparedBatch()
 			if err != nil {
 				log.Errorf("get next unprepared batch: %s", err)
 				break
@@ -155,15 +157,15 @@ func (p *Piecer) daemon() {
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
 				log.Errorf("preparing: %s", err)
-				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
+				if err := p.s.MoveToPending(usd.ID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
 
-			if err := p.store.Delete(usd.ID); err != nil {
+			if err := p.s.Delete(usd.ID); err != nil {
 				log.Errorf("deleting: %s", err)
-				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
+				if err := p.s.MoveToPending(usd.ID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
