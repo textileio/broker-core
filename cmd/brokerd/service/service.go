@@ -12,6 +12,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/bidbot/lib/datauri"
 	"github.com/textileio/broker-core/broker"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
@@ -134,7 +135,7 @@ func (s *Service) CreatePreparedBrokerRequest(
 		return nil, status.Error(codes.InvalidArgument, "empty prepared car information")
 	}
 
-	c, err := cid.Decode(r.Cid)
+	payloadCid, err := cid.Decode(r.Cid)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
@@ -206,7 +207,14 @@ func (s *Service) CreatePreparedBrokerRequest(
 		return nil, status.Error(codes.InvalidArgument, "at least one download source must be specified")
 	}
 
-	br, err := s.broker.CreatePrepared(ctx, c, pc)
+	u, err := datauri.NewFromSources(r.Cid, pc.Sources)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "creating data URI from sources: %s", err)
+	}
+	if err := u.Validate(ctx); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "validating sources: %s", err)
+	}
+	br, err := s.broker.CreatePrepared(ctx, payloadCid, pc)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
