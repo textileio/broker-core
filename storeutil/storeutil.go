@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib" /*nolint*/
 )
 
+// MigrateAndConnectToDB run db migrations and return a ready to use connection to the Postgres database.
 func MigrateAndConnectToDB(postgresURI string, as *bindata.AssetSource) (*sql.DB, error) {
 	// To avoid dealing with time zone issues, we just enforce UTC timezone
 	if !strings.Contains(postgresURI, "timezone=UTC") {
