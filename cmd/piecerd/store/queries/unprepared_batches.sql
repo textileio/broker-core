@@ -8,7 +8,7 @@ INSERT INTO unprepared_batches(
 -- name: GetNextPending :one
 UPDATE unprepared_batches
 SET status = 2, updated_at = CURRENT_TIMESTAMP
-WHERE storage_deal_id = (SELECT id FROM unprepared_batches ub
+WHERE storage_deal_id = (SELECT ub.storage_deal_id FROM unprepared_batches ub
             WHERE ub.ready_at < CURRENT_TIMESTAMP AND
                   ub.status = 1  
                   ORDER BY ub.ready_at asc 
