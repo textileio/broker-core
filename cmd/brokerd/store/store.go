@@ -78,74 +78,27 @@ func TxReadonly() func(o *sql.TxOptions) *sql.TxOptions {
 
 // CtxWithTx attach a database transaction to the context. It returns the
 // context unchanged if there's error starting the transaction.
-func (s *Store) CtxWithTx(ctx context.Context, opts ...TxOptions) (context.Context, error) {
-	o := &sql.TxOptions{Isolation: sql.LevelSerializable}
-	for _, opt := range opts {
-		o = opt(o)
-	}
-	txn, err := s.conn.BeginTx(ctx, o)
-	if err != nil {
-		return ctx, err
-	}
-	return context.WithValue(ctx, ctxKeyTx, txn), nil
+func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (context.Context, error) {
+	return storeutil.CtxWithTx(ctx, s.conn, opts...)
 }
 
 // FinishTxForCtx commits or rolls back the transaction attatched to the
 // context depending on the error passed in and returns the result. It errors
 // if the context doesn't have a transaction attached.
 func (s *Store) FinishTxForCtx(ctx context.Context, err error) error {
-	tx := ctx.Value(ctxKeyTx)
-	txn, ok := tx.(*sql.Tx)
-	if !ok {
-		return errors.New("the context has no transcation attached")
-	}
-	if err != nil {
-		// intentionlly ignore the error to avoid shadowing the real
-		// error causing the rollback.
-		_ = txn.Rollback()
-	}
-	return txn.Commit()
+	return storeutil.FinishTxForCtx(ctx, err)
 }
 
-// withTx runs the provided closure in a transaction. It commits the
-// transaction if the closure returns no error, and rolls back otherwise.
-// It reuses the transaction attached to the context if it's present, and
-// doesn't commit or rollback automatically.
-//nolint:unparam
-func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...TxOptions) (err error) {
-	tx := ctx.Value(ctxKeyTx)
-	if txn, ok := tx.(*sql.Tx); ok {
-		return f(s.db.WithTx(txn))
-	}
-
-	o := &sql.TxOptions{Isolation: sql.LevelSerializable}
-	for _, opt := range opts {
-		o = opt(o)
-	}
-	var txn *sql.Tx
-	txn, err = s.conn.BeginTx(ctx, o)
-	if err != nil {
-		return
-	}
-	defer func() {
-		if err != nil {
-			// intentionlly ignore the error to avoid shadowing the
-			// real error causing the rollback.
-			_ = txn.Rollback()
-		} else {
-			err = txn.Commit()
-		}
-	}()
-	err = f(s.db.WithTx(txn))
-	return
+func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...storeutil.TxOptions) (err error) {
+	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
+		return f(s.db.WithTx(tx))
+	}, opts...)
 }
 
 func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
-	tx := ctx.Value(ctxKeyTx)
-	if txn, ok := tx.(*sql.Tx); ok {
-		return f(s.db.WithTx(txn))
-	}
-	return f(s.db)
+	return storeutil.UseTxFromCtx(ctx,
+		func(tx *sql.Tx) error { return f(s.db.WithTx(tx)) },
+		func() error { return f(s.db) })
 }
 
 // CreateBrokerRequest creates the provided BrokerRequest in store.
