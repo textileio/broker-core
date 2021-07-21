@@ -113,6 +113,7 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.StorageDealID, 
 	if err := p.s.CreateUnpreparedBatch(ctx, sdID, dataCid); err != nil {
 		return fmt.Errorf("creating unprepared-batch %s %s: %s", sdID, dataCid, err)
 	}
+	log.Debugf("saved unprepared-batch with storage-deal %s and data-cid %s", sdID, dataCid)
 
 	select {
 	case p.newRequest <- struct{}{}:
@@ -151,12 +152,11 @@ func (p *Piecer) daemon() {
 				break
 			}
 			if !ok {
-				log.Debug("no remaning unprepared batches")
 				break
 			}
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
-				log.Errorf("preparing: %s", err)
+				log.Errorf("preparing storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
 				if err := p.s.MoveToPending(p.daemonCtx, usd.StorageDealID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
@@ -164,7 +164,7 @@ func (p *Piecer) daemon() {
 			}
 
 			if err := p.s.DeleteUnpreparedBatch(p.daemonCtx, usd.StorageDealID); err != nil {
-				log.Errorf("deleting: %s", err)
+				log.Errorf("deleting storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
 				if err := p.s.MoveToPending(p.daemonCtx, usd.StorageDealID, p.retryDelay); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
@@ -176,7 +176,7 @@ func (p *Piecer) daemon() {
 
 func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	start := time.Now()
-	log.Debugf("preparing storage deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
+	log.Debugf("preparing storage-deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
 
 	nodeGetter, err := p.getNodeGetterForCid(usd.DataCid)
 	if err != nil {
@@ -234,9 +234,9 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 		return fmt.Errorf("write car err: %s, commP err: %s", errCarGen, errCommP)
 	}
 
-	log.Debugf("piece-size: %s, piece-cid: %s", humanize.IBytes(dpr.PieceSize), dpr.PieceCid)
 	duration := time.Since(start).Seconds()
-	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, duration)
+	log.Debugf("prepared of storage-deal %s, data-cid %s, piece-size %s, piece-cid %s took %.2f seconds",
+		usd.StorageDealID, usd.DataCid, humanize.IBytes(dpr.PieceSize), dpr.PieceCid, duration)
 
 	if err := mbroker.PublishMsgNewBatchPrepared(ctx, p.mb, usd.StorageDealID, dpr.PieceCid, dpr.PieceSize); err != nil {
 		return fmt.Errorf("publish message to message broker: %s", err)
@@ -257,7 +257,6 @@ func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
 		p.ipfsApis[i], p.ipfsApis[j] = p.ipfsApis[j], p.ipfsApis[i]
 	})
 
-	log.Debug("core-api lookup for cid")
 	for _, coreapi := range p.ipfsApis {
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
 		defer cls()
