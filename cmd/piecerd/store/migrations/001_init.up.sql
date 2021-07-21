@@ -16,5 +16,5 @@ CREATE TABLE IF NOT EXISTS unprepared_batches (
     CONSTRAINT fk_unprepared_batches_statuses FOREIGN KEY(status) REFERENCES unprepared_batches_statuses(id)
 );
 
-CREATE UNIQUE INDEX unprepared_batches_status_idx ON unprepared_batches (status, ready_at);
+CREATE INDEX unprepared_batches_status_idx ON unprepared_batches (status, ready_at);
 
