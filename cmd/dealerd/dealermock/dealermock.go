@@ -41,7 +41,7 @@ func (d *Dealer) reportToBroker(sdb dealeri.AuctionDeals) {
 			StorageDealID:  sdb.StorageDealID,
 			DealID:         rand.Int63(),
 			DealExpiration: uint64(rand.Int63()),
-			Miner:          p.Miner,
+			Miner:          p.MinerID,
 			AuctionID:      p.AuctionID,
 			BidID:          p.BidID,
 		}

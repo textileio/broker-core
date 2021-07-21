@@ -28,7 +28,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multibase"
 	"github.com/textileio/bidbot/lib/logging"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/metrics"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
@@ -295,7 +295,7 @@ func (fc *FilClient) createDealProposal(
 	}
 
 	pricePerEpoch := big.Div(
-		big.Mul(big.NewInt(int64(ad.PieceSize)), big.NewInt(aud.PricePerGiBPerEpoch)),
+		big.Mul(big.NewInt(int64(ad.PieceSize)), big.NewInt(aud.PricePerGibPerEpoch)),
 		big.NewInt(1<<30),
 	)
 
@@ -304,7 +304,7 @@ func (fc *FilClient) createDealProposal(
 		return nil, fmt.Errorf("failed to construct label field: %w", err)
 	}
 
-	miner, err := address.NewFromString(aud.Miner)
+	miner, err := address.NewFromString(aud.MinerID)
 	if err != nil {
 		return nil, fmt.Errorf("parsing miner address: %s", err)
 	}

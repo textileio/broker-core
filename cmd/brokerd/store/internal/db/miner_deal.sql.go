@@ -15,7 +15,7 @@ INSERT INTO miner_deals(
     storage_deal_id,
     auction_id,
     bid_id,
-    miner_addr,
+    miner_id,
     deal_id,
     deal_expiration,
     error_cause
@@ -34,7 +34,7 @@ type CreateMinerDealParams struct {
 	StorageDealID  broker.StorageDealID `json:"storageDealID"`
 	AuctionID      auction.AuctionID    `json:"auctionID"`
 	BidID          auction.BidID        `json:"bidID"`
-	MinerAddr      string               `json:"minerAddr"`
+	MinerID        string               `json:"minerID"`
 	DealID         int64                `json:"dealID"`
 	DealExpiration uint64               `json:"dealExpiration"`
 	ErrorCause     string               `json:"errorCause"`
@@ -45,7 +45,7 @@ func (q *Queries) CreateMinerDeal(ctx context.Context, arg CreateMinerDealParams
 		arg.StorageDealID,
 		arg.AuctionID,
 		arg.BidID,
-		arg.MinerAddr,
+		arg.MinerID,
 		arg.DealID,
 		arg.DealExpiration,
 		arg.ErrorCause,
@@ -54,7 +54,7 @@ func (q *Queries) CreateMinerDeal(ctx context.Context, arg CreateMinerDealParams
 }
 
 const getMinerDeals = `-- name: GetMinerDeals :many
-SELECT storage_deal_id, auction_id, bid_id, miner_addr, deal_id, deal_expiration, error_cause, created_at, updated_at FROM miner_deals WHERE storage_deal_id = $1
+SELECT storage_deal_id, auction_id, bid_id, miner_id, deal_id, deal_expiration, error_cause, created_at, updated_at FROM miner_deals WHERE storage_deal_id = $1
 `
 
 func (q *Queries) GetMinerDeals(ctx context.Context, storageDealID broker.StorageDealID) ([]MinerDeal, error) {
@@ -70,7 +70,7 @@ func (q *Queries) GetMinerDeals(ctx context.Context, storageDealID broker.Storag
 			&i.StorageDealID,
 			&i.AuctionID,
 			&i.BidID,
-			&i.MinerAddr,
+			&i.MinerID,
 			&i.DealID,
 			&i.DealExpiration,
 			&i.ErrorCause,
@@ -95,12 +95,12 @@ UPDATE miner_deals
 SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
-WHERE storage_deal_id = $1 AND miner_addr = $2
+WHERE storage_deal_id = $1 AND miner_id = $2
 `
 
 type UpdateMinerDealsParams struct {
 	StorageDealID  broker.StorageDealID `json:"storageDealID"`
-	MinerAddr      string               `json:"minerAddr"`
+	MinerID        string               `json:"minerID"`
 	DealID         int64                `json:"dealID"`
 	DealExpiration uint64               `json:"dealExpiration"`
 	ErrorCause     string               `json:"errorCause"`
@@ -109,7 +109,7 @@ type UpdateMinerDealsParams struct {
 func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsParams) (int64, error) {
 	result, err := q.exec(ctx, q.updateMinerDealsStmt, updateMinerDeals,
 		arg.StorageDealID,
-		arg.MinerAddr,
+		arg.MinerID,
 		arg.DealID,
 		arg.DealExpiration,
 		arg.ErrorCause,

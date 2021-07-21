@@ -119,8 +119,6 @@ services:
       - BROKER_LOG_JSON=false
       - BROKER_IPFS_API_MULTIADDR=/dns4/ipfs/tcp/5001
       - BROKER_RPC_ADDR=:5000
-      # - BROKER_MONGO_URI=mongodb://mongo:27017
-      # - BROKER_MONGO_DBNAME=brokerd
       - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_REPLICATION=1
       - BROKER_DEAL_DURATION=1051200
@@ -197,14 +195,18 @@ services:
       context: .
       dockerfile: ./cmd/dealerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./dealerd"]
     environment:
       - DEALER_LOG_DEBUG=true
       - DEALER_LOG_JSON=false
-      - DEALER_MONGO_URI=mongodb://mongo:27017
-      - DEALER_MONGO_DBNAME=dealerd
       - DEALER_MOCK=true
       - DEALER_MSGBROKER_TOPIC_PREFIX=test
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=dealerd
     security_opt:
       - "seccomp:unconfined"
     cap_add:

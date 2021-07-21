@@ -2,13 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
-	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
@@ -22,8 +20,7 @@ var log = golog.Logger("dealer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	MongoDBName string
-	MongoURI    string
+	PostgresURI string
 
 	LotusGatewayURL         string
 	LotusExportedWalletAddr string
@@ -43,18 +40,7 @@ type Service struct {
 
 // New returns a new Service.
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
-	if err := validateConfig(conf); err != nil {
-		return nil, fmt.Errorf("config is invalid: %s", err)
-	}
-
 	fin := finalizer.NewFinalizer()
-
-	ds, err := dshelper.NewMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("creating datastore: %s", err)
-	}
-	fin.Add(ds)
-
 	var lib dealeri.Dealer
 	if conf.Mock {
 		log.Warnf("running in mocked mode")
@@ -69,7 +55,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 			http.Header{},
 		)
 		if err != nil {
-			return nil, fin.Cleanupf("creating lotus gateway client: %s", err)
+			return nil, fmt.Errorf("creating lotus gateway client: %s", err)
 		}
 		fin.Add(&nopCloser{closer})
 
@@ -82,7 +68,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}
-		libi, err := dealer.New(ds, mb, filclient)
+		libi, err := dealer.New(conf.PostgresURI, mb, filclient)
 		if err != nil {
 			return nil, fin.Cleanupf("creating dealer: %v", err)
 		}
@@ -115,17 +101,6 @@ func (s *Service) OnReadyToCreateDeals(ctx context.Context, ads dealeri.AuctionD
 func (s *Service) Close() error {
 	defer log.Info("service was shutdown")
 	return s.finalizer.Cleanup(nil)
-}
-
-func validateConfig(conf Config) error {
-	if conf.MongoDBName == "" {
-		return errors.New("mongo db name is empty")
-	}
-	if conf.MongoURI == "" {
-		return errors.New("mongo uri is empty")
-	}
-
-	return nil
 }
 
 type nopCloser struct {

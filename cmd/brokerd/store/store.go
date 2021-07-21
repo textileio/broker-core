@@ -55,25 +55,6 @@ func New(postgresURI string) (*Store, error) {
 	return &Store{conn: conn, db: db.New(conn)}, nil
 }
 
-// TxOptions allows the coller of CtxWithTx to control various options to the transaction.
-type TxOptions func(o *sql.TxOptions) *sql.TxOptions
-
-// TxWithIsolation tells the DB driver the isolation level of the transaction.
-func TxWithIsolation(level sql.IsolationLevel) func(o *sql.TxOptions) *sql.TxOptions {
-	return func(o *sql.TxOptions) *sql.TxOptions {
-		o.Isolation = level
-		return o
-	}
-}
-
-// TxReadonly signals the DB driver that the transaction is read-only.
-func TxReadonly() func(o *sql.TxOptions) *sql.TxOptions {
-	return func(o *sql.TxOptions) *sql.TxOptions {
-		o.ReadOnly = true
-		return o
-	}
-}
-
 // CtxWithTx attach a database transaction to the context. It returns the
 // context unchanged if there's error starting the transaction.
 func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (context.Context, error) {
@@ -427,7 +408,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 				StorageDealID: auction.StorageDealID,
 				AuctionID:     auction.ID,
 				BidID:         bidID,
-				MinerAddr:     bid.MinerAddr,
+				MinerID:       bid.MinerID,
 			}); err != nil {
 				return fmt.Errorf("save storage deal: %s", err)
 			}
@@ -500,7 +481,7 @@ func (s *Store) SaveMinerDeals(ctx context.Context, fad broker.FinalizedDeal) er
 		rows, err := q.UpdateMinerDeals(ctx,
 			db.UpdateMinerDealsParams{
 				StorageDealID:  fad.StorageDealID,
-				MinerAddr:      fad.Miner,
+				MinerID:        fad.Miner,
 				DealExpiration: fad.DealExpiration,
 				DealID:         fad.DealID,
 				ErrorCause:     fad.ErrorCause,
