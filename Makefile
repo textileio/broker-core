@@ -73,7 +73,7 @@ up:
 
 up-patched:
 	./tests/buildx_patch.sh
-	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
+	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build -V
 .PHONY: up-patched
 
 down:
