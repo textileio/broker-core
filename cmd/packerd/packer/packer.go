@@ -160,52 +160,55 @@ func (p *Packer) daemon() {
 
 // TODO(jsign): review logging.
 func (p *Packer) pack(ctx context.Context) (int, error) {
-	// TODO(jsign): rename bbrs
-	batch, bbrs, ok, err := p.store.GetNextReadyBatch()
+	batchID, batchSize, srs, ok, err := p.store.GetNextReadyBatch()
 	if err != nil {
 		return 0, fmt.Errorf("get next ready batch: %s", err)
 	}
 	if !ok {
 		return 0, nil
 	}
-	log.Debugf("preparing ready batch-id %s with %d storage-request", batch.BatchID, len(bbrs))
+	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
 	start := time.Now()
-	batchCid, err := p.createDAGForBatch(ctx, bbrs)
+	batchCid, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
 
-	if err := p.store.MoveBatchToStatus(ctx, batch.BatchID, store.StatusDone); err != nil {
-		return 0, fmt.Errorf("moving batch %s to done: %s", batch.BatchID, err)
+	if err := p.store.MoveBatchToStatus(ctx, batchID, store.StatusDone); err != nil {
+		return 0, fmt.Errorf("moving batch %s to done: %s", batchID, err)
 	}
 
-	brids := make([]broker.BrokerRequestID, len(bbrs))
-	for i, bbr := range bbrs {
-		brids[i] = bbr.BrokerRequestID
+	srIDs := make([]broker.BrokerRequestID, len(srs))
+	for i, sr := range srs {
+		srIDs[i] = sr.StorageRequestID
 	}
-	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batch.BatchID, batchCid, brids); err != nil {
+	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batchID, batchCid, srIDs); err != nil {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
 	p.metricNewBatch.Add(ctx, 1)
 	p.statLastBatch = time.Now()
-	p.statLastBatchCount = int64(len(bbrs))
-	p.statLastBatchSize = batch.Size
+	p.statLastBatchCount = int64(len(srIDs))
+	p.statLastBatchSize = batchSize
 	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
 		"batch created: {batch-id: %s, batch-cid: %s, num-storage-requests: %d, batch-size: %d}",
-		batch.BatchID, batchCid, len(bbrs), batch.Size)
+		batchID, batchCid, len(srIDs), batchSize)
 
-	return len(bbrs), nil
+	return len(srIDs), nil
 }
 
-func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.StorageRequest) (cid.Cid, error) {
-	lst := make([]aggregator.AggregateDagEntry, len(bbrs))
-	for i, bbr := range bbrs {
+func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageRequest) (cid.Cid, error) {
+	lst := make([]aggregator.AggregateDagEntry, len(srs))
+	for i, sr := range srs {
+		dataCid, err := cid.Decode(sr.DataCid)
+		if err != nil {
+			return cid.Undef, fmt.Errorf("decoding cid %s: %s", err)
+		}
 		lst[i] = aggregator.AggregateDagEntry{
-			RootCid:                   bbr.DataCid,
-			UniqueBlockCumulativeSize: uint64(bbr.Size),
+			RootCid:                   dataCid,
+			UniqueBlockCumulativeSize: uint64(sr.Size),
 		}
 	}
 	start := time.Now()

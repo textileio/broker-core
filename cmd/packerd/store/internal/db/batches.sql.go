@@ -11,7 +11,7 @@ import (
 
 const addStorageRequestInBatch = `-- name: AddStorageRequestInBatch :exec
 INSERT INTO storage_requests (operation_id, storage_request_id, data_cid, batch_id)
-VALUES ($1, $2, $3, $4)
+VALUES ($1,$2,$3,$4)
 `
 
 type AddStorageRequestInBatchParams struct {
@@ -44,7 +44,7 @@ const findOpenBatchWithSpace = `-- name: FindOpenBatchWithSpace :one
 SELECT batch_id, status, total_size, created_at, updated_at
 FROM batches
 WHERE status = 'open' AND
-      total_size <= $1
+      total_size<=$1
 ORDER BY created_at
 FOR UPDATE
 LIMIT 1
@@ -63,10 +63,67 @@ func (q *Queries) FindOpenBatchWithSpace(ctx context.Context, totalSize int64) (
 	return i, err
 }
 
+const getNextReadyBatch = `-- name: GetNextReadyBatch :one
+UPDATE batches
+SET status = 'executing', updated_at = CURRENT_TIMESTAMP
+WHERE batch_id = (SELECT b.batch_id FROM batches b
+	          WHERE b.status = 'ready'
+		  ORDER BY b.updated_at asc
+		  FOR UPDATE SKIP LOCKED
+	          LIMIT 1)
+RETURNING batch_id, total_size
+`
+
+type GetNextReadyBatchRow struct {
+	BatchID   broker.StorageDealID `json:"batchID"`
+	TotalSize int64                `json:"totalSize"`
+}
+
+func (q *Queries) GetNextReadyBatch(ctx context.Context) (GetNextReadyBatchRow, error) {
+	row := q.queryRow(ctx, q.getNextReadyBatchStmt, getNextReadyBatch)
+	var i GetNextReadyBatchRow
+	err := row.Scan(&i.BatchID, &i.TotalSize)
+	return i, err
+}
+
+const getStorageRequestFromBatch = `-- name: GetStorageRequestFromBatch :many
+SELECT operation_id, storage_request_id, data_cid, batch_id, created_at, updated_at FROM storage_requests where batch_id=$1
+`
+
+func (q *Queries) GetStorageRequestFromBatch(ctx context.Context, batchID broker.StorageDealID) ([]StorageRequest, error) {
+	rows, err := q.query(ctx, q.getStorageRequestFromBatchStmt, getStorageRequestFromBatch, batchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StorageRequest
+	for rows.Next() {
+		var i StorageRequest
+		if err := rows.Scan(
+			&i.OperationID,
+			&i.StorageRequestID,
+			&i.DataCid,
+			&i.BatchID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const moveBatchToStatus = `-- name: MoveBatchToStatus :execrows
 UPDATE batches
-SET status = $2, updated_at = CURRENT_TIMESTAMP
-WHERE batch_id = $1
+SET status=$2, updated_at = CURRENT_TIMESTAMP
+WHERE batch_id=$1
 `
 
 type MoveBatchToStatusParams struct {
@@ -84,8 +141,8 @@ func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusPa
 
 const updateBatchSize = `-- name: UpdateBatchSize :exec
 UPDATE batches
-SET total_size = $2
-WHERE batch_id = $1
+SET total_size=$2
+WHERE batch_id=$1
 `
 
 type UpdateBatchSizeParams struct {

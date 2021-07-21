@@ -30,6 +30,7 @@ func (p *Packer) daemonExportMetrics() {
 	metricPendingCounter = batchObs.NewInt64ValueObserver(metrics.Prefix + ".pending_count")
 	metricPendingBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".pending_bytes")
 	metricOpenBatchCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batch_count")
+	// TODO(jsign): more metrics
 
 	for {
 		start := time.Now()
@@ -38,7 +39,7 @@ func (p *Packer) daemonExportMetrics() {
 			log.Errorf("getting stats: %s", err)
 			continue
 		}
-		log.Debugf("get stats took %dms", time.Since(start).Milliseconds())
+		log.Debugf("metrics stats took %dms", time.Since(start).Milliseconds())
 
 		pendingCount = newPendingCount
 		pendingBytes = newPendingBytes
