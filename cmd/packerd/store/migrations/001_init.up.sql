@@ -10,9 +10,10 @@ CREATE TABLE IF NOT EXISTS batches (
 CREATE INDEX batches_status_idx ON batches(status, created_at);
 
 CREATE TABLE IF NOT EXISTS storage_requests (
-    storage_request_id TEXT PRIMARY KEY,
+    operation_id TEXT PRIMARY KEY,
+    storage_request_id TEXT NOT NULL,
     data_cid TEXT NOT NULL,
-    batch_id TEXT,
+    batch_id TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     

@@ -507,7 +507,7 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 func PublishMsgNewBatchCreated(
 	ctx context.Context,
 	mb MsgBroker,
-	batchID string,
+	batchID broker.StorageDealID,
 	batchCid cid.Cid,
 	brIDs []broker.BrokerRequestID) error {
 	brids := make([]string, len(brIDs))
@@ -515,7 +515,7 @@ func PublishMsgNewBatchCreated(
 		brids[i] = string(bbr)
 	}
 	msg := &pb.NewBatchCreated{
-		Id:               batchID,
+		Id:               string(batchID),
 		BatchCid:         batchCid.Bytes(),
 		BrokerRequestIds: brids,
 	}

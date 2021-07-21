@@ -7,7 +7,6 @@ import (
 
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
@@ -18,8 +17,7 @@ var log = golog.Logger("packer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	MongoDBName string
-	MongoURI    string
+	PostgresURI string
 
 	IpfsAPIMultiaddr string
 
@@ -44,12 +42,6 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 
 	fin := finalizer.NewFinalizer()
 
-	ds, err := dshelper.NewMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("creating datastore: %s", err)
-	}
-	fin.Add(ds)
-
 	ma, err := multiaddr.NewMultiaddr(conf.IpfsAPIMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
@@ -64,7 +56,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
 
-	lib, err := packer.New(ds, ipfsClient, mb, opts...)
+	lib, err := packer.New(conf.PostgresURI, ipfsClient, mb, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
@@ -86,7 +78,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 func (s *Service) OnReadyToBatch(ctx context.Context, readyDataCids []mbroker.ReadyToBatchData) error {
 	for _, rdc := range readyDataCids {
 		if err := s.packer.ReadyToBatch(ctx, rdc.BrokerRequestID, rdc.DataCid); err != nil {
-			return fmt.Errorf("queuing broker request: %s", err)
+			return fmt.Errorf("processing ready to batch: %s", err)
 		}
 	}
 
@@ -104,11 +96,8 @@ func validateConfig(conf Config) error {
 	if conf.IpfsAPIMultiaddr == "" {
 		return fmt.Errorf("ipfs api multiaddr is empty")
 	}
-	if conf.MongoDBName == "" {
-		return fmt.Errorf("mongo db name is empty")
-	}
-	if conf.MongoURI == "" {
-		return fmt.Errorf("mongo uri is empty")
+	if conf.PostgresURI == "" {
+		return fmt.Errorf("postgres uri is empty")
 	}
 
 	return nil

@@ -58,7 +58,20 @@ spec:
           ports:
             - name: metrics
               containerPort: 9090
+          command: ["./with-postgres.sh", "./packerd"]
           env:
+            - name: DAEMON
+              value: "packer"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: postgres-password
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: packer-db-password
             - name: PACKER_GPUBSUB_PROJECT_ID
               valueFrom:
                 secretKeyRef:

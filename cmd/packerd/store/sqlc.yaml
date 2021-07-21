@@ -13,7 +13,13 @@ packages:
     json_tags_case_style: "camel"
 
 overrides:
-  - column: "unprepared_batches.storage_deal_id"
+  - column: "storage_requests.storage_request_id"
+    go_type: "github.com/textileio/broker-core/broker.BrokerRequestID"
+  - column: "batches.batch_id"
     go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+  - column: "storage_requests.batch_id"
+    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+
+
 
 

@@ -34,6 +34,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.moveBatchToStatusStmt, err = db.PrepareContext(ctx, moveBatchToStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveBatchToStatus: %w", err)
 	}
+	if q.updateBatchSizeStmt, err = db.PrepareContext(ctx, updateBatchSize); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateBatchSize: %w", err)
+	}
 	return &q, nil
 }
 
@@ -57,6 +60,11 @@ func (q *Queries) Close() error {
 	if q.moveBatchToStatusStmt != nil {
 		if cerr := q.moveBatchToStatusStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveBatchToStatusStmt: %w", cerr)
+		}
+	}
+	if q.updateBatchSizeStmt != nil {
+		if cerr := q.updateBatchSizeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateBatchSizeStmt: %w", cerr)
 		}
 	}
 	return err
@@ -102,6 +110,7 @@ type Queries struct {
 	createOpenBatchStmt          *sql.Stmt
 	findOpenBatchWithSpaceStmt   *sql.Stmt
 	moveBatchToStatusStmt        *sql.Stmt
+	updateBatchSizeStmt          *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -112,5 +121,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createOpenBatchStmt:          q.createOpenBatchStmt,
 		findOpenBatchWithSpaceStmt:   q.findOpenBatchWithSpaceStmt,
 		moveBatchToStatusStmt:        q.moveBatchToStatusStmt,
+		updateBatchSizeStmt:          q.updateBatchSizeStmt,
 	}
 }

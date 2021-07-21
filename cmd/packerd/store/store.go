@@ -2,54 +2,59 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
-	"github.com/jackc/pgconn"
+	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/piecerd/store/internal/db"
-	"github.com/textileio/broker-core/cmd/piecerd/store/migrations"
+	"github.com/textileio/broker-core/cmd/packerd/store/internal/db"
+	"github.com/textileio/broker-core/cmd/packerd/store/migrations"
 	"github.com/textileio/broker-core/storeutil"
+	logger "github.com/textileio/go-log/v2"
 )
 
 var (
-	// ErrStorageDealExists if the provided storage deal id already exists.
-	ErrStorageDealExists = errors.New("storage-deal-id already exists")
+	log = logger.Logger("store")
+
+	// TODO(jsign): use it and tests.
+	// ErrOperationIDExists indicates that the storage request inclusion
+	// in a batch already exists.
+	ErrOperationIDExists = errors.New("operation-id already exists")
 )
 
-// UnpreparedBatchStatus is the status of an unprepared batch.
-type UnpreparedBatchStatus int
+// BatchStatus is the status of a batch
+type BatchStatus int
 
 const (
-	// StatusPending is an unprepared batch ready to prepared.
-	StatusPending UnpreparedBatchStatus = iota
-	// StatusExecuting is an unprepared batch being prepared.
-	StatusExecuting
-	// StatusDone is an unprepared batch already prepared.
+	// StatusOpen is an open batch.
+	StatusOpen BatchStatus = iota
+	// StatusReady is a ready to be created batch.
+	StatusReady
+	// StatusDone is an batch that was correctly created.
 	StatusDone
 )
-
-// UnpreparedBatch is a batch that is ready to be prepared.
-type UnpreparedBatch struct {
-	StorageDealID broker.StorageDealID
-	DataCid       cid.Cid
-	ReadyAt       time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-}
 
 // Store is a store for unprepared batches.
 type Store struct {
 	conn *sql.DB
 	db   *db.Queries
+
+	batchMaxSize int64
+	batchMinSize int64
+
+	lock    sync.Mutex
+	entropy *ulid.MonotonicEntropy
 }
 
 // New returns a new Store.
-func New(postgresURI string) (*Store, error) {
+func New(postgresURI string, batchMaxSize, batchMinSize int64) (*Store, error) {
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
@@ -60,81 +65,117 @@ func New(postgresURI string) (*Store, error) {
 	}
 
 	s := &Store{
-		conn: conn,
-		db:   db.New(conn),
+		conn:         conn,
+		db:           db.New(conn),
+		batchMaxSize: batchMaxSize,
+		batchMinSize: batchMinSize,
 	}
 
 	return s, nil
 }
 
+// CtxWithTx attach a database transaction to the context. It returns the
+// context unchanged if there's error starting the transaction.
+func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (context.Context, error) {
+	return storeutil.CtxWithTx(ctx, s.conn, opts...)
+}
+
 // CreateUnpreparedBatch creates a new pending unprepared batch to be prepared.
-func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.StorageDealID, dataCid cid.Cid) error {
-	if sdID == "" {
-		return errors.New("storage-deal-id is empty")
+func (s *Store) AddStorageRequestToOpenBatch(ctx context.Context, opID string, srID broker.BrokerRequestID, dataCid cid.Cid, dataSize int64) error {
+	if opID == "" {
+		return errors.New("operation-id is empty")
+	}
+	if srID == "" {
+		return errors.New("storage-request id is empty")
 	}
 	if !dataCid.Defined() {
 		return errors.New("data-cid is undefined")
 	}
-	params := db.CreateUnpreparedBatchParams{
-		StorageDealID: sdID,
-		DataCid:       dataCid.String(),
+	if dataSize == 0 {
+		return errors.New("data-size is zero")
 	}
-	if err := s.db.CreateUnpreparedBatch(ctx, params); err != nil {
-		if err, ok := err.(*pgconn.PgError); ok {
-			if err.Code == "23505" {
-				return ErrStorageDealExists
+
+	var ob db.Batch
+	if err := storeutil.MustUseTxFromCtx(ctx, func(txn *sql.Tx) error {
+		var err error
+		queries := s.db.WithTx(txn)
+
+		openBatchMaxSize := s.batchMaxSize - dataSize
+		ob, err = queries.FindOpenBatchWithSpace(ctx, openBatchMaxSize)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("find open batch: %s", err)
+		}
+
+		if err == sql.ErrNoRows {
+			log.Debugf("open batch with max size %d not found, creating new one", openBatchMaxSize)
+			newID, err := s.newID()
+			if err != nil {
+				return fmt.Errorf("create open batch id: %s", err)
+			}
+			newBatchID := broker.StorageDealID(newID)
+			if err := queries.CreateOpenBatch(ctx, newBatchID); err != nil {
+				return fmt.Errorf("creating open batch: %s", err)
+			}
+			ob = db.Batch{
+				BatchID: broker.StorageDealID(newBatchID),
+				Status:  db.BatchStatusOpen,
 			}
 		}
-		return fmt.Errorf("db create unprepared batch: %s", err)
+
+		asribParams := db.AddStorageRequestInBatchParams{
+			OperationID:      opID,
+			StorageRequestID: srID,
+			DataCid:          dataCid.String(),
+			BatchID:          ob.BatchID,
+		}
+		if err := queries.AddStorageRequestInBatch(ctx, asribParams); err != nil {
+			return fmt.Errorf("add storage request in batch: %w", err)
+		}
+
+		ubsParams := db.UpdateBatchSizeParams{
+			BatchID:   ob.BatchID,
+			TotalSize: ob.TotalSize + dataSize,
+		}
+		if err := queries.UpdateBatchSize(ctx, ubsParams); err != nil {
+			return fmt.Errorf("update batch size: %s", err)
+		}
+
+		if ubsParams.TotalSize >= s.batchMinSize {
+			mbtsParams := db.MoveBatchToStatusParams{
+				BatchID: ob.BatchID,
+				Status:  db.BatchStatusReady,
+			}
+			if _, err := queries.MoveBatchToStatus(ctx, mbtsParams); err != nil {
+				return fmt.Errorf("move batch to status: %s", err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("executing tx: %s", err)
 	}
+
+	log.Debugf("opID %s, storage-request %s, data-cid %s included in batch %s", opID, srID, dataCid, ob.BatchID)
 
 	return nil
 }
 
-// GetNextPending returns the next pending batch to process and set the status to Executing.
-// The caller is responsible for updating the status later to Pending on error, or deleting
-// the record on success.
-func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, error) {
-	ub, err := s.db.GetNextPending(ctx)
-	if err == sql.ErrNoRows {
-		return UnpreparedBatch{}, false, nil
-	}
-	if err != nil {
-		return UnpreparedBatch{}, false, fmt.Errorf("db get next pending: %s", err)
-	}
-
-	dataCid, err := cid.Decode(ub.DataCid)
-	if err != nil {
-		return UnpreparedBatch{}, false, fmt.Errorf("parsing cid %s: %s", ub.DataCid, err)
-	}
-
-	return UnpreparedBatch{
-		StorageDealID: ub.StorageDealID,
-		DataCid:       dataCid,
-		ReadyAt:       ub.ReadyAt,
-		CreatedAt:     ub.CreatedAt,
-		UpdatedAt:     ub.UpdatedAt,
-	}, true, nil
-}
-
-// MoveToStatus moves an executing unprepared job to a new status.
-func (s *Store) MoveToStatus(
+// MoveBatchToStatus moves an executing unprepared job to a new status.
+func (s *Store) MoveBatchToStatus(
 	ctx context.Context,
-	sdID broker.StorageDealID,
-	delay time.Duration,
-	status UnpreparedBatchStatus) error {
+	batchID broker.StorageDealID,
+	status BatchStatus) error {
 	dbStatus, err := statusToDB(status)
 	if err != nil {
 		return fmt.Errorf("casting status to db type: %s", err)
 	}
-	params := db.MoveToStatusParams{
-		StorageDealID: sdID,
-		ReadyAt:       time.Now().Add(delay),
-		Status:        dbStatus,
+	params := db.MoveBatchToStatusParams{
+		BatchID: batchID,
+		Status:  dbStatus,
 	}
-	count, err := s.db.MoveToStatus(ctx, params)
+	count, err := s.db.MoveBatchToStatus(ctx, params)
 	if err != nil {
-		return fmt.Errorf("delete from database: %s", err)
+		return fmt.Errorf("move batch to status: %s", err)
 	}
 	if count != 1 {
 		return fmt.Errorf("unexpected update count, got: %d, expected: 1", count)
@@ -151,15 +192,35 @@ func (s *Store) Close() error {
 	return nil
 }
 
-func statusToDB(status UnpreparedBatchStatus) (db.UnpreparedBatchStatus, error) {
+func statusToDB(status BatchStatus) (db.BatchStatus, error) {
 	switch status {
-	case StatusPending:
-		return db.UnpreparedBatchStatusPending, nil
-	case StatusExecuting:
-		return db.UnpreparedBatchStatusExecuting, nil
+	case StatusOpen:
+		return db.BatchStatusOpen, nil
+	case StatusReady:
+		return db.BatchStatusReady, nil
 	case StatusDone:
-		return db.UnpreparedBatchStatusDone, nil
+		return db.BatchStatusDone, nil
 	}
 
 	return "", fmt.Errorf("unknown status: %#v", status)
+}
+
+func (s *Store) newID() (string, error) {
+	s.lock.Lock()
+	// Not deferring unlock since can be recursive.
+
+	if s.entropy == nil {
+		s.entropy = ulid.Monotonic(rand.Reader, 0)
+	}
+	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), s.entropy)
+	if errors.Is(err, ulid.ErrMonotonicOverflow) {
+		s.entropy = nil
+		s.lock.Unlock()
+		return s.newID()
+	} else if err != nil {
+		s.lock.Unlock()
+		return "", fmt.Errorf("generating id: %v", err)
+	}
+	s.lock.Unlock()
+	return strings.ToLower(id.String()), nil
 }
