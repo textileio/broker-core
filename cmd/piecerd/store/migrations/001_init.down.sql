@@ -1,2 +1,2 @@
 DROP TABLE unprepared_batches;
-DROP TABLE unprepared_batches_statuses;
+DROP TYPE unprepared_batches_status;

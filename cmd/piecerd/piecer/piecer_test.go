@@ -51,7 +51,7 @@ func TestE2E(t *testing.T) {
 	require.Equal(t, "baga6ea4seaqabf42l52koxdzu4prvzf55a4dxnfbahilkyiqfp4yxgznifvscmy", pieceCid.String())
 	require.Equal(t, uint64(16384), nbc.PieceSize)
 
-	_, ok, err := p.s.GetNextPending(context.Background())
+	_, ok, err := p.store.GetNextPending(context.Background())
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -87,7 +87,7 @@ func TestE2EFail(t *testing.T) {
 	require.Equal(t, 0, mb.TotalPublishedTopic(msgbroker.NewBatchPreparedTopic))
 
 	// Assert that the same entry is available again to process.
-	_, ok, err := p.s.GetNextPending(context.Background())
+	_, ok, err := p.store.GetNextPending(context.Background())
 	require.NoError(t, err)
 	require.True(t, ok)
 }
