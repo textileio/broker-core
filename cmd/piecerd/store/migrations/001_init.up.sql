@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS unprepared_batches_statuses (
     id SMALLINT PRIMARY KEY,
     name TEXT NOT NULL
 );
-INSERT INTO unprepared_batches_statuses values (1, 'pending'), (2, 'executing');
+INSERT INTO unprepared_batches_statuses values (0, 'pending'), (1, 'executing');
 
 
 CREATE TABLE IF NOT EXISTS unprepared_batches (
@@ -15,3 +15,6 @@ CREATE TABLE IF NOT EXISTS unprepared_batches (
 
     CONSTRAINT fk_unprepared_batches_statuses FOREIGN KEY(status) REFERENCES unprepared_batches_statuses(id)
 );
+
+CREATE UNIQUE INDEX unprepared_batches_status_idx ON unprepared_batches (status, ready_at);
+
