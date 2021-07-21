@@ -38,7 +38,6 @@ type Piecer struct {
 	retryDelay      time.Duration
 	newRequest      chan struct{}
 
-	onceClose       sync.Once
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
@@ -126,10 +125,11 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.StorageDealID, 
 // Close closes the piecer.
 func (p *Piecer) Close() error {
 	log.Info("closing piecer...")
-	p.onceClose.Do(func() {
-		p.daemonCancelCtx()
-		<-p.daemonClosed
-	})
+	p.daemonCancelCtx()
+	<-p.daemonClosed
+	if err := p.s.Close(); err != nil {
+		return fmt.Errorf("closing store: %s", err)
+	}
 	return nil
 }
 
