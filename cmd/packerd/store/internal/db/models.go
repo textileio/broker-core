@@ -12,9 +12,10 @@ import (
 type BatchStatus string
 
 const (
-	BatchStatusOpen  BatchStatus = "open"
-	BatchStatusReady BatchStatus = "ready"
-	BatchStatusDone  BatchStatus = "done"
+	BatchStatusOpen      BatchStatus = "open"
+	BatchStatusReady     BatchStatus = "ready"
+	BatchStatusExecuting BatchStatus = "executing"
+	BatchStatusDone      BatchStatus = "done"
 )
 
 func (e *BatchStatus) Scan(src interface{}) error {

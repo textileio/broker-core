@@ -31,6 +31,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.findOpenBatchWithSpaceStmt, err = db.PrepareContext(ctx, findOpenBatchWithSpace); err != nil {
 		return nil, fmt.Errorf("error preparing query FindOpenBatchWithSpace: %w", err)
 	}
+	if q.getNextReadyBatchStmt, err = db.PrepareContext(ctx, getNextReadyBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNextReadyBatch: %w", err)
+	}
+	if q.getStorageRequestFromBatchStmt, err = db.PrepareContext(ctx, getStorageRequestFromBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query GetStorageRequestFromBatch: %w", err)
+	}
 	if q.moveBatchToStatusStmt, err = db.PrepareContext(ctx, moveBatchToStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveBatchToStatus: %w", err)
 	}
@@ -55,6 +61,16 @@ func (q *Queries) Close() error {
 	if q.findOpenBatchWithSpaceStmt != nil {
 		if cerr := q.findOpenBatchWithSpaceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing findOpenBatchWithSpaceStmt: %w", cerr)
+		}
+	}
+	if q.getNextReadyBatchStmt != nil {
+		if cerr := q.getNextReadyBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNextReadyBatchStmt: %w", cerr)
+		}
+	}
+	if q.getStorageRequestFromBatchStmt != nil {
+		if cerr := q.getStorageRequestFromBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getStorageRequestFromBatchStmt: %w", cerr)
 		}
 	}
 	if q.moveBatchToStatusStmt != nil {
@@ -104,23 +120,27 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                           DBTX
-	tx                           *sql.Tx
-	addStorageRequestInBatchStmt *sql.Stmt
-	createOpenBatchStmt          *sql.Stmt
-	findOpenBatchWithSpaceStmt   *sql.Stmt
-	moveBatchToStatusStmt        *sql.Stmt
-	updateBatchSizeStmt          *sql.Stmt
+	db                             DBTX
+	tx                             *sql.Tx
+	addStorageRequestInBatchStmt   *sql.Stmt
+	createOpenBatchStmt            *sql.Stmt
+	findOpenBatchWithSpaceStmt     *sql.Stmt
+	getNextReadyBatchStmt          *sql.Stmt
+	getStorageRequestFromBatchStmt *sql.Stmt
+	moveBatchToStatusStmt          *sql.Stmt
+	updateBatchSizeStmt            *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                           tx,
-		tx:                           tx,
-		addStorageRequestInBatchStmt: q.addStorageRequestInBatchStmt,
-		createOpenBatchStmt:          q.createOpenBatchStmt,
-		findOpenBatchWithSpaceStmt:   q.findOpenBatchWithSpaceStmt,
-		moveBatchToStatusStmt:        q.moveBatchToStatusStmt,
-		updateBatchSizeStmt:          q.updateBatchSizeStmt,
+		db:                             tx,
+		tx:                             tx,
+		addStorageRequestInBatchStmt:   q.addStorageRequestInBatchStmt,
+		createOpenBatchStmt:            q.createOpenBatchStmt,
+		findOpenBatchWithSpaceStmt:     q.findOpenBatchWithSpaceStmt,
+		getNextReadyBatchStmt:          q.getNextReadyBatchStmt,
+		getStorageRequestFromBatchStmt: q.getStorageRequestFromBatchStmt,
+		moveBatchToStatusStmt:          q.moveBatchToStatusStmt,
+		updateBatchSizeStmt:            q.updateBatchSizeStmt,
 	}
 }

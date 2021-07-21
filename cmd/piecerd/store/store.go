@@ -92,8 +92,7 @@ func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.StorageDe
 }
 
 // GetNextPending returns the next pending batch to process and set the status to Executing.
-// The caller is responsible for updating the status later to Pending on error, or deleting
-// the record on success.
+// The caller is responsible for updating the status later to Pending on error, or Done on success.
 func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, error) {
 	ub, err := s.db.GetNextPending(ctx)
 	if err == sql.ErrNoRows {

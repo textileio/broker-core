@@ -37,9 +37,13 @@ const (
 	StatusOpen BatchStatus = iota
 	// StatusReady is a ready to be created batch.
 	StatusReady
+	// StatusExecuting is a batch being processed.
+	StatusExecuting
 	// StatusDone is an batch that was correctly created.
 	StatusDone
 )
+
+type StorageRequest = db.StorageRequest
 
 // Store is a store for unprepared batches.
 type Store struct {
@@ -184,6 +188,26 @@ func (s *Store) MoveBatchToStatus(
 	return nil
 }
 
+// GetNextReadyBatch returns the next ready batch to be processed batch and changes the
+// status to Executing.
+// The caller is responsible for updating the status later to Ready on error, or Done on success.
+func (s *Store) GetNextReadyBatch(ctx context.Context) (broker.StorageDealID, int64, []StorageRequest, bool, error) {
+	rb, err := s.db.GetNextReadyBatch(ctx)
+	if err == sql.ErrNoRows {
+		return "", 0, nil, false, nil
+	}
+	if err != nil {
+		return "", 0, nil, false, fmt.Errorf("db get next ready: %s", err)
+	}
+
+	srs, err := s.db.GetStorageRequestFromBatch(ctx, rb.BatchID)
+	if err != nil {
+		return "", 0, nil, false, nil
+	}
+
+	return rb.BatchID, rb.TotalSize, srs, true, nil
+}
+
 // Close closes the store.
 func (s *Store) Close() error {
 	if err := s.conn.Close(); err != nil {
@@ -198,6 +222,8 @@ func statusToDB(status BatchStatus) (db.BatchStatus, error) {
 		return db.BatchStatusOpen, nil
 	case StatusReady:
 		return db.BatchStatusReady, nil
+	case StatusExecuting:
+		return db.BatchStatusExecuting, nil
 	case StatusDone:
 		return db.BatchStatusDone, nil
 	}

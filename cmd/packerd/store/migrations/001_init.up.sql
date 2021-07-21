@@ -1,4 +1,4 @@
-CREATE TYPE batch_status AS ENUM ('open','ready','done');
+CREATE TYPE batch_status AS ENUM ('open','ready','executing','done');
 
 CREATE TABLE IF NOT EXISTS batches (
     batch_id TEXT PRIMARY KEY,
