@@ -110,7 +110,7 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.StorageDealID, 
 	}
 
 	if err := p.s.CreateUnpreparedBatch(ctx, sdID, dataCid); err != nil {
-		return fmt.Errorf("creating unprepared-batch %s %s: %s", sdID, dataCid, err)
+		return fmt.Errorf("creating unprepared-batch %s %s: %w", sdID, dataCid, err)
 	}
 	log.Debugf("saved unprepared-batch with storage-deal %s and data-cid %s", sdID, dataCid)
 
@@ -157,15 +157,15 @@ func (p *Piecer) daemon() {
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
 				log.Errorf("preparing storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
-				if err := p.s.MoveToPending(p.daemonCtx, usd.StorageDealID, p.retryDelay); err != nil {
+				if err := p.s.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
 
-			if err := p.s.DeleteUnpreparedBatch(p.daemonCtx, usd.StorageDealID); err != nil {
+			if err := p.s.MoveToStatus(p.daemonCtx, usd.StorageDealID, 0, store.StatusDone); err != nil {
 				log.Errorf("deleting storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
-				if err := p.s.MoveToPending(p.daemonCtx, usd.StorageDealID, p.retryDelay); err != nil {
+				if err := p.s.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break

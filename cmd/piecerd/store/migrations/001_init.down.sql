@@ -1,1 +1,2 @@
 DROP TABLE unprepared_batches;
+DROP TABLE unprepared_batches_statuses;

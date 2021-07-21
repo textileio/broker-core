@@ -9,10 +9,27 @@ import (
 
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgconn"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/piecerd/store/migrations"
 	"github.com/textileio/broker-core/storeutil"
+)
+
+var (
+	ErrStorageDealIDExists = errors.New("storage-deal-id already exists")
+)
+
+// UnpreparedBatchStatus is the status of an unprepared batch.
+type UnpreparedBatchStatus int
+
+const (
+	// StatusPending is an unprepared batch ready to prepared.
+	StatusPending UnpreparedBatchStatus = iota
+	// StatusPending is an unprepared batch being prepared.
+	StatusExecuting
+	// StatusDone is an unprepared batch already prepared.
+	StatusDone
 )
 
 // UnpreparedBatch is a batch that is ready to be prepared.
@@ -62,6 +79,11 @@ func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.StorageDe
 		DataCid:       dataCid.String(),
 	}
 	if err := s.db.CreateUnpreparedBatch(ctx, params); err != nil {
+		if err, ok := err.(*pgconn.PgError); ok {
+			if err.Code == "23505" {
+				return ErrStorageDealIDExists
+			}
+		}
 		return fmt.Errorf("db create unprepared batch: %s", err)
 	}
 
@@ -94,26 +116,14 @@ func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, erro
 	}, true, nil
 }
 
-// DeleteUnpreparedBatch deletes an Executing unprepared batch.
-func (s *Store) DeleteUnpreparedBatch(ctx context.Context, sdID broker.StorageDealID) error {
-	count, err := s.db.DeleteUnpreparedBatch(ctx, sdID)
-	if err != nil {
-		return fmt.Errorf("delete from database: %s", err)
-	}
-	if count != 1 {
-		return fmt.Errorf("unexpected update count, got: %d, expected: 1", count)
-	}
-
-	return nil
-}
-
-// MoveToPending moves an executing unprepared job to pending status.
-func (s *Store) MoveToPending(ctx context.Context, sdID broker.StorageDealID, delay time.Duration) error {
-	params := db.MoveToPendingParams{
+// MoveToStatus moves an executing unprepared job to a new status.
+func (s *Store) MoveToStatus(ctx context.Context, sdID broker.StorageDealID, delay time.Duration, status UnpreparedBatchStatus) error {
+	params := db.MoveToStatusParams{
 		StorageDealID: sdID,
 		ReadyAt:       time.Now().Add(delay),
+		Status:        int16(status),
 	}
-	count, err := s.db.MoveToPending(ctx, params)
+	count, err := s.db.MoveToStatus(ctx, params)
 	if err != nil {
 		return fmt.Errorf("delete from database: %s", err)
 	}

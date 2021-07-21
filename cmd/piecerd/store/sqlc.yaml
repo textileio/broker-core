@@ -16,3 +16,4 @@ overrides:
   - column: "unprepared_batches.storage_deal_id"
     go_type: "github.com/textileio/broker-core/broker.StorageDealID"
 
+
