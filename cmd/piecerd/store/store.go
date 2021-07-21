@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	ErrStorageDealIDExists = errors.New("storage-deal-id already exists")
+	// ErrStorageDealExists if the provided storage deal id already exists.
+	ErrStorageDealExists = errors.New("storage-deal-id already exists")
 )
 
 // UnpreparedBatchStatus is the status of an unprepared batch.
@@ -26,7 +27,7 @@ type UnpreparedBatchStatus int
 const (
 	// StatusPending is an unprepared batch ready to prepared.
 	StatusPending UnpreparedBatchStatus = iota
-	// StatusPending is an unprepared batch being prepared.
+	// StatusExecuting is an unprepared batch being prepared.
 	StatusExecuting
 	// StatusDone is an unprepared batch already prepared.
 	StatusDone
@@ -81,7 +82,7 @@ func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.StorageDe
 	if err := s.db.CreateUnpreparedBatch(ctx, params); err != nil {
 		if err, ok := err.(*pgconn.PgError); ok {
 			if err.Code == "23505" {
-				return ErrStorageDealIDExists
+				return ErrStorageDealExists
 			}
 		}
 		return fmt.Errorf("db create unprepared batch: %s", err)
@@ -117,7 +118,11 @@ func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, erro
 }
 
 // MoveToStatus moves an executing unprepared job to a new status.
-func (s *Store) MoveToStatus(ctx context.Context, sdID broker.StorageDealID, delay time.Duration, status UnpreparedBatchStatus) error {
+func (s *Store) MoveToStatus(
+	ctx context.Context,
+	sdID broker.StorageDealID,
+	delay time.Duration,
+	status UnpreparedBatchStatus) error {
 	params := db.MoveToStatusParams{
 		StorageDealID: sdID,
 		ReadyAt:       time.Now().Add(delay),

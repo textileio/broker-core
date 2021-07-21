@@ -66,7 +66,7 @@ func TestIdempotency(t *testing.T) {
 	require.NoError(t, err)
 
 	err = p.ReadyToPrepare(context.Background(), sdID, dataCid)
-	require.ErrorIs(t, err, store.ErrStorageDealIDExists)
+	require.ErrorIs(t, err, store.ErrStorageDealExists)
 }
 
 func TestE2EFail(t *testing.T) {
