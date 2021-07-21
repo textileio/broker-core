@@ -48,7 +48,7 @@ message GetBrokerRequestInfoResponse {
   repeated BrokerRequestDeal deals = 2;
 
   message BrokerRequestDeal {
-	  string miner = 1;
+	  string miner_id = 1;
 	  int64 deal_id = 2;
 	  uint64 expiration = 3;
   }
@@ -89,7 +89,7 @@ message ReadyToCreateDeals {
   repeated Proposal proposals = 6;
 
   message Proposal {
-    string miner = 1;
+    string miner_id = 1;
     int64 price_per_gib_per_epoch = 2;
     uint64 start_epoch = 3;
     bool verified = 4;
@@ -117,7 +117,7 @@ message NewBatchCreated {
 
 message DealProposalAccepted {
   string storage_deal_id = 1;
-  string miner = 2;
+  string miner_id = 2;
   bytes proposal_cid = 3;
   string auction_id = 4;
   string bid_id = 5;
@@ -141,7 +141,7 @@ message AuctionClosed {
     }
 
     message WinningBid {
-        string miner_addr = 1;
+        string miner_id = 1;
         int64 price = 2;
         uint64 start_epoch = 3;
         bool fast_retrieval = 4;

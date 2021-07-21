@@ -4,4 +4,17 @@ metadata:
   name: dealer-01
 spec:
   replicas: 1
+  template:
+    spec:
+      containers:
+        - name: cloud-sql-proxy
+          image: gcr.io/cloudsql-docker/gce-proxy:1.17
+          command:
+            - "/cloud_sql_proxy"
+            - "-instances=textile-310716:us-west1:broker-edge=tcp:5432"
+          resources:
+            requests:
+              memory: "10Mi"
+              cpu:    "0.1"
+
 

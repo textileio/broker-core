@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 )
 
 func TestExecuteAuctionDeal(t *testing.T) {
@@ -35,8 +35,8 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		Duration:   525600,
 	}
 	aud := store.AuctionDeal{
-		Miner:               "f01278",
-		PricePerGiBPerEpoch: 0,
+		MinerID:             "f01278",
+		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            false,
 		FastRetrieval:       true,

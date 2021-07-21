@@ -63,7 +63,7 @@ func FromProtoBrokerRequestInfo(brproto *pb.GetBrokerRequestInfoResponse) (broke
 	}
 	for i, d := range brproto.Deals {
 		deal := broker.BrokerRequestDeal{
-			Miner:      d.Miner,
+			MinerID:    d.MinerId,
 			DealID:     d.DealId,
 			Expiration: d.Expiration,
 		}
@@ -115,7 +115,7 @@ func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequest
 	deals := make([]*pb.GetBrokerRequestInfoResponse_BrokerRequestDeal, len(br.Deals))
 	for i, d := range br.Deals {
 		deal := &pb.GetBrokerRequestInfoResponse_BrokerRequestDeal{
-			Miner:      d.Miner,
+			MinerId:    d.MinerID,
 			DealId:     d.DealID,
 			Expiration: d.Expiration,
 		}

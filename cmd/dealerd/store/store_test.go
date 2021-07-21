@@ -1,25 +1,28 @@
 package store
 
 import (
-	"bytes"
-	"encoding/gob"
+	"context"
+	"database/sql"
 	"sort"
 	"testing"
 
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/dealerd/store/internal/db"
 	"github.com/textileio/broker-core/tests"
 )
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	s, err := New(tests.NewTxMapDatastore())
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
 	require.NoError(t, err)
 
 	ad := gad1
 	aud := gaud1
-	err = s.Create(&ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 	require.NoError(t, err)
 	deepCheckAuctionData(t, s, ad)
 	deepCheckAuctionDeals(t, s, aud)
@@ -27,7 +30,9 @@ func TestCreate(t *testing.T) {
 
 func TestCreateFail(t *testing.T) {
 	t.Parallel()
-	s, err := New(tests.NewTxMapDatastore())
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
 	require.NoError(t, err)
 
 	t.Run("auction-data duration 0", func(t *testing.T) {
@@ -35,7 +40,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.Duration = 0
 		aud := gaud1
-		err := s.Create(&ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef storage deal id", func(t *testing.T) {
@@ -43,7 +48,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.StorageDealID = ""
 		aud := gaud1
-		err := s.Create(&ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef payload cid", func(t *testing.T) {
@@ -51,7 +56,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PayloadCid = cid.Undef
 		aud := gaud1
-		err := s.Create(&ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef piece cid", func(t *testing.T) {
@@ -59,7 +64,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PieceCid = cid.Undef
 		aud := gaud1
-		err := s.Create(&ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 	t.Run("auction-data piece size 0", func(t *testing.T) {
@@ -67,7 +72,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PieceSize = 0
 		aud := gaud1
-		err := s.Create(&ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 
@@ -75,16 +80,16 @@ func TestCreateFail(t *testing.T) {
 		t.Parallel()
 		ad := gad1
 		aud := gaud1
-		aud.Miner = ""
-		err := s.Create(&ad, []*AuctionDeal{&aud})
+		aud.MinerID = ""
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 	t.Run("auction-deal negative price", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
 		aud := gaud1
-		aud.PricePerGiBPerEpoch = -1
-		err := s.Create(&ad, []*AuctionDeal{&aud})
+		aud.PricePerGibPerEpoch = -1
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 	t.Run("auction-deal start epoch 0", func(t *testing.T) {
@@ -92,20 +97,21 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		aud := gaud1
 		aud.StartEpoch = 0
-		err = s.Create(&ad, []*AuctionDeal{&aud})
+		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
 }
 
 func TestSaveAuctionDeal(t *testing.T) {
 	t.Parallel()
-
-	s, err := New(tests.NewTxMapDatastore())
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
 	require.NoError(t, err)
 
 	ad := gad1
 	aud := gaud1
-	err = s.Create(&ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 	require.NoError(t, err)
 
 	auds, err := s.getAllPending()
@@ -113,10 +119,10 @@ func TestSaveAuctionDeal(t *testing.T) {
 	require.Len(t, auds, 1)
 
 	auds[0].ErrorCause = "duke"
-	auds[0].ProposalCid = castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jZ1")
+	auds[0].ProposalCid = "QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jZ1"
 	auds[0].DealID = 1234
 	auds[0].DealExpiration = 5678
-	err = s.SaveAndMoveAuctionDeal(auds[0], PendingDealMaking)
+	err = s.SaveAndMoveAuctionDeal(context.Background(), auds[0], StatusDealMaking)
 	require.NoError(t, err)
 	deepCheckAuctionDeals(t, s, auds[0])
 }
@@ -127,101 +133,89 @@ func TestSaveAuctionDealFail(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		s, err := New(tests.NewTxMapDatastore())
+		u, err := tests.PostgresURL()
+		require.NoError(t, err)
+		s, err := New(u)
 		require.NoError(t, err)
 		aud := gaud1
 		aud.ID = "invented"
-		err = s.SaveAndMoveAuctionDeal(aud, PendingDealMaking)
+		aud.Status = db.StatusDealMaking
+		err = s.SaveAndMoveAuctionDeal(context.Background(), aud, StatusDealMaking)
 		require.Equal(t, ErrNotFound, err)
 	})
 	t.Run("wrong status transition", func(t *testing.T) {
 		t.Parallel()
 
-		s, err := New(tests.NewTxMapDatastore())
+		u, err := tests.PostgresURL()
+		require.NoError(t, err)
+		s, err := New(u)
 		require.NoError(t, err)
 		ad := gad1
 		aud := gaud1
-		err = s.Create(&ad, []*AuctionDeal{&aud})
+		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.NoError(t, err)
 		auds, err := s.getAllPending()
 		require.NoError(t, err)
 
-		auds[0].Status = PendingReportFinalized
-		err = s.SaveAndMoveAuctionDeal(auds[0], PendingReportFinalized)
+		auds[0].Status = db.StatusReportFinalized
+		err = s.SaveAndMoveAuctionDeal(context.Background(), auds[0], StatusReportFinalized)
 		require.Error(t, err)
 	})
 }
 
 func TestGetNext(t *testing.T) {
 	t.Parallel()
-	testsCases := []struct {
-		PreStatus  AuctionDealStatus
-		PostStatus AuctionDealStatus
-	}{
-		{
-			PreStatus:  PendingDealMaking,
-			PostStatus: ExecutingDealMaking,
-		},
-		{
-			PreStatus:  PendingConfirmation,
-			PostStatus: ExecutingConfirmation,
-		},
-		{
-			PreStatus:  PendingReportFinalized,
-			PostStatus: ExecutingReportFinalized,
-		},
-	}
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
+	require.NoError(t, err)
+	ctx := context.Background()
+	ad := gad1
+	aud := gaud1
+	err = s.Create(ctx, &ad, []*AuctionDeal{&aud})
+	require.NoError(t, err)
+
+	testsCases := []AuctionDealStatus{
+		StatusDealMaking,
+		StatusConfirmation,
+		StatusReportFinalized}
 
 	for _, tt := range testsCases {
-		tt := tt
+		err = s.SaveAndMoveAuctionDeal(context.Background(), aud, tt)
+		require.NoError(t, err)
 
-		t.Run(tt.PreStatus.String(), func(t *testing.T) {
-			t.Parallel()
+		// Call get next
+		aud2, ok, err := s.GetNextPending(ctx, tt)
+		require.NoError(t, err)
 
-			s, err := New(tests.NewTxMapDatastore())
-			require.NoError(t, err)
-			aud := AuctionDeal{
-				ID:     "TEST",
-				Status: tt.PreStatus,
-			}
-			var buf bytes.Buffer
-			err = gob.NewEncoder(&buf).Encode(aud)
-			require.NoError(t, err)
-			key, err := makeAuctionDealKey(aud.ID, aud.Status)
-			require.NoError(t, err)
-			err = s.ds.Put(key, buf.Bytes())
-			require.NoError(t, err)
+		// 1. Verify that we have a result.
+		require.True(t, ok)
+		require.Equal(t, aud.ID, aud2.ID)
 
-			// Call get next
-			aud2, ok, err := s.GetNext(tt.PreStatus)
-			require.NoError(t, err)
+		// 2. Verify that the returned element changed status
+		//    to the next appropriate status.
+		require.Equal(t, tt, AuctionDealStatus(aud2.Status))
+		require.True(t, aud2.Executing)
 
-			// 1. Verify that we have a result.
-			require.True(t, ok)
-			require.Equal(t, aud.ID, aud2.ID)
-
-			// 2. Verify that the returned element changed status
-			//    to the next appropriate status.
-			require.Equal(t, tt.PostStatus, aud2.Status)
-
-			// 3. Verify that calling GetNext again returns no results.
-			_, ok, err = s.GetNext(tt.PreStatus)
-			require.NoError(t, err)
-			require.False(t, ok)
-		})
+		// 3. Verify that calling GetNextPending again returns no results.
+		_, ok, err = s.GetNextPending(ctx, tt)
+		require.NoError(t, err)
+		require.False(t, ok)
 	}
 }
 
 func TestGetAllAuctionDeals(t *testing.T) {
 	t.Parallel()
 
-	s, err := New(tests.NewTxMapDatastore())
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
 	require.NoError(t, err)
 
 	ad := gad1
 	aud1 := gaud1
 	aud2 := gaud2
-	err = s.Create(&ad, []*AuctionDeal{&aud1, &aud2})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud1, &aud2})
 	require.NoError(t, err)
 	deepCheckAuctionData(t, s, ad)
 	deepCheckAuctionDeals(t, s, aud1, aud2)
@@ -237,16 +231,18 @@ func TestGetAllAuctionDeals(t *testing.T) {
 func TestGetAuctionData(t *testing.T) {
 	t.Parallel()
 
-	s, err := New(tests.NewTxMapDatastore())
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
 	require.NoError(t, err)
 	ad := gad1
 	aud := gaud1
-	err = s.Create(&ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 	require.NoError(t, err)
 	auds, err := s.getAllPending()
 	require.NoError(t, err)
 
-	ad2, err := s.GetAuctionData(auds[0].AuctionDataID)
+	ad2, err := s.GetAuctionData(context.Background(), auds[0].AuctionDataID)
 	require.NoError(t, err)
 	cmpAuctionData(t, ad, ad2)
 }
@@ -254,53 +250,59 @@ func TestGetAuctionData(t *testing.T) {
 func TestGetAuctionNotFound(t *testing.T) {
 	t.Parallel()
 
-	s, err := New(tests.NewTxMapDatastore())
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
 	require.NoError(t, err)
 	ad := gad1
 	aud := gaud1
-	err = s.Create(&ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 	require.NoError(t, err)
 
-	_, err = s.GetAuctionData("invented")
-	require.Equal(t, ErrNotFound, err)
+	_, err = s.GetAuctionData(context.Background(), "invented")
+	require.Equal(t, sql.ErrNoRows, err)
 }
 
 func TestRemoveAuctionDeals(t *testing.T) {
 	t.Parallel()
-
-	s, err := New(tests.NewTxMapDatastore())
+	ctx := context.Background()
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
 	require.NoError(t, err)
 	ad := gad1
 	aud1 := gaud1
 	aud2 := gaud2
-	err = s.Create(&ad, []*AuctionDeal{&aud1, &aud2})
+	err = s.Create(ctx, &ad, []*AuctionDeal{&aud1, &aud2})
 	require.NoError(t, err)
 
 	all, err := s.getAllPending()
 	require.NoError(t, err)
-	err = s.RemoveAuctionDeal(all[0])
-	require.Error(t, err) // Can't remove non-final status (i.e: Pending)
-
-	// Remove the first auction deal.
-	all[0].Status = ExecutingReportFinalized
-	err = s.RemoveAuctionDeal(all[0])
+	err = s.RemoveAuctionDeal(ctx, all[0])
+	require.Error(t, err, "should not remove non-final status auction deal")
+	all[0].Status = db.StatusReportFinalized
+	err = s.RemoveAuctionDeal(ctx, all[0])
+	require.Error(t, err, "should not remove pending auction deal")
+	all[0].Executing = true
+	err = s.RemoveAuctionDeal(ctx, all[0])
 	require.NoError(t, err)
 
 	// Check the corresponding AuctionData wasn't removed from the store,
 	// since the second auction data is still linking to it.
-	_, err = s.GetAuctionData(all[1].AuctionDataID)
+	_, err = s.GetAuctionData(ctx, ad.ID)
 	require.NoError(t, err)
 
 	// Remove the second.
-	all[1].Status = ExecutingReportFinalized
+	all[1].Status = db.StatusReportFinalized
+	all[1].Executing = true
 	all[1].ErrorCause = "failed because something happened"
-	err = s.RemoveAuctionDeal(all[1])
+	err = s.RemoveAuctionDeal(ctx, all[1])
 	require.NoError(t, err)
 
 	// Check the corresponding AuctionData was also removed.
 	// No more auction datas linked to it.
-	_, err = s.GetAuctionData(all[1].AuctionDataID)
-	require.Equal(t, ErrNotFound, err)
+	_, err = s.GetAuctionData(ctx, ad.ID)
+	require.Equal(t, sql.ErrNoRows, err)
 }
 
 func castCid(cidStr string) cid.Cid {
@@ -315,11 +317,7 @@ func deepCheckAuctionData(t *testing.T, s *Store, ad AuctionData) {
 	t.Helper()
 
 	// Check value in datastore.
-	buf, err := s.ds.Get(makeAuctionDataKey(ad.ID))
-	require.NoError(t, err)
-	var dsAd AuctionData
-	d := gob.NewDecoder(bytes.NewReader(buf))
-	err = d.Decode(&dsAd)
+	dsAd, err := s.GetAuctionData(context.Background(), ad.ID)
 	require.NoError(t, err)
 	cmpAuctionData(t, ad, dsAd)
 }
@@ -337,28 +335,23 @@ func deepCheckAuctionDeals(t *testing.T, s *Store, auds ...AuctionDeal) {
 
 	for _, aud := range auds {
 		// Check value in datastore.
-		key, err := makeAuctionDealKey(aud.ID, aud.Status)
-		require.NoError(t, err)
-		buf, err := s.ds.Get(key)
-		require.NoError(t, err)
-		var dsAud AuctionDeal
-		d := gob.NewDecoder(bytes.NewReader(buf))
-		err = d.Decode(&dsAud)
+		dsAud, err := s.db.GetAuctionDeal(context.Background(), aud.ID)
 		require.NoError(t, err)
 		require.NotEmpty(t, dsAud.ID)
 		require.NotEmpty(t, dsAud.CreatedAt)
 		require.NotEmpty(t, dsAud.AuctionDataID)
-		cmpAuctionDeals(t, aud, dsAud)
+		cmpAuctionDeals(t, aud, AuctionDeal(dsAud))
 	}
 }
 
 func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
-	require.Equal(t, aud1.Miner, aud2.Miner)
-	require.Equal(t, aud1.PricePerGiBPerEpoch, aud2.PricePerGiBPerEpoch)
+	require.Equal(t, aud1.MinerID, aud2.MinerID)
+	require.Equal(t, aud1.PricePerGibPerEpoch, aud2.PricePerGibPerEpoch)
 	require.Equal(t, aud1.StartEpoch, aud2.StartEpoch)
 	require.Equal(t, aud1.Verified, aud2.Verified)
 	require.Equal(t, aud1.FastRetrieval, aud2.FastRetrieval)
 	require.Equal(t, aud1.Status, aud2.Status)
+	require.Equal(t, aud1.Executing, aud2.Executing)
 	require.Equal(t, aud1.ErrorCause, aud2.ErrorCause)
 	require.Equal(t, aud1.ProposalCid, aud2.ProposalCid)
 	require.Equal(t, aud1.DealID, aud2.DealID)
@@ -375,15 +368,15 @@ var (
 	}
 
 	gaud1 = AuctionDeal{
-		Miner:               "f011001",
-		PricePerGiBPerEpoch: 10,
+		MinerID:             "f011001",
+		PricePerGibPerEpoch: 10,
 		StartEpoch:          20,
 		Verified:            true,
 		FastRetrieval:       true,
 	}
 	gaud2 = AuctionDeal{
-		Miner:               "f011002",
-		PricePerGiBPerEpoch: 11,
+		MinerID:             "f011002",
+		PricePerGibPerEpoch: 11,
 		StartEpoch:          21,
 		Verified:            true,
 		FastRetrieval:       true,

@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 )
 
@@ -28,18 +27,19 @@ func (d *Dealer) daemonDealReporter() {
 }
 
 func (d *Dealer) daemonDealReporterTick() error {
+	ctx := context.Background()
 	for {
-		aud, ok, err := d.store.GetNext(store.PendingReportFinalized)
+		aud, ok, err := d.store.GetNextPending(ctx, store.StatusReportFinalized)
 		if err != nil {
 			return fmt.Errorf("get successful deals: %s", err)
 		}
 		if !ok {
 			break
 		}
-		if err := d.reportFinalizedAuctionDeal(aud); err != nil {
+		if err := d.reportFinalizedAuctionDeal(ctx, aud); err != nil {
 			log.Errorf("reporting finalized auction deal: %s", err)
 			aud.ReadyAt = time.Now().Add(d.config.dealReportingRetryDelay)
-			if err := d.store.SaveAndMoveAuctionDeal(aud, store.PendingReportFinalized); err != nil {
+			if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusReportFinalized); err != nil {
 				return fmt.Errorf("saving reached deadline: %s", err)
 			}
 			return nil
@@ -49,8 +49,8 @@ func (d *Dealer) daemonDealReporterTick() error {
 	return nil
 }
 
-func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
-	ad, err := d.store.GetAuctionData(aud.AuctionDataID)
+func (d *Dealer) reportFinalizedAuctionDeal(ctx context.Context, aud store.AuctionDeal) error {
+	ad, err := d.store.GetAuctionData(ctx, aud.AuctionDataID)
 	if err != nil {
 		return fmt.Errorf("get auction data: %s", err)
 	}
@@ -59,9 +59,9 @@ func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
 		ErrorCause:     aud.ErrorCause,
 		DealID:         aud.DealID,
 		DealExpiration: aud.DealExpiration,
-		Miner:          aud.Miner,
-		AuctionID:      auction.AuctionID(aud.AuctionID),
-		BidID:          auction.BidID(aud.BidID),
+		Miner:          aud.MinerID,
+		AuctionID:      aud.AuctionID,
+		BidID:          aud.BidID,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -74,7 +74,7 @@ func (d *Dealer) reportFinalizedAuctionDeal(aud store.AuctionDeal) error {
 
 	// We are safe to remove it from our store. This will indirectly remove also the linked
 	// AuctionData, if no pending/in-progress AuctionDeals exist for them.
-	if err := d.store.RemoveAuctionDeal(aud); err != nil {
+	if err := d.store.RemoveAuctionDeal(ctx, aud); err != nil {
 		return fmt.Errorf("removing deals: %s", err)
 	}
 

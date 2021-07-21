@@ -9,14 +9,22 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/bidbot/lib/logging"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
+	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/protobuf/proto"
 )
+
+func init() {
+	if err := logging.SetLogLevels(map[string]golog.LogLevel{"dealer": golog.LevelDebug}); err != nil {
+		panic(err)
+	}
+}
 
 var (
 	fakeProposalCid        = castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jHZ")
@@ -31,7 +39,7 @@ var (
 		PieceSize:     456,
 		Proposals: []dealeri.Proposal{
 			{
-				Miner:               "f0001",
+				MinerID:             "f0001",
 				FastRetrieval:       true,
 				PricePerGiBPerEpoch: 100,
 				StartEpoch:          200,
@@ -48,32 +56,34 @@ func TestReadyToCreateDeals(t *testing.T) {
 
 	dealer, _ := newDealer(t)
 
-	err := dealer.ReadyToCreateDeals(context.Background(), auds)
+	ctx := context.Background()
+	err := dealer.ReadyToCreateDeals(ctx, auds)
 	require.NoError(t, err)
 
-	aud, ok, err := dealer.store.GetNext(store.PendingDealMaking)
+	aud, ok, err := dealer.store.GetNextPending(ctx, store.StatusDealMaking)
 	require.NoError(t, err)
 	require.True(t, ok)
 
 	// Check that the corresponding AuctionDeal has correct values.
 	require.NotEmpty(t, aud.ID)
 	require.NotEmpty(t, aud.AuctionDataID)
-	require.Equal(t, auds.Proposals[0].Miner, aud.Miner)
-	require.Equal(t, auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGiBPerEpoch)
+	require.Equal(t, auds.Proposals[0].MinerID, aud.MinerID)
+	require.Equal(t, auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGibPerEpoch)
 	require.Equal(t, auds.Proposals[0].StartEpoch, aud.StartEpoch)
 	require.Equal(t, auds.Proposals[0].Verified, aud.Verified)
 	require.Equal(t, auds.Proposals[0].FastRetrieval, aud.FastRetrieval)
-	require.Equal(t, string(auds.Proposals[0].AuctionID), aud.AuctionID)
-	require.Equal(t, string(auds.Proposals[0].BidID), aud.BidID)
-	require.Equal(t, store.ExecutingDealMaking, aud.Status)
+	require.Equal(t, auds.Proposals[0].AuctionID, aud.AuctionID)
+	require.Equal(t, auds.Proposals[0].BidID, aud.BidID)
+	require.Equal(t, store.StatusDealMaking, store.AuctionDealStatus(aud.Status))
+	require.True(t, aud.Executing)
 	require.Empty(t, aud.ErrorCause)
 	require.True(t, time.Since(aud.CreatedAt) < time.Minute)
-	require.Equal(t, cid.Undef, aud.ProposalCid)
+	require.Equal(t, "", aud.ProposalCid)
 	require.Equal(t, int64(0), aud.DealID)
 	require.Equal(t, uint64(0), aud.DealExpiration)
 
 	// Check that the corresponding AuctionData has correct values.
-	ad, err := dealer.store.GetAuctionData(aud.AuctionDataID)
+	ad, err := dealer.store.GetAuctionData(ctx, aud.AuctionDataID)
 	require.NoError(t, err)
 	require.Equal(t, aud.AuctionDataID, ad.ID)
 	require.Equal(t, auds.StorageDealID, ad.StorageDealID)
@@ -87,7 +97,8 @@ func TestStateMachineExecPending(t *testing.T) {
 	t.Parallel()
 
 	dealer, _ := newDealer(t)
-	err := dealer.ReadyToCreateDeals(context.Background(), auds)
+	ctx := context.Background()
+	err := dealer.ReadyToCreateDeals(ctx, auds)
 	require.NoError(t, err)
 
 	// Tick deal making.
@@ -95,21 +106,22 @@ func TestStateMachineExecPending(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check there're no more pending deals.
-	_, ok, err := dealer.store.GetNext(store.PendingDealMaking)
+	_, ok, err := dealer.store.GetNextPending(ctx, store.StatusDealMaking)
 	require.NoError(t, err)
 	require.False(t, ok)
 
 	// Check the deal moved to PendingConfirmation.
-	wc, ok, err := dealer.store.GetNext(store.PendingConfirmation)
+	wc, ok, err := dealer.store.GetNextPending(ctx, store.StatusConfirmation)
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	require.Equal(t, store.ExecutingConfirmation, wc.Status)
+	require.Equal(t, store.StatusConfirmation, store.AuctionDealStatus(wc.Status))
+	require.True(t, wc.Executing)
 	require.Empty(t, wc.ErrorCause)
 	require.True(t, time.Since(wc.UpdatedAt) < time.Minute)
-	require.Equal(t, fakeProposalCid, wc.ProposalCid) // Crucial check.
-	require.Equal(t, int64(0), wc.DealID)             // Can't be set at this stage.
-	require.Equal(t, uint64(0), wc.DealExpiration)    // Can't be set at this stage.
+	require.Equal(t, fakeProposalCid.String(), wc.ProposalCid) // Crucial check.
+	require.Equal(t, int64(0), wc.DealID)                      // Can't be set at this stage.
+	require.Equal(t, uint64(0), wc.DealExpiration)             // Can't be set at this stage.
 }
 
 func TestStateMachineExecWaitingConfirmation(t *testing.T) {
@@ -117,7 +129,8 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 
 	dealer, mb := newDealer(t)
 
-	err := dealer.ReadyToCreateDeals(context.Background(), auds)
+	ctx := context.Background()
+	err := dealer.ReadyToCreateDeals(ctx, auds)
 	require.NoError(t, err)
 
 	// Tick deal making.
@@ -129,16 +142,17 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check there're no more deals waiting for confirmation.
-	_, ok, err := dealer.store.GetNext(store.PendingConfirmation)
+	_, ok, err := dealer.store.GetNextPending(ctx, store.StatusConfirmation)
 	require.NoError(t, err)
 	require.False(t, ok)
 
 	// Check the deal moved to Success
-	finalized, ok, err := dealer.store.GetNext(store.PendingReportFinalized)
+	finalized, ok, err := dealer.store.GetNextPending(ctx, store.StatusReportFinalized)
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	require.Equal(t, store.ExecutingReportFinalized, finalized.Status)
+	require.Equal(t, store.StatusReportFinalized, store.AuctionDealStatus(finalized.Status))
+	require.True(t, finalized.Executing)
 	require.Empty(t, finalized.ErrorCause)
 	require.True(t, time.Since(finalized.UpdatedAt) < time.Minute)
 	require.Equal(t, fakeDealID, finalized.DealID)             // Crucial check
@@ -155,14 +169,15 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.Equal(t, string(auds.Proposals[0].AuctionID), dpa.AuctionId)
 	require.Equal(t, string(auds.Proposals[0].BidID), dpa.BidId)
 	require.Equal(t, string(auds.StorageDealID), dpa.StorageDealId)
-	require.Equal(t, auds.Proposals[0].Miner, dpa.Miner)
+	require.Equal(t, auds.Proposals[0].MinerID, dpa.MinerId)
 	require.Equal(t, fakeProposalCid.Bytes(), dpa.ProposalCid)
 }
 
 func TestStateMachineExecReporting(t *testing.T) {
 	dealer, mb := newDealer(t)
 
-	err := dealer.ReadyToCreateDeals(context.Background(), auds)
+	ctx := context.Background()
+	err := dealer.ReadyToCreateDeals(ctx, auds)
 	require.NoError(t, err)
 
 	// Tick deal making.
@@ -179,9 +194,9 @@ func TestStateMachineExecReporting(t *testing.T) {
 
 	// There shouldn't be ANY auction deal, since
 	// things get removed from the datastore after being reported.
-	statuses := []store.AuctionDealStatus{store.PendingDealMaking, store.PendingConfirmation, store.PendingReportFinalized}
+	statuses := []store.AuctionDealStatus{store.StatusDealMaking, store.StatusConfirmation, store.StatusReportFinalized}
 	for _, ss := range statuses {
-		_, ok, err := dealer.store.GetNext(ss)
+		_, ok, err := dealer.store.GetNextPending(ctx, ss)
 		require.NoError(t, err)
 		require.False(t, ok)
 	}
@@ -218,7 +233,8 @@ func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 
 	fc.On("GetChainHeight", mock.Anything).Return(uint64(1111111), nil)
 
-	ds := tests.NewTxMapDatastore()
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
 	opts := []Option{
 		WithDealMakingFreq(time.Hour),
 		WithDealWatchingFreq(time.Hour),
@@ -226,7 +242,7 @@ func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	}
 
 	mb := fakemsgbroker.New()
-	dealer, err := New(ds, mb, fc, opts...)
+	dealer, err := New(u, mb, fc, opts...)
 	require.NoError(t, err)
 
 	return dealer, mb

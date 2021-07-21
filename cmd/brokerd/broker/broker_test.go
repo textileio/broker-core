@@ -309,13 +309,13 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerAddr:     "f01111",
+			MinerID:       "f01111",
 			Price:         200,
 			StartEpoch:    300,
 			FastRetrieval: true,
 		},
 		auction.BidID("Bid2"): {
-			MinerAddr:     "f02222",
+			MinerID:       "f02222",
 			Price:         1200,
 			StartEpoch:    1300,
 			FastRetrieval: false,
@@ -359,7 +359,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 				require.Equal(t, a.ID, deal.AuctionID)
 				require.Greater(t, deal.CreatedAt.Unix(), int64(0))
 				require.Greater(t, deal.UpdatedAt.Unix(), int64(0))
-				require.Equal(t, wb.MinerAddr, deal.MinerAddr)
+				require.Equal(t, wb.MinerID, deal.MinerID)
 				require.Equal(t, int64(0), deal.DealID)
 				require.Equal(t, uint64(0), deal.DealExpiration)
 				require.Empty(t, deal.ErrorCause)
@@ -388,12 +388,12 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	for _, tr := range r.Proposals {
 		var bid broker.WinningBid
 		for _, b := range winningBids {
-			if tr.Miner == b.MinerAddr {
+			if tr.MinerId == b.MinerID {
 				bid = b
 				break
 			}
 		}
-		if bid.MinerAddr == "" {
+		if bid.MinerID == "" {
 			t.Errorf("AuctionDealsTarget has no corresponding Bid")
 		}
 		require.Equal(t, bid.Price, tr.PricePerGibPerEpoch)
@@ -444,13 +444,13 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 	// 2- Call StorageDealAuctioned as if the auctioneer did.
 	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerAddr:     "f01111",
+			MinerID:       "f01111",
 			Price:         200,
 			StartEpoch:    300,
 			FastRetrieval: true,
 		},
 		auction.BidID("Bid2"): {
-			MinerAddr:     "f02222",
+			MinerID:       "f02222",
 			Price:         1200,
 			StartEpoch:    1300,
 			FastRetrieval: false,
@@ -595,13 +595,13 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 
 	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerAddr:     "f0011",
+			MinerID:       "f0011",
 			Price:         200,
 			StartEpoch:    300,
 			FastRetrieval: true,
 		},
 		auction.BidID("Bid2"): {
-			MinerAddr:     "f0012",
+			MinerID:       "f0012",
 			Price:         1200,
 			StartEpoch:    1300,
 			FastRetrieval: false,
@@ -681,11 +681,11 @@ func TestStorageDealFinalizedDeals(t *testing.T) {
 		bri, err := b.GetBrokerRequestInfo(ctx, br.ID)
 		require.NoError(t, err)
 		require.Len(t, bri.Deals, 2)
-		sort.Slice(bri.Deals, func(i, j int) bool { return bri.Deals[i].Miner < bri.Deals[j].Miner })
-		require.Equal(t, bri.Deals[0].Miner, fad1.Miner)
+		sort.Slice(bri.Deals, func(i, j int) bool { return bri.Deals[i].MinerID < bri.Deals[j].MinerID })
+		require.Equal(t, bri.Deals[0].MinerID, fad1.Miner)
 		require.Equal(t, bri.Deals[0].DealID, fad1.DealID)
 		require.Equal(t, bri.Deals[0].Expiration, fad1.DealExpiration)
-		require.Equal(t, bri.Deals[1].Miner, fad2.Miner)
+		require.Equal(t, bri.Deals[1].MinerID, fad2.Miner)
 		require.Equal(t, bri.Deals[1].DealID, fad2.DealID)
 		require.Equal(t, bri.Deals[1].Expiration, fad2.DealExpiration)
 	}
