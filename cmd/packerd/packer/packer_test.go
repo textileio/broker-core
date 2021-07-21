@@ -19,6 +19,7 @@ import (
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
+	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
 	golog "github.com/textileio/go-log/v2"
@@ -63,10 +64,10 @@ func TestPack(t *testing.T) {
 	numBatchedCids, err := packer.pack(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, mb.TotalPublished(), 1)
-	require.Equal(t, mb.TotalPublishedTopic("new-batch-created"), 1)
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(msgbroker.NewBatchCreatedTopic))
 
-	msgb, err := mb.GetMsg("new-batch-created", 0)
+	msgb, err := mb.GetMsg(msgbroker.NewBatchCreatedTopic, 0)
 	require.NoError(t, err)
 	msg := &pb.NewBatchCreated{}
 	err = proto.Unmarshal(msgb, msg)
@@ -115,8 +116,8 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, mb.TotalPublished(), 1)
-	require.Equal(t, mb.TotalPublishedTopic("newbatchcreated"), 1)
-	msgb, err := mb.GetMsg("newbatchcreated", 0)
+	require.Equal(t, 1, mb.TotalPublishedTopic(msgbroker.NewBatchCreatedTopic))
+	msgb, err := mb.GetMsg(msgbroker.NewBatchCreatedTopic, 0)
 	require.NoError(t, err)
 	msg := &pb.NewBatchCreated{}
 	err = proto.Unmarshal(msgb, msg)

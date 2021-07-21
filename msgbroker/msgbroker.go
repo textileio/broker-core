@@ -466,7 +466,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			return nil
 		}, opts...)
 		if err != nil {
-			return fmt.Errorf("registering handler for auction-closed topic: %s")
+			return fmt.Errorf("registering handler for auction-closed topic: %s", err)
 		}
 	}
 
