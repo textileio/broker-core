@@ -154,13 +154,17 @@ services:
       - PACKER_TARGET_SECTOR_SIZE=20000
       - PACKER_DAEMON_FREQUENCY=3s
       - PACKER_MSGBROKER_TOPIC_PREFIX=test
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=packerd
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - mongo
       - ipfs
       - gpubsub
     restart: unless-stopped

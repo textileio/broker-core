@@ -10,7 +10,7 @@ type config struct {
 	exportMetricsFreq time.Duration
 
 	sectorSize   int64
-	batchMinSize uint
+	batchMinSize int64
 }
 
 var defaultConfig = config{
@@ -48,7 +48,7 @@ func WithSectorSize(sectorSize int64) Option {
 
 // WithBatchMinSize configures the minimum batch size that can be considered
 // for preparation.
-func WithBatchMinSize(minSize uint) Option {
+func WithBatchMinSize(minSize int64) Option {
 	return func(c *config) error {
 		if minSize <= 0 {
 			return fmt.Errorf("batch min size should be positive")

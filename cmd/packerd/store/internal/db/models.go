@@ -3,9 +3,10 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/textileio/broker-core/broker"
 )
 
 type BatchStatus string
@@ -29,17 +30,18 @@ func (e *BatchStatus) Scan(src interface{}) error {
 }
 
 type Batch struct {
-	BatchID   string      `json:"batchID"`
-	Status    BatchStatus `json:"status"`
-	TotalSize int64       `json:"totalSize"`
-	CreatedAt time.Time   `json:"createdAt"`
-	UpdatedAt time.Time   `json:"updatedAt"`
+	BatchID   broker.StorageDealID `json:"batchID"`
+	Status    BatchStatus          `json:"status"`
+	TotalSize int64                `json:"totalSize"`
+	CreatedAt time.Time            `json:"createdAt"`
+	UpdatedAt time.Time            `json:"updatedAt"`
 }
 
 type StorageRequest struct {
-	StorageRequestID string         `json:"storageRequestID"`
-	DataCid          string         `json:"dataCid"`
-	BatchID          sql.NullString `json:"batchID"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
+	OperationID      string                 `json:"operationID"`
+	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
+	DataCid          string                 `json:"dataCid"`
+	BatchID          broker.StorageDealID   `json:"batchID"`
+	CreatedAt        time.Time              `json:"createdAt"`
+	UpdatedAt        time.Time              `json:"updatedAt"`
 }

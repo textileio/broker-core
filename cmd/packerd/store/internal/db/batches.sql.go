@@ -5,20 +5,29 @@ package db
 
 import (
 	"context"
+
+	"github.com/textileio/broker-core/broker"
 )
 
 const addStorageRequestInBatch = `-- name: AddStorageRequestInBatch :exec
-INSERT INTO storage_requests (storage_request_id,data_cid)
-VALUES ($1, $2)
+INSERT INTO storage_requests (operation_id, storage_request_id, data_cid, batch_id)
+VALUES ($1, $2, $3, $4)
 `
 
 type AddStorageRequestInBatchParams struct {
-	StorageRequestID string `json:"storageRequestID"`
-	DataCid          string `json:"dataCid"`
+	OperationID      string                 `json:"operationID"`
+	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
+	DataCid          string                 `json:"dataCid"`
+	BatchID          broker.StorageDealID   `json:"batchID"`
 }
 
 func (q *Queries) AddStorageRequestInBatch(ctx context.Context, arg AddStorageRequestInBatchParams) error {
-	_, err := q.exec(ctx, q.addStorageRequestInBatchStmt, addStorageRequestInBatch, arg.StorageRequestID, arg.DataCid)
+	_, err := q.exec(ctx, q.addStorageRequestInBatchStmt, addStorageRequestInBatch,
+		arg.OperationID,
+		arg.StorageRequestID,
+		arg.DataCid,
+		arg.BatchID,
+	)
 	return err
 }
 
@@ -26,7 +35,7 @@ const createOpenBatch = `-- name: CreateOpenBatch :exec
 INSERT INTO batches (batch_id) values ($1)
 `
 
-func (q *Queries) CreateOpenBatch(ctx context.Context, batchID string) error {
+func (q *Queries) CreateOpenBatch(ctx context.Context, batchID broker.StorageDealID) error {
 	_, err := q.exec(ctx, q.createOpenBatchStmt, createOpenBatch, batchID)
 	return err
 }
@@ -37,6 +46,8 @@ FROM batches
 WHERE status = 'open' AND
       total_size <= $1
 ORDER BY created_at
+FOR UPDATE
+LIMIT 1
 `
 
 func (q *Queries) FindOpenBatchWithSpace(ctx context.Context, totalSize int64) (Batch, error) {
@@ -52,18 +63,37 @@ func (q *Queries) FindOpenBatchWithSpace(ctx context.Context, totalSize int64) (
 	return i, err
 }
 
-const moveBatchToStatus = `-- name: MoveBatchToStatus :exec
+const moveBatchToStatus = `-- name: MoveBatchToStatus :execrows
 UPDATE batches
 SET status = $2, updated_at = CURRENT_TIMESTAMP
 WHERE batch_id = $1
 `
 
 type MoveBatchToStatusParams struct {
-	BatchID string      `json:"batchID"`
-	Status  BatchStatus `json:"status"`
+	BatchID broker.StorageDealID `json:"batchID"`
+	Status  BatchStatus          `json:"status"`
 }
 
-func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusParams) error {
-	_, err := q.exec(ctx, q.moveBatchToStatusStmt, moveBatchToStatus, arg.BatchID, arg.Status)
+func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusParams) (int64, error) {
+	result, err := q.exec(ctx, q.moveBatchToStatusStmt, moveBatchToStatus, arg.BatchID, arg.Status)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateBatchSize = `-- name: UpdateBatchSize :exec
+UPDATE batches
+SET total_size = $2
+WHERE batch_id = $1
+`
+
+type UpdateBatchSizeParams struct {
+	BatchID   broker.StorageDealID `json:"batchID"`
+	TotalSize int64                `json:"totalSize"`
+}
+
+func (q *Queries) UpdateBatchSize(ctx context.Context, arg UpdateBatchSizeParams) error {
+	_, err := q.exec(ctx, q.updateBatchSizeStmt, updateBatchSize, arg.BatchID, arg.TotalSize)
 	return err
 }

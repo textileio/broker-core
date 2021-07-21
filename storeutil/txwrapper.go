@@ -106,3 +106,12 @@ func UseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error, noTx func() e
 	}
 	return noTx()
 }
+
+// MustUseTxFromCtx calls withTx if a transaction is attached to the context.
+func MustUseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error) (err error) {
+	tx := ctx.Value(ctxKeyTx)
+	if txn, ok := tx.(*sql.Tx); ok {
+		return withTx(txn)
+	}
+	return errors.New("ctx doesn't contain a txn")
+}
