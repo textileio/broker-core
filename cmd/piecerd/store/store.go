@@ -13,11 +13,6 @@ import (
 	"github.com/textileio/broker-core/cmd/piecerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/piecerd/store/migrations"
 	"github.com/textileio/broker-core/storeutil"
-	logger "github.com/textileio/go-log/v2"
-)
-
-var (
-	log = logger.Logger("store")
 )
 
 type status int
