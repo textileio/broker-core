@@ -15,13 +15,6 @@ import (
 	"github.com/textileio/broker-core/storeutil"
 )
 
-type status int
-
-const (
-	statusPending status = iota
-	statusExecuting
-)
-
 type UnpreparedBatch struct {
 	StorageDealID broker.StorageDealID
 	DataCid       cid.Cid
@@ -65,7 +58,6 @@ func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.StorageDe
 	}
 	params := db.CreateUnpreparedBatchParams{
 		StorageDealID: sdID,
-		Status:        int16(statusPending),
 		DataCid:       dataCid.String(),
 	}
 	if err := s.db.CreateUnpreparedBatch(ctx, params); err != nil {

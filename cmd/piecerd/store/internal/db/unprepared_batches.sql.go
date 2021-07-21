@@ -13,26 +13,24 @@ import (
 const createUnpreparedBatch = `-- name: CreateUnpreparedBatch :exec
 INSERT INTO unprepared_batches(
     storage_deal_id,
-    status,
     data_cid
- ) VALUES ($1, $2, $3)
+ ) VALUES ($1, $2)
 `
 
 type CreateUnpreparedBatchParams struct {
 	StorageDealID broker.StorageDealID `json:"storageDealID"`
-	Status        int16                `json:"status"`
 	DataCid       string               `json:"dataCid"`
 }
 
 func (q *Queries) CreateUnpreparedBatch(ctx context.Context, arg CreateUnpreparedBatchParams) error {
-	_, err := q.exec(ctx, q.createUnpreparedBatchStmt, createUnpreparedBatch, arg.StorageDealID, arg.Status, arg.DataCid)
+	_, err := q.exec(ctx, q.createUnpreparedBatchStmt, createUnpreparedBatch, arg.StorageDealID, arg.DataCid)
 	return err
 }
 
 const deleteUnpreparedBatch = `-- name: DeleteUnpreparedBatch :execrows
 DELETE FROM unprepared_batches 
 WHERE storage_deal_id = $1 AND 
-      status = 2
+      status = 1
 `
 
 func (q *Queries) DeleteUnpreparedBatch(ctx context.Context, storageDealID broker.StorageDealID) (int64, error) {
@@ -45,10 +43,10 @@ func (q *Queries) DeleteUnpreparedBatch(ctx context.Context, storageDealID broke
 
 const getNextPending = `-- name: GetNextPending :one
 UPDATE unprepared_batches
-SET status = 2, updated_at = CURRENT_TIMESTAMP
+SET status = 1, updated_at = CURRENT_TIMESTAMP
 WHERE storage_deal_id = (SELECT ub.storage_deal_id FROM unprepared_batches ub
             WHERE ub.ready_at < CURRENT_TIMESTAMP AND
-                  ub.status = 1  
+                  ub.status = 0
                   ORDER BY ub.ready_at asc 
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1)
@@ -71,9 +69,9 @@ func (q *Queries) GetNextPending(ctx context.Context) (UnpreparedBatch, error) {
 
 const moveToPending = `-- name: MoveToPending :execrows
 UPDATE unprepared_batches 
-SET status = 1, updated_at = CURRENT_TIMESTAMP, ready_at=$2
+SET status = 0, updated_at = CURRENT_TIMESTAMP, ready_at=$2
 WHERE storage_deal_id = $1 AND 
-      status = 2
+      status = 1
 `
 
 type MoveToPendingParams struct {
