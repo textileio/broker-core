@@ -10,8 +10,8 @@ import (
 )
 
 const addStorageRequestInBatch = `-- name: AddStorageRequestInBatch :exec
-INSERT INTO storage_requests (operation_id, storage_request_id, data_cid, batch_id)
-VALUES ($1,$2,$3,$4)
+INSERT INTO storage_requests (operation_id, storage_request_id, data_cid, batch_id, size)
+VALUES ($1,$2,$3,$4,$5)
 `
 
 type AddStorageRequestInBatchParams struct {
@@ -19,6 +19,7 @@ type AddStorageRequestInBatchParams struct {
 	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
 	DataCid          string                 `json:"dataCid"`
 	BatchID          broker.StorageDealID   `json:"batchID"`
+	Size             int64                  `json:"size"`
 }
 
 func (q *Queries) AddStorageRequestInBatch(ctx context.Context, arg AddStorageRequestInBatchParams) error {
@@ -27,6 +28,7 @@ func (q *Queries) AddStorageRequestInBatch(ctx context.Context, arg AddStorageRe
 		arg.StorageRequestID,
 		arg.DataCid,
 		arg.BatchID,
+		arg.Size,
 	)
 	return err
 }
@@ -87,7 +89,7 @@ func (q *Queries) GetNextReadyBatch(ctx context.Context) (GetNextReadyBatchRow, 
 }
 
 const getStorageRequestFromBatch = `-- name: GetStorageRequestFromBatch :many
-SELECT operation_id, storage_request_id, data_cid, batch_id, created_at, updated_at FROM storage_requests where batch_id=$1
+SELECT operation_id, storage_request_id, data_cid, batch_id, size, created_at, updated_at FROM storage_requests where batch_id=$1
 `
 
 func (q *Queries) GetStorageRequestFromBatch(ctx context.Context, batchID broker.StorageDealID) ([]StorageRequest, error) {
@@ -104,6 +106,7 @@ func (q *Queries) GetStorageRequestFromBatch(ctx context.Context, batchID broker
 			&i.StorageRequestID,
 			&i.DataCid,
 			&i.BatchID,
+			&i.Size,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

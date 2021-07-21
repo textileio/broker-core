@@ -11,8 +11,8 @@ LIMIT 1;
 INSERT INTO batches (batch_id) values ($1);
 
 -- name: AddStorageRequestInBatch :exec
-INSERT INTO storage_requests (operation_id, storage_request_id, data_cid, batch_id)
-VALUES ($1,$2,$3,$4);
+INSERT INTO storage_requests (operation_id, storage_request_id, data_cid, batch_id, size)
+VALUES ($1,$2,$3,$4,$5);
 
 -- name: UpdateBatchSize :exec
 UPDATE batches

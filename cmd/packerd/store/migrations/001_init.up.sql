@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS storage_requests (
     storage_request_id TEXT NOT NULL,
     data_cid TEXT NOT NULL,
     batch_id TEXT NOT NULL,
+    size BIGINT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
