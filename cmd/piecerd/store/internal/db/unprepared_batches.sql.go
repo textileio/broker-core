@@ -27,20 +27,6 @@ func (q *Queries) CreateUnpreparedBatch(ctx context.Context, arg CreateUnprepare
 	return err
 }
 
-const deleteUnpreparedBatch = `-- name: DeleteUnpreparedBatch :execrows
-DELETE FROM unprepared_batches 
-WHERE storage_deal_id = $1 AND 
-      status = 1
-`
-
-func (q *Queries) DeleteUnpreparedBatch(ctx context.Context, storageDealID broker.StorageDealID) (int64, error) {
-	result, err := q.exec(ctx, q.deleteUnpreparedBatchStmt, deleteUnpreparedBatch, storageDealID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 const getNextPending = `-- name: GetNextPending :one
 UPDATE unprepared_batches
 SET status = 1, updated_at = CURRENT_TIMESTAMP
@@ -67,20 +53,20 @@ func (q *Queries) GetNextPending(ctx context.Context) (UnpreparedBatch, error) {
 	return i, err
 }
 
-const moveToPending = `-- name: MoveToPending :execrows
+const moveToStatus = `-- name: MoveToStatus :execrows
 UPDATE unprepared_batches 
-SET status = 0, updated_at = CURRENT_TIMESTAMP, ready_at=$2
-WHERE storage_deal_id = $1 AND 
-      status = 1
+SET status = $3, updated_at = CURRENT_TIMESTAMP, ready_at=$2
+WHERE storage_deal_id = $1
 `
 
-type MoveToPendingParams struct {
+type MoveToStatusParams struct {
 	StorageDealID broker.StorageDealID `json:"storageDealID"`
 	ReadyAt       time.Time            `json:"readyAt"`
+	Status        int16                `json:"status"`
 }
 
-func (q *Queries) MoveToPending(ctx context.Context, arg MoveToPendingParams) (int64, error) {
-	result, err := q.exec(ctx, q.moveToPendingStmt, moveToPending, arg.StorageDealID, arg.ReadyAt)
+func (q *Queries) MoveToStatus(ctx context.Context, arg MoveToStatusParams) (int64, error) {
+	result, err := q.exec(ctx, q.moveToStatusStmt, moveToStatus, arg.StorageDealID, arg.ReadyAt, arg.Status)
 	if err != nil {
 		return 0, err
 	}

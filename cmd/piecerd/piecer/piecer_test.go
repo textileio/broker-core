@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/piecerd/store"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
@@ -53,6 +54,19 @@ func TestE2E(t *testing.T) {
 	_, ok, err := p.s.GetNextPending(context.Background())
 	require.NoError(t, err)
 	require.False(t, ok)
+}
+
+func TestIdempotency(t *testing.T) {
+	t.Parallel()
+	p, _, ipfs := newClient(t)
+
+	dataCid := addRandomData(t, ipfs)
+	sdID := broker.StorageDealID("SD1")
+	err := p.ReadyToPrepare(context.Background(), sdID, dataCid)
+	require.NoError(t, err)
+
+	err = p.ReadyToPrepare(context.Background(), sdID, dataCid)
+	require.ErrorIs(t, err, store.ErrStorageDealIDExists)
 }
 
 func TestE2EFail(t *testing.T) {

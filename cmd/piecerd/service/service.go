@@ -11,6 +11,7 @@ import (
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
+	"github.com/textileio/broker-core/cmd/piecerd/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -65,7 +66,7 @@ func (s *Service) OnNewBatchCreated(
 	sdID broker.StorageDealID,
 	batchCid cid.Cid,
 	_ []broker.BrokerRequestID) error {
-	if err := s.piecer.ReadyToPrepare(ctx, sdID, batchCid); err != nil {
+	if err := s.piecer.ReadyToPrepare(ctx, sdID, batchCid); err != store.ErrStorageDealIDExists && err != nil {
 		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}
 
