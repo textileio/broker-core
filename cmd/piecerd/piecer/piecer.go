@@ -33,7 +33,7 @@ type Piecer struct {
 	mb       mbroker.MsgBroker
 	ipfsApis []ipfsAPI
 
-	s               *store.Store
+	store           *store.Store
 	daemonFrequency time.Duration
 	retryDelay      time.Duration
 	newRequest      chan struct{}
@@ -82,7 +82,7 @@ func New(
 	}
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
-		s:        s,
+		store:    s,
 		ipfsApis: ipfsApis,
 		mb:       mb,
 
@@ -109,7 +109,7 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.StorageDealID, 
 		return fmt.Errorf("data-cid is undefined")
 	}
 
-	if err := p.s.CreateUnpreparedBatch(ctx, sdID, dataCid); err != nil {
+	if err := p.store.CreateUnpreparedBatch(ctx, sdID, dataCid); err != nil {
 		return fmt.Errorf("creating unprepared-batch %s %s: %w", sdID, dataCid, err)
 	}
 	log.Debugf("saved unprepared-batch with storage-deal %s and data-cid %s", sdID, dataCid)
@@ -127,7 +127,7 @@ func (p *Piecer) Close() error {
 	log.Info("closing piecer...")
 	p.daemonCancelCtx()
 	<-p.daemonClosed
-	if err := p.s.Close(); err != nil {
+	if err := p.store.Close(); err != nil {
 		return fmt.Errorf("closing store: %s", err)
 	}
 	return nil
@@ -146,7 +146,7 @@ func (p *Piecer) daemon() {
 		case <-time.After(p.daemonFrequency):
 		}
 		for {
-			usd, ok, err := p.s.GetNextPending(p.daemonCtx)
+			usd, ok, err := p.store.GetNextPending(p.daemonCtx)
 			if err != nil {
 				log.Errorf("get next unprepared batch: %s", err)
 				break
@@ -157,15 +157,15 @@ func (p *Piecer) daemon() {
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
 				log.Errorf("preparing storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
-				if err := p.s.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
+				if err := p.store.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
 
-			if err := p.s.MoveToStatus(p.daemonCtx, usd.StorageDealID, 0, store.StatusDone); err != nil {
+			if err := p.store.MoveToStatus(p.daemonCtx, usd.StorageDealID, 0, store.StatusDone); err != nil {
 				log.Errorf("deleting storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
-				if err := p.s.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
+				if err := p.store.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break

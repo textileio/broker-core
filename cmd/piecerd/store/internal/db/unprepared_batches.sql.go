@@ -29,10 +29,10 @@ func (q *Queries) CreateUnpreparedBatch(ctx context.Context, arg CreateUnprepare
 
 const getNextPending = `-- name: GetNextPending :one
 UPDATE unprepared_batches
-SET status = 1, updated_at = CURRENT_TIMESTAMP
+SET status = 'executing', updated_at = CURRENT_TIMESTAMP
 WHERE storage_deal_id = (SELECT ub.storage_deal_id FROM unprepared_batches ub
             WHERE ub.ready_at < CURRENT_TIMESTAMP AND
-                  ub.status = 0
+                  ub.status = 'pending'
                   ORDER BY ub.ready_at asc 
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1)
@@ -60,9 +60,9 @@ WHERE storage_deal_id = $1
 `
 
 type MoveToStatusParams struct {
-	StorageDealID broker.StorageDealID `json:"storageDealID"`
-	ReadyAt       time.Time            `json:"readyAt"`
-	Status        int16                `json:"status"`
+	StorageDealID broker.StorageDealID  `json:"storageDealID"`
+	ReadyAt       time.Time             `json:"readyAt"`
+	Status        UnpreparedBatchStatus `json:"status"`
 }
 
 func (q *Queries) MoveToStatus(ctx context.Context, arg MoveToStatusParams) (int64, error) {

@@ -123,10 +123,14 @@ func (s *Store) MoveToStatus(
 	sdID broker.StorageDealID,
 	delay time.Duration,
 	status UnpreparedBatchStatus) error {
+	dbStatus, err := statusToDB(status)
+	if err != nil {
+		return fmt.Errorf("casting status to db type: %s", err)
+	}
 	params := db.MoveToStatusParams{
 		StorageDealID: sdID,
 		ReadyAt:       time.Now().Add(delay),
-		Status:        int16(status),
+		Status:        dbStatus,
 	}
 	count, err := s.db.MoveToStatus(ctx, params)
 	if err != nil {
@@ -145,4 +149,17 @@ func (s *Store) Close() error {
 		return fmt.Errorf("closing sql connection: %s", err)
 	}
 	return nil
+}
+
+func statusToDB(status UnpreparedBatchStatus) (db.UnpreparedBatchStatus, error) {
+	switch status {
+	case StatusPending:
+		return db.UnpreparedBatchStatusPending, nil
+	case StatusExecuting:
+		return db.UnpreparedBatchStatusExecuting, nil
+	case StatusDone:
+		return db.UnpreparedBatchStatusDone, nil
+	}
+
+	return "", fmt.Errorf("unknown status: %#v", status)
 }
