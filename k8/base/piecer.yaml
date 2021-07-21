@@ -51,16 +51,28 @@ spec:
       labels:
         app: piecer-v1
     spec:
+      serviceAccountName: postgres-cloud-sql
       containers:
         - name: piecer
           image: textile/piecer
           imagePullPolicy: Always
           ports:
-            - name: api
-              containerPort: 5000
             - name: metrics
               containerPort: 9090
+          command: ["./with-postgres.sh", "./piecerd"]
           env:
+            - name: DAEMON
+              value: "piecer"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: postgres-password
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: piecer-db-password
             - name: PIECER_GPUBSUB_PROJECT_ID
               valueFrom:
                 secretKeyRef:
