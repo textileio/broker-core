@@ -66,7 +66,7 @@ func (s *Service) OnNewBatchCreated(
 	sdID broker.StorageDealID,
 	batchCid cid.Cid,
 	_ []broker.BrokerRequestID) error {
-	if err := s.piecer.ReadyToPrepare(ctx, sdID, batchCid); err != store.ErrStorageDealIDExists && err != nil {
+	if err := s.piecer.ReadyToPrepare(ctx, sdID, batchCid); err != store.ErrStorageDealExists && err != nil {
 		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}
 
