@@ -43,6 +43,7 @@ type StorageRequest struct {
 	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
 	DataCid          string                 `json:"dataCid"`
 	BatchID          broker.StorageDealID   `json:"batchID"`
+	Size             int64                  `json:"size"`
 	CreatedAt        time.Time              `json:"createdAt"`
 	UpdatedAt        time.Time              `json:"updatedAt"`
 }

@@ -131,6 +131,7 @@ func (s *Store) AddStorageRequestToOpenBatch(ctx context.Context, opID string, s
 			StorageRequestID: srID,
 			DataCid:          dataCid.String(),
 			BatchID:          ob.BatchID,
+			Size:             dataSize,
 		}
 		if err := queries.AddStorageRequestInBatch(ctx, asribParams); err != nil {
 			return fmt.Errorf("add storage request in batch: %w", err)
@@ -208,27 +209,49 @@ func (s *Store) GetNextReadyBatch(ctx context.Context) (broker.StorageDealID, in
 	return rb.BatchID, rb.TotalSize, srs, true, nil
 }
 
+// Stats provides stats for metrics.
+type Stats struct {
+	PendingStorageRequestsCount int64
+	PendingStorageRequestBytes  int64
+
+	OpenBatchCount int64
+
+	DoneBatchCount int64
+	DoneBatchBytes int64
+}
+
+// GetStats return stats about batches.
+func (s *Store) GetStats(ctx context.Context) (Stats, error) {
+	pendSRCount, pendSRBytes, err := s.db.PendingStorageRequestsStats(ctx)
+	if err != nil {
+		return Stats{}, fmt.Errorf("pending storage requests stats: %s", err)
+	}
+
+	openBatchCount, err := s.db.OpenBatchStats(ctx)
+	if err != nil {
+		return Stats{}, fmt.Errorf("open batch stats: %s", err)
+	}
+
+	doneBatchCount, doneBatchBytes, err := s.db.DoneBatchStats(ctx)
+	if err != nil {
+		return Stats{}, fmt.Errorf("done batch stats: %s", err)
+	}
+
+	return Stats{
+		PendingStorageRequestsCount: pendSRCount,
+		PendingStorageRequestBytes:  pendSRBytes,
+		OpenBatchCount:              openBatchCount,
+		DoneBatchCount:              doneBatchCount,
+		DoneBatchBytes:              doneBatchBytes,
+	}, nil
+}
+
 // Close closes the store.
 func (s *Store) Close() error {
 	if err := s.conn.Close(); err != nil {
 		return fmt.Errorf("closing sql connection: %s", err)
 	}
 	return nil
-}
-
-func statusToDB(status BatchStatus) (db.BatchStatus, error) {
-	switch status {
-	case StatusOpen:
-		return db.BatchStatusOpen, nil
-	case StatusReady:
-		return db.BatchStatusReady, nil
-	case StatusExecuting:
-		return db.BatchStatusExecuting, nil
-	case StatusDone:
-		return db.BatchStatusDone, nil
-	}
-
-	return "", fmt.Errorf("unknown status: %#v", status)
 }
 
 func (s *Store) newID() (string, error) {
@@ -249,4 +272,19 @@ func (s *Store) newID() (string, error) {
 	}
 	s.lock.Unlock()
 	return strings.ToLower(id.String()), nil
+}
+
+func statusToDB(status BatchStatus) (db.BatchStatus, error) {
+	switch status {
+	case StatusOpen:
+		return db.BatchStatusOpen, nil
+	case StatusReady:
+		return db.BatchStatusReady, nil
+	case StatusExecuting:
+		return db.BatchStatusExecuting, nil
+	case StatusDone:
+		return db.BatchStatusDone, nil
+	}
+
+	return "", fmt.Errorf("unknown status: %#v", status)
 }

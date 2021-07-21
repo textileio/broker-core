@@ -160,7 +160,7 @@ func (p *Packer) daemon() {
 
 // TODO(jsign): review logging.
 func (p *Packer) pack(ctx context.Context) (int, error) {
-	batchID, batchSize, srs, ok, err := p.store.GetNextReadyBatch()
+	batchID, batchSize, srs, ok, err := p.store.GetNextReadyBatch(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("get next ready batch: %s", err)
 	}

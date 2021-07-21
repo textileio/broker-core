@@ -63,7 +63,7 @@ var rootCmd = &cobra.Command{
 			ExportMetricsFrequency: v.GetDuration("export-metrics-frequency"),
 
 			TargetSectorSize: v.GetInt64("target-sector-size"),
-			BatchMinSize:     v.GetSizeInBytes("batch-min-size"),
+			BatchMinSize:     int64(v.GetSizeInBytes("batch-min-size")),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")

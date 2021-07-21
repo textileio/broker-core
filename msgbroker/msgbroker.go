@@ -70,6 +70,7 @@ type ReadyToBatchListener interface {
 
 // ReadyToBatchData contains broker request data information to be batched.
 type ReadyToBatchData struct {
+	OperationID     string // TODO(jsign): include in tests.
 	BrokerRequestID broker.BrokerRequestID
 	DataCid         cid.Cid
 }
