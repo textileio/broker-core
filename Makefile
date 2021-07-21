@@ -73,7 +73,7 @@ up:
 
 up-patched:
 	./tests/buildx_patch.sh
-	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
+	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build -V
 .PHONY: up-patched
 
 down:
@@ -126,7 +126,7 @@ define gen_sql_assets
 endef
 
 sql-assets: $(GO_BINDATA) $(SQLC)
-	$(call gen_sql_assets,broker);
+	$(call gen_sql_assets,broker piecer);
 .PHONY: sql-assets
 
 generate: protos sql-assets

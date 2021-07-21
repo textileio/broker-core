@@ -1,4 +1,5 @@
 #! /bin/sh
+set -x
 
 quit() {
   echo "$1"
@@ -9,7 +10,8 @@ quit() {
 [ -z "$DB_PASSWORD" ] && quit "envvar DB_PASSWORD is not set. The daemon requires it to connect the database"
 [ -z "$DAEMON" ] && quit "envvar DAEMON is not set"
 
-DB_HOST=127.0.0.1:5432
+POSTGRES_USER="${POSTGRES_USER:-postgres}"
+DB_HOST="${DB_HOST:-127.0.0.1:5432}"
 DB_USER=${DAEMON}_user
 DB_NAME=${DAEMON}
 # just in case if errant newline sneaked into the k8s secret
@@ -19,14 +21,15 @@ DB_PASSWORD=$(echo -n $DB_PASSWORD | tr -d \\n)
 # when starting the pod, connect to postgres with admin privilege, create user
 # and database if not exist, and force change password, then starts daemon with
 # the correct postgres URI.
-psql "postgres://postgres:$POSTGRES_PASSWORD@$DB_HOST" <<EOD
+psql "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@$DB_HOST" <<EOD
 SELECT 'CREATE USER $DB_USER'
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_USER')\gexec
-GRANT $DB_USER TO postgres;
+GRANT $DB_USER TO $POSTGRES_USER;
 SELECT 'CREATE DATABASE $DB_NAME WITH OWNER $DB_USER'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
 ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD'
 EOD
 [ $? -eq 0 ] || quit "fail to initialize postgres database"
 unset POSTGRES_PASSWORD
+unset POSTGRES_USER
 $1 --postgres-uri="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME?sslmode=disable&timezone=UTC"
