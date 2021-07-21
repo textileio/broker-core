@@ -15,6 +15,7 @@ import (
 	"github.com/textileio/broker-core/storeutil"
 )
 
+// UnpreparedBatch is a batch that is ready to be prepared.
 type UnpreparedBatch struct {
 	StorageDealID broker.StorageDealID
 	DataCid       cid.Cid
@@ -120,5 +121,13 @@ func (s *Store) MoveToPending(ctx context.Context, sdID broker.StorageDealID, de
 		return fmt.Errorf("unexpected update count, got: %d, expected: 1", count)
 	}
 
+	return nil
+}
+
+// Close closes the store.
+func (s *Store) Close() error {
+	if err := s.conn.Close(); err != nil {
+		return fmt.Errorf("closing sql connection: %s", err)
+	}
 	return nil
 }

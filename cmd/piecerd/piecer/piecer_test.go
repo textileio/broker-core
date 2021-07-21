@@ -33,7 +33,7 @@ func TestE2E(t *testing.T) {
 	err := p.ReadyToPrepare(context.Background(), sdID, dataCid)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 1)
 
 	// Assert the prepared batch msg was published to the topic.
 	require.Equal(t, 1, mb.TotalPublished())
@@ -55,6 +55,29 @@ func TestE2E(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestE2EFail(t *testing.T) {
+	t.Parallel()
+	p, mb, _ := newClient(t)
+
+	// Fake a cid that doesn't exist in the IPFS node, so the preparation can fail.
+	dataCid, err := cid.Decode("baga6ea4seaqabf42l52koxdzu4prvzf55a4dxnfbahilkyiqfp4yxgznifvscmj")
+	require.NoError(t, err)
+	sdID := broker.StorageDealID("SD1")
+	err = p.ReadyToPrepare(context.Background(), sdID, dataCid)
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 1)
+
+	// Assert the prepared batch msg wasn't published to the topic.
+	require.Equal(t, 0, mb.TotalPublished())
+	require.Equal(t, 0, mb.TotalPublishedTopic(msgbroker.NewBatchPreparedTopic))
+
+	// Assert that the same entry is available again to process.
+	_, ok, err := p.s.GetNextPending(context.Background())
+	require.NoError(t, err)
+	require.True(t, ok)
+}
+
 func newClient(t *testing.T) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.HttpApi) {
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -73,7 +96,7 @@ func newClient(t *testing.T) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.Ht
 
 	mb := fakemsgbroker.New()
 
-	p, err := New(u, []multiaddr.Multiaddr{ma}, mb, time.Millisecond*200, time.Second)
+	p, err := New(u, []multiaddr.Multiaddr{ma}, mb, time.Hour, time.Millisecond)
 	require.NoError(t, err)
 	fin.Add(p)
 
