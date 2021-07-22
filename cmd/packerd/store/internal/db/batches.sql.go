@@ -42,6 +42,25 @@ func (q *Queries) CreateOpenBatch(ctx context.Context, batchID broker.StorageDea
 	return err
 }
 
+const doneBatchStats = `-- name: DoneBatchStats :one
+SELECT count(*) as done_batch_count,
+       sum(size) as done_batch_bytes
+FROM batches
+where status='done'
+`
+
+type DoneBatchStatsRow struct {
+	DoneBatchCount int64 `json:"doneBatchCount"`
+	DoneBatchBytes int64 `json:"doneBatchBytes"`
+}
+
+func (q *Queries) DoneBatchStats(ctx context.Context) (DoneBatchStatsRow, error) {
+	row := q.queryRow(ctx, q.doneBatchStatsStmt, doneBatchStats)
+	var i DoneBatchStatsRow
+	err := row.Scan(&i.DoneBatchCount, &i.DoneBatchBytes)
+	return i, err
+}
+
 const findOpenBatchWithSpace = `-- name: FindOpenBatchWithSpace :one
 SELECT batch_id, status, total_size, created_at, updated_at
 FROM batches
@@ -140,6 +159,28 @@ func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusPa
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const openBatchStats = `-- name: OpenBatchStats :one
+SELECT count(*) as srs_count,
+       sum(sr.size) as batches_bytes,
+       count(DISTINCT batch_id) batches_count
+FROM storage_requests sr
+JOIN batches b ON b.batch_id=sr.batch_id
+WHERE b.status='open'
+`
+
+type OpenBatchStatsRow struct {
+	SrsCount     int64 `json:"srsCount"`
+	BatchesBytes int64 `json:"batchesBytes"`
+	BatchesCount int64 `json:"batchesCount"`
+}
+
+func (q *Queries) OpenBatchStats(ctx context.Context) (OpenBatchStatsRow, error) {
+	row := q.queryRow(ctx, q.openBatchStatsStmt, openBatchStats)
+	var i OpenBatchStatsRow
+	err := row.Scan(&i.SrsCount, &i.BatchesBytes, &i.BatchesCount)
+	return i, err
 }
 
 const updateBatchSize = `-- name: UpdateBatchSize :exec

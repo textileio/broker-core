@@ -35,6 +35,8 @@ type Service struct {
 	finalizer *finalizer.Finalizer
 }
 
+var _ mbroker.ReadyToBatchListener = (*Service)(nil)
+
 // New returns a new Service.
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	if err := validateConfig(conf); err != nil {
@@ -76,11 +78,9 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 }
 
 // OnReadyToBatch process a message for data ready to be included in a batch.
-func (s *Service) OnReadyToBatch(ctx context.Context, srs []mbroker.ReadyToBatchData) error {
-	for _, sr := range srs {
-		if err := s.packer.ReadyToBatch(ctx, sr.OperationID, sr.BrokerRequestID, sr.DataCid); err != nil {
-			return fmt.Errorf("processing ready to batch: %s", err)
-		}
+func (s *Service) OnReadyToBatch(ctx context.Context, opID mbroker.OperationID, srs []mbroker.ReadyToBatchData) error {
+	if err := s.packer.ReadyToBatch(ctx, opID, srs); err != nil {
+		return fmt.Errorf("processing ready to batch: %s", err)
 	}
 
 	return nil

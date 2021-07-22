@@ -100,7 +100,8 @@ message ReadyToCreateDeals {
 }
 
 message ReadyToBatch {
-  repeated ReadyToBatchBR data_cids = 1;
+  string operation_id = 1;
+  repeated ReadyToBatchBR data_cids = 2;
 
   message ReadyToBatchBR {
     string broker_request_id = 1;

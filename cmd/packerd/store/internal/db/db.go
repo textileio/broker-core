@@ -28,6 +28,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createOpenBatchStmt, err = db.PrepareContext(ctx, createOpenBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateOpenBatch: %w", err)
 	}
+	if q.doneBatchStatsStmt, err = db.PrepareContext(ctx, doneBatchStats); err != nil {
+		return nil, fmt.Errorf("error preparing query DoneBatchStats: %w", err)
+	}
 	if q.findOpenBatchWithSpaceStmt, err = db.PrepareContext(ctx, findOpenBatchWithSpace); err != nil {
 		return nil, fmt.Errorf("error preparing query FindOpenBatchWithSpace: %w", err)
 	}
@@ -39,6 +42,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.moveBatchToStatusStmt, err = db.PrepareContext(ctx, moveBatchToStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveBatchToStatus: %w", err)
+	}
+	if q.openBatchStatsStmt, err = db.PrepareContext(ctx, openBatchStats); err != nil {
+		return nil, fmt.Errorf("error preparing query OpenBatchStats: %w", err)
 	}
 	if q.updateBatchSizeStmt, err = db.PrepareContext(ctx, updateBatchSize); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateBatchSize: %w", err)
@@ -56,6 +62,11 @@ func (q *Queries) Close() error {
 	if q.createOpenBatchStmt != nil {
 		if cerr := q.createOpenBatchStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createOpenBatchStmt: %w", cerr)
+		}
+	}
+	if q.doneBatchStatsStmt != nil {
+		if cerr := q.doneBatchStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing doneBatchStatsStmt: %w", cerr)
 		}
 	}
 	if q.findOpenBatchWithSpaceStmt != nil {
@@ -76,6 +87,11 @@ func (q *Queries) Close() error {
 	if q.moveBatchToStatusStmt != nil {
 		if cerr := q.moveBatchToStatusStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveBatchToStatusStmt: %w", cerr)
+		}
+	}
+	if q.openBatchStatsStmt != nil {
+		if cerr := q.openBatchStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing openBatchStatsStmt: %w", cerr)
 		}
 	}
 	if q.updateBatchSizeStmt != nil {
@@ -124,10 +140,12 @@ type Queries struct {
 	tx                             *sql.Tx
 	addStorageRequestInBatchStmt   *sql.Stmt
 	createOpenBatchStmt            *sql.Stmt
+	doneBatchStatsStmt             *sql.Stmt
 	findOpenBatchWithSpaceStmt     *sql.Stmt
 	getNextReadyBatchStmt          *sql.Stmt
 	getStorageRequestFromBatchStmt *sql.Stmt
 	moveBatchToStatusStmt          *sql.Stmt
+	openBatchStatsStmt             *sql.Stmt
 	updateBatchSizeStmt            *sql.Stmt
 }
 
@@ -137,10 +155,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                             tx,
 		addStorageRequestInBatchStmt:   q.addStorageRequestInBatchStmt,
 		createOpenBatchStmt:            q.createOpenBatchStmt,
+		doneBatchStatsStmt:             q.doneBatchStatsStmt,
 		findOpenBatchWithSpaceStmt:     q.findOpenBatchWithSpaceStmt,
 		getNextReadyBatchStmt:          q.getNextReadyBatchStmt,
 		getStorageRequestFromBatchStmt: q.getStorageRequestFromBatchStmt,
 		moveBatchToStatusStmt:          q.moveBatchToStatusStmt,
+		openBatchStatsStmt:             q.openBatchStatsStmt,
 		updateBatchSizeStmt:            q.updateBatchSizeStmt,
 	}
 }
