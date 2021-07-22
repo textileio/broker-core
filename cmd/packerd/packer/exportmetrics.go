@@ -47,6 +47,7 @@ func (p *Packer) daemonExportMetrics() {
 		if err != nil {
 			cancel()
 			log.Errorf("get metrics stats: %s", err)
+			<-time.After(p.exportMetricsFreq)
 			continue
 		}
 		log.Debugf("metrics stats took %dms", time.Since(start).Milliseconds())
