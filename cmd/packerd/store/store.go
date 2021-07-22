@@ -12,6 +12,7 @@ import (
 
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgconn"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/store/internal/db"
@@ -23,7 +24,6 @@ import (
 var (
 	log = logger.Logger("store")
 
-	// TODO(jsign): use it and tests.
 	// ErrOperationIDExists indicates that the storage request inclusion
 	// in a batch already exists.
 	ErrOperationIDExists = errors.New("operation-id already exists")
@@ -134,6 +134,11 @@ func (s *Store) AddStorageRequestToOpenBatch(ctx context.Context, opID string, s
 			Size:             dataSize,
 		}
 		if err := queries.AddStorageRequestInBatch(ctx, asribParams); err != nil {
+			if err, ok := err.(*pgconn.PgError); ok {
+				if err.Code == "23505" {
+					return ErrOperationIDExists
+				}
+			}
 			return fmt.Errorf("add storage request in batch: %w", err)
 		}
 

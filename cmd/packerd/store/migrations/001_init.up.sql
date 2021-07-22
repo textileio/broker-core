@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS storage_requests (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     PRIMARY KEY(operation_id, storage_request_id),
-    CONSTRAINT fk_storage_deal_id FOREIGN KEY(storage_deal_id) REFERENCES storage_deals(id)
+    CONSTRAINT fk_batch_id FOREIGN KEY(batch_id) REFERENCES batches(batch_id)
 );
 
 

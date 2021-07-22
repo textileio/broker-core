@@ -67,7 +67,7 @@ func New(
 	batchMaxSize := calcBatchLimit(cfg.sectorSize)
 	store, err := store.New(postgresURI, batchMaxSize, cfg.batchMinSize)
 	if err != nil {
-		return nil, fmt.Errorf("initializing store: %s", err)
+		return nil, fmt.Errorf("init store: %s", err)
 	}
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -163,7 +163,6 @@ func (p *Packer) daemon() {
 	}
 }
 
-// TODO(jsign): review logging.
 func (p *Packer) pack(ctx context.Context) (int, error) {
 	batchID, batchSize, srs, ok, err := p.store.GetNextReadyBatch(ctx)
 	if err != nil {

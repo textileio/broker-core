@@ -9,6 +9,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
+	"github.com/textileio/broker-core/cmd/packerd/store"
 	"github.com/textileio/broker-core/msgbroker"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	golog "github.com/textileio/go-log/v2"
@@ -79,7 +80,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 
 // OnReadyToBatch process a message for data ready to be included in a batch.
 func (s *Service) OnReadyToBatch(ctx context.Context, opID mbroker.OperationID, srs []mbroker.ReadyToBatchData) error {
-	if err := s.packer.ReadyToBatch(ctx, opID, srs); err != nil {
+	if err := s.packer.ReadyToBatch(ctx, opID, srs); err != store.ErrOperationIDExists && err != nil {
 		return fmt.Errorf("processing ready to batch: %s", err)
 	}
 
