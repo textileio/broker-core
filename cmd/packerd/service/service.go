@@ -7,9 +7,10 @@ import (
 
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
+	"github.com/textileio/broker-core/cmd/packerd/store"
+	"github.com/textileio/broker-core/msgbroker"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	golog "github.com/textileio/go-log/v2"
 )
@@ -18,8 +19,7 @@ var log = golog.Logger("packer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	MongoDBName string
-	MongoURI    string
+	PostgresURI string
 
 	IpfsAPIMultiaddr string
 
@@ -27,7 +27,7 @@ type Config struct {
 	ExportMetricsFrequency time.Duration
 
 	TargetSectorSize int64
-	BatchMinSize     uint
+	BatchMinSize     int64
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -36,6 +36,8 @@ type Service struct {
 	finalizer *finalizer.Finalizer
 }
 
+var _ mbroker.ReadyToBatchListener = (*Service)(nil)
+
 // New returns a new Service.
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	if err := validateConfig(conf); err != nil {
@@ -43,12 +45,6 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	}
 
 	fin := finalizer.NewFinalizer()
-
-	ds, err := dshelper.NewMongoTxnDatastore(conf.MongoURI, conf.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("creating datastore: %s", err)
-	}
-	fin.Add(ds)
 
 	ma, err := multiaddr.NewMultiaddr(conf.IpfsAPIMultiaddr)
 	if err != nil {
@@ -64,7 +60,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
 
-	lib, err := packer.New(ds, ipfsClient, mb, opts...)
+	lib, err := packer.New(conf.PostgresURI, ipfsClient, mb, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
@@ -75,7 +71,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		finalizer: fin,
 	}
 
-	if err := mbroker.RegisterHandlers(mb, s); err != nil {
+	if err := mbroker.RegisterHandlers(mb, s, msgbroker.WithACKDeadline(time.Minute*5)); err != nil {
 		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
 	}
 
@@ -83,11 +79,9 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 }
 
 // OnReadyToBatch process a message for data ready to be included in a batch.
-func (s *Service) OnReadyToBatch(ctx context.Context, readyDataCids []mbroker.ReadyToBatchData) error {
-	for _, rdc := range readyDataCids {
-		if err := s.packer.ReadyToBatch(ctx, rdc.BrokerRequestID, rdc.DataCid); err != nil {
-			return fmt.Errorf("queuing broker request: %s", err)
-		}
+func (s *Service) OnReadyToBatch(ctx context.Context, opID mbroker.OperationID, srs []mbroker.ReadyToBatchData) error {
+	if err := s.packer.ReadyToBatch(ctx, opID, srs); err != store.ErrOperationIDExists && err != nil {
+		return fmt.Errorf("processing ready to batch: %s", err)
 	}
 
 	return nil
@@ -104,11 +98,8 @@ func validateConfig(conf Config) error {
 	if conf.IpfsAPIMultiaddr == "" {
 		return fmt.Errorf("ipfs api multiaddr is empty")
 	}
-	if conf.MongoDBName == "" {
-		return fmt.Errorf("mongo db name is empty")
-	}
-	if conf.MongoURI == "" {
-		return fmt.Errorf("mongo uri is empty")
+	if conf.PostgresURI == "" {
+		return fmt.Errorf("postgres uri is empty")
 	}
 
 	return nil

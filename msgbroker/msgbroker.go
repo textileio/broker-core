@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
@@ -53,6 +54,9 @@ const (
 	AuctionClosedTopic = "auction-closed"
 )
 
+// OperationID is a unique identifier for messages.
+type OperationID string
+
 // NewBatchCreatedListener is a handler for new-batch-created topic.
 type NewBatchCreatedListener interface {
 	OnNewBatchCreated(context.Context, broker.StorageDealID, cid.Cid, []broker.BrokerRequestID) error
@@ -65,7 +69,7 @@ type NewBatchPreparedListener interface {
 
 // ReadyToBatchListener is a handler for ready-to-batch topic.
 type ReadyToBatchListener interface {
-	OnReadyToBatch(context.Context, []ReadyToBatchData) error
+	OnReadyToBatch(context.Context, OperationID, []ReadyToBatchData) error
 }
 
 // ReadyToBatchData contains broker request data information to be batched.
@@ -96,7 +100,8 @@ type ReadyToAuctionListener interface {
 		id auction.AuctionID,
 		storageDealID broker.StorageDealID,
 		payloadCid cid.Cid,
-		dealSize, dealDuration, dealReplication int,
+		dealSize, dealDuration uint64,
+		dealReplication uint32,
 		dealVerified bool,
 		excludedMiners []string,
 		filEpochDeadline uint64,
@@ -193,6 +198,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal ready to batch: %s", err)
 			}
+			if r.OperationId == "" {
+				return fmt.Errorf("operation-id is empty")
+			}
 			if len(r.DataCids) == 0 {
 				return errors.New("data cids list can't be empty")
 			}
@@ -216,7 +224,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				}
 			}
 
-			if err := l.OnReadyToBatch(ctx, rtb); err != nil {
+			if err := l.OnReadyToBatch(ctx, OperationID(r.OperationId), rtb); err != nil {
 				return fmt.Errorf("calling ready-to-batch handler: %s", err)
 			}
 			return nil
@@ -432,9 +440,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				auction.AuctionID(req.Id),
 				broker.StorageDealID(req.StorageDealId),
 				payloadCid,
-				int(req.DealSize),
-				int(req.DealDuration),
-				int(req.DealReplication),
+				req.DealSize,
+				req.DealDuration,
+				req.DealReplication,
 				req.DealVerified,
 				req.ExcludedMiners,
 				req.FilEpochDeadline,
@@ -483,10 +491,17 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 		return errors.New("data cids is empty")
 	}
 	msg := &pb.ReadyToBatch{
-		DataCids: make([]*pb.ReadyToBatch_ReadyToBatchBR, len(dataCids)),
+		OperationId: uuid.New().String(),
+		DataCids:    make([]*pb.ReadyToBatch_ReadyToBatchBR, len(dataCids)),
 	}
 
 	for i := range dataCids {
+		if dataCids[i].BrokerRequestID == "" {
+			return fmt.Errorf("broker-request-id is empty")
+		}
+		if !dataCids[i].DataCid.Defined() {
+			return fmt.Errorf("data-cid is undefined")
+		}
 		msg.DataCids[i] = &pb.ReadyToBatch_ReadyToBatchBR{
 			BrokerRequestId: string(dataCids[i].BrokerRequestID),
 			DataCid:         dataCids[i].DataCid.Bytes(),
@@ -507,7 +522,7 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 func PublishMsgNewBatchCreated(
 	ctx context.Context,
 	mb MsgBroker,
-	batchID string,
+	batchID broker.StorageDealID,
 	batchCid cid.Cid,
 	brIDs []broker.BrokerRequestID) error {
 	brids := make([]string, len(brIDs))
@@ -515,7 +530,7 @@ func PublishMsgNewBatchCreated(
 		brids[i] = string(bbr)
 	}
 	msg := &pb.NewBatchCreated{
-		Id:               batchID,
+		Id:               string(batchID),
 		BatchCid:         batchCid.Bytes(),
 		BrokerRequestIds: brids,
 	}

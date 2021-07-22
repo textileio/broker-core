@@ -36,6 +36,9 @@ type Service struct {
 	finalizer *finalizer.Finalizer
 }
 
+var _ mbroker.ReadyToAuctionListener = (*Service)(nil)
+var _ mbroker.DealProposalAcceptedListener = (*Service)(nil)
+
 // New returns a new Service.
 func New(conf Config, store txndswrap.TxnDatastore, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()

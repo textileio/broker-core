@@ -8,16 +8,19 @@ import (
 type config struct {
 	daemonFreq        time.Duration
 	exportMetricsFreq time.Duration
+	retryDelay        time.Duration
 
 	sectorSize   int64
-	batchMinSize uint
+	batchMinSize int64
 }
 
 var defaultConfig = config{
 	daemonFreq:        time.Second * 20,
 	exportMetricsFreq: time.Minute * 5,
-	sectorSize:        32 << 30,
-	batchMinSize:      10 << 20,
+	retryDelay:        time.Second * 30,
+
+	sectorSize:   32 << 30,
+	batchMinSize: 10 << 20,
 }
 
 // Option applies a configuration change.
@@ -48,7 +51,7 @@ func WithSectorSize(sectorSize int64) Option {
 
 // WithBatchMinSize configures the minimum batch size that can be considered
 // for preparation.
-func WithBatchMinSize(minSize uint) Option {
+func WithBatchMinSize(minSize int64) Option {
 	return func(c *config) error {
 		if minSize <= 0 {
 			return fmt.Errorf("batch min size should be positive")
@@ -65,6 +68,18 @@ func WithExportMetricsFrequency(frequency time.Duration) Option {
 			return fmt.Errorf("export metrics frequency should be positive")
 		}
 		c.exportMetricsFreq = frequency
+		return nil
+	}
+}
+
+// WithRetryDelay indicates how many time erorred batch processing should be delayed
+// before retrying.
+func WithRetryDelay(delay time.Duration) Option {
+	return func(c *config) error {
+		if delay <= 0 {
+			return fmt.Errorf("retry delay isn't negative")
+		}
+		c.retryDelay = delay
 		return nil
 	}
 }

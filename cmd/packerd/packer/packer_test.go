@@ -18,8 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/packerd/store"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
-	"github.com/textileio/broker-core/msgbroker"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
 	golog "github.com/textileio/go-log/v2"
@@ -28,8 +29,8 @@ import (
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		"packer":       golog.LevelDebug,
-		"packer/store": golog.LevelDebug,
+		"packer": golog.LevelDebug,
+		"store":  golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
@@ -56,7 +57,11 @@ func TestPack(t *testing.T) {
 
 	// 3- Signal ready to pack these cids to Packer
 	for i, dataCid := range dataCids {
-		err = packer.ReadyToBatch(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
+		err = packer.ReadyToBatch(
+			ctx,
+			mbroker.OperationID(strconv.Itoa(i)),
+			[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID(strconv.Itoa(i)), DataCid: dataCid}},
+		)
 		require.NoError(t, err)
 	}
 
@@ -65,9 +70,9 @@ func TestPack(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 1, mb.TotalPublished())
-	require.Equal(t, 1, mb.TotalPublishedTopic(msgbroker.NewBatchCreatedTopic))
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
 
-	msgb, err := mb.GetMsg(msgbroker.NewBatchCreatedTopic, 0)
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
 	require.NoError(t, err)
 	msg := &pb.NewBatchCreated{}
 	err = proto.Unmarshal(msgb, msg)
@@ -84,6 +89,94 @@ func TestPack(t *testing.T) {
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
 	require.NoError(t, err)
 	require.True(t, pinned)
+}
+
+func TestPackBatch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	// 1- Create a Packer and have a go-ipfs client too.
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	packer, mb := createPacker(t, ipfs)
+
+	// 2- Add 100 random files and get their cids.
+	numFiles := 100
+	dataCids := addRandomData(t, ipfs, numFiles)
+
+	// 3- Batch the 100 files in a single call
+	rtbs := make([]mbroker.ReadyToBatchData, len(dataCids))
+	for i, dataCid := range dataCids {
+		rtbs[i] = mbroker.ReadyToBatchData{BrokerRequestID: broker.BrokerRequestID(strconv.Itoa(i)), DataCid: dataCid}
+	}
+	err = packer.ReadyToBatch(ctx, "op-1", rtbs)
+	require.NoError(t, err)
+
+	// 4- Force pack and inspect what was signaled to the broker
+	numBatchedCids, err := packer.pack(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
+
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+
+	require.Len(t, msg.BrokerRequestIds, numFiles)
+	require.Equal(t, numFiles, numBatchedCids)
+	require.NotEmpty(t, msg.BatchCid)
+	bcid, err := cid.Cast(msg.BatchCid)
+	require.NoError(t, err)
+	require.True(t, bcid.Defined())
+
+	// Check that the batch cid was pinned in ipfs.
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
+	require.NoError(t, err)
+	require.True(t, pinned)
+}
+
+func TestPackIdempotency(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	// 1- Create a Packer and have a go-ipfs client too.
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	packer, _ := createPacker(t, ipfs)
+
+	// 2- Add one file to go-ipfs.
+	dataCids := addRandomData(t, ipfs, 1)
+
+	// 3- Make first call.
+	err = packer.ReadyToBatch(
+		ctx,
+		mbroker.OperationID("op-1"),
+		[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID("br-1"), DataCid: dataCids[0]}},
+	)
+	require.NoError(t, err)
+
+	// 3- Make second call with the same operation id.
+	err = packer.ReadyToBatch(
+		ctx,
+		mbroker.OperationID("op-1"),
+		[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID("br-1"), DataCid: dataCids[0]}},
+	)
+	require.ErrorIs(t, err, store.ErrOperationIDExists)
 }
 
 func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
@@ -107,7 +200,11 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	// 3- Simulate multiple BrokerRequests but with the same data
 	numRepeatedBrokerRequest := 100
 	for i := 0; i < numRepeatedBrokerRequest; i++ {
-		err = packer.ReadyToBatch(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
+		err = packer.ReadyToBatch(
+			ctx,
+			mbroker.OperationID(strconv.Itoa(1)),
+			[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID(strconv.Itoa(i)), DataCid: dataCid}},
+		)
 		require.NoError(t, err)
 	}
 
@@ -116,8 +213,8 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, mb.TotalPublished(), 1)
-	require.Equal(t, 1, mb.TotalPublishedTopic(msgbroker.NewBatchCreatedTopic))
-	msgb, err := mb.GetMsg(msgbroker.NewBatchCreatedTopic, 0)
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
 	require.NoError(t, err)
 	msg := &pb.NewBatchCreated{}
 	err = proto.Unmarshal(msgb, msg)
@@ -138,9 +235,10 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 }
 
 func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi) (*Packer, *fakemsgbroker.FakeMsgBroker) {
-	ds := tests.NewTxMapDatastore()
 	mb := fakemsgbroker.New()
-	packer, err := New(ds, ipfsClient, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
+	postgresURL, err := tests.PostgresURL()
+	require.NoError(t, err)
+	packer, err := New(postgresURL, ipfsClient, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
 	require.NoError(t, err)
 
 	return packer, mb

@@ -138,12 +138,14 @@ services:
     depends_on:
       - ipfs
       - gpubsub
+      - postgres
     restart: unless-stopped
   packerd:
     build:
       context: .
       dockerfile: ./cmd/packerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./packerd"]
     environment:
       - PACKER_LOG_DEBUG=true
       - PACKER_LOG_JSON=false
@@ -154,14 +156,19 @@ services:
       - PACKER_TARGET_SECTOR_SIZE=20000
       - PACKER_DAEMON_FREQUENCY=3s
       - PACKER_MSGBROKER_TOPIC_PREFIX=test
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=packerd
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - mongo
       - ipfs
+      - postgres
       - gpubsub
     restart: unless-stopped
   piecerd:
@@ -188,6 +195,7 @@ services:
       - SYS_PTRACE
     depends_on:
       - ipfs
+      - postgres
       - gpubsub
     restart: unless-stopped
   dealerd:
@@ -212,7 +220,8 @@ services:
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - brokerd
+      - postgres
+      - gpubsub
     restart: unless-stopped
   mongo:
     image: mongo:latest

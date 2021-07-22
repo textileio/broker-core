@@ -60,6 +60,10 @@ type Service struct {
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
+var _ msgbroker.NewBatchCreatedListener = (*Service)(nil)
+var _ msgbroker.NewBatchPreparedListener = (*Service)(nil)
+var _ msgbroker.FinalizedDealListener = (*Service)(nil)
+var _ msgbroker.AuctionClosedListener = (*Service)(nil)
 
 // New returns a new Service.
 func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
