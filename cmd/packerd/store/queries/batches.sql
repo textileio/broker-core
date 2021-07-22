@@ -1,7 +1,7 @@
 -- name: FindOpenBatchWithSpace :one
 SELECT *
 FROM batches
-WHERE status = 'open' AND
+WHERE status='open' AND
       total_size<=$1
 ORDER BY created_at
 FOR UPDATE
@@ -16,17 +16,17 @@ VALUES ($1,$2,$3,$4,$5);
 
 -- name: UpdateBatchSize :exec
 UPDATE batches
-SET total_size=$2
+SET total_size=$2, ready_at=CURRENT_TIMESTAMP
 WHERE batch_id=$1;
 
 -- name: MoveBatchToStatus :execrows
 UPDATE batches
-SET status=$2, ready_at=$3, updated_at = CURRENT_TIMESTAMP
+SET status=$2, ready_at=$3, updated_at=CURRENT_TIMESTAMP
 WHERE batch_id=$1;
 
 -- name: GetNextReadyBatch :one
 UPDATE batches
-SET status = 'executing', updated_at = CURRENT_TIMESTAMP
+SET status='executing', updated_at=CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT b.batch_id FROM batches b
 	          WHERE b.status = 'ready'
 		  ORDER BY b.ready_at asc

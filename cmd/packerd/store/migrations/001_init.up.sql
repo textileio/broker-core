@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS batches (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX batches_status_idx ON batches(status, ready_at);
+CREATE INDEX IF NOT EXISTS batches_status_ready_at_idx ON batches(status, ready_at);
 
 CREATE TABLE IF NOT EXISTS storage_requests (
     operation_id TEXT NOT NULL,
