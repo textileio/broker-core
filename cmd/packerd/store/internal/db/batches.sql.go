@@ -5,6 +5,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/textileio/broker-core/broker"
 )
@@ -43,26 +44,26 @@ func (q *Queries) CreateOpenBatch(ctx context.Context, batchID broker.StorageDea
 }
 
 const doneBatchStats = `-- name: DoneBatchStats :one
-SELECT count(*) as done_batch_count,
-       sum(size) as done_batch_bytes
+SELECT count(*) as batches_count,
+       sum(size) as batches_bytes
 FROM batches
 where status='done'
 `
 
 type DoneBatchStatsRow struct {
-	DoneBatchCount int64 `json:"doneBatchCount"`
-	DoneBatchBytes int64 `json:"doneBatchBytes"`
+	BatchesCount int64 `json:"batchesCount"`
+	BatchesBytes int64 `json:"batchesBytes"`
 }
 
 func (q *Queries) DoneBatchStats(ctx context.Context) (DoneBatchStatsRow, error) {
 	row := q.queryRow(ctx, q.doneBatchStatsStmt, doneBatchStats)
 	var i DoneBatchStatsRow
-	err := row.Scan(&i.DoneBatchCount, &i.DoneBatchBytes)
+	err := row.Scan(&i.BatchesCount, &i.BatchesBytes)
 	return i, err
 }
 
 const findOpenBatchWithSpace = `-- name: FindOpenBatchWithSpace :one
-SELECT batch_id, status, total_size, created_at, updated_at
+SELECT batch_id, status, total_size, ready_at, created_at, updated_at
 FROM batches
 WHERE status = 'open' AND
       total_size<=$1
@@ -78,6 +79,7 @@ func (q *Queries) FindOpenBatchWithSpace(ctx context.Context, totalSize int64) (
 		&i.BatchID,
 		&i.Status,
 		&i.TotalSize,
+		&i.ReadyAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -89,7 +91,7 @@ UPDATE batches
 SET status = 'executing', updated_at = CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT b.batch_id FROM batches b
 	          WHERE b.status = 'ready'
-		  ORDER BY b.updated_at asc
+		  ORDER BY b.ready_at asc
 		  FOR UPDATE SKIP LOCKED
 	          LIMIT 1)
 RETURNING batch_id, total_size
@@ -107,12 +109,12 @@ func (q *Queries) GetNextReadyBatch(ctx context.Context) (GetNextReadyBatchRow, 
 	return i, err
 }
 
-const getStorageRequestFromBatch = `-- name: GetStorageRequestFromBatch :many
+const getStorageRequestsFromBatch = `-- name: GetStorageRequestsFromBatch :many
 SELECT operation_id, storage_request_id, data_cid, batch_id, size, created_at, updated_at FROM storage_requests where batch_id=$1
 `
 
-func (q *Queries) GetStorageRequestFromBatch(ctx context.Context, batchID broker.StorageDealID) ([]StorageRequest, error) {
-	rows, err := q.query(ctx, q.getStorageRequestFromBatchStmt, getStorageRequestFromBatch, batchID)
+func (q *Queries) GetStorageRequestsFromBatch(ctx context.Context, batchID broker.StorageDealID) ([]StorageRequest, error) {
+	rows, err := q.query(ctx, q.getStorageRequestsFromBatchStmt, getStorageRequestsFromBatch, batchID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,17 +146,18 @@ func (q *Queries) GetStorageRequestFromBatch(ctx context.Context, batchID broker
 
 const moveBatchToStatus = `-- name: MoveBatchToStatus :execrows
 UPDATE batches
-SET status=$2, updated_at = CURRENT_TIMESTAMP
+SET status=$2, ready_at=$3, updated_at = CURRENT_TIMESTAMP
 WHERE batch_id=$1
 `
 
 type MoveBatchToStatusParams struct {
 	BatchID broker.StorageDealID `json:"batchID"`
 	Status  BatchStatus          `json:"status"`
+	ReadyAt time.Time            `json:"readyAt"`
 }
 
 func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusParams) (int64, error) {
-	result, err := q.exec(ctx, q.moveBatchToStatusStmt, moveBatchToStatus, arg.BatchID, arg.Status)
+	result, err := q.exec(ctx, q.moveBatchToStatusStmt, moveBatchToStatus, arg.BatchID, arg.Status, arg.ReadyAt)
 	if err != nil {
 		return 0, err
 	}
@@ -162,24 +165,24 @@ func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusPa
 }
 
 const openBatchStats = `-- name: OpenBatchStats :one
-SELECT count(*) as srs_count,
+SELECT count(*) as batches_cid_count,
        sum(sr.size) as batches_bytes,
-       count(DISTINCT batch_id) batches_count
+       count(DISTINCT sr.batch_id) batches_count
 FROM storage_requests sr
 JOIN batches b ON b.batch_id=sr.batch_id
 WHERE b.status='open'
 `
 
 type OpenBatchStatsRow struct {
-	SrsCount     int64 `json:"srsCount"`
-	BatchesBytes int64 `json:"batchesBytes"`
-	BatchesCount int64 `json:"batchesCount"`
+	BatchesCidCount int64 `json:"batchesCidCount"`
+	BatchesBytes    int64 `json:"batchesBytes"`
+	BatchesCount    int64 `json:"batchesCount"`
 }
 
 func (q *Queries) OpenBatchStats(ctx context.Context) (OpenBatchStatsRow, error) {
 	row := q.queryRow(ctx, q.openBatchStatsStmt, openBatchStats)
 	var i OpenBatchStatsRow
-	err := row.Scan(&i.SrsCount, &i.BatchesBytes, &i.BatchesCount)
+	err := row.Scan(&i.BatchesCidCount, &i.BatchesBytes, &i.BatchesCount)
 	return i, err
 }
 

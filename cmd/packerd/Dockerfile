@@ -16,7 +16,6 @@ FROM alpine
 RUN apk --no-cache add postgresql-client
 COPY /bin/with-postgres.sh /app/
 
-
 COPY --from=builder /app/packerd /app/packerd
 WORKDIR /app
 ENTRYPOINT ["./packerd"]
