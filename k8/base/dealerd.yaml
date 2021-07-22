@@ -51,6 +51,7 @@ spec:
       labels:
         app: dealer-v1
     spec:
+      serviceAccountName: postgres-cloud-sql
       containers:
         - name: dealer
           image: textile/dealer
