@@ -8,6 +8,7 @@ resources:
 - dealerd.yaml
 - ingress.yaml
 - mongo.yaml
+- postgres.yaml
 - neard.yaml
 - packerd.yaml
 - storaged.yaml

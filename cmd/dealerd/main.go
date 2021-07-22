@@ -19,8 +19,7 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{
 			Name:        "lotus-exported-wallet-address",
@@ -66,7 +65,8 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "lotus-exported-wallet-address")
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key",
+			"lotus-exported-wallet-address", "postgres-uri")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -75,8 +75,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		config := service.Config{
-			MongoURI:    v.GetString("mongo-uri"),
-			MongoDBName: v.GetString("mongo-dbname"),
+			PostgresURI: v.GetString("postgres-uri"),
 
 			LotusGatewayURL:         v.GetString("lotus-gateway-url"),
 			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-address"),

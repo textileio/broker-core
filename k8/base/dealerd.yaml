@@ -51,16 +51,28 @@ spec:
       labels:
         app: dealer-v1
     spec:
+      serviceAccountName: postgres-cloud-sql
       containers:
         - name: dealer
           image: textile/dealer
           imagePullPolicy: Always
           ports:
-            - name: api
-              containerPort: 5000
             - name: metrics
               containerPort: 9090
+          command: ["./with-postgres.sh", "./dealerd"]
           env:
+            - name: DAEMON
+              value: "dealer"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: postgres-password
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: dealer-db-password
             - name: DEALER_GPUBSUB_PROJECT_ID
               valueFrom:
                 secretKeyRef:

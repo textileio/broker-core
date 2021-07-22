@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/logging"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
@@ -33,10 +32,15 @@ var _ dealeri.Dealer = (*Dealer)(nil)
 
 // New returns a new Dealer.
 func New(
-	ds txndswrap.TxnDatastore,
+	postgresURI string,
 	mb mbroker.MsgBroker,
 	fc FilClient,
 	opts ...Option) (*Dealer, error) {
+	s, err := store.New(postgresURI)
+	if err != nil {
+		return nil, fmt.Errorf("initializing dealer store: %s", err)
+	}
+
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
@@ -44,15 +48,10 @@ func New(
 		}
 	}
 
-	store, err := store.New(txndswrap.Wrap(ds, "/queue"))
-	if err != nil {
-		return nil, fmt.Errorf("initializing store: %s", err)
-	}
-
 	ctx, cls := context.WithCancel(context.Background())
 	d := &Dealer{
 		config:    cfg,
-		store:     store,
+		store:     s,
 		filclient: fc,
 		mb:        mb,
 
@@ -79,18 +78,18 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 	auctionDeals := make([]*store.AuctionDeal, len(ad.Proposals))
 	for i, t := range ad.Proposals {
 		auctionDeal := &store.AuctionDeal{
-			Miner:               t.Miner,
-			PricePerGiBPerEpoch: t.PricePerGiBPerEpoch,
+			MinerID:             t.MinerID,
+			PricePerGibPerEpoch: t.PricePerGiBPerEpoch,
 			StartEpoch:          t.StartEpoch,
 			Verified:            t.Verified,
 			FastRetrieval:       t.FastRetrieval,
-			AuctionID:           string(t.AuctionID),
-			BidID:               string(t.BidID),
+			AuctionID:           t.AuctionID,
+			BidID:               t.BidID,
 		}
 		auctionDeals[i] = auctionDeal
 		log.Debugf("%s auction deal: %s", auctionData.StorageDealID, logging.MustJSONIndent(auctionDeal))
 	}
-	if err := d.store.Create(auctionData, auctionDeals); err != nil {
+	if err := d.store.Create(ctx, auctionData, auctionDeals); err != nil {
 		return fmt.Errorf("creating auction deals: %s", err)
 	}
 

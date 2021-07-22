@@ -266,8 +266,8 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				Proposals:     make([]dealer.Proposal, len(r.Proposals)),
 			}
 			for i, t := range r.Proposals {
-				if t.Miner == "" {
-					return errors.New("miner addr is empty")
+				if t.MinerId == "" {
+					return errors.New("miner ID is empty")
 				}
 				if t.PricePerGibPerEpoch < 0 {
 					return errors.New("price per gib per epoch is negative")
@@ -282,7 +282,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 					return errors.New("bid-id is empty")
 				}
 				ads.Proposals[i] = dealer.Proposal{
-					Miner:               t.Miner,
+					MinerID:             t.MinerId,
 					PricePerGiBPerEpoch: t.PricePerGibPerEpoch,
 					StartEpoch:          t.StartEpoch,
 					Verified:            t.Verified,
@@ -362,7 +362,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.StorageDealId == "" {
 				return errors.New("storage deal id is empty")
 			}
-			if r.Miner == "" {
+			if r.MinerId == "" {
 				return errors.New("miner id is empty")
 			}
 			proposalCid, err := cid.Cast(r.ProposalCid)
@@ -567,7 +567,7 @@ func PublishMsgReadyToCreateDeals(
 		Proposals:     make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
 	}
 	for i, t := range ads.Proposals {
-		if t.Miner == "" {
+		if t.MinerID == "" {
 			return errors.New("miner is empty")
 		}
 		if t.StartEpoch == 0 {
@@ -580,7 +580,7 @@ func PublishMsgReadyToCreateDeals(
 			return errors.New("bid-id is empty")
 		}
 		msg.Proposals[i] = &pb.ReadyToCreateDeals_Proposal{
-			Miner:               t.Miner,
+			MinerId:             t.MinerID,
 			PricePerGibPerEpoch: t.PricePerGiBPerEpoch,
 			StartEpoch:          t.StartEpoch,
 			Verified:            t.Verified,
@@ -629,11 +629,11 @@ func PublishMsgDealProposalAccepted(
 	sdID broker.StorageDealID,
 	auctionID auction.AuctionID,
 	bidID auction.BidID,
-	miner string,
+	minerID string,
 	propCid cid.Cid) error {
 	msg := &pb.DealProposalAccepted{
 		StorageDealId: string(sdID),
-		Miner:         miner,
+		MinerId:       minerID,
 		ProposalCid:   propCid.Bytes(),
 		AuctionId:     string(auctionID),
 		BidId:         string(bidID),
@@ -794,14 +794,14 @@ func auctionWinningBidsToPb(
 ) (map[string]*pb.AuctionClosed_WinningBid, error) {
 	pbbids := make(map[string]*pb.AuctionClosed_WinningBid)
 	for k, v := range bids {
-		if v.MinerAddr == "" {
+		if v.MinerID == "" {
 			return nil, errors.New("miner id is empty")
 		}
 		if v.StartEpoch == 0 {
 			return nil, errors.New("start epoch is zero")
 		}
 		pbbids[string(k)] = &pb.AuctionClosed_WinningBid{
-			MinerAddr:     v.MinerAddr,
+			MinerId:       v.MinerID,
 			Price:         v.Price,
 			StartEpoch:    v.StartEpoch,
 			FastRetrieval: v.FastRetrieval,
@@ -860,7 +860,7 @@ func auctionWinningBidsFromPb(
 ) (map[auction.BidID]broker.WinningBid, error) {
 	wbids := make(map[auction.BidID]broker.WinningBid)
 	for k, v := range pbbids {
-		if v.MinerAddr == "" {
+		if v.MinerId == "" {
 			return nil, errors.New("miner id is empty")
 		}
 		if v.Price < 0 {
@@ -870,7 +870,7 @@ func auctionWinningBidsFromPb(
 			return nil, errors.New("start-epoch is zero")
 		}
 		wbids[auction.BidID(k)] = broker.WinningBid{
-			MinerAddr:     v.MinerAddr,
+			MinerID:       v.MinerId,
 			Price:         v.Price,
 			StartEpoch:    v.StartEpoch,
 			FastRetrieval: v.FastRetrieval,

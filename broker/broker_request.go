@@ -41,7 +41,7 @@ type BrokerRequestInfo struct {
 
 // BrokerRequestDeal describes on-chain deals of a broker-request.
 type BrokerRequestDeal struct {
-	Miner      string
+	MinerID    string
 	DealID     int64
 	Expiration uint64
 }

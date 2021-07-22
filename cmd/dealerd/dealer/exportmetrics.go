@@ -29,7 +29,7 @@ func (d *Dealer) daemonExportMetrics() {
 
 	for {
 		start := time.Now()
-		newCountMap, err := d.store.GetAuctionDealStatusCounts()
+		newCountMap, err := d.store.GetStatusCounts(context.Background())
 		if err != nil {
 			log.Errorf("metrics count statuses: %s", err)
 			continue

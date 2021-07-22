@@ -13,7 +13,6 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM alpine
 
-# To initialize postgres and pass correct URI to the daemon when running the k8s pod for the first time.
 RUN apk --no-cache add postgresql-client
 COPY /bin/with-postgres.sh /app/
 

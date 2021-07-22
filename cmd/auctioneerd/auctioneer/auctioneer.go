@@ -436,7 +436,7 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 			price = bid.AskPrice
 		}
 		wbids[wbid] = broker.WinningBid{
-			MinerAddr:     bid.MinerAddr,
+			MinerID:       bid.MinerAddr,
 			Price:         price,
 			StartEpoch:    bid.StartEpoch,
 			FastRetrieval: bid.FastRetrieval,

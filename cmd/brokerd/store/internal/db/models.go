@@ -25,7 +25,7 @@ type MinerDeal struct {
 	StorageDealID  broker.StorageDealID `json:"storageDealID"`
 	AuctionID      auction.AuctionID    `json:"auctionID"`
 	BidID          auction.BidID        `json:"bidID"`
-	MinerAddr      string               `json:"minerAddr"`
+	MinerID        string               `json:"minerID"`
 	DealID         int64                `json:"dealID"`
 	DealExpiration uint64               `json:"dealExpiration"`
 	ErrorCause     string               `json:"errorCause"`
