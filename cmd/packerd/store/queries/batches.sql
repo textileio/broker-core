@@ -16,7 +16,7 @@ VALUES ($1,$2,$3,$4,$5);
 
 -- name: UpdateBatchSize :exec
 UPDATE batches
-SET total_size=$2, ready_at=CURRENT_TIMESTAMP
+SET total_size=$2, updated_at=CURRENT_TIMESTAMP
 WHERE batch_id=$1;
 
 -- name: MoveBatchToStatus :execrows
