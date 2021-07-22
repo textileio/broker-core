@@ -98,6 +98,7 @@ func (p *Packer) ReadyToBatch(
 	ctx context.Context,
 	opID mbroker.OperationID,
 	rtbds []mbroker.ReadyToBatchData) (err error) {
+	start := time.Now()
 	ctx, err = p.store.CtxWithTx(ctx)
 	if err != nil {
 		return fmt.Errorf("creating ctx with tx: %s", err)
@@ -131,6 +132,7 @@ func (p *Packer) ReadyToBatch(
 			return fmt.Errorf("add storage-request to open batch: %w", err)
 		}
 	}
+	log.Debugf("packing %d storage-requests took %dms", time.Since(start).Milliseconds())
 
 	return nil
 }
