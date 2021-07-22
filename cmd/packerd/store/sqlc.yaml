@@ -19,7 +19,3 @@ overrides:
     go_type: "github.com/textileio/broker-core/broker.StorageDealID"
   - column: "storage_requests.batch_id"
     go_type: "github.com/textileio/broker-core/broker.StorageDealID"
-
-
-
-
