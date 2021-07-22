@@ -8,7 +8,6 @@ import (
 	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/textileio/broker-core/broker"
@@ -112,19 +111,17 @@ func (p *Packer) ReadyToBatch(
 		dataCid := rtbd.DataCid
 		log.Debugf("received ready to pack storage-request %s, data-cid %s", srID, dataCid)
 
-		var node format.Node
-		node, err = p.ipfs.Dag().Get(ctx, dataCid)
+		node, err := p.ipfs.Dag().Get(ctx, dataCid)
 		if err != nil {
 			return fmt.Errorf("get node for data-cid %s: %s", dataCid, err)
 		}
-		var stat *format.NodeStat
-		stat, err = node.Stat()
+		stat, err := node.Stat()
 		if err != nil {
 			return fmt.Errorf("get stat for data-cid %s: %s", dataCid, err)
 		}
 		size := int64(stat.CumulativeSize)
 
-		if err = p.store.AddStorageRequestToOpenBatch(
+		if err := p.store.AddStorageRequestToOpenBatch(
 			ctx,
 			string(opID),
 			srID,
