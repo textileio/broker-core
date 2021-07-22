@@ -212,7 +212,12 @@ func (s *Store) MoveBatchToStatus(
 // GetNextReadyBatch returns the next ready batch to be processed batch and changes the
 // status to Executing.
 // The caller is responsible for updating the status later to Ready on error, or Done on success.
-func (s *Store) GetNextReadyBatch(ctx context.Context) (batchID broker.StorageDealID, totalSize int64, srs []StorageRequest, exists bool, err error) {
+func (s *Store) GetNextReadyBatch(
+	ctx context.Context) (batchID broker.StorageDealID,
+	totalSize int64,
+	srs []StorageRequest,
+	exists bool,
+	err error) {
 	if err := s.withCtxTx(ctx, func(q *db.Queries) error {
 		var rb db.GetNextReadyBatchRow
 		rb, err = s.db.GetNextReadyBatch(ctx)
