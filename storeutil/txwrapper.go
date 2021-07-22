@@ -56,6 +56,7 @@ func FinishTxForCtx(ctx context.Context, err error) error {
 		// intentionlly ignore the error to avoid shadowing the real
 		// error causing the rollback.
 		_ = txn.Rollback()
+		return err
 	}
 	return txn.Commit()
 }
@@ -99,7 +100,7 @@ func WithTx(ctx context.Context, db *sql.DB, f func(*sql.Tx) error, opts ...TxOp
 }
 
 // UseTxFromCtx calls withTx if a transaction is attached to the context, or calls noTx.
-func UseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error, noTx func() error) (err error) {
+func UseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error, noTx func() error) error {
 	tx := ctx.Value(ctxKeyTx)
 	if txn, ok := tx.(*sql.Tx); ok {
 		return withTx(txn)
@@ -108,7 +109,7 @@ func UseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error, noTx func() e
 }
 
 // MustUseTxFromCtx calls withTx if a transaction is attached to the context.
-func MustUseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error) (err error) {
+func MustUseTxFromCtx(ctx context.Context, withTx func(*sql.Tx) error) error {
 	tx := ctx.Value(ctxKeyTx)
 	if txn, ok := tx.(*sql.Tx); ok {
 		return withTx(txn)

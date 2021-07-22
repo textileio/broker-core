@@ -29,8 +29,8 @@ import (
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		"packer": golog.LevelDebug,
-		"store":  golog.LevelDebug,
+		//		"packer": golog.LevelDebug,
+		//		"store":  golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
@@ -176,7 +176,7 @@ func TestPackIdempotency(t *testing.T) {
 		mbroker.OperationID("op-1"),
 		[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID("br-1"), DataCid: dataCids[0]}},
 	)
-	require.Error(t, store.ErrOperationIDExists)
+	require.ErrorIs(t, err, store.ErrOperationIDExists)
 }
 
 func TestMultipleBrokerRequestWithSameCid(t *testing.T) {

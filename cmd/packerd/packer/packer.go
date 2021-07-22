@@ -8,6 +8,7 @@ import (
 	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/textileio/broker-core/broker"
@@ -27,6 +28,7 @@ var (
 type Packer struct {
 	daemonFreq        time.Duration
 	exportMetricsFreq time.Duration
+	retryDelay        time.Duration
 
 	store *store.Store
 	ipfs  *httpapi.HttpApi
@@ -74,6 +76,7 @@ func New(
 	p := &Packer{
 		daemonFreq:        cfg.daemonFreq,
 		exportMetricsFreq: cfg.exportMetricsFreq,
+		retryDelay:        cfg.retryDelay,
 
 		store: store,
 		ipfs:  ipfsClient,
@@ -92,7 +95,10 @@ func New(
 }
 
 // ReadyToBatch includes a StorageRequest in an open batch.
-func (p *Packer) ReadyToBatch(ctx context.Context, opID mbroker.OperationID, rtbds []mbroker.ReadyToBatchData) (err error) {
+func (p *Packer) ReadyToBatch(
+	ctx context.Context,
+	opID mbroker.OperationID,
+	rtbds []mbroker.ReadyToBatchData) (err error) {
 	ctx, err = p.store.CtxWithTx(ctx)
 	if err != nil {
 		return fmt.Errorf("creating ctx with tx: %s", err)
@@ -106,24 +112,26 @@ func (p *Packer) ReadyToBatch(ctx context.Context, opID mbroker.OperationID, rtb
 		dataCid := rtbd.DataCid
 		log.Debugf("received ready to pack storage-request %s, data-cid %s", srID, dataCid)
 
-		node, err := p.ipfs.Dag().Get(ctx, dataCid)
+		var node format.Node
+		node, err = p.ipfs.Dag().Get(ctx, dataCid)
 		if err != nil {
 			return fmt.Errorf("get node for data-cid %s: %s", dataCid, err)
 		}
-		stat, err := node.Stat()
+		var stat *format.NodeStat
+		stat, err = node.Stat()
 		if err != nil {
 			return fmt.Errorf("get stat for data-cid %s: %s", dataCid, err)
 		}
 		size := int64(stat.CumulativeSize)
 
-		if err := p.store.AddStorageRequestToOpenBatch(
+		if err = p.store.AddStorageRequestToOpenBatch(
 			ctx,
 			string(opID),
 			srID,
 			dataCid,
 			size,
 		); err != nil {
-			return fmt.Errorf("add storage-request to open batch: %s", err)
+			return fmt.Errorf("add storage-request to open batch: %w", err)
 		}
 	}
 
@@ -179,7 +187,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
 
-	if err := p.store.MoveBatchToStatus(ctx, batchID, store.StatusDone); err != nil {
+	if err := p.store.MoveBatchToStatus(ctx, batchID, p.retryDelay, store.StatusDone); err != nil {
 		return 0, fmt.Errorf("moving batch %s to done: %s", batchID, err)
 	}
 

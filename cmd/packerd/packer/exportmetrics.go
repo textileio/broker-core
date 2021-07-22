@@ -2,46 +2,50 @@ package packer
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/textileio/broker-core/cmd/packerd/metrics"
+	"github.com/textileio/broker-core/cmd/packerd/store"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
 func (p *Packer) daemonExportMetrics() {
 	var (
-		metricPendingCounter metric.Int64ValueObserver
-		pendingCount         int64
-		metricPendingBytes   metric.Int64ValueObserver
-		pendingBytes         int64
-		metricOpenBatchCount metric.Int64ValueObserver
-		openBatches          int64
-		metricDoneBatchCount metric.Int64ValueObserver
-		doneBatchCount       int64
-		metricDoneBatchBytes metric.Int64ValueObserver
-		doneBatchBytes       int64
+		mOpenBatchesCidCount metric.Int64ValueObserver
+		mOpenBatchesBytes    metric.Int64ValueObserver
+		mOpenBatchesCount    metric.Int64ValueObserver
+		mDoneBatchesCount    metric.Int64ValueObserver
+		mDoneBatchesBytes    metric.Int64ValueObserver
+
+		lock      sync.Mutex
+		lastStats *store.Stats
 	)
 
 	batchObs := metrics.Meter.NewBatchObserver(func(ctx context.Context, result metric.BatchObserverResult) {
+		lock.Lock()
+		defer lock.Unlock()
+		if lastStats == nil {
+			return
+		}
 		result.Observe(
 			[]attribute.KeyValue{},
-			metricPendingCounter.Observation(pendingCount),
-			metricPendingBytes.Observation(pendingBytes),
-			metricOpenBatchCount.Observation(openBatches),
-			metricDoneBatchCount.Observation(doneBatchCount),
-			metricDoneBatchBytes.Observation(doneBatchBytes),
+			mOpenBatchesCidCount.Observation(lastStats.OpenBatchesCidCount),
+			mOpenBatchesBytes.Observation(lastStats.OpenBatchesBytes),
+			mOpenBatchesCount.Observation(lastStats.OpenBatchesCount),
+			mDoneBatchesCount.Observation(lastStats.DoneBatchesCount),
+			mDoneBatchesBytes.Observation(lastStats.DoneBatchesBytes),
 		)
 	})
-	metricPendingCounter = batchObs.NewInt64ValueObserver(metrics.Prefix + ".pending_count")
-	metricPendingBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".pending_bytes")
-	metricOpenBatchCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batch_count")
-	metricDoneBatchCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".done_batch_count")
-	metricDoneBatchBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".done_batch_bytes")
+	mOpenBatchesCidCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_cid_count")
+	mOpenBatchesBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_bytes")
+	mOpenBatchesCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_count")
+	mDoneBatchesCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".done_batches_count")
+	mDoneBatchesBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".done_batches_bytes")
 
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
 		start := time.Now()
 		stats, err := p.store.GetStats(ctx)
 		if err != nil {
@@ -50,13 +54,12 @@ func (p *Packer) daemonExportMetrics() {
 			<-time.After(p.exportMetricsFreq)
 			continue
 		}
+		cancel()
 		log.Debugf("metrics stats took %dms", time.Since(start).Milliseconds())
 
-		pendingCount = stats.PendingStorageRequestsCount
-		pendingBytes = stats.OpenBatchBytes
-		openBatches = stats.OpenBatchCount
-		doneBatchCount = stats.DoneBatchCount
-		doneBatchBytes = stats.DoneBatchBytes
+		lock.Lock()
+		lastStats = &stats
+		lock.Unlock()
 
 		<-time.After(p.exportMetricsFreq)
 	}

@@ -29,7 +29,7 @@ var (
 	ErrOperationIDExists = errors.New("operation-id already exists")
 )
 
-// BatchStatus is the status of a batch
+// BatchStatus is the status of a batch.
 type BatchStatus int
 
 const (
@@ -43,6 +43,7 @@ const (
 	StatusDone
 )
 
+// StorageRequest is a storage request from a batch.
 type StorageRequest = db.StorageRequest
 
 // Store is a store for unprepared batches.
@@ -84,8 +85,14 @@ func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (con
 	return storeutil.CtxWithTx(ctx, s.conn, opts...)
 }
 
-// CreateUnpreparedBatch creates a new pending unprepared batch to be prepared.
-func (s *Store) AddStorageRequestToOpenBatch(ctx context.Context, opID string, srID broker.BrokerRequestID, dataCid cid.Cid, dataSize int64) error {
+// AddStorageRequestToOpenBatch adds a storage request to an open batch if available, and
+// creates one if that isn't the case.
+func (s *Store) AddStorageRequestToOpenBatch(
+	ctx context.Context,
+	opID string,
+	srID broker.BrokerRequestID,
+	dataCid cid.Cid,
+	dataSize int64) error {
 	if opID == "" {
 		return errors.New("operation-id is empty")
 	}
@@ -121,7 +128,7 @@ func (s *Store) AddStorageRequestToOpenBatch(ctx context.Context, opID string, s
 				return fmt.Errorf("creating open batch: %s", err)
 			}
 			ob = db.Batch{
-				BatchID: broker.StorageDealID(newBatchID),
+				BatchID: newBatchID,
 				Status:  db.BatchStatusOpen,
 			}
 		}
@@ -162,7 +169,7 @@ func (s *Store) AddStorageRequestToOpenBatch(ctx context.Context, opID string, s
 
 		return nil
 	}); err != nil {
-		return fmt.Errorf("executing tx: %s", err)
+		return fmt.Errorf("executing tx: %w", err)
 	}
 
 	log.Debugf("opID %s, storage-request %s, data-cid %s included in batch %s", opID, srID, dataCid, ob.BatchID)
@@ -170,10 +177,11 @@ func (s *Store) AddStorageRequestToOpenBatch(ctx context.Context, opID string, s
 	return nil
 }
 
-// MoveBatchToStatus moves an executing unprepared job to a new status.
+// MoveBatchToStatus moves a batch to a specified status.
 func (s *Store) MoveBatchToStatus(
 	ctx context.Context,
 	batchID broker.StorageDealID,
+	delay time.Duration,
 	status BatchStatus) error {
 	dbStatus, err := statusToDB(status)
 	if err != nil {
@@ -182,6 +190,7 @@ func (s *Store) MoveBatchToStatus(
 	params := db.MoveBatchToStatusParams{
 		BatchID: batchID,
 		Status:  dbStatus,
+		ReadyAt: time.Now().Add(delay),
 	}
 	count, err := s.db.MoveBatchToStatus(ctx, params)
 	if err != nil {
@@ -206,7 +215,7 @@ func (s *Store) GetNextReadyBatch(ctx context.Context) (broker.StorageDealID, in
 		return "", 0, nil, false, fmt.Errorf("db get next ready: %s", err)
 	}
 
-	srs, err := s.db.GetStorageRequestFromBatch(ctx, rb.BatchID)
+	srs, err := s.db.GetStorageRequestsFromBatch(ctx, rb.BatchID)
 	if err != nil {
 		return "", 0, nil, false, nil
 	}
@@ -216,13 +225,12 @@ func (s *Store) GetNextReadyBatch(ctx context.Context) (broker.StorageDealID, in
 
 // Stats provides stats for metrics.
 type Stats struct {
-	PendingStorageRequestsCount int64
-	OpenBatchBytes              int64
+	OpenBatchesCidCount int64
+	OpenBatchesBytes    int64
+	OpenBatchesCount    int64
 
-	OpenBatchCount int64
-
-	DoneBatchCount int64
-	DoneBatchBytes int64
+	DoneBatchesCount int64
+	DoneBatchesBytes int64
 }
 
 // GetStats return stats about batches.
@@ -238,11 +246,11 @@ func (s *Store) GetStats(ctx context.Context) (Stats, error) {
 	}
 
 	return Stats{
-		PendingStorageRequestsCount: pendStats.SrsCount,
-		OpenBatchBytes:              pendStats.BatchesBytes,
-		OpenBatchCount:              pendStats.BatchesCount,
-		DoneBatchCount:              doneStats.DoneBatchCount,
-		DoneBatchBytes:              doneStats.DoneBatchBytes,
+		OpenBatchesCidCount: pendStats.BatchesCidCount,
+		OpenBatchesBytes:    pendStats.BatchesBytes,
+		OpenBatchesCount:    pendStats.BatchesCount,
+		DoneBatchesCount:    doneStats.BatchesCount,
+		DoneBatchesBytes:    doneStats.BatchesBytes,
 	}, nil
 }
 
@@ -256,8 +264,6 @@ func (s *Store) Close() error {
 
 func (s *Store) newID() (string, error) {
 	s.lock.Lock()
-	// Not deferring unlock since can be recursive.
-
 	if s.entropy == nil {
 		s.entropy = ulid.Monotonic(rand.Reader, 0)
 	}
@@ -284,7 +290,7 @@ func statusToDB(status BatchStatus) (db.BatchStatus, error) {
 		return db.BatchStatusExecuting, nil
 	case StatusDone:
 		return db.BatchStatusDone, nil
+	default:
+		return "", fmt.Errorf("unknown status: %#v", status)
 	}
-
-	return "", fmt.Errorf("unknown status: %#v", status)
 }

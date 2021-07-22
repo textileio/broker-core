@@ -21,7 +21,7 @@ WHERE batch_id=$1;
 
 -- name: MoveBatchToStatus :execrows
 UPDATE batches
-SET status=$2, updated_at = CURRENT_TIMESTAMP
+SET status=$2, ready_at=$3, updated_at = CURRENT_TIMESTAMP
 WHERE batch_id=$1;
 
 -- name: GetNextReadyBatch :one
@@ -29,16 +29,16 @@ UPDATE batches
 SET status = 'executing', updated_at = CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT b.batch_id FROM batches b
 	          WHERE b.status = 'ready'
-		  ORDER BY b.updated_at asc
+		  ORDER BY b.ready_at asc
 		  FOR UPDATE SKIP LOCKED
 	          LIMIT 1)
 RETURNING batch_id, total_size;
 
--- name: GetStorageRequestFromBatch :many
+-- name: GetStorageRequestsFromBatch :many
 SELECT * FROM storage_requests where batch_id=$1;
 
 -- name: OpenBatchStats :one
-SELECT count(*) as srs_count,
+SELECT count(*) as batches_cid_count,
        sum(sr.size) as batches_bytes,
        count(DISTINCT sr.batch_id) batches_count
 FROM storage_requests sr
@@ -46,7 +46,7 @@ JOIN batches b ON b.batch_id=sr.batch_id
 WHERE b.status='open';
 
 -- name: DoneBatchStats :one
-SELECT count(*) as done_batch_count,
-       sum(size) as done_batch_bytes
+SELECT count(*) as batches_count,
+       sum(size) as batches_bytes
 FROM batches
 where status='done';
