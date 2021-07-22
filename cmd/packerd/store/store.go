@@ -212,7 +212,7 @@ func (s *Store) GetNextReadyBatch(ctx context.Context) (broker.StorageDealID, in
 // Stats provides stats for metrics.
 type Stats struct {
 	PendingStorageRequestsCount int64
-	PendingStorageRequestBytes  int64
+	OpenBatchBytes              int64
 
 	OpenBatchCount int64
 
@@ -222,27 +222,22 @@ type Stats struct {
 
 // GetStats return stats about batches.
 func (s *Store) GetStats(ctx context.Context) (Stats, error) {
-	pendSRCount, pendSRBytes, err := s.db.PendingStorageRequestsStats(ctx)
+	pendStats, err := s.db.OpenBatchStats(ctx)
 	if err != nil {
-		return Stats{}, fmt.Errorf("pending storage requests stats: %s", err)
+		return Stats{}, fmt.Errorf("open batch stats stats: %s", err)
 	}
 
-	openBatchCount, err := s.db.OpenBatchStats(ctx)
-	if err != nil {
-		return Stats{}, fmt.Errorf("open batch stats: %s", err)
-	}
-
-	doneBatchCount, doneBatchBytes, err := s.db.DoneBatchStats(ctx)
+	doneStats, err := s.db.DoneBatchStats(ctx)
 	if err != nil {
 		return Stats{}, fmt.Errorf("done batch stats: %s", err)
 	}
 
 	return Stats{
-		PendingStorageRequestsCount: pendSRCount,
-		PendingStorageRequestBytes:  pendSRBytes,
-		OpenBatchCount:              openBatchCount,
-		DoneBatchCount:              doneBatchCount,
-		DoneBatchBytes:              doneBatchBytes,
+		PendingStorageRequestsCount: pendStats.SrsCount,
+		OpenBatchBytes:              pendStats.BatchesBytes,
+		OpenBatchCount:              pendStats.BatchesCount,
+		DoneBatchCount:              doneStats.DoneBatchCount,
+		DoneBatchBytes:              doneStats.DoneBatchBytes,
 	}, nil
 }
 

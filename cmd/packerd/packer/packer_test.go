@@ -138,9 +138,10 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 }
 
 func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi) (*Packer, *fakemsgbroker.FakeMsgBroker) {
-	ds := tests.NewTxMapDatastore()
 	mb := fakemsgbroker.New()
-	packer, err := New(ds, ipfsClient, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
+	postgresURL, err := tests.PostgresURL()
+	require.NoError(t, err)
+	packer, err := New(postgresURL, ipfsClient, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
 	require.NoError(t, err)
 
 	return packer, mb

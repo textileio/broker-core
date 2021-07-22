@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS batches (
 CREATE INDEX batches_status_idx ON batches(status, created_at);
 
 CREATE TABLE IF NOT EXISTS storage_requests (
-    operation_id TEXT PRIMARY KEY,
+    operation_id TEXT NOT NULL,
     storage_request_id TEXT NOT NULL,
     data_cid TEXT NOT NULL,
     batch_id TEXT NOT NULL,
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS storage_requests (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
+    PRIMARY KEY(operation_id, storage_request_id),
     CONSTRAINT fk_storage_deal_id FOREIGN KEY(storage_deal_id) REFERENCES storage_deals(id)
 );
 

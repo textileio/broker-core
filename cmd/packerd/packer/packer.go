@@ -92,19 +92,7 @@ func New(
 }
 
 // ReadyToBatch includes a StorageRequest in an open batch.
-func (p *Packer) ReadyToBatch(ctx context.Context, opID string, srID broker.BrokerRequestID, dataCid cid.Cid) error {
-	log.Debugf("received ready to pack storage-request %s, data-cid %s", srID, dataCid)
-
-	node, err := p.ipfs.Dag().Get(ctx, dataCid)
-	if err != nil {
-		return fmt.Errorf("get node for data-cid: %s", dataCid, err)
-	}
-	stat, err := node.Stat()
-	if err != nil {
-		return fmt.Errorf("get stat for data-cid %s: %s", dataCid, err)
-	}
-	size := int64(stat.CumulativeSize)
-
+func (p *Packer) ReadyToBatch(ctx context.Context, opID mbroker.OperationID, rtbds []mbroker.ReadyToBatchData) (err error) {
 	ctx, err = p.store.CtxWithTx(ctx)
 	if err != nil {
 		return fmt.Errorf("creating ctx with tx: %s", err)
@@ -112,14 +100,31 @@ func (p *Packer) ReadyToBatch(ctx context.Context, opID string, srID broker.Brok
 	defer func() {
 		err = storeutil.FinishTxForCtx(ctx, err)
 	}()
-	if err := p.store.AddStorageRequestToOpenBatch(
-		ctx,
-		opID,
-		srID,
-		dataCid,
-		size,
-	); err != nil {
-		return fmt.Errorf("add storage-request to open batch: %s", err)
+
+	for _, rtbd := range rtbds {
+		srID := rtbd.BrokerRequestID
+		dataCid := rtbd.DataCid
+		log.Debugf("received ready to pack storage-request %s, data-cid %s", srID, dataCid)
+
+		node, err := p.ipfs.Dag().Get(ctx, dataCid)
+		if err != nil {
+			return fmt.Errorf("get node for data-cid %s: %s", dataCid, err)
+		}
+		stat, err := node.Stat()
+		if err != nil {
+			return fmt.Errorf("get stat for data-cid %s: %s", dataCid, err)
+		}
+		size := int64(stat.CumulativeSize)
+
+		if err := p.store.AddStorageRequestToOpenBatch(
+			ctx,
+			string(opID),
+			srID,
+			dataCid,
+			size,
+		); err != nil {
+			return fmt.Errorf("add storage-request to open batch: %s", err)
+		}
 	}
 
 	return nil
@@ -204,7 +209,7 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 	for i, sr := range srs {
 		dataCid, err := cid.Decode(sr.DataCid)
 		if err != nil {
-			return cid.Undef, fmt.Errorf("decoding cid %s: %s", err)
+			return cid.Undef, fmt.Errorf("decoding cid %s: %s", dataCid, err)
 		}
 		lst[i] = aggregator.AggregateDagEntry{
 			RootCid:                   dataCid,
