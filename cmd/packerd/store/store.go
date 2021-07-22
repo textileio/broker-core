@@ -30,17 +30,17 @@ var (
 )
 
 // BatchStatus is the status of a batch.
-type BatchStatus int
+type BatchStatus db.BatchStatus
 
 const (
 	// StatusOpen is an open batch.
-	StatusOpen BatchStatus = iota
+	StatusOpen = BatchStatus(db.BatchStatusOpen)
 	// StatusReady is a ready to be created batch.
-	StatusReady
+	StatusReady = BatchStatus(db.BatchStatusReady)
 	// StatusExecuting is a batch being processed.
-	StatusExecuting
+	StatusExecuting = BatchStatus(db.BatchStatusExecuting)
 	// StatusDone is an batch that was correctly created.
-	StatusDone
+	StatusDone = BatchStatus(db.BatchStatusDone)
 )
 
 // StorageRequest is a storage request from a batch.
