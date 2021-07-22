@@ -29,8 +29,8 @@ import (
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		//		"packer": golog.LevelDebug,
-		//		"store":  golog.LevelDebug,
+		"packer": golog.LevelDebug,
+		"store":  golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
