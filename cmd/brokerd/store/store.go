@@ -76,7 +76,7 @@ func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...s
 }
 
 func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
-	return storeutil.UseTxFromCtx(ctx,
+	return storeutil.WithCtxTx(ctx,
 		func(tx *sql.Tx) error { return f(s.db.WithTx(tx)) },
 		func() error { return f(s.db) })
 }

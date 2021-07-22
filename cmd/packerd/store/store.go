@@ -107,7 +107,7 @@ func (s *Store) AddStorageRequestToOpenBatch(
 	}
 
 	var ob db.Batch
-	if err := storeutil.MustUseTxFromCtx(ctx, func(txn *sql.Tx) error {
+	if err := storeutil.WithTx(ctx, s.conn, func(txn *sql.Tx) error {
 		var err error
 		queries := s.db.WithTx(txn)
 
@@ -192,12 +192,18 @@ func (s *Store) MoveBatchToStatus(
 		Status:  dbStatus,
 		ReadyAt: time.Now().Add(delay),
 	}
-	count, err := s.db.MoveBatchToStatus(ctx, params)
-	if err != nil {
-		return fmt.Errorf("move batch to status: %s", err)
-	}
-	if count != 1 {
-		return fmt.Errorf("unexpected update count, got: %d, expected: 1", count)
+
+	if err := s.withCtxTx(ctx, func(q *db.Queries) error {
+		count, err := s.db.MoveBatchToStatus(ctx, params)
+		if err != nil {
+			return fmt.Errorf("move batch to status: %s", err)
+		}
+		if count != 1 {
+			return fmt.Errorf("unexpected update count, got: %d, expected: 1", count)
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	return nil
@@ -206,21 +212,31 @@ func (s *Store) MoveBatchToStatus(
 // GetNextReadyBatch returns the next ready batch to be processed batch and changes the
 // status to Executing.
 // The caller is responsible for updating the status later to Ready on error, or Done on success.
-func (s *Store) GetNextReadyBatch(ctx context.Context) (broker.StorageDealID, int64, []StorageRequest, bool, error) {
-	rb, err := s.db.GetNextReadyBatch(ctx)
-	if err == sql.ErrNoRows {
-		return "", 0, nil, false, nil
-	}
-	if err != nil {
-		return "", 0, nil, false, fmt.Errorf("db get next ready: %s", err)
+func (s *Store) GetNextReadyBatch(ctx context.Context) (batchID broker.StorageDealID, totalSize int64, srs []StorageRequest, exists bool, err error) {
+	if err := s.withCtxTx(ctx, func(q *db.Queries) error {
+		var rb db.GetNextReadyBatchRow
+		rb, err = s.db.GetNextReadyBatch(ctx)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("db get next ready: %s", err)
+		}
+
+		srs, err = s.db.GetStorageRequestsFromBatch(ctx, rb.BatchID)
+		if err != nil {
+			return fmt.Errorf("get storage requests from batch: %s", err)
+		}
+
+		batchID = rb.BatchID
+		totalSize = rb.TotalSize
+		exists = true
+		return nil
+	}); err != nil {
+		return "", 0, nil, false, err
 	}
 
-	srs, err := s.db.GetStorageRequestsFromBatch(ctx, rb.BatchID)
-	if err != nil {
-		return "", 0, nil, false, nil
-	}
-
-	return rb.BatchID, rb.TotalSize, srs, true, nil
+	return
 }
 
 // Stats provides stats for metrics.
@@ -278,6 +294,12 @@ func (s *Store) newID() (string, error) {
 	}
 	s.lock.Unlock()
 	return strings.ToLower(id.String()), nil
+}
+
+func (s *Store) withCtxTx(ctx context.Context, f func(*db.Queries) error) error {
+	return storeutil.WithCtxTx(ctx,
+		func(tx *sql.Tx) error { return f(s.db.WithTx(tx)) },
+		func() error { return f(s.db) })
 }
 
 func statusToDB(status BatchStatus) (db.BatchStatus, error) {
