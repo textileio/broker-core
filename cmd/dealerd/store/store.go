@@ -79,13 +79,6 @@ func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (con
 	return storeutil.CtxWithTx(ctx, s.conn, opts...)
 }
 
-// FinishTxForCtx commits or rolls back the transaction attatched to the
-// context depending on the error passed in and returns the result. It errors
-// if the context doesn't have a transaction attached.
-func (s *Store) FinishTxForCtx(ctx context.Context, err error) error {
-	return storeutil.FinishTxForCtx(ctx, err)
-}
-
 //nolint:unparam
 func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...storeutil.TxOptions) (err error) {
 	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
