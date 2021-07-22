@@ -40,7 +40,7 @@ SELECT * FROM storage_requests where batch_id=$1;
 -- name: OpenBatchStats :one
 SELECT count(*) as srs_count,
        sum(sr.size) as batches_bytes,
-       count(DISTINCT batch_id) batches_count
+       count(DISTINCT sr.batch_id) batches_count
 FROM storage_requests sr
 JOIN batches b ON b.batch_id=sr.batch_id
 WHERE b.status='open';
