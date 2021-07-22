@@ -132,7 +132,7 @@ func (p *Packer) ReadyToBatch(ctx context.Context, opID mbroker.OperationID, rtb
 
 // Close closes the packer.
 func (p *Packer) Close() error {
-	log.Info("closing packer...")
+	log.Info("closing daemon...")
 	p.daemonCancelCtx()
 	<-p.daemonClosed
 	if err := p.store.Close(); err != nil {
@@ -146,7 +146,7 @@ func (p *Packer) daemon() {
 	for {
 		select {
 		case <-p.daemonCtx.Done():
-			log.Info("packer closed")
+			log.Info("daemon closed")
 			return
 		case <-time.After(p.daemonFreq):
 			for {
@@ -197,7 +197,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	p.statLastBatchSize = batchSize
 	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
-		"batch created: {batch-id: %s, batch-cid: %s, num-storage-requests: %d, batch-size: %d}",
+		"created batch-id: %s, batch-cid: %s, num-storage-requests: %d, batch-size: %d",
 		batchID, batchCid, len(srIDs), batchSize)
 
 	return len(srIDs), nil
