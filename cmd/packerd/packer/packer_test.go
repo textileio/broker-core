@@ -147,6 +147,23 @@ func TestPackBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, pinned)
 }
+func TestStats(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	// 1- Create a Packer and have a go-ipfs client too.
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	packer, _ := createPacker(t, ipfs)
+	_, err = packer.store.GetStats(ctx)
+	require.NoError(t, err)
+}
 
 func TestPackIdempotency(t *testing.T) {
 	t.Parallel()
