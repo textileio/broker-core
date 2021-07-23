@@ -218,7 +218,7 @@ func (s *Store) GetNextReadyBatch(
 	srs []StorageRequest,
 	exists bool,
 	err error) {
-	if err := s.withCtxTx(ctx, func(q *db.Queries) error {
+	if err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		var rb db.GetNextReadyBatchRow
 		rb, err = s.db.GetNextReadyBatch(ctx)
 		if err == sql.ErrNoRows {
