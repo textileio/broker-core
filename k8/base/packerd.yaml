@@ -51,6 +51,7 @@ spec:
       labels:
         app: packer-v1
     spec:
+      serviceAccountName: postgres-cloud-sql
       containers:
         - name: packer
           image: textile/packer
