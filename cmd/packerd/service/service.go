@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -80,7 +81,12 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 
 // OnReadyToBatch process a message for data ready to be included in a batch.
 func (s *Service) OnReadyToBatch(ctx context.Context, opID mbroker.OperationID, srs []mbroker.ReadyToBatchData) error {
-	if err := s.packer.ReadyToBatch(ctx, opID, srs); err != store.ErrOperationIDExists && err != nil {
+	err := s.packer.ReadyToBatch(ctx, opID, srs)
+	if errors.Is(err, store.ErrOperationIDExists) {
+		log.Warnf("operation-id %s already processed, acking", opID)
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("processing ready to batch: %s", err)
 	}
 
