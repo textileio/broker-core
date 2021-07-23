@@ -132,7 +132,7 @@ func (p *Packer) ReadyToBatch(
 			return fmt.Errorf("add storage-request to open batch: %w", err)
 		}
 	}
-	log.Debugf("packing %d storage-requests took %dms", time.Since(start).Milliseconds())
+	log.Debugf("packing %d storage-requests took %dms", len(rtbds), time.Since(start).Milliseconds())
 
 	return nil
 }
