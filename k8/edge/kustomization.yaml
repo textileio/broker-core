@@ -56,3 +56,6 @@ patchesStrategicMerge:
 - brokerd-patch.yaml
 - dealerd-patch.yaml
 - piecerd-patch.yaml
+- packerd-patch.yaml
+- authd-patch.yaml
+- neard-patch.yaml

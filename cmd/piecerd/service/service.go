@@ -65,10 +65,15 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 // OnNewBatchCreated handles messages for new-batch-created topic.
 func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
-	sdID broker.StorageDealID,
+	batchID broker.StorageDealID,
 	batchCid cid.Cid,
 	_ []broker.BrokerRequestID) error {
-	if err := s.piecer.ReadyToPrepare(ctx, sdID, batchCid); err != store.ErrStorageDealExists && err != nil {
+	err := s.piecer.ReadyToPrepare(ctx, batchID, batchCid)
+	if errors.Is(err, store.ErrStorageDealExists) {
+		log.Warnf("batch-id %s batch-cid %s already processed, acking", batchID, batchCid)
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -13,14 +12,12 @@ import (
 	commP "github.com/filecoin-project/go-fil-commp-hashhash"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
-	format "github.com/ipfs/go-ipld-format"
-	iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/options"
-	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	store "github.com/textileio/broker-core/cmd/piecerd/store"
+	"github.com/textileio/broker-core/ipfsutil"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
@@ -31,7 +28,7 @@ var log = logger.Logger("piecer")
 // Piecer provides a data-preparation pipeline for StorageDeals.
 type Piecer struct {
 	mb       mbroker.MsgBroker
-	ipfsApis []ipfsAPI
+	ipfsApis []ipfsutil.IpfsAPI
 
 	store           *store.Store
 	daemonFrequency time.Duration
@@ -51,11 +48,6 @@ type Piecer struct {
 	metricLastPrepared        metric.Int64ValueObserver
 }
 
-type ipfsAPI struct {
-	address multiaddr.Multiaddr
-	api     iface.CoreAPI
-}
-
 // New returns a new Piecer.
 func New(
 	postgresURI string,
@@ -63,7 +55,7 @@ func New(
 	mb mbroker.MsgBroker,
 	daemonFrequency time.Duration,
 	retryDelay time.Duration) (*Piecer, error) {
-	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
+	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
 		if err != nil {
@@ -73,7 +65,7 @@ func New(
 		if err != nil {
 			return nil, fmt.Errorf("creating offline core api: %s", err)
 		}
-		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
+		ipfsApis[i] = ipfsutil.IpfsAPI{Address: endpoint, API: coreapi}
 	}
 
 	s, err := store.New(postgresURI)
@@ -178,7 +170,7 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	start := time.Now()
 	log.Debugf("preparing storage-deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
 
-	nodeGetter, err := p.getNodeGetterForCid(usd.DataCid)
+	nodeGetter, err := ipfsutil.GetNodeGetterForCid(p.ipfsApis, usd.DataCid)
 	if err != nil {
 		return fmt.Errorf("get node getter for cid %s: %s", usd.DataCid, err)
 	}
@@ -248,34 +240,4 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	p.statLastDurationSeconds = int64(duration)
 
 	return nil
-}
-
-func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
-	var ng format.NodeGetter
-
-	rand.Shuffle(len(p.ipfsApis), func(i, j int) {
-		p.ipfsApis[i], p.ipfsApis[j] = p.ipfsApis[j], p.ipfsApis[i]
-	})
-
-	for _, coreapi := range p.ipfsApis {
-		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
-		defer cls()
-		_, ok, err := coreapi.api.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
-		if err != nil {
-			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.address, err)
-			continue
-		}
-		if !ok {
-			continue
-		}
-		log.Debugf("found core-api for cid: %s", coreapi.address)
-		ng = coreapi.api.Dag()
-		break
-	}
-
-	if ng == nil {
-		return nil, fmt.Errorf("node getter for cid not found")
-	}
-
-	return ng, nil
 }

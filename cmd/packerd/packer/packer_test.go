@@ -51,6 +51,10 @@ func TestPack(t *testing.T) {
 
 	packer, mb := createPacker(t, ipfs)
 
+	numBatchedCids, err := packer.pack(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, numBatchedCids)
+
 	// 2- Add 100 random files and get their cids.
 	numFiles := 100
 	dataCids := addRandomData(t, ipfs, numFiles)
@@ -66,7 +70,7 @@ func TestPack(t *testing.T) {
 	}
 
 	// 4- Force pack and inspect what was signaled to the broker
-	numBatchedCids, err := packer.pack(ctx)
+	numBatchedCids, err = packer.pack(ctx)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, mb.TotalPublished())
@@ -142,6 +146,23 @@ func TestPackBatch(t *testing.T) {
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
 	require.NoError(t, err)
 	require.True(t, pinned)
+}
+func TestStats(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	// 1- Create a Packer and have a go-ipfs client too.
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	packer, _ := createPacker(t, ipfs)
+	_, err = packer.store.GetStats(ctx)
+	require.NoError(t, err)
 }
 
 func TestPackIdempotency(t *testing.T) {
