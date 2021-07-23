@@ -260,12 +260,9 @@ func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
 	for _, coreapi := range p.ipfsApis {
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
 		defer cls()
-		_, ok, err := coreapi.api.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
+		_, err := coreapi.api.Block().Get(ctx, ipfspath.IpfsPath(c))
 		if err != nil {
 			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.address, err)
-			continue
-		}
-		if !ok {
 			continue
 		}
 		log.Debugf("found core-api for cid: %s", coreapi.address)
