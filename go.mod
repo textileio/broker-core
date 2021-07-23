@@ -11,11 +11,11 @@ require (
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.1.0
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
-	github.com/filecoin-project/go-fil-markets v1.2.5
+	github.com/filecoin-project/go-fil-markets v1.5.0
 	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
 	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48
-	github.com/filecoin-project/lotus v1.10.0
-	github.com/filecoin-project/specs-actors v0.9.13
+	github.com/filecoin-project/lotus v1.11.0
+	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/gogo/status v1.1.0
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.1
