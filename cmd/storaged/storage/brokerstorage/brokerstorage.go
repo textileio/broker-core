@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -15,10 +14,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
-	format "github.com/ipfs/go-ipld-format"
-	iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/options"
-	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
@@ -26,6 +22,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader"
+	"github.com/textileio/broker-core/ipfsutil"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -38,13 +35,8 @@ type BrokerStorage struct {
 	auth       auth.Authorizer
 	uploader   uploader.Uploader
 	broker     broker.Broker
-	ipfsApis   []ipfsAPI
+	ipfsApis   []ipfsutil.IpfsAPI
 	pinataAuth string
-}
-
-type ipfsAPI struct {
-	address multiaddr.Multiaddr
-	api     iface.CoreAPI
 }
 
 var _ storage.Requester = (*BrokerStorage)(nil)
@@ -57,7 +49,7 @@ func New(
 	ipfsEndpoints []multiaddr.Multiaddr,
 	pinataJWT string,
 ) (*BrokerStorage, error) {
-	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
+	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
 		if err != nil {
@@ -67,7 +59,7 @@ func New(
 		if err != nil {
 			return nil, fmt.Errorf("creating offline core api: %s", err)
 		}
-		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
+		ipfsApis[i] = ipfsutil.IpfsAPI{Address: endpoint, API: coreapi}
 	}
 
 	if pinataJWT != "" {
@@ -351,7 +343,7 @@ func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage
 
 // GetCAR generates a CAR file from the provided Cid and writes it a io.Writer.
 func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error {
-	ng, err := bs.getNodeGetterForCid(c)
+	ng, err := ipfsutil.GetNodeGetterForCid(bs.ipfsApis, c)
 	if err != nil {
 		return fmt.Errorf("resolving node getter: %s", err)
 	}
@@ -359,34 +351,6 @@ func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) err
 		return fmt.Errorf("fetching data cid %s: %v", c, err)
 	}
 	return nil
-}
-
-func (bs *BrokerStorage) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
-	var ng format.NodeGetter
-
-	rand.Shuffle(len(bs.ipfsApis), func(i, j int) {
-		bs.ipfsApis[i], bs.ipfsApis[j] = bs.ipfsApis[j], bs.ipfsApis[i]
-	})
-
-	log.Debug("core-api lookup for cid")
-	for _, coreapi := range bs.ipfsApis {
-		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
-		defer cls()
-		_, err := coreapi.api.Block().Get(ctx, ipfspath.IpfsPath(c))
-		if err != nil {
-			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.address, err)
-			continue
-		}
-		log.Debugf("found core-api for cid: %s", coreapi.address)
-		ng = coreapi.api.Dag()
-		break
-	}
-
-	if ng == nil {
-		return nil, fmt.Errorf("node getter for cid not found")
-	}
-
-	return ng, nil
 }
 
 func brokerRequestStatusToStorageRequestStatus(status broker.BrokerRequestStatus) (storage.Status, error) {
