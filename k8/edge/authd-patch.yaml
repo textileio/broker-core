@@ -1,6 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: storage-01
+  name: auth-01
 spec:
   replicas: 1
