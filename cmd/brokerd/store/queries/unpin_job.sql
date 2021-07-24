@@ -7,9 +7,9 @@ SET executing = TRUE,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = (SELECT id FROM unpin_jobs
     WHERE unpin_jobs.ready_at < CURRENT_TIMESTAMP AND NOT executing
-    ORDER BY unpin_jobs.ready_at
+    ORDER BY unpin_jobs.ready_at asc
     FOR UPDATE SKIP LOCKED
-    asc LIMIT 1)
+    LIMIT 1)
 RETURNING *;
 
 -- name: UnpinJobToPending :exec

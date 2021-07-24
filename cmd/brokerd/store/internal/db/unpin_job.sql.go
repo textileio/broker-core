@@ -37,7 +37,10 @@ UPDATE unpin_jobs
 SET executing = TRUE,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = (SELECT id FROM unpin_jobs
-    WHERE unpin_jobs.ready_at < CURRENT_TIMESTAMP AND NOT executing ORDER BY unpin_jobs.ready_at asc LIMIT 1)
+    WHERE unpin_jobs.ready_at < CURRENT_TIMESTAMP AND NOT executing
+    ORDER BY unpin_jobs.ready_at asc
+    FOR UPDATE SKIP LOCKED
+    LIMIT 1)
 RETURNING id, executing, cid, type, ready_at, created_at, updated_at
 `
 
