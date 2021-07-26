@@ -170,9 +170,9 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	start := time.Now()
 	log.Debugf("preparing storage-deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
 
-	nodeGetter, err := ipfsutil.GetNodeGetterForCid(p.ipfsApis, usd.DataCid)
-	if err != nil {
-		return fmt.Errorf("get node getter for cid %s: %s", usd.DataCid, err)
+	nodeGetter, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, usd.DataCid)
+	if !found {
+		return fmt.Errorf("node getter for data cid %s not found", usd.DataCid)
 	}
 
 	prCAR, pwCAR := io.Pipe()
