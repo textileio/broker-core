@@ -42,7 +42,7 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageReq
 	}
 	res, err := c.c.CreateStorageRequest(ctx, req)
 	if err != nil {
-		return broker.StorageRequest{}, fmt.Errorf("creating broker request: %s", err)
+		return broker.StorageRequest{}, fmt.Errorf("creating storage request: %s", err)
 	}
 
 	br, err := cast.FromProtoStorageRequest(res.Request)
@@ -53,7 +53,7 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageReq
 	return br, nil
 }
 
-// CreatePrepared creates a broker request for prepared data.
+// CreatePrepared creates a storage request for prepared data.
 func (c *Client) CreatePrepared(
 	ctx context.Context,
 	dataCid cid.Cid,
@@ -84,7 +84,7 @@ func (c *Client) CreatePrepared(
 
 	res, err := c.c.CreatePreparedStorageRequest(ctx, req)
 	if err != nil {
-		return broker.StorageRequest{}, fmt.Errorf("creating broker request: %s", err)
+		return broker.StorageRequest{}, fmt.Errorf("creating storage request: %s", err)
 	}
 
 	br, err := cast.FromProtoStorageRequest(res.Request)
@@ -95,7 +95,7 @@ func (c *Client) CreatePrepared(
 	return br, nil
 }
 
-// GetStorageRequestInfo gets a broker request information by id.
+// GetStorageRequestInfo gets a storage request information by id.
 func (c *Client) GetStorageRequestInfo(
 	ctx context.Context,
 	id broker.StorageRequestID) (broker.StorageRequestInfo, error) {
@@ -108,7 +108,7 @@ func (c *Client) GetStorageRequestInfo(
 	}
 	br, err := cast.FromProtoStorageRequestInfo(res)
 	if err != nil {
-		return broker.StorageRequestInfo{}, fmt.Errorf("converting broker request response: %s", err)
+		return broker.StorageRequestInfo{}, fmt.Errorf("converting storage request response: %s", err)
 	}
 
 	return br, nil

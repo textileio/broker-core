@@ -300,7 +300,7 @@ func validate(ad *AuctionData, ads []*AuctionDeal) error {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
 	}
 	if ad.BatchID == "" {
-		return errors.New("storage deal id is empty")
+		return errors.New("batch id is empty")
 	}
 	if !ad.PayloadCid.Defined() {
 		return errors.New("invalid payload cid")

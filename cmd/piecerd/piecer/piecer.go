@@ -95,7 +95,7 @@ func New(
 // ReadyToPrepare signals the Piecer that a new batch is ready to be prepared.
 func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.BatchID, dataCid cid.Cid) error {
 	if sdID == "" {
-		return fmt.Errorf("storage-deal id is empty")
+		return fmt.Errorf("batch id is empty")
 	}
 	if !dataCid.Defined() {
 		return fmt.Errorf("data-cid is undefined")
@@ -104,7 +104,7 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.BatchID, dataCi
 	if err := p.store.CreateUnpreparedBatch(ctx, sdID, dataCid); err != nil {
 		return fmt.Errorf("creating unprepared-batch %s %s: %w", sdID, dataCid, err)
 	}
-	log.Debugf("saved unprepared-batch with storage-deal %s and data-cid %s", sdID, dataCid)
+	log.Debugf("saved unprepared-batch with batch %s and data-cid %s", sdID, dataCid)
 
 	select {
 	case p.newRequest <- struct{}{}:
@@ -148,7 +148,7 @@ func (p *Piecer) daemon() {
 			}
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
-				log.Errorf("preparing storage-deal %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
+				log.Errorf("preparing batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
@@ -156,7 +156,7 @@ func (p *Piecer) daemon() {
 			}
 
 			if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, 0, store.StatusDone); err != nil {
-				log.Errorf("deleting storage-deal %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
+				log.Errorf("deleting batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
@@ -168,7 +168,7 @@ func (p *Piecer) daemon() {
 
 func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	start := time.Now()
-	log.Debugf("preparing storage-deal %s with data-cid %s", usd.BatchID, usd.DataCid)
+	log.Debugf("preparing batch %s with data-cid %s", usd.BatchID, usd.DataCid)
 
 	nodeGetter, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, usd.DataCid)
 	if !found {
@@ -227,7 +227,7 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	}
 
 	duration := time.Since(start).Seconds()
-	log.Debugf("prepared of storage-deal %s, data-cid %s, piece-size %s, piece-cid %s took %.2f seconds",
+	log.Debugf("prepared of batch %s, data-cid %s, piece-size %s, piece-cid %s took %.2f seconds",
 		usd.BatchID, usd.DataCid, humanize.IBytes(dpr.PieceSize), dpr.PieceCid, duration)
 
 	if err := mbroker.PublishMsgNewBatchPrepared(ctx, p.mb, usd.BatchID, dpr.PieceCid, dpr.PieceSize); err != nil {

@@ -246,7 +246,7 @@ func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 	require.True(t, bcid.Defined())
 	// We fullfiled numRepeatedStorageRequest, not only 1!
 	require.Len(t, msg.StorageRequestIds, numRepeatedStorageRequest)
-	// Despite we fulfilled multiple broker request, the batch only has one cid!
+	// Despite we fulfilled multiple storage request, the batch only has one cid!
 	require.Equal(t, 1, numCidsBatched)
 
 	// Check that the batch cid was pinned in ipfs.

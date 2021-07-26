@@ -131,7 +131,7 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 func (s *Service) CreatePreparedStorageRequest(
 	ctx context.Context,
 	r *pb.CreatePreparedStorageRequestRequest) (*pb.CreatePreparedStorageRequestResponse, error) {
-	log.Debugf("received prepared broker request")
+	log.Debugf("received prepared storage request")
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
@@ -238,7 +238,7 @@ func (s *Service) CreatePreparedStorageRequest(
 func (s *Service) CreateStorageRequest(
 	ctx context.Context,
 	r *pb.CreateStorageRequestRequest) (*pb.CreateStorageRequestResponse, error) {
-	log.Debugf("received broker request")
+	log.Debugf("received storage request")
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -264,7 +264,7 @@ func (s *Service) CreateStorageRequest(
 	return res, nil
 }
 
-// GetStorageRequestInfo gets information about a broker request by id.
+// GetStorageRequestInfo gets information about a storage request by id.
 func (s *Service) GetStorageRequestInfo(
 	ctx context.Context,
 	r *pb.GetStorageRequestInfoRequest) (*pb.GetStorageRequestInfoResponse, error) {
@@ -274,7 +274,7 @@ func (s *Service) GetStorageRequestInfo(
 
 	br, err := s.broker.GetStorageRequestInfo(ctx, broker.StorageRequestID(r.Id))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "get broker request: %s", err)
+		return nil, status.Errorf(codes.Internal, "get storage request: %s", err)
 	}
 
 	res, err := cast.StorageRequestInfoToProto(br)
@@ -291,7 +291,7 @@ func (s *Service) OnNewBatchCreated(
 	id broker.BatchID,
 	batchCid cid.Cid, brids []broker.StorageRequestID) error {
 	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
-		return fmt.Errorf("creating storage deal: %s", err)
+		return fmt.Errorf("creating batch: %s", err)
 	}
 	log.Debugf("new batch created: %s", id)
 
