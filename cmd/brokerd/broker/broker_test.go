@@ -346,7 +346,6 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Greater(t, sd2.DealDuration, 0)
 	require.Greater(t, sd2.CreatedAt.Unix(), int64(0))
 	require.Greater(t, sd2.UpdatedAt.Unix(), int64(0))
-	require.Equal(t, sd2.AuctionRetries, 0)
 	require.Empty(t, sd2.Error)
 	require.Equal(t, brgCid, sd2.PayloadCid)
 	require.Equal(t, dpr.PieceCid, sd2.PieceCid)

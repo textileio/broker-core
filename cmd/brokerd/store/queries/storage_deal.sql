@@ -8,7 +8,6 @@ INSERT INTO storage_deals(
     car_ipfs_cid,
     car_ipfs_addrs,
     disallow_rebatching,
-    auction_retries,
     fil_epoch_deadline,
     error,
     payload_cid,
@@ -27,8 +26,7 @@ INSERT INTO storage_deals(
       $10,
       $11,
       $12,
-      $13,
-      $14
+      $13
       );
 
 -- name: GetStorageDeal :one
@@ -55,9 +53,3 @@ SET status = $2,
     error = $3,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $1;
-
--- name: ReauctionStorageDeal :exec
-UPDATE storage_deals
-SET auction_retries = auction_retries + 1,
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = $1;
