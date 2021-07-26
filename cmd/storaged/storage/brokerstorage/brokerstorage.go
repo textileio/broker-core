@@ -342,15 +342,16 @@ func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage
 }
 
 // GetCAR generates a CAR file from the provided Cid and writes it a io.Writer.
-func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error {
-	ng, err := ipfsutil.GetNodeGetterForCid(bs.ipfsApis, c)
-	if err != nil {
-		return fmt.Errorf("resolving node getter: %s", err)
+// If the Cid can not be found, it does nothing and returns false without error.
+func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) (bool, error) {
+	ng, found := ipfsutil.GetNodeGetterForCid(bs.ipfsApis, c)
+	if !found {
+		return false, nil
 	}
 	if err := car.WriteCar(ctx, ng, []cid.Cid{c}, w); err != nil {
-		return fmt.Errorf("fetching data cid %s: %v", c, err)
+		return false, fmt.Errorf("fetching data cid %s: %v", c, err)
 	}
-	return nil
+	return true, nil
 }
 
 func brokerRequestStatusToStorageRequestStatus(status broker.BrokerRequestStatus) (storage.Status, error) {
