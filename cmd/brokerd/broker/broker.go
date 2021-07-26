@@ -26,7 +26,6 @@ import (
 
 const (
 	filecoinGenesisUnixEpoch = 1598306400
-	causeMaxAuctionRetries   = "reached max number of retries"
 )
 
 var (
@@ -411,7 +410,7 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 				return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 			}
 		case true:
-			_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
+			_, err := b.store.StorageDealError(ctx, sd.ID, au.ErrorCause, false)
 			if err != nil {
 				return fmt.Errorf("moving storage deal to error status: %s", err)
 			}
