@@ -68,19 +68,19 @@ func (as AuctionStatus) String() string {
 
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
-	// Create creates a new BrokerRequest for a cid.
-	Create(ctx context.Context, dataCid cid.Cid) (BrokerRequest, error)
+	// Create creates a new StorageRequest for a cid.
+	Create(ctx context.Context, dataCid cid.Cid) (StorageRequest, error)
 
-	// CreatePrepared creates a new BrokerRequest for prepared data.
-	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (BrokerRequest, error)
+	// CreatePrepared creates a new StorageRequest for prepared data.
+	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (StorageRequest, error)
 
-	// GetBrokerRequestInfo returns a broker request information by id.
-	GetBrokerRequestInfo(ctx context.Context, ID BrokerRequestID) (BrokerRequestInfo, error)
+	// GetStorageRequestInfo returns a broker request information by id.
+	GetStorageRequestInfo(ctx context.Context, ID StorageRequestID) (StorageRequestInfo, error)
 }
 
 // Batch is the underlying entity that gets into bidding and
 // store data in the Filecoin network. It groups one or multiple
-// BrokerRequests.
+// StorageRequests.
 type Batch struct {
 	ID                 BatchID
 	Status             BatchStatus

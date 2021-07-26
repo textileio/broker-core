@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS batches (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE TABLE IF NOT EXISTS broker_requests (
+CREATE TABLE IF NOT EXISTS storage_requests (
     id text PRIMARY KEY,
     data_cid text NOT NULL,
     batch_id text,

@@ -40,11 +40,11 @@ type Batch struct {
 }
 
 type StorageRequest struct {
-	OperationID      string                 `json:"operationID"`
-	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
-	DataCid          string                 `json:"dataCid"`
-	BatchID          broker.BatchID         `json:"batchID"`
-	Size             int64                  `json:"size"`
-	CreatedAt        time.Time              `json:"createdAt"`
-	UpdatedAt        time.Time              `json:"updatedAt"`
+	OperationID      string                  `json:"operationID"`
+	StorageRequestID broker.StorageRequestID `json:"storageRequestID"`
+	DataCid          string                  `json:"dataCid"`
+	BatchID          broker.BatchID          `json:"batchID"`
+	Size             int64                   `json:"size"`
+	CreatedAt        time.Time               `json:"createdAt"`
+	UpdatedAt        time.Time               `json:"updatedAt"`
 }

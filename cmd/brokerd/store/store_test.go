@@ -12,26 +12,26 @@ import (
 	"github.com/textileio/broker-core/tests"
 )
 
-func TestSaveAndGetBrokerRequest(t *testing.T) {
+func TestSaveAndGetStorageRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	s := newStore(t)
 
-	br := broker.BrokerRequest{
+	br := broker.StorageRequest{
 		ID:      "BR1",
 		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
 		Status:  broker.RequestBatching,
 	}
 
 	// Test not found.
-	_, err := s.GetBrokerRequest(ctx, "BR1")
+	_, err := s.GetStorageRequest(ctx, "BR1")
 	require.Equal(t, ErrNotFound, err)
 
 	// Test creation
-	err = s.CreateBrokerRequest(ctx, br)
+	err = s.CreateStorageRequest(ctx, br)
 	require.NoError(t, err)
-	br2, err := s.GetBrokerRequest(ctx, "BR1")
+	br2, err := s.GetStorageRequest(ctx, "BR1")
 	require.NoError(t, err)
 	require.Equal(t, br.ID, br2.ID)
 	require.Equal(t, br.DataCid, br2.DataCid)
@@ -51,19 +51,19 @@ func TestCreateBatch(t *testing.T) {
 	require.Error(t, ErrNotFound, err)
 
 	// 1- Create two broker requests.
-	br1 := broker.BrokerRequest{
+	br1 := broker.StorageRequest{
 		ID:      "BR1",
 		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
 		Status:  broker.RequestBatching,
 	}
-	br2 := broker.BrokerRequest{
+	br2 := broker.StorageRequest{
 		ID:      "BR2",
 		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
 		Status:  broker.RequestBatching,
 	}
-	err = s.CreateBrokerRequest(ctx, br1)
+	err = s.CreateStorageRequest(ctx, br1)
 	require.NoError(t, err)
-	err = s.CreateBrokerRequest(ctx, br2)
+	err = s.CreateStorageRequest(ctx, br2)
 	require.NoError(t, err)
 
 	// 2- Create a storage deal linked with those two broker request.
@@ -72,7 +72,7 @@ func TestCreateBatch(t *testing.T) {
 		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jB1"),
 		Status:     broker.BatchStatusPreparing,
 	}
-	brIDs := []broker.BrokerRequestID{br1.ID, br2.ID}
+	brIDs := []broker.StorageRequestID{br1.ID, br2.ID}
 	err = s.CreateBatch(ctx, &sd, brIDs)
 	require.NoError(t, err)
 
@@ -85,18 +85,18 @@ func TestCreateBatch(t *testing.T) {
 	assert.True(t, time.Since(sd2.UpdatedAt) < 100*time.Millisecond, time.Since(sd2.CreatedAt))
 
 	// 4- Check that both broker requests are associated to the storage deal.
-	brs, err := s.db.GetBrokerRequests(ctx, BatchIDToSQL(sd.ID))
+	brs, err := s.db.GetStorageRequests(ctx, BatchIDToSQL(sd.ID))
 	require.NoError(t, err)
 	assert.Equal(t, len(brIDs), len(brs))
 
 	// 5- Check that the underlying storage request, moved to Preparing and are linked to the created
 	//    storage deal!
-	gbr1, err := s.GetBrokerRequest(ctx, br1.ID)
+	gbr1, err := s.GetStorageRequest(ctx, br1.ID)
 	require.NoError(t, err)
 	assert.Equal(t, broker.RequestPreparing, gbr1.Status)
 	assert.Equal(t, sd.ID, gbr1.BatchID)
 	assert.True(t, time.Since(gbr1.UpdatedAt) < 100*time.Millisecond, time.Since(gbr1.UpdatedAt))
-	gbr2, err := s.GetBrokerRequest(ctx, br2.ID)
+	gbr2, err := s.GetStorageRequest(ctx, br2.ID)
 	require.NoError(t, err)
 	assert.Equal(t, broker.RequestPreparing, gbr2.Status)
 	assert.Equal(t, sd.ID, gbr2.BatchID)

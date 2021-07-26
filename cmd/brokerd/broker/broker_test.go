@@ -23,11 +23,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestCreateBrokerRequestSuccess(t *testing.T) {
+func TestCreateStorageRequestSuccess(t *testing.T) {
 	t.Parallel()
 
 	b, mb, _ := createBroker(t)
-	c := createCidFromString("BrokerRequest1")
+	c := createCidFromString("StorageRequest1")
 
 	br, err := b.Create(context.Background(), c)
 	require.NoError(t, err)
@@ -44,13 +44,13 @@ func TestCreateBrokerRequestSuccess(t *testing.T) {
 	err = proto.Unmarshal(data, r)
 	require.NoError(t, err)
 	require.Len(t, r.DataCids, 1)
-	require.NotEmpty(t, r.DataCids[0].BrokerRequestId)
+	require.NotEmpty(t, r.DataCids[0].StorageRequestId)
 	dataCid, err := cid.Cast(r.DataCids[0].DataCid)
 	require.NoError(t, err)
 	require.Equal(t, c.String(), dataCid.String())
 }
 
-func TestCreateBrokerRequestFail(t *testing.T) {
+func TestCreateStorageRequestFail(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid cid", func(t *testing.T) {
@@ -67,32 +67,32 @@ func TestCreateBatch(t *testing.T) {
 	b, _, _ := createBroker(t)
 
 	// 1- Create two broker requests.
-	c := createCidFromString("BrokerRequest1")
+	c := createCidFromString("StorageRequest1")
 	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, br1.Status)
 
-	c = createCidFromString("BrokerRequest2")
+	c = createCidFromString("StorageRequest2")
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, br1.Status)
 
 	// 2- Create a batch with both storage requests.
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
 	// Check that all broker request:
 	// 1- Moved to StatusPreparing
 	// 2- Are linked to the batch they are now part of.
-	bri1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
+	bri1, err := b.GetStorageRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestPreparing, bri1.BrokerRequest.Status)
-	require.Equal(t, sd, bri1.BrokerRequest.BatchID)
-	bri2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
+	require.Equal(t, broker.RequestPreparing, bri1.StorageRequest.Status)
+	require.Equal(t, sd, bri1.StorageRequest.BatchID)
+	bri2, err := b.GetStorageRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestPreparing, bri2.BrokerRequest.Status)
-	require.Equal(t, sd, bri2.BrokerRequest.BatchID)
+	require.Equal(t, broker.RequestPreparing, bri2.StorageRequest.Status)
+	require.Equal(t, sd, bri2.StorageRequest.BatchID)
 
 	// Check that the batch was persisted correctly.
 	sd2, err := b.GetBatch(ctx, sd)
@@ -100,7 +100,7 @@ func TestCreateBatch(t *testing.T) {
 	require.Equal(t, sd, sd2.ID)
 	require.True(t, sd2.PayloadCid.Defined())
 	require.Equal(t, broker.BatchStatusPreparing, sd2.Status)
-	brs, err := b.store.GetBrokerRequestIDs(ctx, sd)
+	brs, err := b.store.GetStorageRequestIDs(ctx, sd)
 	require.NoError(t, err)
 	require.Len(t, brs, 2)
 	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
@@ -142,8 +142,8 @@ func TestCreatePrepared(t *testing.T) {
 	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc)
 	require.NoError(t, err)
 
-	// 2- Check that the created BrokerRequest moved directly to Auctioning.
-	br, err := b.store.GetBrokerRequest(ctx, createdBr.ID)
+	// 2- Check that the created StorageRequest moved directly to Auctioning.
+	br, err := b.store.GetStorageRequest(ctx, createdBr.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestAuctioning, br.Status)
 	require.NotEmpty(t, br.BatchID)
@@ -158,7 +158,7 @@ func TestCreatePrepared(t *testing.T) {
 	require.True(t, sd.DisallowRebatching)
 	require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
 	require.Equal(t, broker.BatchStatusAuctioning, sd.Status)
-	brs, err := b.store.GetBrokerRequestIDs(ctx, br.BatchID)
+	brs, err := b.store.GetStorageRequestIDs(ctx, br.BatchID)
 	require.NoError(t, err)
 	require.Len(t, brs, 1)
 	require.Contains(t, brs, br.ID)
@@ -219,8 +219,8 @@ func TestCreateBatchFail(t *testing.T) {
 		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("Batch")
-		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{broker.BrokerRequestID("invented")})
-		require.ErrorIs(t, err, store.ErrBatchContainsUnknownBrokerRequest)
+		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{broker.StorageRequestID("invented")})
+		require.ErrorIs(t, err, store.ErrBatchContainsUnknownStorageRequest)
 	})
 }
 
@@ -230,14 +230,14 @@ func TestBatchPrepared(t *testing.T) {
 	b, mb, _ := createBroker(t)
 
 	// 1- Create two broker requests and a corresponding storage deal.
-	c := createCidFromString("BrokerRequest1")
+	c := createCidFromString("StorageRequest1")
 	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
-	c = createCidFromString("BrokerRequest2")
+	c = createCidFromString("StorageRequest2")
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 
 	// 2- Call BatchPrepared as if the piecer did.
@@ -274,12 +274,12 @@ func TestBatchPrepared(t *testing.T) {
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
-	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
+	mbr1, err := b.GetStorageRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestAuctioning, mbr1.BrokerRequest.Status)
-	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
+	require.Equal(t, broker.RequestAuctioning, mbr1.StorageRequest.Status)
+	mbr2, err := b.GetStorageRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestAuctioning, mbr2.BrokerRequest.Status)
+	require.Equal(t, broker.RequestAuctioning, mbr2.StorageRequest.Status)
 }
 
 func TestBatchAuctionedExactRepFactor(t *testing.T) {
@@ -290,14 +290,14 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
-	c := createCidFromString("BrokerRequest1")
+	c := createCidFromString("StorageRequest1")
 	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
-	c = createCidFromString("BrokerRequest2")
+	c = createCidFromString("StorageRequest2")
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -403,12 +403,12 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 
 	// 5- Verify that the underlying broker requests also moved to
 	//    their correct statuses.
-	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
+	mbr1, err := b.GetStorageRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr1.BrokerRequest.Status)
-	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
+	require.Equal(t, broker.RequestDealMaking, mbr1.StorageRequest.Status)
+	mbr2, err := b.GetStorageRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr2.BrokerRequest.Status)
+	require.Equal(t, broker.RequestDealMaking, mbr2.StorageRequest.Status)
 
 	// 6- Verify that the auctioneer wasn't called again for a new auction.
 	//    The replication factor was 2, and we had 2 winning bids so a new auction
@@ -424,14 +424,14 @@ func TestBatchAuctionedInvalidAmountWinners(t *testing.T) {
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
-	c := createCidFromString("BrokerRequest1")
+	c := createCidFromString("StorageRequest1")
 	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
-	c = createCidFromString("BrokerRequest2")
+	c = createCidFromString("StorageRequest2")
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sdID, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sdID, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -483,14 +483,14 @@ func TestBatchFailedAuction(t *testing.T) {
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared.
-	c := createCidFromString("BrokerRequest1")
+	c := createCidFromString("StorageRequest1")
 	br1, err := b.Create(ctx, c)
 	require.NoError(t, err)
-	c = createCidFromString("BrokerRequest2")
+	c = createCidFromString("StorageRequest2")
 	br2, err := b.Create(ctx, c)
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -523,15 +523,15 @@ func TestBatchFailedAuction(t *testing.T) {
 
 	// 5- Verify that the underlying broker requests were moved
 	//    to Batching again.
-	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
+	mbr1, err := b.GetStorageRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestBatching, mbr1.BrokerRequest.Status)
-	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
+	require.Equal(t, broker.RequestBatching, mbr1.StorageRequest.Status)
+	mbr2, err := b.GetStorageRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestBatching, mbr2.BrokerRequest.Status)
+	require.Equal(t, broker.RequestBatching, mbr2.StorageRequest.Status)
 
 	// 6- Verify that there were 3 published messages.
-	//    Two from `b.Create` for creating the first two BrokerRequests.
+	//    Two from `b.Create` for creating the first two StorageRequests.
 	//    One from NewBatchPrepared.
 	//    One from the re-auctioning auction when the failed auction was notified.
 	require.Equal(t, 4, mb.TotalPublished())
@@ -542,11 +542,11 @@ func TestBatchFailedAuction(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, r.DataCids, 2)
 
-	require.Equal(t, string(br1.ID), r.DataCids[0].BrokerRequestId)
+	require.Equal(t, string(br1.ID), r.DataCids[0].StorageRequestId)
 	dataCid0, err := cid.Cast(r.DataCids[0].DataCid)
 	require.NoError(t, err)
 	require.Equal(t, br1.DataCid, dataCid0)
-	require.Equal(t, string(br2.ID), r.DataCids[1].BrokerRequestId)
+	require.Equal(t, string(br2.ID), r.DataCids[1].StorageRequestId)
 	dataCid1, err := cid.Cast(r.DataCids[1].DataCid)
 	require.NoError(t, err)
 	require.Equal(t, br2.DataCid, dataCid1)
@@ -560,14 +560,14 @@ func TestBatchFinalizedDeals(t *testing.T) {
 
 	// 1- Create two broker requests and a corresponding storage deal, and
 	//    pass through prepared, auctioned, and deal making.
-	c1 := createCidFromString("BrokerRequest1")
+	c1 := createCidFromString("StorageRequest1")
 	br1, err := b.Create(ctx, c1)
 	require.NoError(t, err)
-	c2 := createCidFromString("BrokerRequest2")
+	c2 := createCidFromString("StorageRequest2")
 	br2, err := b.Create(ctx, c2)
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.BrokerRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -618,12 +618,12 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	sd2, err := b.GetBatch(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.BatchStatusDealMaking, sd2.Status)
-	mbr1, err := b.GetBrokerRequestInfo(ctx, br1.ID)
+	mbr1, err := b.GetStorageRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr1.BrokerRequest.Status)
-	mbr2, err := b.GetBrokerRequestInfo(ctx, br2.ID)
+	require.Equal(t, broker.RequestDealMaking, mbr1.StorageRequest.Status)
+	mbr2, err := b.GetStorageRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr2.BrokerRequest.Status)
+	require.Equal(t, broker.RequestDealMaking, mbr2.StorageRequest.Status)
 
 	// 4- Let's finalize the other one.
 	chainAPI.clean() // clean the previous call stack
@@ -641,12 +641,12 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	sd2, err = b.GetBatch(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.BatchStatusSuccess, sd2.Status)
-	mbr1, err = b.GetBrokerRequestInfo(ctx, br1.ID)
+	mbr1, err = b.GetStorageRequestInfo(ctx, br1.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestSuccess, mbr1.BrokerRequest.Status)
-	mbr2, err = b.GetBrokerRequestInfo(ctx, br2.ID)
+	require.Equal(t, broker.RequestSuccess, mbr1.StorageRequest.Status)
+	mbr2, err = b.GetStorageRequestInfo(ctx, br2.ID)
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestSuccess, mbr2.BrokerRequest.Status)
+	require.Equal(t, broker.RequestSuccess, mbr2.StorageRequest.Status)
 
 	// 6- Verify that we have 3 unpin jobs: the batch cid, and the two data cids in the batch.
 	for i := 0; i < 3; i++ {
@@ -659,9 +659,9 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	require.False(t, ok)
 
 	// 7- Verify that getting the broker request information shows the deals.
-	brs := []broker.BrokerRequest{br1, br2}
+	brs := []broker.StorageRequest{br1, br2}
 	for _, br := range brs {
-		bri, err := b.GetBrokerRequestInfo(ctx, br.ID)
+		bri, err := b.GetStorageRequestInfo(ctx, br.ID)
 		require.NoError(t, err)
 		require.Len(t, bri.Deals, 2)
 		sort.Slice(bri.Deals, func(i, j int) bool { return bri.Deals[i].MinerID < bri.Deals[j].MinerID })

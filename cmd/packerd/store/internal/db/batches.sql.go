@@ -16,11 +16,11 @@ VALUES ($1,$2,$3,$4,$5)
 `
 
 type AddStorageRequestInBatchParams struct {
-	OperationID      string                 `json:"operationID"`
-	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
-	DataCid          string                 `json:"dataCid"`
-	BatchID          broker.BatchID         `json:"batchID"`
-	Size             int64                  `json:"size"`
+	OperationID      string                  `json:"operationID"`
+	StorageRequestID broker.StorageRequestID `json:"storageRequestID"`
+	DataCid          string                  `json:"dataCid"`
+	BatchID          broker.BatchID          `json:"batchID"`
+	Size             int64                   `json:"size"`
 }
 
 func (q *Queries) AddStorageRequestInBatch(ctx context.Context, arg AddStorageRequestInBatchParams) error {
