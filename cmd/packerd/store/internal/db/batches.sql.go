@@ -16,11 +16,11 @@ VALUES ($1,$2,$3,$4,$5)
 `
 
 type AddStorageRequestInBatchParams struct {
-	OperationID      string                 `json:"operationID"`
-	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
-	DataCid          string                 `json:"dataCid"`
-	BatchID          broker.StorageDealID   `json:"batchID"`
-	Size             int64                  `json:"size"`
+	OperationID      string                  `json:"operationID"`
+	StorageRequestID broker.StorageRequestID `json:"storageRequestID"`
+	DataCid          string                  `json:"dataCid"`
+	BatchID          broker.BatchID          `json:"batchID"`
+	Size             int64                   `json:"size"`
 }
 
 func (q *Queries) AddStorageRequestInBatch(ctx context.Context, arg AddStorageRequestInBatchParams) error {
@@ -38,7 +38,7 @@ const createOpenBatch = `-- name: CreateOpenBatch :exec
 INSERT INTO batches (batch_id) values ($1)
 `
 
-func (q *Queries) CreateOpenBatch(ctx context.Context, batchID broker.StorageDealID) error {
+func (q *Queries) CreateOpenBatch(ctx context.Context, batchID broker.BatchID) error {
 	_, err := q.exec(ctx, q.createOpenBatchStmt, createOpenBatch, batchID)
 	return err
 }
@@ -98,8 +98,8 @@ RETURNING batch_id, total_size
 `
 
 type GetNextReadyBatchRow struct {
-	BatchID   broker.StorageDealID `json:"batchID"`
-	TotalSize int64                `json:"totalSize"`
+	BatchID   broker.BatchID `json:"batchID"`
+	TotalSize int64          `json:"totalSize"`
 }
 
 func (q *Queries) GetNextReadyBatch(ctx context.Context) (GetNextReadyBatchRow, error) {
@@ -113,7 +113,7 @@ const getStorageRequestsFromBatch = `-- name: GetStorageRequestsFromBatch :many
 SELECT operation_id, storage_request_id, data_cid, batch_id, size, created_at, updated_at FROM storage_requests where batch_id=$1
 `
 
-func (q *Queries) GetStorageRequestsFromBatch(ctx context.Context, batchID broker.StorageDealID) ([]StorageRequest, error) {
+func (q *Queries) GetStorageRequestsFromBatch(ctx context.Context, batchID broker.BatchID) ([]StorageRequest, error) {
 	rows, err := q.query(ctx, q.getStorageRequestsFromBatchStmt, getStorageRequestsFromBatch, batchID)
 	if err != nil {
 		return nil, err
@@ -151,9 +151,9 @@ WHERE batch_id=$1
 `
 
 type MoveBatchToStatusParams struct {
-	BatchID broker.StorageDealID `json:"batchID"`
-	Status  BatchStatus          `json:"status"`
-	ReadyAt time.Time            `json:"readyAt"`
+	BatchID broker.BatchID `json:"batchID"`
+	Status  BatchStatus    `json:"status"`
+	ReadyAt time.Time      `json:"readyAt"`
 }
 
 func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusParams) (int64, error) {
@@ -193,8 +193,8 @@ WHERE batch_id=$1
 `
 
 type UpdateBatchSizeParams struct {
-	BatchID   broker.StorageDealID `json:"batchID"`
-	TotalSize int64                `json:"totalSize"`
+	BatchID   broker.BatchID `json:"batchID"`
+	TotalSize int64          `json:"totalSize"`
 }
 
 func (q *Queries) UpdateBatchSize(ctx context.Context, arg UpdateBatchSizeParams) error {

@@ -20,27 +20,27 @@ const (
 	MaxDealReplication = 10
 )
 
-// BrokerRequestID is the type used for broker request identity.
-type BrokerRequestID string
+// StorageRequestID is the type used for storage request identity.
+type StorageRequestID string
 
-// BrokerRequest references a storage request for a Cid.
-type BrokerRequest struct {
-	ID            BrokerRequestID
-	DataCid       cid.Cid
-	Status        BrokerRequestStatus
-	StorageDealID StorageDealID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+// StorageRequest references a storage request for a Cid.
+type StorageRequest struct {
+	ID        StorageRequestID
+	DataCid   cid.Cid
+	Status    StorageRequestStatus
+	BatchID   BatchID
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
-// BrokerRequestInfo returns information about a broker request.
-type BrokerRequestInfo struct {
-	BrokerRequest BrokerRequest
-	Deals         []BrokerRequestDeal
+// StorageRequestInfo returns information about a storage request.
+type StorageRequestInfo struct {
+	StorageRequest StorageRequest
+	Deals          []StorageRequestDeal
 }
 
-// BrokerRequestDeal describes on-chain deals of a broker-request.
-type BrokerRequestDeal struct {
+// StorageRequestDeal describes on-chain deals of a storage-request.
+type StorageRequestDeal struct {
 	MinerID    string
 	DealID     int64
 	Expiration uint64
@@ -55,29 +55,29 @@ type PreparedCAR struct {
 	Sources   auction.Sources
 }
 
-// BrokerRequestStatus describe the current status of a
-// BrokerRequest.
-type BrokerRequestStatus int
+// StorageRequestStatus describe the current status of a
+// StorageRequest.
+type StorageRequestStatus int
 
 const (
 	// RequestUnknown is an invalid status value. Defined for safety.
-	RequestUnknown BrokerRequestStatus = iota
-	// RequestBatching indicates that a broker request is being batched.
+	RequestUnknown StorageRequestStatus = iota
+	// RequestBatching indicates that a storage request is being batched.
 	RequestBatching
-	// RequestPreparing indicates that a broker request is being prepared.
+	// RequestPreparing indicates that a storage request is being prepared.
 	RequestPreparing
-	// RequestAuctioning indicates that a broker request is in bidding stage.
+	// RequestAuctioning indicates that a storage request is in bidding stage.
 	RequestAuctioning
-	// RequestDealMaking indicates that the broker request deals are being executed.
+	// RequestDealMaking indicates that the storage request deals are being executed.
 	RequestDealMaking
-	// RequestSuccess indicates that the broker request was successfully stored in Filecoin.
+	// RequestSuccess indicates that the storage request was successfully stored in Filecoin.
 	RequestSuccess
-	// RequestError indicates that the broker request storage errored.
+	// RequestError indicates that the storage request storage errored.
 	RequestError
 )
 
 // String returns a string-encoded status.
-func (brs BrokerRequestStatus) String() string {
+func (brs StorageRequestStatus) String() string {
 	switch brs {
 	case RequestUnknown:
 		return "unknown"

@@ -10,59 +10,59 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// FromProtoBrokerRequest transforms a pb.BrokerRequest to broker.BrokerRequest.
-func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, error) {
+// FromProtoStorageRequest transforms a pb.StorageRequest to broker.StorageRequest.
+func FromProtoStorageRequest(brproto *pb.StorageRequest) (broker.StorageRequest, error) {
 	dataCid, err := cid.Cast(brproto.DataCid)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("decoding cid: %s", err)
+		return broker.StorageRequest{}, fmt.Errorf("decoding cid: %s", err)
 	}
 	if !dataCid.Defined() {
-		return broker.BrokerRequest{}, errors.New("data cid is undefined")
+		return broker.StorageRequest{}, errors.New("data cid is undefined")
 	}
 
-	var status broker.BrokerRequestStatus
+	var status broker.StorageRequestStatus
 	switch brproto.Status {
-	case pb.BrokerRequest_UNSPECIFIED:
+	case pb.StorageRequest_UNSPECIFIED:
 		status = broker.RequestUnknown
-	case pb.BrokerRequest_BATCHING:
+	case pb.StorageRequest_BATCHING:
 		status = broker.RequestBatching
-	case pb.BrokerRequest_PREPARING:
+	case pb.StorageRequest_PREPARING:
 		status = broker.RequestPreparing
-	case pb.BrokerRequest_AUCTIONING:
+	case pb.StorageRequest_AUCTIONING:
 		status = broker.RequestAuctioning
-	case pb.BrokerRequest_DEALMAKING:
+	case pb.StorageRequest_DEALMAKING:
 		status = broker.RequestDealMaking
-	case pb.BrokerRequest_SUCCESS:
+	case pb.StorageRequest_SUCCESS:
 		status = broker.RequestSuccess
-	case pb.BrokerRequest_ERROR:
+	case pb.StorageRequest_ERROR:
 		status = broker.RequestError
 	default:
-		return broker.BrokerRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
+		return broker.StorageRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
 	}
 
-	return broker.BrokerRequest{
-		ID:            broker.BrokerRequestID(brproto.Id),
-		DataCid:       dataCid,
-		Status:        status,
-		StorageDealID: broker.StorageDealID(brproto.StorageDealId),
-		CreatedAt:     brproto.CreatedAt.AsTime(),
-		UpdatedAt:     brproto.UpdatedAt.AsTime(),
+	return broker.StorageRequest{
+		ID:        broker.StorageRequestID(brproto.Id),
+		DataCid:   dataCid,
+		Status:    status,
+		BatchID:   broker.BatchID(brproto.BatchId),
+		CreatedAt: brproto.CreatedAt.AsTime(),
+		UpdatedAt: brproto.UpdatedAt.AsTime(),
 	}, nil
 }
 
-// FromProtoBrokerRequestInfo transforms a pb.BrokerRequest to broker.BrokerRequest.
-func FromProtoBrokerRequestInfo(brproto *pb.GetBrokerRequestInfoResponse) (broker.BrokerRequestInfo, error) {
-	br, err := FromProtoBrokerRequest(brproto.BrokerRequest)
+// FromProtoStorageRequestInfo transforms a pb.StorageRequest to broker.StorageRequest.
+func FromProtoStorageRequestInfo(brproto *pb.GetStorageRequestInfoResponse) (broker.StorageRequestInfo, error) {
+	br, err := FromProtoStorageRequest(brproto.StorageRequest)
 	if err != nil {
-		return broker.BrokerRequestInfo{}, nil
+		return broker.StorageRequestInfo{}, nil
 	}
 
-	bri := broker.BrokerRequestInfo{
-		BrokerRequest: br,
-		Deals:         make([]broker.BrokerRequestDeal, len(brproto.Deals)),
+	bri := broker.StorageRequestInfo{
+		StorageRequest: br,
+		Deals:          make([]broker.StorageRequestDeal, len(brproto.Deals)),
 	}
 	for i, d := range brproto.Deals {
-		deal := broker.BrokerRequestDeal{
+		deal := broker.StorageRequestDeal{
 			MinerID:    d.MinerId,
 			DealID:     d.DealId,
 			Expiration: d.Expiration,
@@ -73,48 +73,48 @@ func FromProtoBrokerRequestInfo(brproto *pb.GetBrokerRequestInfoResponse) (broke
 	return bri, nil
 }
 
-// BrokerRequestToProto maps a broker.BrokerRequest to pb.BrokerRequest.
-func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
-	var pbStatus pb.BrokerRequest_Status
+// StorageRequestToProto maps a broker.StorageRequest to pb.StorageRequest.
+func StorageRequestToProto(br broker.StorageRequest) (*pb.StorageRequest, error) {
+	var pbStatus pb.StorageRequest_Status
 	switch br.Status {
 	case broker.RequestUnknown:
-		pbStatus = pb.BrokerRequest_UNSPECIFIED
+		pbStatus = pb.StorageRequest_UNSPECIFIED
 	case broker.RequestBatching:
-		pbStatus = pb.BrokerRequest_BATCHING
+		pbStatus = pb.StorageRequest_BATCHING
 	case broker.RequestPreparing:
-		pbStatus = pb.BrokerRequest_PREPARING
+		pbStatus = pb.StorageRequest_PREPARING
 	case broker.RequestAuctioning:
-		pbStatus = pb.BrokerRequest_AUCTIONING
+		pbStatus = pb.StorageRequest_AUCTIONING
 	case broker.RequestDealMaking:
-		pbStatus = pb.BrokerRequest_DEALMAKING
+		pbStatus = pb.StorageRequest_DEALMAKING
 	case broker.RequestSuccess:
-		pbStatus = pb.BrokerRequest_SUCCESS
+		pbStatus = pb.StorageRequest_SUCCESS
 	case broker.RequestError:
-		pbStatus = pb.BrokerRequest_ERROR
+		pbStatus = pb.StorageRequest_ERROR
 	default:
 		return nil, fmt.Errorf("unknown status: %d", br.Status)
 	}
 
-	return &pb.BrokerRequest{
-		Id:            string(br.ID),
-		DataCid:       br.DataCid.Bytes(),
-		Status:        pbStatus,
-		StorageDealId: string(br.StorageDealID),
-		CreatedAt:     timestamppb.New(br.CreatedAt),
-		UpdatedAt:     timestamppb.New(br.UpdatedAt),
+	return &pb.StorageRequest{
+		Id:        string(br.ID),
+		DataCid:   br.DataCid.Bytes(),
+		Status:    pbStatus,
+		BatchId:   string(br.BatchID),
+		CreatedAt: timestamppb.New(br.CreatedAt),
+		UpdatedAt: timestamppb.New(br.UpdatedAt),
 	}, nil
 }
 
-// BrokerRequestInfoToProto maps a broker.
-func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequestInfoResponse, error) {
-	protobr, err := BrokerRequestToProto(br.BrokerRequest)
+// StorageRequestInfoToProto maps a broker.
+func StorageRequestInfoToProto(br broker.StorageRequestInfo) (*pb.GetStorageRequestInfoResponse, error) {
+	protobr, err := StorageRequestToProto(br.StorageRequest)
 	if err != nil {
-		return nil, fmt.Errorf("creating proto for broker request: %s", err)
+		return nil, fmt.Errorf("creating proto for storage request: %s", err)
 	}
 
-	deals := make([]*pb.GetBrokerRequestInfoResponse_BrokerRequestDeal, len(br.Deals))
+	deals := make([]*pb.GetStorageRequestInfoResponse_StorageRequestDeal, len(br.Deals))
 	for i, d := range br.Deals {
-		deal := &pb.GetBrokerRequestInfoResponse_BrokerRequestDeal{
+		deal := &pb.GetStorageRequestInfoResponse_StorageRequestDeal{
 			MinerId:    d.MinerID,
 			DealId:     d.DealID,
 			Expiration: d.Expiration,
@@ -122,8 +122,8 @@ func BrokerRequestInfoToProto(br broker.BrokerRequestInfo) (*pb.GetBrokerRequest
 		deals[i] = deal
 	}
 
-	return &pb.GetBrokerRequestInfoResponse{
-		BrokerRequest: protobr,
-		Deals:         deals,
+	return &pb.GetStorageRequestInfoResponse{
+		StorageRequest: protobr,
+		Deals:          deals,
 	}, nil
 }

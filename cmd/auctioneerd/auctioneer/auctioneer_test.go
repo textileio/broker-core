@@ -65,7 +65,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 	err = s.OnReadyToAuction(
 		context.Background(),
 		"ID1",
-		newStorageDealID(),
+		newBatchID(),
 		payloadCid,
 		oneGiB,
 		sixMonthsEpochs,
@@ -90,7 +90,7 @@ func TestClient_GetAuction(t *testing.T) {
 	err = s.OnReadyToAuction(
 		context.Background(),
 		id,
-		newStorageDealID(),
+		newBatchID(),
 		payloadCid,
 		oneGiB,
 		sixMonthsEpochs,
@@ -131,7 +131,7 @@ func TestClient_RunAuction(t *testing.T) {
 	err = s.OnReadyToAuction(
 		context.Background(),
 		id,
-		newStorageDealID(),
+		newBatchID(),
 		payloadCid,
 		oneGiB,
 		sixMonthsEpochs,
@@ -268,8 +268,8 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 	return bots
 }
 
-func newStorageDealID() broker.StorageDealID {
-	return broker.StorageDealID(uuid.New().String())
+func newBatchID() broker.BatchID {
+	return broker.BatchID(uuid.New().String())
 }
 
 func newLotusClientMock() *lotusclientmocks.LotusClient {

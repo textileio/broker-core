@@ -11,7 +11,7 @@ import (
 // Auction defines the core auction model.
 type Auction struct {
 	ID               auction.AuctionID
-	StorageDealID    broker.StorageDealID
+	BatchID          broker.BatchID
 	PayloadCid       cid.Cid
 	DealSize         uint64
 	DealDuration     uint64

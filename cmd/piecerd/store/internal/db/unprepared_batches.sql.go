@@ -12,38 +12,38 @@ import (
 
 const createUnpreparedBatch = `-- name: CreateUnpreparedBatch :exec
 INSERT INTO unprepared_batches(
-    storage_deal_id,
+    batch_id,
     data_cid
  ) VALUES ($1, $2)
 `
 
 type CreateUnpreparedBatchParams struct {
-	StorageDealID broker.StorageDealID `json:"storageDealID"`
-	DataCid       string               `json:"dataCid"`
+	BatchID broker.BatchID `json:"batchID"`
+	DataCid string         `json:"dataCid"`
 }
 
 func (q *Queries) CreateUnpreparedBatch(ctx context.Context, arg CreateUnpreparedBatchParams) error {
-	_, err := q.exec(ctx, q.createUnpreparedBatchStmt, createUnpreparedBatch, arg.StorageDealID, arg.DataCid)
+	_, err := q.exec(ctx, q.createUnpreparedBatchStmt, createUnpreparedBatch, arg.BatchID, arg.DataCid)
 	return err
 }
 
 const getNextPending = `-- name: GetNextPending :one
 UPDATE unprepared_batches
 SET status = 'executing', updated_at = CURRENT_TIMESTAMP
-WHERE storage_deal_id = (SELECT ub.storage_deal_id FROM unprepared_batches ub
+WHERE batch_id = (SELECT ub.batch_id FROM unprepared_batches ub
             WHERE ub.ready_at < CURRENT_TIMESTAMP AND
                   ub.status = 'pending'
                   ORDER BY ub.ready_at asc 
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1)
-RETURNING storage_deal_id, status, data_cid, ready_at, created_at, updated_at
+RETURNING batch_id, status, data_cid, ready_at, created_at, updated_at
 `
 
 func (q *Queries) GetNextPending(ctx context.Context) (UnpreparedBatch, error) {
 	row := q.queryRow(ctx, q.getNextPendingStmt, getNextPending)
 	var i UnpreparedBatch
 	err := row.Scan(
-		&i.StorageDealID,
+		&i.BatchID,
 		&i.Status,
 		&i.DataCid,
 		&i.ReadyAt,
@@ -56,17 +56,17 @@ func (q *Queries) GetNextPending(ctx context.Context) (UnpreparedBatch, error) {
 const moveToStatus = `-- name: MoveToStatus :execrows
 UPDATE unprepared_batches 
 SET status = $3, updated_at = CURRENT_TIMESTAMP, ready_at=$2
-WHERE storage_deal_id = $1
+WHERE batch_id = $1
 `
 
 type MoveToStatusParams struct {
-	StorageDealID broker.StorageDealID  `json:"storageDealID"`
-	ReadyAt       time.Time             `json:"readyAt"`
-	Status        UnpreparedBatchStatus `json:"status"`
+	BatchID broker.BatchID        `json:"batchID"`
+	ReadyAt time.Time             `json:"readyAt"`
+	Status  UnpreparedBatchStatus `json:"status"`
 }
 
 func (q *Queries) MoveToStatus(ctx context.Context, arg MoveToStatusParams) (int64, error) {
-	result, err := q.exec(ctx, q.moveToStatusStmt, moveToStatus, arg.StorageDealID, arg.ReadyAt, arg.Status)
+	result, err := q.exec(ctx, q.moveToStatusStmt, moveToStatus, arg.BatchID, arg.ReadyAt, arg.Status)
 	if err != nil {
 		return 0, err
 	}

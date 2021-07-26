@@ -69,7 +69,7 @@ func TestQueue_ListAuctions(t *testing.T) {
 		id := auction.AuctionID(fmt.Sprintf("%03d", i))
 		err := q.CreateAuction(auctioneer.Auction{
 			ID:              id,
-			StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+			BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 			PayloadCid:      testCid,
 			DealSize:        1024,
 			DealDuration:    1,
@@ -115,7 +115,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	id := auction.AuctionID("ID-1")
 	err := q.CreateAuction(auctioneer.Auction{
 		ID:              id,
-		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		DealSize:        1024,
 		DealDuration:    1,
@@ -131,7 +131,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	got, err := q.GetAuction(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
-	assert.NotEmpty(t, got.StorageDealID)
+	assert.NotEmpty(t, got.BatchID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Equal(t, "https://foo.com/cid/123", got.Sources.CARURL.URL.String())
 	assert.Equal(t, 1024, int(got.DealSize))
@@ -153,7 +153,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	id := auction.AuctionID("ID-1")
 	err := q.CreateAuction(auctioneer.Auction{
 		ID:              id,
-		StorageDealID:   broker.StorageDealID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
+		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
 		Sources:         testSources,
 		DealSize:        1024,

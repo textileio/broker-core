@@ -55,7 +55,7 @@ func (d *Dealer) reportFinalizedAuctionDeal(ctx context.Context, aud store.Aucti
 		return fmt.Errorf("get auction data: %s", err)
 	}
 	fad := broker.FinalizedDeal{
-		StorageDealID:  ad.StorageDealID,
+		BatchID:        ad.BatchID,
 		ErrorCause:     aud.ErrorCause,
 		DealID:         aud.DealID,
 		DealExpiration: aud.DealExpiration,

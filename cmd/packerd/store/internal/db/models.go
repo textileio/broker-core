@@ -31,20 +31,20 @@ func (e *BatchStatus) Scan(src interface{}) error {
 }
 
 type Batch struct {
-	BatchID   broker.StorageDealID `json:"batchID"`
-	Status    BatchStatus          `json:"status"`
-	TotalSize int64                `json:"totalSize"`
-	ReadyAt   time.Time            `json:"readyAt"`
-	CreatedAt time.Time            `json:"createdAt"`
-	UpdatedAt time.Time            `json:"updatedAt"`
+	BatchID   broker.BatchID `json:"batchID"`
+	Status    BatchStatus    `json:"status"`
+	TotalSize int64          `json:"totalSize"`
+	ReadyAt   time.Time      `json:"readyAt"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 }
 
 type StorageRequest struct {
-	OperationID      string                 `json:"operationID"`
-	StorageRequestID broker.BrokerRequestID `json:"storageRequestID"`
-	DataCid          string                 `json:"dataCid"`
-	BatchID          broker.StorageDealID   `json:"batchID"`
-	Size             int64                  `json:"size"`
-	CreatedAt        time.Time              `json:"createdAt"`
-	UpdatedAt        time.Time              `json:"updatedAt"`
+	OperationID      string                  `json:"operationID"`
+	StorageRequestID broker.StorageRequestID `json:"storageRequestID"`
+	DataCid          string                  `json:"dataCid"`
+	BatchID          broker.BatchID          `json:"batchID"`
+	Size             int64                   `json:"size"`
+	CreatedAt        time.Time               `json:"createdAt"`
+	UpdatedAt        time.Time               `json:"updatedAt"`
 }

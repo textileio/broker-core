@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	// ErrStorageDealExists if the provided storage deal id already exists.
-	ErrStorageDealExists = errors.New("storage-deal-id already exists")
+	// ErrBatchExists if the provided batch id already exists.
+	ErrBatchExists = errors.New("batch-id already exists")
 )
 
 // UnpreparedBatchStatus is the status of an unprepared batch.
@@ -35,11 +35,11 @@ const (
 
 // UnpreparedBatch is a batch that is ready to be prepared.
 type UnpreparedBatch struct {
-	StorageDealID broker.StorageDealID
-	DataCid       cid.Cid
-	ReadyAt       time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	BatchID   broker.BatchID
+	DataCid   cid.Cid
+	ReadyAt   time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Store is a store for unprepared batches.
@@ -68,21 +68,21 @@ func New(postgresURI string) (*Store, error) {
 }
 
 // CreateUnpreparedBatch creates a new pending unprepared batch to be prepared.
-func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.StorageDealID, dataCid cid.Cid) error {
+func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.BatchID, dataCid cid.Cid) error {
 	if sdID == "" {
-		return errors.New("storage-deal-id is empty")
+		return errors.New("batch-id is empty")
 	}
 	if !dataCid.Defined() {
 		return errors.New("data-cid is undefined")
 	}
 	params := db.CreateUnpreparedBatchParams{
-		StorageDealID: sdID,
-		DataCid:       dataCid.String(),
+		BatchID: sdID,
+		DataCid: dataCid.String(),
 	}
 	if err := s.db.CreateUnpreparedBatch(ctx, params); err != nil {
 		if err, ok := err.(*pgconn.PgError); ok {
 			if err.Code == "23505" {
-				return ErrStorageDealExists
+				return ErrBatchExists
 			}
 		}
 		return fmt.Errorf("db create unprepared batch: %s", err)
@@ -108,18 +108,18 @@ func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, erro
 	}
 
 	return UnpreparedBatch{
-		StorageDealID: ub.StorageDealID,
-		DataCid:       dataCid,
-		ReadyAt:       ub.ReadyAt,
-		CreatedAt:     ub.CreatedAt,
-		UpdatedAt:     ub.UpdatedAt,
+		BatchID:   ub.BatchID,
+		DataCid:   dataCid,
+		ReadyAt:   ub.ReadyAt,
+		CreatedAt: ub.CreatedAt,
+		UpdatedAt: ub.UpdatedAt,
 	}, true, nil
 }
 
 // MoveToStatus moves an executing unprepared job to a new status.
 func (s *Store) MoveToStatus(
 	ctx context.Context,
-	sdID broker.StorageDealID,
+	sdID broker.BatchID,
 	delay time.Duration,
 	status UnpreparedBatchStatus) error {
 	dbStatus, err := statusToDB(status)
@@ -127,9 +127,9 @@ func (s *Store) MoveToStatus(
 		return fmt.Errorf("casting status to db type: %s", err)
 	}
 	params := db.MoveToStatusParams{
-		StorageDealID: sdID,
-		ReadyAt:       time.Now().Add(delay),
-		Status:        dbStatus,
+		BatchID: sdID,
+		ReadyAt: time.Now().Add(delay),
+		Status:  dbStatus,
 	}
 	count, err := s.db.MoveToStatus(ctx, params)
 	if err != nil {

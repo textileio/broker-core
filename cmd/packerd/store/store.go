@@ -90,7 +90,7 @@ func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (con
 func (s *Store) AddStorageRequestToOpenBatch(
 	ctx context.Context,
 	opID string,
-	srID broker.BrokerRequestID,
+	srID broker.StorageRequestID,
 	dataCid cid.Cid,
 	dataSize int64) error {
 	if opID == "" {
@@ -123,7 +123,7 @@ func (s *Store) AddStorageRequestToOpenBatch(
 			if err != nil {
 				return fmt.Errorf("create open batch id: %s", err)
 			}
-			newBatchID := broker.StorageDealID(newID)
+			newBatchID := broker.BatchID(newID)
 			if err := queries.CreateOpenBatch(ctx, newBatchID); err != nil {
 				return fmt.Errorf("creating open batch: %s", err)
 			}
@@ -180,7 +180,7 @@ func (s *Store) AddStorageRequestToOpenBatch(
 // MoveBatchToStatus moves a batch to a specified status.
 func (s *Store) MoveBatchToStatus(
 	ctx context.Context,
-	batchID broker.StorageDealID,
+	batchID broker.BatchID,
 	delay time.Duration,
 	status BatchStatus) error {
 	dbStatus, err := statusToDB(status)
@@ -213,7 +213,7 @@ func (s *Store) MoveBatchToStatus(
 // status to Executing.
 // The caller is responsible for updating the status later to Ready on error, or Done on success.
 func (s *Store) GetNextReadyBatch(
-	ctx context.Context) (batchID broker.StorageDealID,
+	ctx context.Context) (batchID broker.BatchID,
 	totalSize int64,
 	srs []StorageRequest,
 	exists bool,

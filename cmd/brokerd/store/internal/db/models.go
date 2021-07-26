@@ -10,45 +10,45 @@ import (
 	"github.com/textileio/broker-core/broker"
 )
 
-type BrokerRequest struct {
-	ID            broker.BrokerRequestID     `json:"id"`
-	DataCid       string                     `json:"dataCid"`
-	StorageDealID sql.NullString             `json:"storageDealID"`
-	Status        broker.BrokerRequestStatus `json:"status"`
-	RebatchCount  int32                      `json:"rebatchCount"`
-	ErrorCause    string                     `json:"errorCause"`
-	CreatedAt     time.Time                  `json:"createdAt"`
-	UpdatedAt     time.Time                  `json:"updatedAt"`
+type Batch struct {
+	ID                 broker.BatchID     `json:"id"`
+	Status             broker.BatchStatus `json:"status"`
+	RepFactor          int                `json:"repFactor"`
+	DealDuration       int                `json:"dealDuration"`
+	PayloadCid         string             `json:"payloadCid"`
+	PieceCid           string             `json:"pieceCid"`
+	PieceSize          uint64             `json:"pieceSize"`
+	CarUrl             string             `json:"carUrl"`
+	CarIpfsCid         string             `json:"carIpfsCid"`
+	CarIpfsAddrs       string             `json:"carIpfsAddrs"`
+	DisallowRebatching bool               `json:"disallowRebatching"`
+	FilEpochDeadline   uint64             `json:"filEpochDeadline"`
+	Error              string             `json:"error"`
+	CreatedAt          time.Time          `json:"createdAt"`
+	UpdatedAt          time.Time          `json:"updatedAt"`
 }
 
-type MinerDeal struct {
-	StorageDealID  broker.StorageDealID `json:"storageDealID"`
-	AuctionID      auction.AuctionID    `json:"auctionID"`
-	BidID          auction.BidID        `json:"bidID"`
-	MinerID        string               `json:"minerID"`
-	DealID         int64                `json:"dealID"`
-	DealExpiration uint64               `json:"dealExpiration"`
-	ErrorCause     string               `json:"errorCause"`
-	CreatedAt      time.Time            `json:"createdAt"`
-	UpdatedAt      time.Time            `json:"updatedAt"`
+type Deal struct {
+	BatchID        broker.BatchID    `json:"batchID"`
+	AuctionID      auction.AuctionID `json:"auctionID"`
+	BidID          auction.BidID     `json:"bidID"`
+	MinerID        string            `json:"minerID"`
+	DealID         int64             `json:"dealID"`
+	DealExpiration uint64            `json:"dealExpiration"`
+	ErrorCause     string            `json:"errorCause"`
+	CreatedAt      time.Time         `json:"createdAt"`
+	UpdatedAt      time.Time         `json:"updatedAt"`
 }
 
-type StorageDeal struct {
-	ID                 broker.StorageDealID     `json:"id"`
-	Status             broker.StorageDealStatus `json:"status"`
-	RepFactor          int                      `json:"repFactor"`
-	DealDuration       int                      `json:"dealDuration"`
-	PayloadCid         string                   `json:"payloadCid"`
-	PieceCid           string                   `json:"pieceCid"`
-	PieceSize          uint64                   `json:"pieceSize"`
-	CarUrl             string                   `json:"carUrl"`
-	CarIpfsCid         string                   `json:"carIpfsCid"`
-	CarIpfsAddrs       string                   `json:"carIpfsAddrs"`
-	DisallowRebatching bool                     `json:"disallowRebatching"`
-	FilEpochDeadline   uint64                   `json:"filEpochDeadline"`
-	Error              string                   `json:"error"`
-	CreatedAt          time.Time                `json:"createdAt"`
-	UpdatedAt          time.Time                `json:"updatedAt"`
+type StorageRequest struct {
+	ID           broker.StorageRequestID     `json:"id"`
+	DataCid      string                      `json:"dataCid"`
+	BatchID      sql.NullString              `json:"batchID"`
+	Status       broker.StorageRequestStatus `json:"status"`
+	RebatchCount int32                       `json:"rebatchCount"`
+	ErrorCause   string                      `json:"errorCause"`
+	CreatedAt    time.Time                   `json:"createdAt"`
+	UpdatedAt    time.Time                   `json:"updatedAt"`
 }
 
 type UnpinJob struct {

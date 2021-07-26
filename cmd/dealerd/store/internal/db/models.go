@@ -31,13 +31,13 @@ func (e *Status) Scan(src interface{}) error {
 }
 
 type AuctionDatum struct {
-	ID            string               `json:"id"`
-	StorageDealID broker.StorageDealID `json:"storageDealID"`
-	PayloadCid    string               `json:"payloadCid"`
-	PieceCid      string               `json:"pieceCid"`
-	PieceSize     uint64               `json:"pieceSize"`
-	Duration      uint64               `json:"duration"`
-	CreatedAt     time.Time            `json:"createdAt"`
+	ID         string         `json:"id"`
+	BatchID    broker.BatchID `json:"batchID"`
+	PayloadCid string         `json:"payloadCid"`
+	PieceCid   string         `json:"pieceCid"`
+	PieceSize  uint64         `json:"pieceSize"`
+	Duration   uint64         `json:"duration"`
+	CreatedAt  time.Time      `json:"createdAt"`
 }
 
 type AuctionDeal struct {

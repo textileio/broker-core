@@ -237,15 +237,15 @@ func (fc *FilClient) CheckChainDeal(
 // must be made after the miner publishes the deal on-chain.
 func (fc *FilClient) CheckDealStatusWithMiner(
 	ctx context.Context,
-	minerAddr string,
+	minerID string,
 	propCid cid.Cid) (status *storagemarket.ProviderDealState, err error) {
-	log.Debugf("checking status of proposal %s with miner %s", propCid, minerAddr)
+	log.Debugf("checking status of proposal %s with miner %s", propCid, minerID)
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithMiner)
 	}()
-	miner, err := address.NewFromString(minerAddr)
+	miner, err := address.NewFromString(minerID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid miner address %s: %s", minerAddr, err)
+		return nil, fmt.Errorf("invalid miner address %s: %s", minerID, err)
 	}
 	cidb, err := cborutil.Dump(propCid)
 	if err != nil {
@@ -264,7 +264,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 
 	s, err := fc.streamToMiner(ctx, miner, dealStatusProtocol)
 	if err != nil {
-		return nil, fmt.Errorf("opening stream with %s: %s", minerAddr, err)
+		return nil, fmt.Errorf("opening stream with %s: %s", minerID, err)
 	}
 
 	if err := cborutil.WriteCborRPC(s, req); err != nil {
@@ -276,7 +276,7 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
 	log.Debugf("miner %s replied proposal %s status check: %s",
-		minerAddr, propCid, storagemarket.DealStates[resp.DealState.State])
+		minerID, propCid, storagemarket.DealStates[resp.DealState.State])
 
 	return &resp.DealState, nil
 }

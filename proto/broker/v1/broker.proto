@@ -4,15 +4,15 @@ option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
 import "google/protobuf/timestamp.proto";
 
-message CreateBrokerRequestRequest {
+message CreateStorageRequestRequest {
   string cid = 1;
 }
 
-message CreateBrokerRequestResponse {
-  BrokerRequest request = 1;
+message CreateStorageRequestResponse {
+  StorageRequest request = 1;
 }
 
-message CreatePreparedBrokerRequestRequest {
+message CreatePreparedStorageRequestRequest {
   string cid = 1;
   PreparedCAR preparedCAR = 2;
 
@@ -35,19 +35,19 @@ message CreatePreparedBrokerRequestRequest {
   }
 }
 
-message CreatePreparedBrokerRequestResponse {
-  BrokerRequest request = 1;
+message CreatePreparedStorageRequestResponse {
+  StorageRequest request = 1;
 }
 
-message GetBrokerRequestInfoRequest {
+message GetStorageRequestInfoRequest {
   string id = 1;
 }
 
-message GetBrokerRequestInfoResponse {
-  BrokerRequest broker_request = 1;
-  repeated BrokerRequestDeal deals = 2;
+message GetStorageRequestInfoResponse {
+  StorageRequest storage_request = 1;
+  repeated StorageRequestDeal deals = 2;
 
-  message BrokerRequestDeal {
+  message StorageRequestDeal {
 	  string miner_id = 1;
 	  int64 deal_id = 2;
 	  uint64 expiration = 3;
@@ -70,7 +70,7 @@ message Sources {
 
 message ReadyToAuction {
     string id = 1;
-    string storage_deal_id = 2;
+    string batch_id = 2;
     bytes payload_cid = 3;
     uint64 deal_size = 4;
     uint64 deal_duration = 5;
@@ -81,7 +81,7 @@ message ReadyToAuction {
     Sources sources = 10;
 }
 message ReadyToCreateDeals {
-  string storage_deal_id = 1;
+  string batch_id = 1;
   bytes payload_cid = 2;
   bytes piece_cid = 3;
   uint64 piece_size = 4;
@@ -104,7 +104,7 @@ message ReadyToBatch {
   repeated ReadyToBatchBR data_cids = 2;
 
   message ReadyToBatchBR {
-    string broker_request_id = 1;
+    string storage_request_id = 1;
     bytes data_cid = 2;
   }
 }
@@ -112,12 +112,12 @@ message ReadyToBatch {
 message NewBatchCreated {
   string id = 1;
   bytes batch_cid = 2;
-  repeated string broker_request_ids = 3;
+  repeated string storage_request_ids = 3;
 }
 
 
 message DealProposalAccepted {
-  string storage_deal_id = 1;
+  string batch_id = 1;
   string miner_id = 2;
   bytes proposal_cid = 3;
   string auction_id = 4;
@@ -126,7 +126,7 @@ message DealProposalAccepted {
 
 message AuctionClosed {
     string id = 1;
-    string storage_deal_id = 2;
+    string batch_id = 2;
     uint64 deal_duration = 3;
     uint32 deal_replication = 4;
     bool deal_verified = 5;
@@ -156,7 +156,7 @@ message NewBatchPrepared {
 }
 
 message FinalizedDeal {
-    string storage_deal_id = 1;
+    string batch_id = 1;
     int64 deal_id = 2;
     uint64 deal_expiration = 3;
     string miner_id = 4;
@@ -165,11 +165,11 @@ message FinalizedDeal {
     string bid_id = 7;
 }
 
-message BrokerRequest {
+message StorageRequest {
   string id = 1;
   bytes data_cid = 2;
   Status status = 3;
-  string storage_deal_id = 4;
+  string batch_id = 4;
   google.protobuf.Timestamp created_at = 5; 
   google.protobuf.Timestamp updated_at = 6; 
 
@@ -185,7 +185,7 @@ message BrokerRequest {
 }
 
 service APIService {
-  rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
-  rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
-  rpc GetBrokerRequestInfo(GetBrokerRequestInfoRequest) returns (GetBrokerRequestInfoResponse) {}
+  rpc CreateStorageRequest(CreateStorageRequestRequest) returns (CreateStorageRequestResponse) {}
+  rpc CreatePreparedStorageRequest(CreatePreparedStorageRequestRequest) returns (CreatePreparedStorageRequestResponse) {}
+  rpc GetStorageRequestInfo(GetStorageRequestInfoRequest) returns (GetStorageRequestInfoResponse) {}
 }

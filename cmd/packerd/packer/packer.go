@@ -23,7 +23,7 @@ var (
 )
 
 // Packer provides batching strategies to bundle multiple
-// BrokerRequest into a StorageDeal.
+// StorageRequest into a Batch.
 type Packer struct {
 	daemonFreq        time.Duration
 	exportMetricsFreq time.Duration
@@ -108,7 +108,7 @@ func (p *Packer) ReadyToBatch(
 	}()
 
 	for _, rtbd := range rtbds {
-		srID := rtbd.BrokerRequestID
+		srID := rtbd.StorageRequestID
 		dataCid := rtbd.DataCid
 		log.Debugf("received ready to pack storage-request %s, data-cid %s", srID, dataCid)
 
@@ -190,7 +190,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("moving batch %s to done: %s", batchID, err)
 	}
 
-	srIDs := make([]broker.BrokerRequestID, len(srs))
+	srIDs := make([]broker.StorageRequestID, len(srs))
 	for i, sr := range srs {
 		srIDs[i] = sr.StorageRequestID
 	}

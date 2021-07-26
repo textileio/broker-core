@@ -1,5 +1,5 @@
--- name: CreateStorageDeal :exec
-INSERT INTO storage_deals(
+-- name: CreateBatch :exec
+INSERT INTO batches(
     id,
     status,
     rep_factor,
@@ -29,26 +29,26 @@ INSERT INTO storage_deals(
       $13
       );
 
--- name: GetStorageDeal :one
-SELECT * FROM storage_deals
+-- name: GetBatch :one
+SELECT * FROM batches
 WHERE id = $1;
 
--- name: UpdateStorageDeal :exec
-UPDATE storage_deals
+-- name: UpdateBatch :exec
+UPDATE batches
 SET status = $2,
     piece_cid = $3,
     piece_size = $4,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $1;
 
--- name: UpdateStorageDealStatus :exec
-UPDATE storage_deals
+-- name: UpdateBatchStatus :exec
+UPDATE batches
 SET status = $2,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $1;
 
--- name: UpdateStorageDealStatusAndError :exec
-UPDATE storage_deals
+-- name: UpdateBatchStatusAndError :exec
+UPDATE batches
 SET status = $2,
     error = $3,
     updated_at = CURRENT_TIMESTAMP

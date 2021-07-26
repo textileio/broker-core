@@ -12,15 +12,15 @@ packages:
     emit_json_tags: true
     json_tags_case_style: "camel"
 overrides:
-  - column: "auction_data.storage_deal_id"
-    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+  - column: "auction_data.batch_id"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"
   - column: "auction_data.duration"
     go_type: "uint64"
   - column: "auction_data.piece_size"
     go_type: "uint64"
 
-  - column: "auction_deals.storage_deal_id"
-    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+  - column: "auction_deals.batch_id"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"
   - column: "auction_deals.auction_id"
     go_type: "github.com/textileio/bidbot/lib/auction.AuctionID"
   - column: "auction_deals.bid_id"
