@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -268,7 +269,11 @@ func carDownloadHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 			return
 		}
 
-		if found, err := s.GetCAR(r.Context(), cid, w); err != nil {
+		responder := s.GetCAR
+		if r.Header.Get(auction.HTTPCarHeaderOnly) != "" {
+			responder = s.GetCARHeader
+		}
+		if found, err := responder(r.Context(), cid, w); err != nil {
 			httpError(w, fmt.Sprintf("writing car stream: %s", err), http.StatusInternalServerError)
 			return
 		} else if !found {
