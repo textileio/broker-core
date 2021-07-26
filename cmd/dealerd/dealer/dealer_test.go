@@ -285,7 +285,7 @@ func (fc *fcMock) CheckDealStatusWithMiner(
 	ctx context.Context,
 	minerID string,
 	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
-	args := fc.Called(ctx, MinerID, propCid)
+	args := fc.Called(ctx, minerID, propCid)
 
 	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)
 }
