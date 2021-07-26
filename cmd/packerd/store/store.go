@@ -90,7 +90,7 @@ func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (con
 func (s *Store) AddStorageRequestToOpenBatch(
 	ctx context.Context,
 	opID string,
-	srID broker.BrokerRequestID,
+	srID broker.StorageRequestID,
 	dataCid cid.Cid,
 	dataSize int64) error {
 	if opID == "" {

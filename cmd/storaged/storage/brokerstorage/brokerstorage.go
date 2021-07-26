@@ -128,7 +128,7 @@ func (bs *BrokerStorage) CreateFromReader(
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
-	status, err := brokerRequestStatusToStorageRequestStatus(sr.Status)
+	status, err := StorageRequestStatusToStorageRequestStatus(sr.Status)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
 	}
@@ -298,7 +298,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
-	status, err := brokerRequestStatusToStorageRequestStatus(sr.Status)
+	status, err := StorageRequestStatusToStorageRequestStatus(sr.Status)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
 	}
@@ -312,19 +312,19 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 
 // GetRequestInfo returns information about a request.
 func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage.RequestInfo, error) {
-	br, err := bs.broker.GetBrokerRequestInfo(ctx, broker.BrokerRequestID(id))
+	br, err := bs.broker.GetStorageRequestInfo(ctx, broker.StorageRequestID(id))
 	if err != nil {
 		return storage.RequestInfo{}, fmt.Errorf("getting broker request info: %s", err)
 	}
 
-	status, err := brokerRequestStatusToStorageRequestStatus(br.BrokerRequest.Status)
+	status, err := StorageRequestStatusToStorageRequestStatus(br.StorageRequest.Status)
 	if err != nil {
 		return storage.RequestInfo{}, fmt.Errorf("mapping statuses: %s", err)
 	}
 	sri := storage.RequestInfo{
 		Request: storage.Request{
-			ID:         string(br.BrokerRequest.ID),
-			Cid:        br.BrokerRequest.DataCid,
+			ID:         string(br.StorageRequest.ID),
+			Cid:        br.StorageRequest.DataCid,
 			StatusCode: status,
 		},
 	}
@@ -354,7 +354,7 @@ func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) (bo
 	return true, nil
 }
 
-func brokerRequestStatusToStorageRequestStatus(status broker.BrokerRequestStatus) (storage.Status, error) {
+func StorageRequestStatusToStorageRequestStatus(status broker.StorageRequestStatus) (storage.Status, error) {
 	switch status {
 	case broker.RequestBatching:
 		return storage.StatusBatching, nil

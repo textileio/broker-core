@@ -127,10 +127,10 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 	return s, nil
 }
 
-// CreatePreparedBrokerRequest creates a new prepared BrokerRequest.
-func (s *Service) CreatePreparedBrokerRequest(
+// CreatePreparedStorageRequest creates a new prepared StorageRequest.
+func (s *Service) CreatePreparedStorageRequest(
 	ctx context.Context,
-	r *pb.CreatePreparedBrokerRequestRequest) (*pb.CreatePreparedBrokerRequestResponse, error) {
+	r *pb.CreatePreparedStorageRequestRequest) (*pb.CreatePreparedStorageRequestResponse, error) {
 	log.Debugf("received prepared broker request")
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
@@ -223,21 +223,21 @@ func (s *Service) CreatePreparedBrokerRequest(
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
-	pbr, err := cast.BrokerRequestToProto(br)
+	pbr, err := cast.StorageRequestToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
-	res := &pb.CreatePreparedBrokerRequestResponse{
+	res := &pb.CreatePreparedStorageRequestResponse{
 		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// CreateBrokerRequest creates a new BrokerRequest.
-func (s *Service) CreateBrokerRequest(
+// CreateStorageRequest creates a new StorageRequest.
+func (s *Service) CreateStorageRequest(
 	ctx context.Context,
-	r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
+	r *pb.CreateStorageRequestRequest) (*pb.CreateStorageRequestResponse, error) {
 	log.Debugf("received broker request")
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
@@ -253,31 +253,31 @@ func (s *Service) CreateBrokerRequest(
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
-	pbr, err := cast.BrokerRequestToProto(br)
+	pbr, err := cast.StorageRequestToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
-	res := &pb.CreateBrokerRequestResponse{
+	res := &pb.CreateStorageRequestResponse{
 		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// GetBrokerRequestInfo gets information about a broker request by id.
-func (s *Service) GetBrokerRequestInfo(
+// GetStorageRequestInfo gets information about a broker request by id.
+func (s *Service) GetStorageRequestInfo(
 	ctx context.Context,
-	r *pb.GetBrokerRequestInfoRequest) (*pb.GetBrokerRequestInfoResponse, error) {
+	r *pb.GetStorageRequestInfoRequest) (*pb.GetStorageRequestInfoResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
 
-	br, err := s.broker.GetBrokerRequestInfo(ctx, broker.BrokerRequestID(r.Id))
+	br, err := s.broker.GetStorageRequestInfo(ctx, broker.StorageRequestID(r.Id))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get broker request: %s", err)
 	}
 
-	res, err := cast.BrokerRequestInfoToProto(br)
+	res, err := cast.StorageRequestInfoToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
@@ -289,7 +289,7 @@ func (s *Service) GetBrokerRequestInfo(
 func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
 	id broker.BatchID,
-	batchCid cid.Cid, brids []broker.BrokerRequestID) error {
+	batchCid cid.Cid, brids []broker.StorageRequestID) error {
 	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
 	}

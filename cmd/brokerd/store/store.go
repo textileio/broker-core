@@ -26,9 +26,9 @@ import (
 var (
 	// ErrNotFound is returned if the broker request doesn't exist.
 	ErrNotFound = fmt.Errorf("not found")
-	// ErrBatchContainsUnknownBrokerRequest is returned if a storage deal contains an
+	// ErrBatchContainsUnknownStorageRequest is returned if a storage deal contains an
 	// unknown broker request.
-	ErrBatchContainsUnknownBrokerRequest = fmt.Errorf("storage deal contains an unknown broker request")
+	ErrBatchContainsUnknownStorageRequest = fmt.Errorf("storage deal contains an unknown broker request")
 
 	log = logger.Logger("store")
 )
@@ -81,18 +81,18 @@ func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (er
 		func() error { return f(s.db) })
 }
 
-// CreateBrokerRequest creates the provided BrokerRequest in store.
-func (s *Store) CreateBrokerRequest(ctx context.Context, br broker.BrokerRequest) error {
+// CreateStorageRequest creates the provided StorageRequest in store.
+func (s *Store) CreateStorageRequest(ctx context.Context, br broker.StorageRequest) error {
 	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		return q.CreateBrokerRequest(ctx, db.CreateBrokerRequestParams{
+		return q.CreateStorageRequest(ctx, db.CreateStorageRequestParams{
 			ID: br.ID, DataCid: br.DataCid.String(), Status: br.Status})
 	})
 }
 
-// GetBrokerRequest gets a BrokerRequest with the specified `id`. If not found returns ErrNotFound.
-func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID) (br broker.BrokerRequest, err error) {
+// GetStorageRequest gets a StorageRequest with the specified `id`. If not found returns ErrNotFound.
+func (s *Store) GetStorageRequest(ctx context.Context, id broker.StorageRequestID) (br broker.StorageRequest, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		r, err := s.db.GetBrokerRequest(ctx, id)
+		r, err := s.db.GetStorageRequest(ctx, id)
 		if err == sql.ErrNoRows {
 			return ErrNotFound
 		} else if err != nil {
@@ -106,7 +106,7 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 		if err != nil {
 			return err
 		}
-		br = broker.BrokerRequest{
+		br = broker.StorageRequest{
 			ID:        r.ID,
 			DataCid:   dataCid,
 			Status:    r.Status,
@@ -120,12 +120,12 @@ func (s *Store) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestID)
 }
 
 // CreateBatch persists a storage deal.
-func (s *Store) CreateBatch(ctx context.Context, sd *broker.Batch, brIDs []broker.BrokerRequestID) error {
+func (s *Store) CreateBatch(ctx context.Context, sd *broker.Batch, brIDs []broker.StorageRequestID) error {
 	if sd.ID == "" {
 		return fmt.Errorf("storage deal id is empty")
 	}
-	var brStatus broker.BrokerRequestStatus
-	// BrokerRequests status should mirror the Batch status.
+	var brStatus broker.StorageRequestStatus
+	// StorageRequests status should mirror the Batch status.
 	switch sd.Status {
 	case broker.BatchStatusPreparing:
 		brStatus = broker.RequestPreparing
@@ -185,7 +185,7 @@ func (s *Store) CreateBatch(ctx context.Context, sd *broker.Batch, brIDs []broke
 		if err := txn.CreateBatch(ctx, isd); err != nil {
 			return fmt.Errorf("creating storage deal: %s", err)
 		}
-		updated, err := txn.BatchUpdateBrokerRequests(ctx, db.BatchUpdateBrokerRequestsParams{
+		updated, err := txn.BatchUpdateStorageRequests(ctx, db.BatchUpdateStorageRequestsParams{
 			Ids: ids, Status: brStatus, BatchID: BatchIDToSQL(sd.ID)})
 		if err != nil {
 			return fmt.Errorf("updating broker requests: %s", err)
@@ -193,7 +193,7 @@ func (s *Store) CreateBatch(ctx context.Context, sd *broker.Batch, brIDs []broke
 		// this check should be within the transaction to rollback when required
 		if len(updated) < len(ids) {
 			return fmt.Errorf("unknown broker request ids %v: %w",
-				sliceDiff(ids, updated), ErrBatchContainsUnknownBrokerRequest)
+				sliceDiff(ids, updated), ErrBatchContainsUnknownStorageRequest)
 		}
 		return nil
 	})
@@ -240,7 +240,7 @@ func (s *Store) BatchToAuctioning(
 			return fmt.Errorf("update storage deal: %s", err)
 		}
 
-		if err := txn.UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
+		if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
 			Status: broker.RequestAuctioning, BatchID: BatchIDToSQL(sd.ID)}); err != nil {
 			return fmt.Errorf("update broker requests status: %s", err)
 		}
@@ -255,7 +255,7 @@ func (s *Store) BatchError(
 	ctx context.Context,
 	id broker.BatchID,
 	errorCause string,
-	rebatch bool) (brIDs []broker.BrokerRequestID, err error) {
+	rebatch bool) (brIDs []broker.StorageRequestID, err error) {
 	err = s.withTx(ctx, func(txn *db.Queries) error {
 		sd, err := txn.GetBatch(ctx, id)
 		if err != nil {
@@ -272,7 +272,7 @@ func (s *Store) BatchError(
 			if sd.Error != errorCause {
 				return fmt.Errorf("the error cause is different from the registered on : %s %s", sd.Error, errorCause)
 			}
-			brIDs, err = txn.GetBrokerRequestIDs(ctx, BatchIDToSQL(id))
+			brIDs, err = txn.GetStorageRequestIDs(ctx, BatchIDToSQL(id))
 			return err
 		default:
 			return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
@@ -289,18 +289,18 @@ func (s *Store) BatchError(
 			return fmt.Errorf("save storage deal: %s", err)
 		}
 
-		// 3. Move every underlying BrokerRequest to batching again, since they will be re-batched.
+		// 3. Move every underlying StorageRequest to batching again, since they will be re-batched.
 		status := broker.RequestError
 		if rebatch {
 			status = broker.RequestBatching
 		}
 
-		if err := txn.UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
+		if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
 			BatchID: BatchIDToSQL(id), Status: status}); err != nil {
 			return fmt.Errorf("getting broker request: %s", err)
 		}
 		if rebatch {
-			if err := txn.RebatchBrokerRequests(ctx, db.RebatchBrokerRequestsParams{
+			if err := txn.RebatchStorageRequests(ctx, db.RebatchStorageRequestsParams{
 				BatchID: BatchIDToSQL(id), ErrorCause: errorCause}); err != nil {
 				return fmt.Errorf("getting broker request: %s", err)
 			}
@@ -317,7 +317,7 @@ func (s *Store) BatchError(
 			return fmt.Errorf("saving unpin job: %s", err)
 		}
 
-		brIDs, err = txn.GetBrokerRequestIDs(ctx, BatchIDToSQL(id))
+		brIDs, err = txn.GetStorageRequestIDs(ctx, BatchIDToSQL(id))
 		return err
 	})
 	return
@@ -349,12 +349,12 @@ func (s *Store) BatchSuccess(ctx context.Context, id broker.BatchID) error {
 			return fmt.Errorf("updating storage deal status: %s", err)
 		}
 
-		if err := txn.UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
+		if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
 			BatchID: BatchIDToSQL(id), Status: broker.RequestSuccess}); err != nil {
 			return fmt.Errorf("updating  broker requests status: %s", err)
 		}
 
-		brs, err := txn.GetBrokerRequests(ctx, BatchIDToSQL(id))
+		brs, err := txn.GetStorageRequests(ctx, BatchIDToSQL(id))
 		if err != nil {
 			return fmt.Errorf("getting broker requests: %s", err)
 		}
@@ -406,13 +406,13 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 			}
 		}
 
-		moveBrokerRequestsToDealMaking := false
+		moveStorageRequestsToDealMaking := false
 		if sd.Status == broker.BatchStatusAuctioning {
 			if err := txn.UpdateBatchStatus(ctx, db.UpdateBatchStatusParams{
 				ID: auction.BatchID, Status: broker.BatchStatusDealMaking}); err != nil {
 				return fmt.Errorf("save storage deal: %s", err)
 			}
-			moveBrokerRequestsToDealMaking = true
+			moveStorageRequestsToDealMaking = true
 		}
 
 		// If the storage-deal was already in BatchDealMaking, then we're
@@ -421,8 +421,8 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 		// broker-requests status.
 		// This conditional is to only move the broker-request on the first successful auction
 		// that might happen. On further auctions, we don't need to do this again.
-		if moveBrokerRequestsToDealMaking {
-			if err := txn.UpdateBrokerRequestsStatus(ctx, db.UpdateBrokerRequestsStatusParams{
+		if moveStorageRequestsToDealMaking {
+			if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
 				BatchID: BatchIDToSQL(sd.ID), Status: broker.RequestDealMaking}); err != nil {
 				return fmt.Errorf("saving broker request: %s", err)
 			}
@@ -456,11 +456,11 @@ func (s *Store) GetMinerDeals(ctx context.Context, id broker.BatchID) (deals []d
 	return
 }
 
-// GetBrokerRequestIDs gets the ids of the broker requests for a storage deal.
-func (s *Store) GetBrokerRequestIDs(ctx context.Context, id broker.BatchID) (
-	brIDs []broker.BrokerRequestID, err error) {
+// GetStorageRequestIDs gets the ids of the broker requests for a storage deal.
+func (s *Store) GetStorageRequestIDs(ctx context.Context, id broker.BatchID) (
+	brIDs []broker.StorageRequestID, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		brIDs, err = q.GetBrokerRequestIDs(ctx, BatchIDToSQL(id))
+		brIDs, err = q.GetStorageRequestIDs(ctx, BatchIDToSQL(id))
 		return err
 	})
 	return
@@ -562,7 +562,7 @@ func BatchIDToSQL(id broker.BatchID) sql.NullString {
 	return sql.NullString{String: string(id), Valid: true}
 }
 
-func sliceDiff(full []string, subset []broker.BrokerRequestID) (diff []string) {
+func sliceDiff(full []string, subset []broker.StorageRequestID) (diff []string) {
 	fullSet := make(map[string]struct{}, len(full))
 	for _, s := range full {
 		fullSet[s] = struct{}{}

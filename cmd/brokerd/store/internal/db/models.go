@@ -28,17 +28,6 @@ type Batch struct {
 	UpdatedAt          time.Time          `json:"updatedAt"`
 }
 
-type BrokerRequest struct {
-	ID           broker.BrokerRequestID     `json:"id"`
-	DataCid      string                     `json:"dataCid"`
-	BatchID      sql.NullString             `json:"batchID"`
-	Status       broker.BrokerRequestStatus `json:"status"`
-	RebatchCount int32                      `json:"rebatchCount"`
-	ErrorCause   string                     `json:"errorCause"`
-	CreatedAt    time.Time                  `json:"createdAt"`
-	UpdatedAt    time.Time                  `json:"updatedAt"`
-}
-
 type MinerDeal struct {
 	BatchID        broker.BatchID    `json:"batchID"`
 	AuctionID      auction.AuctionID `json:"auctionID"`
@@ -49,6 +38,17 @@ type MinerDeal struct {
 	ErrorCause     string            `json:"errorCause"`
 	CreatedAt      time.Time         `json:"createdAt"`
 	UpdatedAt      time.Time         `json:"updatedAt"`
+}
+
+type StorageRequest struct {
+	ID           broker.StorageRequestID     `json:"id"`
+	DataCid      string                      `json:"dataCid"`
+	BatchID      sql.NullString              `json:"batchID"`
+	Status       broker.StorageRequestStatus `json:"status"`
+	RebatchCount int32                       `json:"rebatchCount"`
+	ErrorCause   string                      `json:"errorCause"`
+	CreatedAt    time.Time                   `json:"createdAt"`
+	UpdatedAt    time.Time                   `json:"updatedAt"`
 }
 
 type UnpinJob struct {

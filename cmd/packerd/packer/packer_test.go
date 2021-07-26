@@ -64,7 +64,7 @@ func TestPack(t *testing.T) {
 		err = packer.ReadyToBatch(
 			ctx,
 			mbroker.OperationID(strconv.Itoa(i)),
-			[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID(strconv.Itoa(i)), DataCid: dataCid}},
+			[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)), DataCid: dataCid}},
 		)
 		require.NoError(t, err)
 	}
@@ -82,7 +82,7 @@ func TestPack(t *testing.T) {
 	err = proto.Unmarshal(msgb, msg)
 	require.NoError(t, err)
 
-	require.Len(t, msg.BrokerRequestIds, numFiles)
+	require.Len(t, msg.StorageRequestIds, numFiles)
 	require.Equal(t, numFiles, numBatchedCids)
 	require.NotEmpty(t, msg.BatchCid)
 	bcid, err := cid.Cast(msg.BatchCid)
@@ -117,7 +117,7 @@ func TestPackBatch(t *testing.T) {
 	// 3- Batch the 100 files in a single call
 	rtbs := make([]mbroker.ReadyToBatchData, len(dataCids))
 	for i, dataCid := range dataCids {
-		rtbs[i] = mbroker.ReadyToBatchData{BrokerRequestID: broker.BrokerRequestID(strconv.Itoa(i)), DataCid: dataCid}
+		rtbs[i] = mbroker.ReadyToBatchData{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)), DataCid: dataCid}
 	}
 	err = packer.ReadyToBatch(ctx, "op-1", rtbs)
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestPackBatch(t *testing.T) {
 	err = proto.Unmarshal(msgb, msg)
 	require.NoError(t, err)
 
-	require.Len(t, msg.BrokerRequestIds, numFiles)
+	require.Len(t, msg.StorageRequestIds, numFiles)
 	require.Equal(t, numFiles, numBatchedCids)
 	require.NotEmpty(t, msg.BatchCid)
 	bcid, err := cid.Cast(msg.BatchCid)
@@ -187,7 +187,7 @@ func TestPackIdempotency(t *testing.T) {
 	err = packer.ReadyToBatch(
 		ctx,
 		mbroker.OperationID("op-1"),
-		[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID("br-1"), DataCid: dataCids[0]}},
+		[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID("br-1"), DataCid: dataCids[0]}},
 	)
 	require.NoError(t, err)
 
@@ -195,12 +195,12 @@ func TestPackIdempotency(t *testing.T) {
 	err = packer.ReadyToBatch(
 		ctx,
 		mbroker.OperationID("op-1"),
-		[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID("br-1"), DataCid: dataCids[0]}},
+		[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID("br-1"), DataCid: dataCids[0]}},
 	)
 	require.ErrorIs(t, err, store.ErrOperationIDExists)
 }
 
-func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
+func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 	ctx := context.Background()
@@ -218,13 +218,13 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	// 2- Create a single file
 	dataCid := addRandomData(t, ipfs, 1)[0]
 
-	// 3- Simulate multiple BrokerRequests but with the same data
-	numRepeatedBrokerRequest := 100
-	for i := 0; i < numRepeatedBrokerRequest; i++ {
+	// 3- Simulate multiple StorageRequests but with the same data
+	numRepeatedStorageRequest := 100
+	for i := 0; i < numRepeatedStorageRequest; i++ {
 		err = packer.ReadyToBatch(
 			ctx,
 			mbroker.OperationID(strconv.Itoa(1)),
-			[]mbroker.ReadyToBatchData{{BrokerRequestID: broker.BrokerRequestID(strconv.Itoa(i)), DataCid: dataCid}},
+			[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)), DataCid: dataCid}},
 		)
 		require.NoError(t, err)
 	}
@@ -244,8 +244,8 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, bcid.Defined())
-	// We fullfiled numRepeatedBrokerRequest, not only 1!
-	require.Len(t, msg.BrokerRequestIds, numRepeatedBrokerRequest)
+	// We fullfiled numRepeatedStorageRequest, not only 1!
+	require.Len(t, msg.StorageRequestIds, numRepeatedStorageRequest)
 	// Despite we fulfilled multiple broker request, the batch only has one cid!
 	require.Equal(t, 1, numCidsBatched)
 

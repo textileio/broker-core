@@ -59,7 +59,7 @@ type OperationID string
 
 // NewBatchCreatedListener is a handler for new-batch-created topic.
 type NewBatchCreatedListener interface {
-	OnNewBatchCreated(context.Context, broker.BatchID, cid.Cid, []broker.BrokerRequestID) error
+	OnNewBatchCreated(context.Context, broker.BatchID, cid.Cid, []broker.StorageRequestID) error
 }
 
 // NewBatchPreparedListener is a handler for new-batch-prepared topic.
@@ -74,8 +74,8 @@ type ReadyToBatchListener interface {
 
 // ReadyToBatchData contains broker request data information to be batched.
 type ReadyToBatchData struct {
-	BrokerRequestID broker.BrokerRequestID
-	DataCid         cid.Cid
+	StorageRequestID broker.StorageRequestID
+	DataCid          cid.Cid
 }
 
 // ReadyToCreateDealsListener is a handler for ready-to-create-deals topic.
@@ -138,15 +138,15 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if !batchCid.Defined() {
 				return errors.New("data cid is undefined")
 			}
-			if len(r.BrokerRequestIds) == 0 {
+			if len(r.StorageRequestIds) == 0 {
 				return errors.New("broker requests list is empty")
 			}
-			brids := make([]broker.BrokerRequestID, len(r.BrokerRequestIds))
-			for i, id := range r.BrokerRequestIds {
+			brids := make([]broker.StorageRequestID, len(r.StorageRequestIds))
+			for i, id := range r.StorageRequestIds {
 				if id == "" {
 					return fmt.Errorf("broker request id can't be empty")
 				}
-				brids[i] = broker.BrokerRequestID(id)
+				brids[i] = broker.StorageRequestID(id)
 			}
 
 			if err := l.OnNewBatchCreated(ctx, sdID, batchCid, brids); err != nil {
@@ -207,10 +207,10 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 
 			rtb := make([]ReadyToBatchData, len(r.DataCids))
 			for i := range r.DataCids {
-				if r.DataCids[i].BrokerRequestId == "" {
+				if r.DataCids[i].StorageRequestId == "" {
 					return fmt.Errorf("broker request id is empty")
 				}
-				brID := broker.BrokerRequestID(r.DataCids[i].BrokerRequestId)
+				brID := broker.StorageRequestID(r.DataCids[i].StorageRequestId)
 				dataCid, err := cid.Cast(r.DataCids[i].DataCid)
 				if err != nil {
 					return fmt.Errorf("decoding data cid: %s", err)
@@ -219,8 +219,8 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 					return fmt.Errorf("data cid is undefined")
 				}
 				rtb[i] = ReadyToBatchData{
-					BrokerRequestID: brID,
-					DataCid:         dataCid,
+					StorageRequestID: brID,
+					DataCid:          dataCid,
 				}
 			}
 
@@ -496,15 +496,15 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 	}
 
 	for i := range dataCids {
-		if dataCids[i].BrokerRequestID == "" {
+		if dataCids[i].StorageRequestID == "" {
 			return fmt.Errorf("broker-request-id is empty")
 		}
 		if !dataCids[i].DataCid.Defined() {
 			return fmt.Errorf("data-cid is undefined")
 		}
 		msg.DataCids[i] = &pb.ReadyToBatch_ReadyToBatchBR{
-			BrokerRequestId: string(dataCids[i].BrokerRequestID),
-			DataCid:         dataCids[i].DataCid.Bytes(),
+			StorageRequestId: string(dataCids[i].StorageRequestID),
+			DataCid:          dataCids[i].DataCid.Bytes(),
 		}
 	}
 	data, err := proto.Marshal(msg)
@@ -524,15 +524,15 @@ func PublishMsgNewBatchCreated(
 	mb MsgBroker,
 	batchID broker.BatchID,
 	batchCid cid.Cid,
-	brIDs []broker.BrokerRequestID) error {
+	brIDs []broker.StorageRequestID) error {
 	brids := make([]string, len(brIDs))
 	for i, bbr := range brIDs {
 		brids[i] = string(bbr)
 	}
 	msg := &pb.NewBatchCreated{
-		Id:               string(batchID),
-		BatchCid:         batchCid.Bytes(),
-		BrokerRequestIds: brids,
+		Id:                string(batchID),
+		BatchCid:          batchCid.Bytes(),
+		StorageRequestIds: brids,
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {

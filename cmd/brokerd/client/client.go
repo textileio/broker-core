@@ -35,19 +35,19 @@ func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 	return c, nil
 }
 
-// Create creates a new BrokerRequest.
-func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequest, error) {
-	req := &pb.CreateBrokerRequestRequest{
+// Create creates a new StorageRequest.
+func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageRequest, error) {
+	req := &pb.CreateStorageRequestRequest{
 		Cid: dataCid.String(),
 	}
-	res, err := c.c.CreateBrokerRequest(ctx, req)
+	res, err := c.c.CreateStorageRequest(ctx, req)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
+		return broker.StorageRequest{}, fmt.Errorf("creating broker request: %s", err)
 	}
 
-	br, err := cast.FromProtoBrokerRequest(res.Request)
+	br, err := cast.FromProtoStorageRequest(res.Request)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
+		return broker.StorageRequest{}, fmt.Errorf("decoding proto response: %s", err)
 	}
 
 	return br, nil
@@ -57,23 +57,23 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequ
 func (c *Client) CreatePrepared(
 	ctx context.Context,
 	dataCid cid.Cid,
-	pc broker.PreparedCAR) (broker.BrokerRequest, error) {
-	req := &pb.CreatePreparedBrokerRequestRequest{
+	pc broker.PreparedCAR) (broker.StorageRequest, error) {
+	req := &pb.CreatePreparedStorageRequestRequest{
 		Cid: dataCid.String(),
 	}
-	req.PreparedCAR = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR{
+	req.PreparedCAR = &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
 		PieceCid:  pc.PieceCid.String(),
 		PieceSize: pc.PieceSize,
 		RepFactor: int64(pc.RepFactor),
 		Deadline:  timestamppb.New(pc.Deadline),
 	}
 	if pc.Sources.CARURL != nil {
-		req.PreparedCAR.CarUrl = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR_CARURL{
+		req.PreparedCAR.CarUrl = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARURL{
 			Url: pc.Sources.CARURL.URL.String(),
 		}
 	}
 	if pc.Sources.CARIPFS != nil {
-		req.PreparedCAR.CarIpfs = &pb.CreatePreparedBrokerRequestRequest_PreparedCAR_CARIPFS{
+		req.PreparedCAR.CarIpfs = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARIPFS{
 			Cid:        pc.Sources.CARIPFS.Cid.String(),
 			Multiaddrs: make([]string, len(pc.Sources.CARIPFS.Multiaddrs)),
 		}
@@ -82,33 +82,33 @@ func (c *Client) CreatePrepared(
 		}
 	}
 
-	res, err := c.c.CreatePreparedBrokerRequest(ctx, req)
+	res, err := c.c.CreatePreparedStorageRequest(ctx, req)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("creating broker request: %s", err)
+		return broker.StorageRequest{}, fmt.Errorf("creating broker request: %s", err)
 	}
 
-	br, err := cast.FromProtoBrokerRequest(res.Request)
+	br, err := cast.FromProtoStorageRequest(res.Request)
 	if err != nil {
-		return broker.BrokerRequest{}, fmt.Errorf("decoding proto response: %s", err)
+		return broker.StorageRequest{}, fmt.Errorf("decoding proto response: %s", err)
 	}
 
 	return br, nil
 }
 
-// GetBrokerRequestInfo gets a broker request information by id.
-func (c *Client) GetBrokerRequestInfo(
+// GetStorageRequestInfo gets a broker request information by id.
+func (c *Client) GetStorageRequestInfo(
 	ctx context.Context,
-	id broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
-	req := &pb.GetBrokerRequestInfoRequest{
+	id broker.StorageRequestID) (broker.StorageRequestInfo, error) {
+	req := &pb.GetStorageRequestInfoRequest{
 		Id: string(id),
 	}
-	res, err := c.c.GetBrokerRequestInfo(ctx, req)
+	res, err := c.c.GetStorageRequestInfo(ctx, req)
 	if err != nil {
-		return broker.BrokerRequestInfo{}, fmt.Errorf("calling get broker api: %s", err)
+		return broker.StorageRequestInfo{}, fmt.Errorf("calling get broker api: %s", err)
 	}
-	br, err := cast.FromProtoBrokerRequestInfo(res)
+	br, err := cast.FromProtoStorageRequestInfo(res)
 	if err != nil {
-		return broker.BrokerRequestInfo{}, fmt.Errorf("converting broker request response: %s", err)
+		return broker.StorageRequestInfo{}, fmt.Errorf("converting broker request response: %s", err)
 	}
 
 	return br, nil
