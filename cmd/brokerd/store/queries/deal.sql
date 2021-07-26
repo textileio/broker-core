@@ -1,5 +1,5 @@
--- name: CreateMinerDeal :exec
-INSERT INTO miner_deals(
+-- name: CreateDeal :exec
+INSERT INTO deals(
     batch_id,
     auction_id,
     bid_id,
@@ -17,13 +17,13 @@ INSERT INTO miner_deals(
       $7
       );
 
--- name: UpdateMinerDeals :execrows
-UPDATE miner_deals
+-- name: UpdateDeals :execrows
+UPDATE deals
 SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
 WHERE batch_id = $1 AND miner_id = $2;
 
 
--- name: GetMinerDeals :many
-SELECT * FROM miner_deals WHERE batch_id = $1;
+-- name: GetDeals :many
+SELECT * FROM deals WHERE batch_id = $1;

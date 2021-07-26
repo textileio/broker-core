@@ -252,7 +252,7 @@ func (b *Broker) GetStorageRequestInfo(
 	}
 
 	if br.BatchID != "" {
-		deals, err := b.store.GetMinerDeals(ctx, br.BatchID)
+		deals, err := b.store.GetDeals(ctx, br.BatchID)
 		if err != nil {
 			return broker.StorageRequestInfo{}, fmt.Errorf("get storage-deal: %s", err)
 		}
@@ -449,7 +449,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, au broker.ClosedAuction) (e
 		i++
 	}
 
-	if err := b.store.AddMinerDeals(ctx, au); err != nil {
+	if err := b.store.AddDeals(ctx, au); err != nil {
 		return fmt.Errorf("adding miner deals: %s", err)
 	}
 
@@ -475,7 +475,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 	}()
 
 	// 1. Save the finalized deal in the storage-deal (successful or not)
-	if err := b.store.SaveMinerDeals(ctx, fad); err != nil {
+	if err := b.store.SaveDeals(ctx, fad); err != nil {
 		return fmt.Errorf("adding finalized info to the store: %s", err)
 	}
 
@@ -483,7 +483,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 	if err != nil {
 		return fmt.Errorf("get storage deal: %s", err)
 	}
-	deals, err := b.store.GetMinerDeals(ctx, sd.ID)
+	deals, err := b.store.GetDeals(ctx, sd.ID)
 	if err != nil {
 		return fmt.Errorf("adding miner deals: %s", err)
 	}

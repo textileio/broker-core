@@ -28,8 +28,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createBatchStmt, err = db.PrepareContext(ctx, createBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBatch: %w", err)
 	}
-	if q.createMinerDealStmt, err = db.PrepareContext(ctx, createMinerDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateMinerDeal: %w", err)
+	if q.createDealStmt, err = db.PrepareContext(ctx, createDeal); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateDeal: %w", err)
 	}
 	if q.createStorageRequestStmt, err = db.PrepareContext(ctx, createStorageRequest); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateStorageRequest: %w", err)
@@ -43,8 +43,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getBatchStmt, err = db.PrepareContext(ctx, getBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBatch: %w", err)
 	}
-	if q.getMinerDealsStmt, err = db.PrepareContext(ctx, getMinerDeals); err != nil {
-		return nil, fmt.Errorf("error preparing query GetMinerDeals: %w", err)
+	if q.getDealsStmt, err = db.PrepareContext(ctx, getDeals); err != nil {
+		return nil, fmt.Errorf("error preparing query GetDeals: %w", err)
 	}
 	if q.getStorageRequestStmt, err = db.PrepareContext(ctx, getStorageRequest); err != nil {
 		return nil, fmt.Errorf("error preparing query GetStorageRequest: %w", err)
@@ -73,8 +73,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateBatchStatusAndErrorStmt, err = db.PrepareContext(ctx, updateBatchStatusAndError); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateBatchStatusAndError: %w", err)
 	}
-	if q.updateMinerDealsStmt, err = db.PrepareContext(ctx, updateMinerDeals); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateMinerDeals: %w", err)
+	if q.updateDealsStmt, err = db.PrepareContext(ctx, updateDeals); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateDeals: %w", err)
 	}
 	if q.updateStorageRequestsStatusStmt, err = db.PrepareContext(ctx, updateStorageRequestsStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateStorageRequestsStatus: %w", err)
@@ -94,9 +94,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createBatchStmt: %w", cerr)
 		}
 	}
-	if q.createMinerDealStmt != nil {
-		if cerr := q.createMinerDealStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createMinerDealStmt: %w", cerr)
+	if q.createDealStmt != nil {
+		if cerr := q.createDealStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createDealStmt: %w", cerr)
 		}
 	}
 	if q.createStorageRequestStmt != nil {
@@ -119,9 +119,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getBatchStmt: %w", cerr)
 		}
 	}
-	if q.getMinerDealsStmt != nil {
-		if cerr := q.getMinerDealsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getMinerDealsStmt: %w", cerr)
+	if q.getDealsStmt != nil {
+		if cerr := q.getDealsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getDealsStmt: %w", cerr)
 		}
 	}
 	if q.getStorageRequestStmt != nil {
@@ -169,9 +169,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateBatchStatusAndErrorStmt: %w", cerr)
 		}
 	}
-	if q.updateMinerDealsStmt != nil {
-		if cerr := q.updateMinerDealsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateMinerDealsStmt: %w", cerr)
+	if q.updateDealsStmt != nil {
+		if cerr := q.updateDealsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateDealsStmt: %w", cerr)
 		}
 	}
 	if q.updateStorageRequestsStatusStmt != nil {
@@ -220,12 +220,12 @@ type Queries struct {
 	tx                              *sql.Tx
 	batchUpdateStorageRequestsStmt  *sql.Stmt
 	createBatchStmt                 *sql.Stmt
-	createMinerDealStmt             *sql.Stmt
+	createDealStmt                  *sql.Stmt
 	createStorageRequestStmt        *sql.Stmt
 	createUnpinJobStmt              *sql.Stmt
 	deleteExecutingUnpinJobStmt     *sql.Stmt
 	getBatchStmt                    *sql.Stmt
-	getMinerDealsStmt               *sql.Stmt
+	getDealsStmt                    *sql.Stmt
 	getStorageRequestStmt           *sql.Stmt
 	getStorageRequestIDsStmt        *sql.Stmt
 	getStorageRequestsStmt          *sql.Stmt
@@ -235,7 +235,7 @@ type Queries struct {
 	updateBatchStmt                 *sql.Stmt
 	updateBatchStatusStmt           *sql.Stmt
 	updateBatchStatusAndErrorStmt   *sql.Stmt
-	updateMinerDealsStmt            *sql.Stmt
+	updateDealsStmt                 *sql.Stmt
 	updateStorageRequestsStatusStmt *sql.Stmt
 }
 
@@ -245,12 +245,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                              tx,
 		batchUpdateStorageRequestsStmt:  q.batchUpdateStorageRequestsStmt,
 		createBatchStmt:                 q.createBatchStmt,
-		createMinerDealStmt:             q.createMinerDealStmt,
+		createDealStmt:                  q.createDealStmt,
 		createStorageRequestStmt:        q.createStorageRequestStmt,
 		createUnpinJobStmt:              q.createUnpinJobStmt,
 		deleteExecutingUnpinJobStmt:     q.deleteExecutingUnpinJobStmt,
 		getBatchStmt:                    q.getBatchStmt,
-		getMinerDealsStmt:               q.getMinerDealsStmt,
+		getDealsStmt:                    q.getDealsStmt,
 		getStorageRequestStmt:           q.getStorageRequestStmt,
 		getStorageRequestIDsStmt:        q.getStorageRequestIDsStmt,
 		getStorageRequestsStmt:          q.getStorageRequestsStmt,
@@ -260,7 +260,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		updateBatchStmt:                 q.updateBatchStmt,
 		updateBatchStatusStmt:           q.updateBatchStatusStmt,
 		updateBatchStatusAndErrorStmt:   q.updateBatchStatusAndErrorStmt,
-		updateMinerDealsStmt:            q.updateMinerDealsStmt,
+		updateDealsStmt:                 q.updateDealsStmt,
 		updateStorageRequestsStatusStmt: q.updateStorageRequestsStatusStmt,
 	}
 }
