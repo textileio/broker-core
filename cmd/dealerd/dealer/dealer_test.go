@@ -283,7 +283,7 @@ func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint6
 }
 func (fc *fcMock) CheckDealStatusWithMiner(
 	ctx context.Context,
-	MinerID string,
+	minerID string,
 	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
 	args := fc.Called(ctx, MinerID, propCid)
 
