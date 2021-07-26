@@ -268,8 +268,11 @@ func carDownloadHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 			return
 		}
 
-		if err := s.GetCAR(r.Context(), cid, w); err != nil {
+		if found, err := s.GetCAR(r.Context(), cid, w); err != nil {
 			httpError(w, fmt.Sprintf("writing car stream: %s", err), http.StatusInternalServerError)
+			return
+		} else if !found {
+			httpError(w, fmt.Sprintf("cid %s not found", cid), http.StatusNotFound)
 			return
 		}
 	}
