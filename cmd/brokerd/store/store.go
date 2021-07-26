@@ -120,25 +120,25 @@ func (s *Store) GetStorageRequest(ctx context.Context, id broker.StorageRequestI
 }
 
 // CreateBatch persists a storage deal.
-func (s *Store) CreateBatch(ctx context.Context, sd *broker.Batch, brIDs []broker.StorageRequestID) error {
-	if sd.ID == "" {
+func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broker.StorageRequestID) error {
+	if ba.ID == "" {
 		return fmt.Errorf("storage deal id is empty")
 	}
 	var brStatus broker.StorageRequestStatus
 	// StorageRequests status should mirror the Batch status.
-	switch sd.Status {
+	switch ba.Status {
 	case broker.BatchStatusPreparing:
 		brStatus = broker.RequestPreparing
 	case broker.BatchStatusAuctioning:
 		brStatus = broker.RequestAuctioning
 	default:
-		return fmt.Errorf("unexpected storage deal initial status %d", sd.Status)
+		return fmt.Errorf("unexpected storage deal initial status %d", ba.Status)
 	}
 
 	start := time.Now()
 	defer log.Debugf(
 		"creating storage deal %s with group size %d took %dms",
-		sd.ID, len(brIDs),
+		ba.ID, len(brIDs),
 		time.Since(start).Milliseconds(),
 	)
 
@@ -148,30 +148,30 @@ func (s *Store) CreateBatch(ctx context.Context, sd *broker.Batch, brIDs []broke
 		ipfsCid        string
 		ipfsMultiaddrs []string
 	}{}
-	if sd.Sources.CARURL != nil {
-		dsources.carURL = sd.Sources.CARURL.URL.String()
+	if ba.Sources.CARURL != nil {
+		dsources.carURL = ba.Sources.CARURL.URL.String()
 	}
-	if sd.Sources.CARIPFS != nil {
-		dsources.ipfsCid = sd.Sources.CARIPFS.Cid.String()
-		dsources.ipfsMultiaddrs = make([]string, len(sd.Sources.CARIPFS.Multiaddrs))
-		for i, maddr := range sd.Sources.CARIPFS.Multiaddrs {
+	if ba.Sources.CARIPFS != nil {
+		dsources.ipfsCid = ba.Sources.CARIPFS.Cid.String()
+		dsources.ipfsMultiaddrs = make([]string, len(ba.Sources.CARIPFS.Multiaddrs))
+		for i, maddr := range ba.Sources.CARIPFS.Multiaddrs {
 			dsources.ipfsMultiaddrs[i] = maddr.String()
 		}
 	}
 	var pieceCid string
-	if sd.PieceCid.Defined() {
-		pieceCid = sd.PieceCid.String()
+	if ba.PieceCid.Defined() {
+		pieceCid = ba.PieceCid.String()
 	}
 	isd := db.CreateBatchParams{
-		ID:                 sd.ID,
-		Status:             sd.Status,
-		RepFactor:          sd.RepFactor,
-		DealDuration:       sd.DealDuration,
-		PayloadCid:         sd.PayloadCid.String(),
+		ID:                 ba.ID,
+		Status:             ba.Status,
+		RepFactor:          ba.RepFactor,
+		DealDuration:       ba.DealDuration,
+		PayloadCid:         ba.PayloadCid.String(),
 		PieceCid:           pieceCid,
-		PieceSize:          sd.PieceSize,
-		DisallowRebatching: sd.DisallowRebatching,
-		FilEpochDeadline:   sd.FilEpochDeadline,
+		PieceSize:          ba.PieceSize,
+		DisallowRebatching: ba.DisallowRebatching,
+		FilEpochDeadline:   ba.FilEpochDeadline,
 		CarUrl:             dsources.carURL,
 		CarIpfsCid:         dsources.ipfsCid,
 		CarIpfsAddrs:       strings.Join(dsources.ipfsMultiaddrs, ","),
@@ -186,7 +186,7 @@ func (s *Store) CreateBatch(ctx context.Context, sd *broker.Batch, brIDs []broke
 			return fmt.Errorf("creating storage deal: %s", err)
 		}
 		updated, err := txn.BatchUpdateStorageRequests(ctx, db.BatchUpdateStorageRequestsParams{
-			Ids: ids, Status: brStatus, BatchID: BatchIDToSQL(sd.ID)})
+			Ids: ids, Status: brStatus, BatchID: BatchIDToSQL(ba.ID)})
 		if err != nil {
 			return fmt.Errorf("updating broker requests: %s", err)
 		}
@@ -207,32 +207,32 @@ func (s *Store) BatchToAuctioning(
 	pieceCid cid.Cid,
 	pieceSize uint64) error {
 	return s.withTx(ctx, func(txn *db.Queries) error {
-		sd, err := txn.GetBatch(ctx, id)
+		ba, err := txn.GetBatch(ctx, id)
 		if err != nil {
 			return fmt.Errorf("get storage deal: %s", err)
 		}
 
 		// Take care of correct state transitions.
-		switch sd.Status {
+		switch ba.Status {
 		case broker.BatchStatusPreparing:
-			if sd.PieceCid != "" || sd.PieceSize > 0 {
-				return fmt.Errorf("piece cid and size should be empty: %s %d", sd.PieceCid, sd.PieceSize)
+			if ba.PieceCid != "" || ba.PieceSize > 0 {
+				return fmt.Errorf("piece cid and size should be empty: %s %d", ba.PieceCid, ba.PieceSize)
 			}
 		case broker.BatchStatusAuctioning:
-			if sd.PieceCid != pieceCid.String() {
-				return fmt.Errorf("piececid different from registered: %s %s", sd.PieceCid, pieceCid)
+			if ba.PieceCid != pieceCid.String() {
+				return fmt.Errorf("piececid different from registered: %s %s", ba.PieceCid, pieceCid)
 			}
-			if sd.PieceSize != pieceSize {
-				return fmt.Errorf("piece size different from registered: %d %d", sd.PieceSize, pieceSize)
+			if ba.PieceSize != pieceSize {
+				return fmt.Errorf("piece size different from registered: %d %d", ba.PieceSize, pieceSize)
 			}
 			// auction is in process, do nothing
 			return nil
 		default:
-			return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+			return fmt.Errorf("wrong storage request status transition, tried moving to %s", ba.Status)
 		}
 
 		if err := txn.UpdateBatch(ctx, db.UpdateBatchParams{
-			ID:        sd.ID,
+			ID:        ba.ID,
 			Status:    broker.BatchStatusAuctioning,
 			PieceCid:  pieceCid.String(),
 			PieceSize: pieceSize,
@@ -241,7 +241,7 @@ func (s *Store) BatchToAuctioning(
 		}
 
 		if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
-			Status: broker.RequestAuctioning, BatchID: BatchIDToSQL(sd.ID)}); err != nil {
+			Status: broker.RequestAuctioning, BatchID: BatchIDToSQL(ba.ID)}); err != nil {
 			return fmt.Errorf("update broker requests status: %s", err)
 		}
 		return nil
