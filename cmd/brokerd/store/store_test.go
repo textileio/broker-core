@@ -85,7 +85,7 @@ func TestCreateBatch(t *testing.T) {
 	assert.True(t, time.Since(sd2.UpdatedAt) < 100*time.Millisecond, time.Since(sd2.CreatedAt))
 
 	// 4- Check that both broker requests are associated to the storage deal.
-	brs, err := s.db.GetStorageRequests(ctx, BatchIDToSQL(sd.ID))
+	brs, err := s.db.GetStorageRequests(ctx, batchIDToSQL(sd.ID))
 	require.NoError(t, err)
 	assert.Equal(t, len(brIDs), len(brs))
 

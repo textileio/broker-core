@@ -128,7 +128,7 @@ func (bs *BrokerStorage) CreateFromReader(
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
-	status, err := StorageRequestStatusToStorageRequestStatus(sr.Status)
+	status, err := storageRequestStatusToStorageRequestStatus(sr.Status)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
 	}
@@ -298,7 +298,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
-	status, err := StorageRequestStatusToStorageRequestStatus(sr.Status)
+	status, err := storageRequestStatusToStorageRequestStatus(sr.Status)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
 	}
@@ -317,7 +317,7 @@ func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage
 		return storage.RequestInfo{}, fmt.Errorf("getting broker request info: %s", err)
 	}
 
-	status, err := StorageRequestStatusToStorageRequestStatus(br.StorageRequest.Status)
+	status, err := storageRequestStatusToStorageRequestStatus(br.StorageRequest.Status)
 	if err != nil {
 		return storage.RequestInfo{}, fmt.Errorf("mapping statuses: %s", err)
 	}
@@ -354,7 +354,7 @@ func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) (bo
 	return true, nil
 }
 
-func StorageRequestStatusToStorageRequestStatus(status broker.StorageRequestStatus) (storage.Status, error) {
+func storageRequestStatusToStorageRequestStatus(status broker.StorageRequestStatus) (storage.Status, error) {
 	switch status {
 	case broker.RequestBatching:
 		return storage.StatusBatching, nil
