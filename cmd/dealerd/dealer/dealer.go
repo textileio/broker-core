@@ -68,11 +68,11 @@ func New(
 // ReadyToCreateDeals signal the dealer that new deals are ready to be executed.
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals) error {
 	auctionData := &store.AuctionData{
-		StorageDealID: ad.StorageDealID,
-		PayloadCid:    ad.PayloadCid,
-		PieceCid:      ad.PieceCid,
-		PieceSize:     ad.PieceSize,
-		Duration:      ad.Duration,
+		BatchID:    ad.BatchID,
+		PayloadCid: ad.PayloadCid,
+		PieceCid:   ad.PieceCid,
+		PieceSize:  ad.PieceSize,
+		Duration:   ad.Duration,
 	}
 	log.Debugf("ready to create deals auction data: %s", logging.MustJSONIndent(auctionData))
 	auctionDeals := make([]*store.AuctionDeal, len(ad.Proposals))
@@ -87,7 +87,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 			BidID:               t.BidID,
 		}
 		auctionDeals[i] = auctionDeal
-		log.Debugf("%s auction deal: %s", auctionData.StorageDealID, logging.MustJSONIndent(auctionDeal))
+		log.Debugf("%s auction deal: %s", auctionData.BatchID, logging.MustJSONIndent(auctionDeal))
 	}
 	if err := d.store.Create(ctx, auctionData, auctionDeals); err != nil {
 		return fmt.Errorf("creating auction deals: %s", err)

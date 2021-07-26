@@ -25,7 +25,7 @@ import (
 
 var log = logger.Logger("piecer")
 
-// Piecer provides a data-preparation pipeline for StorageDeals.
+// Piecer provides a data-preparation pipeline for Batchs.
 type Piecer struct {
 	mb       mbroker.MsgBroker
 	ipfsApis []ipfsutil.IpfsAPI
@@ -93,7 +93,7 @@ func New(
 }
 
 // ReadyToPrepare signals the Piecer that a new batch is ready to be prepared.
-func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.StorageDealID, dataCid cid.Cid) error {
+func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.BatchID, dataCid cid.Cid) error {
 	if sdID == "" {
 		return fmt.Errorf("storage-deal id is empty")
 	}
@@ -148,16 +148,16 @@ func (p *Piecer) daemon() {
 			}
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
-				log.Errorf("preparing storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
-				if err := p.store.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
+				log.Errorf("preparing storage-deal %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
+				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
 
-			if err := p.store.MoveToStatus(p.daemonCtx, usd.StorageDealID, 0, store.StatusDone); err != nil {
-				log.Errorf("deleting storage-deal %s, data-cid %s: %s", usd.StorageDealID, usd.DataCid, err)
-				if err := p.store.MoveToStatus(p.daemonCtx, usd.StorageDealID, p.retryDelay, store.StatusPending); err != nil {
+			if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, 0, store.StatusDone); err != nil {
+				log.Errorf("deleting storage-deal %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
+				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
@@ -168,7 +168,7 @@ func (p *Piecer) daemon() {
 
 func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	start := time.Now()
-	log.Debugf("preparing storage-deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
+	log.Debugf("preparing storage-deal %s with data-cid %s", usd.BatchID, usd.DataCid)
 
 	nodeGetter, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, usd.DataCid)
 	if !found {
@@ -228,9 +228,9 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 
 	duration := time.Since(start).Seconds()
 	log.Debugf("prepared of storage-deal %s, data-cid %s, piece-size %s, piece-cid %s took %.2f seconds",
-		usd.StorageDealID, usd.DataCid, humanize.IBytes(dpr.PieceSize), dpr.PieceCid, duration)
+		usd.BatchID, usd.DataCid, humanize.IBytes(dpr.PieceSize), dpr.PieceCid, duration)
 
-	if err := mbroker.PublishMsgNewBatchPrepared(ctx, p.mb, usd.StorageDealID, dpr.PieceCid, dpr.PieceSize); err != nil {
+	if err := mbroker.PublishMsgNewBatchPrepared(ctx, p.mb, usd.BatchID, dpr.PieceCid, dpr.PieceSize); err != nil {
 		return fmt.Errorf("publish message to message broker: %s", err)
 	}
 

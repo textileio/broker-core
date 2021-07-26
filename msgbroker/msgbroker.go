@@ -59,12 +59,12 @@ type OperationID string
 
 // NewBatchCreatedListener is a handler for new-batch-created topic.
 type NewBatchCreatedListener interface {
-	OnNewBatchCreated(context.Context, broker.StorageDealID, cid.Cid, []broker.BrokerRequestID) error
+	OnNewBatchCreated(context.Context, broker.BatchID, cid.Cid, []broker.BrokerRequestID) error
 }
 
 // NewBatchPreparedListener is a handler for new-batch-prepared topic.
 type NewBatchPreparedListener interface {
-	OnNewBatchPrepared(context.Context, broker.StorageDealID, broker.DataPreparationResult) error
+	OnNewBatchPrepared(context.Context, broker.BatchID, broker.DataPreparationResult) error
 }
 
 // ReadyToBatchListener is a handler for ready-to-batch topic.
@@ -98,7 +98,7 @@ type ReadyToAuctionListener interface {
 	OnReadyToAuction(
 		ctx context.Context,
 		id auction.AuctionID,
-		storageDealID broker.StorageDealID,
+		BatchID broker.BatchID,
 		payloadCid cid.Cid,
 		dealSize, dealDuration uint64,
 		dealReplication uint32,
@@ -129,7 +129,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.Id == "" {
 				return errors.New("storage deal id is empty")
 			}
-			sdID := broker.StorageDealID(r.Id)
+			sdID := broker.BatchID(r.Id)
 
 			batchCid, err := cid.Cast(r.BatchCid)
 			if err != nil {
@@ -180,7 +180,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				PieceCid:  pieceCid,
 				PieceSize: r.PieceSize,
 			}
-			id := broker.StorageDealID(r.Id)
+			id := broker.BatchID(r.Id)
 			if err := l.OnNewBatchPrepared(ctx, id, pr); err != nil {
 				return fmt.Errorf("calling on-new-batch-prepared handler: %s", err)
 			}
@@ -241,7 +241,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal ready-to-create-deals: %s", err)
 			}
-			if r.StorageDealId == "" {
+			if r.BatchId == "" {
 				return errors.New("storage deal id is empty")
 			}
 
@@ -266,12 +266,12 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("list of proposals is empty")
 			}
 			ads := dealer.AuctionDeals{
-				StorageDealID: broker.StorageDealID(r.StorageDealId),
-				PayloadCid:    payloadCid,
-				PieceCid:      pieceCid,
-				PieceSize:     r.PieceSize,
-				Duration:      r.Duration,
-				Proposals:     make([]dealer.Proposal, len(r.Proposals)),
+				BatchID:    broker.BatchID(r.BatchId),
+				PayloadCid: payloadCid,
+				PieceCid:   pieceCid,
+				PieceSize:  r.PieceSize,
+				Duration:   r.Duration,
+				Proposals:  make([]dealer.Proposal, len(r.Proposals)),
 			}
 			for i, t := range r.Proposals {
 				if t.MinerId == "" {
@@ -316,7 +316,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal finalized deal msg: %s", err)
 			}
-			if r.StorageDealId == "" {
+			if r.BatchId == "" {
 				return errors.New("storage deal id is empty")
 			}
 			if r.ErrorCause == "" {
@@ -341,7 +341,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("bid-id is empty")
 			}
 			fd := broker.FinalizedDeal{
-				StorageDealID:  broker.StorageDealID(r.StorageDealId),
+				BatchID:        broker.BatchID(r.BatchId),
 				DealID:         r.DealId,
 				DealExpiration: r.DealExpiration,
 				Miner:          r.MinerId,
@@ -367,7 +367,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal deal-proposal-accepted msg: %s", err)
 			}
-			if r.StorageDealId == "" {
+			if r.BatchId == "" {
 				return errors.New("storage deal id is empty")
 			}
 			if r.MinerId == "" {
@@ -411,7 +411,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if req.Id == "" {
 				return errors.New("auction-id is empty")
 			}
-			if req.StorageDealId == "" {
+			if req.BatchId == "" {
 				return errors.New("storage deal id is empty")
 			}
 			payloadCid, err := cid.Cast(req.PayloadCid)
@@ -438,7 +438,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := l.OnReadyToAuction(
 				ctx,
 				auction.AuctionID(req.Id),
-				broker.StorageDealID(req.StorageDealId),
+				broker.BatchID(req.BatchId),
 				payloadCid,
 				req.DealSize,
 				req.DealDuration,
@@ -522,7 +522,7 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 func PublishMsgNewBatchCreated(
 	ctx context.Context,
 	mb MsgBroker,
-	batchID broker.StorageDealID,
+	batchID broker.BatchID,
 	batchCid cid.Cid,
 	brIDs []broker.BrokerRequestID) error {
 	brids := make([]string, len(brIDs))
@@ -549,7 +549,7 @@ func PublishMsgNewBatchCreated(
 func PublishMsgNewBatchPrepared(
 	ctx context.Context,
 	mb MsgBroker,
-	sdID broker.StorageDealID,
+	sdID broker.BatchID,
 	pieceCid cid.Cid,
 	pieceSize uint64) error {
 	msg := &pb.NewBatchPrepared{
@@ -574,12 +574,12 @@ func PublishMsgReadyToCreateDeals(
 	mb MsgBroker,
 	ads dealer.AuctionDeals) error {
 	msg := &pb.ReadyToCreateDeals{
-		StorageDealId: string(ads.StorageDealID),
-		PayloadCid:    ads.PayloadCid.Bytes(),
-		PieceCid:      ads.PieceCid.Bytes(),
-		PieceSize:     ads.PieceSize,
-		Duration:      ads.Duration,
-		Proposals:     make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
+		BatchId:    string(ads.BatchID),
+		PayloadCid: ads.PayloadCid.Bytes(),
+		PieceCid:   ads.PieceCid.Bytes(),
+		PieceSize:  ads.PieceSize,
+		Duration:   ads.Duration,
+		Proposals:  make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
 	}
 	for i, t := range ads.Proposals {
 		if t.MinerID == "" {
@@ -618,7 +618,7 @@ func PublishMsgReadyToCreateDeals(
 // PublishMsgFinalizedDeal publishes a message to the finalized-deal topic.
 func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.FinalizedDeal) error {
 	msg := &pb.FinalizedDeal{
-		StorageDealId:  string(fd.StorageDealID),
+		BatchId:        string(fd.BatchID),
 		MinerId:        fd.Miner,
 		DealId:         fd.DealID,
 		DealExpiration: fd.DealExpiration,
@@ -641,17 +641,17 @@ func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.Finali
 func PublishMsgDealProposalAccepted(
 	ctx context.Context,
 	mb MsgBroker,
-	sdID broker.StorageDealID,
+	sdID broker.BatchID,
 	auctionID auction.AuctionID,
 	bidID auction.BidID,
 	minerID string,
 	propCid cid.Cid) error {
 	msg := &pb.DealProposalAccepted{
-		StorageDealId: string(sdID),
-		MinerId:       minerID,
-		ProposalCid:   propCid.Bytes(),
-		AuctionId:     string(auctionID),
-		BidId:         string(bidID),
+		BatchId:     string(sdID),
+		MinerId:     minerID,
+		ProposalCid: propCid.Bytes(),
+		AuctionId:   string(auctionID),
+		BidId:       string(bidID),
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -669,7 +669,7 @@ func PublishMsgReadyToAuction(
 	ctx context.Context,
 	mb MsgBroker,
 	id auction.AuctionID,
-	storageDealID broker.StorageDealID,
+	BatchID broker.BatchID,
 	payloadCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
@@ -678,7 +678,7 @@ func PublishMsgReadyToAuction(
 	sources auction.Sources) error {
 	msg := &pb.ReadyToAuction{
 		Id:               string(id),
-		StorageDealId:    string(storageDealID),
+		BatchId:          string(BatchID),
 		PayloadCid:       payloadCid.Bytes(),
 		DealSize:         uint64(dealSize),
 		DealDuration:     uint64(dealDuration),
@@ -778,7 +778,7 @@ func closedAuctionToPb(a broker.ClosedAuction) (*pb.AuctionClosed, error) {
 	}
 	pba := &pb.AuctionClosed{
 		Id:              string(a.ID),
-		StorageDealId:   string(a.StorageDealID),
+		BatchId:         string(a.BatchID),
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
 		DealVerified:    a.DealVerified,
@@ -833,7 +833,7 @@ func closedAuctionFromPb(pba *pb.AuctionClosed) (broker.ClosedAuction, error) {
 	if pba.Id == "" {
 		return broker.ClosedAuction{}, errors.New("closed auction id is empty")
 	}
-	if pba.StorageDealId == "" {
+	if pba.BatchId == "" {
 		return broker.ClosedAuction{}, errors.New("storage deal id is empty")
 	}
 	if pba.DealDuration == 0 {
@@ -844,7 +844,7 @@ func closedAuctionFromPb(pba *pb.AuctionClosed) (broker.ClosedAuction, error) {
 	}
 	a := broker.ClosedAuction{
 		ID:              auction.AuctionID(pba.Id),
-		StorageDealID:   broker.StorageDealID(pba.StorageDealId),
+		BatchID:         broker.BatchID(pba.BatchId),
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,
 		DealVerified:    pba.DealVerified,

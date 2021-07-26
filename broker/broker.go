@@ -25,7 +25,7 @@ type WinningBid struct {
 // ClosedAuction contains closed auction details auctioneer reports back to the broker.
 type ClosedAuction struct {
 	ID              auction.AuctionID
-	StorageDealID   StorageDealID
+	BatchID         BatchID
 	DealDuration    uint64
 	DealReplication uint32
 	DealVerified    bool
@@ -78,12 +78,12 @@ type Broker interface {
 	GetBrokerRequestInfo(ctx context.Context, ID BrokerRequestID) (BrokerRequestInfo, error)
 }
 
-// StorageDeal is the underlying entity that gets into bidding and
+// Batch is the underlying entity that gets into bidding and
 // store data in the Filecoin network. It groups one or multiple
 // BrokerRequests.
-type StorageDeal struct {
-	ID                 StorageDealID
-	Status             StorageDealStatus
+type Batch struct {
+	ID                 BatchID
+	Status             BatchStatus
 	RepFactor          int
 	DealDuration       int
 	Sources            auction.Sources
@@ -101,39 +101,39 @@ type StorageDeal struct {
 	UpdatedAt time.Time
 }
 
-// StorageDealID is the type of a StorageDeal identifier.
-type StorageDealID string
+// BatchID is the type of a batch identifier.
+type BatchID string
 
-// StorageDealStatus is the type of a broker status.
-type StorageDealStatus int
+// BatchStatus is the type of a broker status.
+type BatchStatus int
 
 const (
-	// StorageDealUnkown is an invalid status value. Defined for safety.
-	StorageDealUnkown StorageDealStatus = iota
-	// StorageDealPreparing indicates that the storage deal is being prepared.
-	StorageDealPreparing
-	// StorageDealAuctioning indicates that the storage deal is being auctioned.
-	StorageDealAuctioning
-	// StorageDealDealMaking indicates that the storage deal deals are being executed.
-	StorageDealDealMaking
-	// StorageDealSuccess indicates that the storage deal was successfully stored in Filecoin.
-	StorageDealSuccess
-	// StorageDealError indicates that the storage deal has errored.
-	StorageDealError
+	// BatchStatusUnkown is an invalid status value. Defined for safety.
+	BatchStatusUnkown BatchStatus = iota
+	// BatchStatusPreparing indicates that the storage deal is being prepared.
+	BatchStatusPreparing
+	// BatchStatusAuctioning indicates that the storage deal is being auctioned.
+	BatchStatusAuctioning
+	// BatchStatusDealMaking indicates that the storage deal deals are being executed.
+	BatchStatusDealMaking
+	// BatchStatusSuccess indicates that the storage deal was successfully stored in Filecoin.
+	BatchStatusSuccess
+	// BatchStatusError indicates that the storage deal has errored.
+	BatchStatusError
 )
 
 // String returns a string-encoded status.
-func (sds StorageDealStatus) String() string {
+func (sds BatchStatus) String() string {
 	switch sds {
-	case StorageDealUnkown:
+	case BatchStatusUnkown:
 		return "unknown"
-	case StorageDealPreparing:
+	case BatchStatusPreparing:
 		return "preparing"
-	case StorageDealAuctioning:
+	case BatchStatusAuctioning:
 		return "auctioning"
-	case StorageDealDealMaking:
+	case BatchStatusDealMaking:
 		return "deal making"
-	case StorageDealSuccess:
+	case BatchStatusSuccess:
 		return "success"
 	default:
 		return invalidStatus
@@ -146,9 +146,9 @@ func (sds StorageDealStatus) String() string {
 // If ErrCause is empty, and DealID is zero then the deal is in progress.
 // IF ErrCause is empty, and DealID is not zero then is final.
 type MinerDeal struct {
-	StorageDealID StorageDealID
-	AuctionID     auction.AuctionID
-	BidID         auction.BidID
+	BatchID   BatchID
+	AuctionID auction.AuctionID
+	BidID     auction.BidID
 
 	Miner          string
 	DealID         int64
@@ -156,7 +156,7 @@ type MinerDeal struct {
 	ErrorCause     string
 }
 
-// DataPreparationResult is the result of preparing a StorageDeal.
+// DataPreparationResult is the result of preparing a batch.
 type DataPreparationResult struct {
 	PieceSize uint64
 	PieceCid  cid.Cid
@@ -175,7 +175,7 @@ func (dpr DataPreparationResult) Validate() error {
 
 // FinalizedDeal contains information about a finalized deal.
 type FinalizedDeal struct {
-	StorageDealID  StorageDealID
+	BatchID        BatchID
 	Miner          string
 	DealID         int64
 	DealExpiration uint64

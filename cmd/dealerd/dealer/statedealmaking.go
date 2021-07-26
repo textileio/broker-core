@@ -67,7 +67,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		return fmt.Errorf("get auction data %s: %s", aud.AuctionDataID, err)
 	}
 
-	log.Debugf("%s executing deal from SD %s for %s with miner %s", aud.ID, ad.StorageDealID, ad.PayloadCid, aud.MinerID)
+	log.Debugf("%s executing deal from SD %s for %s with miner %s", aud.ID, ad.BatchID, ad.PayloadCid, aud.MinerID)
 	proposalCid, retry, err := d.filclient.ExecuteAuctionDeal(d.daemonCtx, ad, aud)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
@@ -108,7 +108,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 	if err := mbroker.PublishMsgDealProposalAccepted(
 		ctx,
 		d.mb,
-		ad.StorageDealID,
+		ad.BatchID,
 		aud.AuctionID,
 		aud.BidID,
 		aud.MinerID,

@@ -25,12 +25,12 @@ type BrokerRequestID string
 
 // BrokerRequest references a storage request for a Cid.
 type BrokerRequest struct {
-	ID            BrokerRequestID
-	DataCid       cid.Cid
-	Status        BrokerRequestStatus
-	StorageDealID StorageDealID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID        BrokerRequestID
+	DataCid   cid.Cid
+	Status    BrokerRequestStatus
+	BatchID   BatchID
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // BrokerRequestInfo returns information about a broker request.

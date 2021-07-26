@@ -70,7 +70,7 @@ message Sources {
 
 message ReadyToAuction {
     string id = 1;
-    string storage_deal_id = 2;
+    string batch_id = 2;
     bytes payload_cid = 3;
     uint64 deal_size = 4;
     uint64 deal_duration = 5;
@@ -81,7 +81,7 @@ message ReadyToAuction {
     Sources sources = 10;
 }
 message ReadyToCreateDeals {
-  string storage_deal_id = 1;
+  string batch_id = 1;
   bytes payload_cid = 2;
   bytes piece_cid = 3;
   uint64 piece_size = 4;
@@ -117,7 +117,7 @@ message NewBatchCreated {
 
 
 message DealProposalAccepted {
-  string storage_deal_id = 1;
+  string batch_id = 1;
   string miner_id = 2;
   bytes proposal_cid = 3;
   string auction_id = 4;
@@ -126,7 +126,7 @@ message DealProposalAccepted {
 
 message AuctionClosed {
     string id = 1;
-    string storage_deal_id = 2;
+    string batch_id = 2;
     uint64 deal_duration = 3;
     uint32 deal_replication = 4;
     bool deal_verified = 5;
@@ -156,7 +156,7 @@ message NewBatchPrepared {
 }
 
 message FinalizedDeal {
-    string storage_deal_id = 1;
+    string batch_id = 1;
     int64 deal_id = 2;
     uint64 deal_expiration = 3;
     string miner_id = 4;
@@ -169,7 +169,7 @@ message BrokerRequest {
   string id = 1;
   bytes data_cid = 2;
   Status status = 3;
-  string storage_deal_id = 4;
+  string batch_id = 4;
   google.protobuf.Timestamp created_at = 5; 
   google.protobuf.Timestamp updated_at = 6; 
 

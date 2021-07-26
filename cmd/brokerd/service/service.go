@@ -288,7 +288,7 @@ func (s *Service) GetBrokerRequestInfo(
 // OnNewBatchCreated handles new messages in new-batch-created topic.
 func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id broker.BatchID,
 	batchCid cid.Cid, brids []broker.BrokerRequestID) error {
 	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
 		return fmt.Errorf("creating storage deal: %s", err)
@@ -300,7 +300,7 @@ func (s *Service) OnNewBatchCreated(
 
 // OnAuctionClosed handles new messages in auction-closed topic.
 func (s *Service) OnAuctionClosed(ctx context.Context, au broker.ClosedAuction) error {
-	if err := s.broker.StorageDealAuctioned(ctx, au); err != nil {
+	if err := s.broker.BatchAuctioned(ctx, au); err != nil {
 		return fmt.Errorf("processing closed auction: %s", err)
 	}
 	return nil
@@ -309,7 +309,7 @@ func (s *Service) OnAuctionClosed(ctx context.Context, au broker.ClosedAuction) 
 // OnNewBatchPrepared handles new messages in new-batch-prepared topic.
 func (s *Service) OnNewBatchPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id broker.BatchID,
 	pr broker.DataPreparationResult) error {
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
 		return fmt.Errorf("processing new prepared batch: %s", err)
@@ -320,7 +320,7 @@ func (s *Service) OnNewBatchPrepared(
 
 // OnFinalizedDeal handles new messages in the finalized-deal topic.
 func (s *Service) OnFinalizedDeal(ctx context.Context, fd broker.FinalizedDeal) error {
-	if err := s.broker.StorageDealFinalizedDeal(ctx, fd); err != nil {
+	if err := s.broker.BatchFinalizedDeal(ctx, fd); err != nil {
 		return fmt.Errorf("processing finalized deal: %s", err)
 	}
 

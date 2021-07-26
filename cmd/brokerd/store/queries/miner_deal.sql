@@ -1,6 +1,6 @@
 -- name: CreateMinerDeal :exec
 INSERT INTO miner_deals(
-    storage_deal_id,
+    batch_id,
     auction_id,
     bid_id,
     miner_id,
@@ -22,8 +22,8 @@ UPDATE miner_deals
 SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
-WHERE storage_deal_id = $1 AND miner_id = $2;
+WHERE batch_id = $1 AND miner_id = $2;
 
 
 -- name: GetMinerDeals :many
-SELECT * FROM miner_deals WHERE storage_deal_id = $1;
+SELECT * FROM miner_deals WHERE batch_id = $1;

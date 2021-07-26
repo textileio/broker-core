@@ -30,10 +30,10 @@ func (e *UnpreparedBatchStatus) Scan(src interface{}) error {
 }
 
 type UnpreparedBatch struct {
-	StorageDealID broker.StorageDealID  `json:"storageDealID"`
-	Status        UnpreparedBatchStatus `json:"status"`
-	DataCid       string                `json:"dataCid"`
-	ReadyAt       time.Time             `json:"readyAt"`
-	CreatedAt     time.Time             `json:"createdAt"`
-	UpdatedAt     time.Time             `json:"updatedAt"`
+	BatchID   broker.BatchID        `json:"batchID"`
+	Status    UnpreparedBatchStatus `json:"status"`
+	DataCid   string                `json:"dataCid"`
+	ReadyAt   time.Time             `json:"readyAt"`
+	CreatedAt time.Time             `json:"createdAt"`
+	UpdatedAt time.Time             `json:"updatedAt"`
 }

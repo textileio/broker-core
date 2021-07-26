@@ -1,7 +1,7 @@
 -- name: CreateAuctionData :exec
 INSERT INTO auction_data(
     id,
-    storage_deal_id,
+    batch_id,
     payload_cid,
     piece_cid,
     piece_size,

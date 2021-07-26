@@ -15,12 +15,12 @@ type Dealer interface {
 
 // AuctionDeals describes a set of deals for some prepared data.
 type AuctionDeals struct {
-	StorageDealID broker.StorageDealID
-	PayloadCid    cid.Cid
-	PieceCid      cid.Cid
-	PieceSize     uint64
-	Duration      uint64
-	Proposals     []Proposal
+	BatchID    broker.BatchID
+	PayloadCid cid.Cid
+	PieceCid   cid.Cid
+	PieceSize  uint64
+	Duration   uint64
+	Proposals  []Proposal
 }
 
 // Proposal describes information for deal making with a miner.
