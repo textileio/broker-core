@@ -46,7 +46,7 @@ func TestCreateFail(t *testing.T) {
 	t.Run("auction-data undef storage deal id", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
-		ad.StorageDealID = ""
+		ad.BatchID = ""
 		aud := gaud1
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
@@ -323,7 +323,7 @@ func deepCheckAuctionData(t *testing.T, s *Store, ad AuctionData) {
 }
 
 func cmpAuctionData(t *testing.T, ad1, ad2 AuctionData) {
-	require.Equal(t, ad1.StorageDealID, ad2.StorageDealID)
+	require.Equal(t, ad1.BatchID, ad2.BatchID)
 	require.Equal(t, ad1.PayloadCid, ad2.PayloadCid)
 	require.Equal(t, ad1.PieceCid, ad2.PieceCid)
 	require.Equal(t, ad1.Duration, ad2.Duration)
@@ -360,11 +360,11 @@ func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
 
 var (
 	gad1 = AuctionData{
-		StorageDealID: broker.StorageDealID("1"),
-		PayloadCid:    castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jP1"),
-		PieceCid:      castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),
-		Duration:      10,
-		PieceSize:     100,
+		BatchID:    broker.BatchID("1"),
+		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jP1"),
+		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),
+		Duration:   10,
+		PieceSize:  100,
 	}
 
 	gaud1 = AuctionDeal{

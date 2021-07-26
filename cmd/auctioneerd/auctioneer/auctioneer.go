@@ -444,7 +444,7 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 	}
 	return broker.ClosedAuction{
 		ID:              a.ID,
-		StorageDealID:   a.StorageDealID,
+		BatchID:         a.BatchID,
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
 		DealVerified:    a.DealVerified,

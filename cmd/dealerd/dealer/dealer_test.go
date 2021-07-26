@@ -32,11 +32,11 @@ var (
 	fakeDealID             = int64(1337)
 	fakeExpiration         = uint64(98765)
 	auds                   = dealeri.AuctionDeals{
-		StorageDealID: "SD1",
-		PayloadCid:    castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
-		PieceCid:      castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
-		Duration:      123,
-		PieceSize:     456,
+		BatchID:    "SD1",
+		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
+		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
+		Duration:   123,
+		PieceSize:  456,
 		Proposals: []dealeri.Proposal{
 			{
 				MinerID:             "f0001",
@@ -86,7 +86,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 	ad, err := dealer.store.GetAuctionData(ctx, aud.AuctionDataID)
 	require.NoError(t, err)
 	require.Equal(t, aud.AuctionDataID, ad.ID)
-	require.Equal(t, auds.StorageDealID, ad.StorageDealID)
+	require.Equal(t, auds.BatchID, ad.BatchID)
 	require.Equal(t, auds.PayloadCid, ad.PayloadCid)
 	require.Equal(t, auds.PieceCid, ad.PieceCid)
 	require.Equal(t, auds.PieceSize, ad.PieceSize)
@@ -168,7 +168,7 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(auds.Proposals[0].AuctionID), dpa.AuctionId)
 	require.Equal(t, string(auds.Proposals[0].BidID), dpa.BidId)
-	require.Equal(t, string(auds.StorageDealID), dpa.StorageDealId)
+	require.Equal(t, string(auds.BatchID), dpa.BatchId)
 	require.Equal(t, auds.Proposals[0].MinerID, dpa.MinerId)
 	require.Equal(t, fakeProposalCid.Bytes(), dpa.ProposalCid)
 }
@@ -210,7 +210,7 @@ func TestStateMachineExecReporting(t *testing.T) {
 	err = proto.Unmarshal(data, fd)
 	require.NoError(t, err)
 
-	require.Equal(t, string(auds.StorageDealID), fd.StorageDealId)
+	require.Equal(t, string(auds.BatchID), fd.BatchId)
 	require.Equal(t, fakeDealID, fd.DealId)
 	require.Equal(t, fakeExpiration, fd.DealExpiration)
 	require.Empty(t, fd.ErrorCause)

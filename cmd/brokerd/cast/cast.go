@@ -41,12 +41,12 @@ func FromProtoBrokerRequest(brproto *pb.BrokerRequest) (broker.BrokerRequest, er
 	}
 
 	return broker.BrokerRequest{
-		ID:            broker.BrokerRequestID(brproto.Id),
-		DataCid:       dataCid,
-		Status:        status,
-		StorageDealID: broker.StorageDealID(brproto.StorageDealId),
-		CreatedAt:     brproto.CreatedAt.AsTime(),
-		UpdatedAt:     brproto.UpdatedAt.AsTime(),
+		ID:        broker.BrokerRequestID(brproto.Id),
+		DataCid:   dataCid,
+		Status:    status,
+		BatchID:   broker.BatchID(brproto.BatchId),
+		CreatedAt: brproto.CreatedAt.AsTime(),
+		UpdatedAt: brproto.UpdatedAt.AsTime(),
 	}, nil
 }
 
@@ -96,12 +96,12 @@ func BrokerRequestToProto(br broker.BrokerRequest) (*pb.BrokerRequest, error) {
 	}
 
 	return &pb.BrokerRequest{
-		Id:            string(br.ID),
-		DataCid:       br.DataCid.Bytes(),
-		Status:        pbStatus,
-		StorageDealId: string(br.StorageDealID),
-		CreatedAt:     timestamppb.New(br.CreatedAt),
-		UpdatedAt:     timestamppb.New(br.UpdatedAt),
+		Id:        string(br.ID),
+		DataCid:   br.DataCid.Bytes(),
+		Status:    pbStatus,
+		BatchId:   string(br.BatchID),
+		CreatedAt: timestamppb.New(br.CreatedAt),
+		UpdatedAt: timestamppb.New(br.UpdatedAt),
 	}, nil
 }
 

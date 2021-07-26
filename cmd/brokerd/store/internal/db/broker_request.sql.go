@@ -14,20 +14,20 @@ import (
 const batchUpdateBrokerRequests = `-- name: BatchUpdateBrokerRequests :many
 UPDATE broker_requests
 SET status = $1,
-    storage_deal_id = $2,
+    batch_id = $2,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = any ($3::TEXT[])
 RETURNING id
 `
 
 type BatchUpdateBrokerRequestsParams struct {
-	Status        broker.BrokerRequestStatus `json:"status"`
-	StorageDealID sql.NullString             `json:"storageDealID"`
-	Ids           []string                   `json:"ids"`
+	Status  broker.BrokerRequestStatus `json:"status"`
+	BatchID sql.NullString             `json:"batchID"`
+	Ids     []string                   `json:"ids"`
 }
 
 func (q *Queries) BatchUpdateBrokerRequests(ctx context.Context, arg BatchUpdateBrokerRequestsParams) ([]broker.BrokerRequestID, error) {
-	rows, err := q.query(ctx, q.batchUpdateBrokerRequestsStmt, batchUpdateBrokerRequests, arg.Status, arg.StorageDealID, pq.Array(arg.Ids))
+	rows, err := q.query(ctx, q.batchUpdateBrokerRequestsStmt, batchUpdateBrokerRequests, arg.Status, arg.BatchID, pq.Array(arg.Ids))
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (q *Queries) CreateBrokerRequest(ctx context.Context, arg CreateBrokerReque
 }
 
 const getBrokerRequest = `-- name: GetBrokerRequest :one
-SELECT id, data_cid, storage_deal_id, status, rebatch_count, error_cause, created_at, updated_at FROM broker_requests
+SELECT id, data_cid, batch_id, status, rebatch_count, error_cause, created_at, updated_at FROM broker_requests
 WHERE id = $1
 `
 
@@ -79,7 +79,7 @@ func (q *Queries) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestI
 	err := row.Scan(
 		&i.ID,
 		&i.DataCid,
-		&i.StorageDealID,
+		&i.BatchID,
 		&i.Status,
 		&i.RebatchCount,
 		&i.ErrorCause,
@@ -91,11 +91,11 @@ func (q *Queries) GetBrokerRequest(ctx context.Context, id broker.BrokerRequestI
 
 const getBrokerRequestIDs = `-- name: GetBrokerRequestIDs :many
 SELECT id FROM broker_requests
-WHERE storage_deal_id = $1
+WHERE batch_id = $1
 `
 
-func (q *Queries) GetBrokerRequestIDs(ctx context.Context, storageDealID sql.NullString) ([]broker.BrokerRequestID, error) {
-	rows, err := q.query(ctx, q.getBrokerRequestIDsStmt, getBrokerRequestIDs, storageDealID)
+func (q *Queries) GetBrokerRequestIDs(ctx context.Context, batchID sql.NullString) ([]broker.BrokerRequestID, error) {
+	rows, err := q.query(ctx, q.getBrokerRequestIDsStmt, getBrokerRequestIDs, batchID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,12 +118,12 @@ func (q *Queries) GetBrokerRequestIDs(ctx context.Context, storageDealID sql.Nul
 }
 
 const getBrokerRequests = `-- name: GetBrokerRequests :many
-SELECT id, data_cid, storage_deal_id, status, rebatch_count, error_cause, created_at, updated_at FROM broker_requests
-WHERE storage_deal_id = $1
+SELECT id, data_cid, batch_id, status, rebatch_count, error_cause, created_at, updated_at FROM broker_requests
+WHERE batch_id = $1
 `
 
-func (q *Queries) GetBrokerRequests(ctx context.Context, storageDealID sql.NullString) ([]BrokerRequest, error) {
-	rows, err := q.query(ctx, q.getBrokerRequestsStmt, getBrokerRequests, storageDealID)
+func (q *Queries) GetBrokerRequests(ctx context.Context, batchID sql.NullString) ([]BrokerRequest, error) {
+	rows, err := q.query(ctx, q.getBrokerRequestsStmt, getBrokerRequests, batchID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (q *Queries) GetBrokerRequests(ctx context.Context, storageDealID sql.NullS
 		if err := rows.Scan(
 			&i.ID,
 			&i.DataCid,
-			&i.StorageDealID,
+			&i.BatchID,
 			&i.Status,
 			&i.RebatchCount,
 			&i.ErrorCause,
@@ -159,16 +159,16 @@ UPDATE broker_requests
 SET rebatch_count = rebatch_count + 1,
     error_cause = $2,
     updated_at = CURRENT_TIMESTAMP
-WHERE storage_deal_id = $1
+WHERE batch_id = $1
 `
 
 type RebatchBrokerRequestsParams struct {
-	StorageDealID sql.NullString `json:"storageDealID"`
-	ErrorCause    string         `json:"errorCause"`
+	BatchID    sql.NullString `json:"batchID"`
+	ErrorCause string         `json:"errorCause"`
 }
 
 func (q *Queries) RebatchBrokerRequests(ctx context.Context, arg RebatchBrokerRequestsParams) error {
-	_, err := q.exec(ctx, q.rebatchBrokerRequestsStmt, rebatchBrokerRequests, arg.StorageDealID, arg.ErrorCause)
+	_, err := q.exec(ctx, q.rebatchBrokerRequestsStmt, rebatchBrokerRequests, arg.BatchID, arg.ErrorCause)
 	return err
 }
 
@@ -176,15 +176,15 @@ const updateBrokerRequestsStatus = `-- name: UpdateBrokerRequestsStatus :exec
 UPDATE broker_requests
 SET status = $2,
     updated_at = CURRENT_TIMESTAMP
-WHERE storage_deal_id = $1
+WHERE batch_id = $1
 `
 
 type UpdateBrokerRequestsStatusParams struct {
-	StorageDealID sql.NullString             `json:"storageDealID"`
-	Status        broker.BrokerRequestStatus `json:"status"`
+	BatchID sql.NullString             `json:"batchID"`
+	Status  broker.BrokerRequestStatus `json:"status"`
 }
 
 func (q *Queries) UpdateBrokerRequestsStatus(ctx context.Context, arg UpdateBrokerRequestsStatusParams) error {
-	_, err := q.exec(ctx, q.updateBrokerRequestsStatusStmt, updateBrokerRequestsStatus, arg.StorageDealID, arg.Status)
+	_, err := q.exec(ctx, q.updateBrokerRequestsStatusStmt, updateBrokerRequestsStatus, arg.BatchID, arg.Status)
 	return err
 }

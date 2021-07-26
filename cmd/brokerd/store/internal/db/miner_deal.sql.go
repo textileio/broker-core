@@ -12,7 +12,7 @@ import (
 
 const createMinerDeal = `-- name: CreateMinerDeal :exec
 INSERT INTO miner_deals(
-    storage_deal_id,
+    batch_id,
     auction_id,
     bid_id,
     miner_id,
@@ -31,18 +31,18 @@ INSERT INTO miner_deals(
 `
 
 type CreateMinerDealParams struct {
-	StorageDealID  broker.StorageDealID `json:"storageDealID"`
-	AuctionID      auction.AuctionID    `json:"auctionID"`
-	BidID          auction.BidID        `json:"bidID"`
-	MinerID        string               `json:"minerID"`
-	DealID         int64                `json:"dealID"`
-	DealExpiration uint64               `json:"dealExpiration"`
-	ErrorCause     string               `json:"errorCause"`
+	BatchID        broker.BatchID    `json:"batchID"`
+	AuctionID      auction.AuctionID `json:"auctionID"`
+	BidID          auction.BidID     `json:"bidID"`
+	MinerID        string            `json:"minerID"`
+	DealID         int64             `json:"dealID"`
+	DealExpiration uint64            `json:"dealExpiration"`
+	ErrorCause     string            `json:"errorCause"`
 }
 
 func (q *Queries) CreateMinerDeal(ctx context.Context, arg CreateMinerDealParams) error {
 	_, err := q.exec(ctx, q.createMinerDealStmt, createMinerDeal,
-		arg.StorageDealID,
+		arg.BatchID,
 		arg.AuctionID,
 		arg.BidID,
 		arg.MinerID,
@@ -54,11 +54,11 @@ func (q *Queries) CreateMinerDeal(ctx context.Context, arg CreateMinerDealParams
 }
 
 const getMinerDeals = `-- name: GetMinerDeals :many
-SELECT storage_deal_id, auction_id, bid_id, miner_id, deal_id, deal_expiration, error_cause, created_at, updated_at FROM miner_deals WHERE storage_deal_id = $1
+SELECT batch_id, auction_id, bid_id, miner_id, deal_id, deal_expiration, error_cause, created_at, updated_at FROM miner_deals WHERE batch_id = $1
 `
 
-func (q *Queries) GetMinerDeals(ctx context.Context, storageDealID broker.StorageDealID) ([]MinerDeal, error) {
-	rows, err := q.query(ctx, q.getMinerDealsStmt, getMinerDeals, storageDealID)
+func (q *Queries) GetMinerDeals(ctx context.Context, batchID broker.BatchID) ([]MinerDeal, error) {
+	rows, err := q.query(ctx, q.getMinerDealsStmt, getMinerDeals, batchID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (q *Queries) GetMinerDeals(ctx context.Context, storageDealID broker.Storag
 	for rows.Next() {
 		var i MinerDeal
 		if err := rows.Scan(
-			&i.StorageDealID,
+			&i.BatchID,
 			&i.AuctionID,
 			&i.BidID,
 			&i.MinerID,
@@ -95,20 +95,20 @@ UPDATE miner_deals
 SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
-WHERE storage_deal_id = $1 AND miner_id = $2
+WHERE batch_id = $1 AND miner_id = $2
 `
 
 type UpdateMinerDealsParams struct {
-	StorageDealID  broker.StorageDealID `json:"storageDealID"`
-	MinerID        string               `json:"minerID"`
-	DealID         int64                `json:"dealID"`
-	DealExpiration uint64               `json:"dealExpiration"`
-	ErrorCause     string               `json:"errorCause"`
+	BatchID        broker.BatchID `json:"batchID"`
+	MinerID        string         `json:"minerID"`
+	DealID         int64          `json:"dealID"`
+	DealExpiration uint64         `json:"dealExpiration"`
+	ErrorCause     string         `json:"errorCause"`
 }
 
 func (q *Queries) UpdateMinerDeals(ctx context.Context, arg UpdateMinerDealsParams) (int64, error) {
 	result, err := q.exec(ctx, q.updateMinerDealsStmt, updateMinerDeals,
-		arg.StorageDealID,
+		arg.BatchID,
 		arg.MinerID,
 		arg.DealID,
 		arg.DealExpiration,

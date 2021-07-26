@@ -25,20 +25,23 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.batchUpdateBrokerRequestsStmt, err = db.PrepareContext(ctx, batchUpdateBrokerRequests); err != nil {
 		return nil, fmt.Errorf("error preparing query BatchUpdateBrokerRequests: %w", err)
 	}
+	if q.createBatchStmt, err = db.PrepareContext(ctx, createBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBatch: %w", err)
+	}
 	if q.createBrokerRequestStmt, err = db.PrepareContext(ctx, createBrokerRequest); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBrokerRequest: %w", err)
 	}
 	if q.createMinerDealStmt, err = db.PrepareContext(ctx, createMinerDeal); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateMinerDeal: %w", err)
 	}
-	if q.createStorageDealStmt, err = db.PrepareContext(ctx, createStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateStorageDeal: %w", err)
-	}
 	if q.createUnpinJobStmt, err = db.PrepareContext(ctx, createUnpinJob); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUnpinJob: %w", err)
 	}
 	if q.deleteExecutingUnpinJobStmt, err = db.PrepareContext(ctx, deleteExecutingUnpinJob); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteExecutingUnpinJob: %w", err)
+	}
+	if q.getBatchStmt, err = db.PrepareContext(ctx, getBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBatch: %w", err)
 	}
 	if q.getBrokerRequestStmt, err = db.PrepareContext(ctx, getBrokerRequest); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBrokerRequest: %w", err)
@@ -52,9 +55,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getMinerDealsStmt, err = db.PrepareContext(ctx, getMinerDeals); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMinerDeals: %w", err)
 	}
-	if q.getStorageDealStmt, err = db.PrepareContext(ctx, getStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query GetStorageDeal: %w", err)
-	}
 	if q.nextUnpinJobStmt, err = db.PrepareContext(ctx, nextUnpinJob); err != nil {
 		return nil, fmt.Errorf("error preparing query NextUnpinJob: %w", err)
 	}
@@ -64,20 +64,20 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.unpinJobToPendingStmt, err = db.PrepareContext(ctx, unpinJobToPending); err != nil {
 		return nil, fmt.Errorf("error preparing query UnpinJobToPending: %w", err)
 	}
+	if q.updateBatchStmt, err = db.PrepareContext(ctx, updateBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateBatch: %w", err)
+	}
+	if q.updateBatchStatusStmt, err = db.PrepareContext(ctx, updateBatchStatus); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateBatchStatus: %w", err)
+	}
+	if q.updateBatchStatusAndErrorStmt, err = db.PrepareContext(ctx, updateBatchStatusAndError); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateBatchStatusAndError: %w", err)
+	}
 	if q.updateBrokerRequestsStatusStmt, err = db.PrepareContext(ctx, updateBrokerRequestsStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateBrokerRequestsStatus: %w", err)
 	}
 	if q.updateMinerDealsStmt, err = db.PrepareContext(ctx, updateMinerDeals); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateMinerDeals: %w", err)
-	}
-	if q.updateStorageDealStmt, err = db.PrepareContext(ctx, updateStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateStorageDeal: %w", err)
-	}
-	if q.updateStorageDealStatusStmt, err = db.PrepareContext(ctx, updateStorageDealStatus); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateStorageDealStatus: %w", err)
-	}
-	if q.updateStorageDealStatusAndErrorStmt, err = db.PrepareContext(ctx, updateStorageDealStatusAndError); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateStorageDealStatusAndError: %w", err)
 	}
 	return &q, nil
 }
@@ -87,6 +87,11 @@ func (q *Queries) Close() error {
 	if q.batchUpdateBrokerRequestsStmt != nil {
 		if cerr := q.batchUpdateBrokerRequestsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing batchUpdateBrokerRequestsStmt: %w", cerr)
+		}
+	}
+	if q.createBatchStmt != nil {
+		if cerr := q.createBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBatchStmt: %w", cerr)
 		}
 	}
 	if q.createBrokerRequestStmt != nil {
@@ -99,11 +104,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createMinerDealStmt: %w", cerr)
 		}
 	}
-	if q.createStorageDealStmt != nil {
-		if cerr := q.createStorageDealStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createStorageDealStmt: %w", cerr)
-		}
-	}
 	if q.createUnpinJobStmt != nil {
 		if cerr := q.createUnpinJobStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createUnpinJobStmt: %w", cerr)
@@ -112,6 +112,11 @@ func (q *Queries) Close() error {
 	if q.deleteExecutingUnpinJobStmt != nil {
 		if cerr := q.deleteExecutingUnpinJobStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteExecutingUnpinJobStmt: %w", cerr)
+		}
+	}
+	if q.getBatchStmt != nil {
+		if cerr := q.getBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBatchStmt: %w", cerr)
 		}
 	}
 	if q.getBrokerRequestStmt != nil {
@@ -134,11 +139,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getMinerDealsStmt: %w", cerr)
 		}
 	}
-	if q.getStorageDealStmt != nil {
-		if cerr := q.getStorageDealStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getStorageDealStmt: %w", cerr)
-		}
-	}
 	if q.nextUnpinJobStmt != nil {
 		if cerr := q.nextUnpinJobStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing nextUnpinJobStmt: %w", cerr)
@@ -154,6 +154,21 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing unpinJobToPendingStmt: %w", cerr)
 		}
 	}
+	if q.updateBatchStmt != nil {
+		if cerr := q.updateBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateBatchStmt: %w", cerr)
+		}
+	}
+	if q.updateBatchStatusStmt != nil {
+		if cerr := q.updateBatchStatusStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateBatchStatusStmt: %w", cerr)
+		}
+	}
+	if q.updateBatchStatusAndErrorStmt != nil {
+		if cerr := q.updateBatchStatusAndErrorStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateBatchStatusAndErrorStmt: %w", cerr)
+		}
+	}
 	if q.updateBrokerRequestsStatusStmt != nil {
 		if cerr := q.updateBrokerRequestsStatusStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateBrokerRequestsStatusStmt: %w", cerr)
@@ -162,21 +177,6 @@ func (q *Queries) Close() error {
 	if q.updateMinerDealsStmt != nil {
 		if cerr := q.updateMinerDealsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateMinerDealsStmt: %w", cerr)
-		}
-	}
-	if q.updateStorageDealStmt != nil {
-		if cerr := q.updateStorageDealStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateStorageDealStmt: %w", cerr)
-		}
-	}
-	if q.updateStorageDealStatusStmt != nil {
-		if cerr := q.updateStorageDealStatusStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateStorageDealStatusStmt: %w", cerr)
-		}
-	}
-	if q.updateStorageDealStatusAndErrorStmt != nil {
-		if cerr := q.updateStorageDealStatusAndErrorStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateStorageDealStatusAndErrorStmt: %w", cerr)
 		}
 	}
 	return err
@@ -216,51 +216,51 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                                  DBTX
-	tx                                  *sql.Tx
-	batchUpdateBrokerRequestsStmt       *sql.Stmt
-	createBrokerRequestStmt             *sql.Stmt
-	createMinerDealStmt                 *sql.Stmt
-	createStorageDealStmt               *sql.Stmt
-	createUnpinJobStmt                  *sql.Stmt
-	deleteExecutingUnpinJobStmt         *sql.Stmt
-	getBrokerRequestStmt                *sql.Stmt
-	getBrokerRequestIDsStmt             *sql.Stmt
-	getBrokerRequestsStmt               *sql.Stmt
-	getMinerDealsStmt                   *sql.Stmt
-	getStorageDealStmt                  *sql.Stmt
-	nextUnpinJobStmt                    *sql.Stmt
-	rebatchBrokerRequestsStmt           *sql.Stmt
-	unpinJobToPendingStmt               *sql.Stmt
-	updateBrokerRequestsStatusStmt      *sql.Stmt
-	updateMinerDealsStmt                *sql.Stmt
-	updateStorageDealStmt               *sql.Stmt
-	updateStorageDealStatusStmt         *sql.Stmt
-	updateStorageDealStatusAndErrorStmt *sql.Stmt
+	db                             DBTX
+	tx                             *sql.Tx
+	batchUpdateBrokerRequestsStmt  *sql.Stmt
+	createBatchStmt                *sql.Stmt
+	createBrokerRequestStmt        *sql.Stmt
+	createMinerDealStmt            *sql.Stmt
+	createUnpinJobStmt             *sql.Stmt
+	deleteExecutingUnpinJobStmt    *sql.Stmt
+	getBatchStmt                   *sql.Stmt
+	getBrokerRequestStmt           *sql.Stmt
+	getBrokerRequestIDsStmt        *sql.Stmt
+	getBrokerRequestsStmt          *sql.Stmt
+	getMinerDealsStmt              *sql.Stmt
+	nextUnpinJobStmt               *sql.Stmt
+	rebatchBrokerRequestsStmt      *sql.Stmt
+	unpinJobToPendingStmt          *sql.Stmt
+	updateBatchStmt                *sql.Stmt
+	updateBatchStatusStmt          *sql.Stmt
+	updateBatchStatusAndErrorStmt  *sql.Stmt
+	updateBrokerRequestsStatusStmt *sql.Stmt
+	updateMinerDealsStmt           *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                                  tx,
-		tx:                                  tx,
-		batchUpdateBrokerRequestsStmt:       q.batchUpdateBrokerRequestsStmt,
-		createBrokerRequestStmt:             q.createBrokerRequestStmt,
-		createMinerDealStmt:                 q.createMinerDealStmt,
-		createStorageDealStmt:               q.createStorageDealStmt,
-		createUnpinJobStmt:                  q.createUnpinJobStmt,
-		deleteExecutingUnpinJobStmt:         q.deleteExecutingUnpinJobStmt,
-		getBrokerRequestStmt:                q.getBrokerRequestStmt,
-		getBrokerRequestIDsStmt:             q.getBrokerRequestIDsStmt,
-		getBrokerRequestsStmt:               q.getBrokerRequestsStmt,
-		getMinerDealsStmt:                   q.getMinerDealsStmt,
-		getStorageDealStmt:                  q.getStorageDealStmt,
-		nextUnpinJobStmt:                    q.nextUnpinJobStmt,
-		rebatchBrokerRequestsStmt:           q.rebatchBrokerRequestsStmt,
-		unpinJobToPendingStmt:               q.unpinJobToPendingStmt,
-		updateBrokerRequestsStatusStmt:      q.updateBrokerRequestsStatusStmt,
-		updateMinerDealsStmt:                q.updateMinerDealsStmt,
-		updateStorageDealStmt:               q.updateStorageDealStmt,
-		updateStorageDealStatusStmt:         q.updateStorageDealStatusStmt,
-		updateStorageDealStatusAndErrorStmt: q.updateStorageDealStatusAndErrorStmt,
+		db:                             tx,
+		tx:                             tx,
+		batchUpdateBrokerRequestsStmt:  q.batchUpdateBrokerRequestsStmt,
+		createBatchStmt:                q.createBatchStmt,
+		createBrokerRequestStmt:        q.createBrokerRequestStmt,
+		createMinerDealStmt:            q.createMinerDealStmt,
+		createUnpinJobStmt:             q.createUnpinJobStmt,
+		deleteExecutingUnpinJobStmt:    q.deleteExecutingUnpinJobStmt,
+		getBatchStmt:                   q.getBatchStmt,
+		getBrokerRequestStmt:           q.getBrokerRequestStmt,
+		getBrokerRequestIDsStmt:        q.getBrokerRequestIDsStmt,
+		getBrokerRequestsStmt:          q.getBrokerRequestsStmt,
+		getMinerDealsStmt:              q.getMinerDealsStmt,
+		nextUnpinJobStmt:               q.nextUnpinJobStmt,
+		rebatchBrokerRequestsStmt:      q.rebatchBrokerRequestsStmt,
+		unpinJobToPendingStmt:          q.unpinJobToPendingStmt,
+		updateBatchStmt:                q.updateBatchStmt,
+		updateBatchStatusStmt:          q.updateBatchStatusStmt,
+		updateBatchStatusAndErrorStmt:  q.updateBatchStatusAndErrorStmt,
+		updateBrokerRequestsStatusStmt: q.updateBrokerRequestsStatusStmt,
+		updateMinerDealsStmt:           q.updateMinerDealsStmt,
 	}
 }

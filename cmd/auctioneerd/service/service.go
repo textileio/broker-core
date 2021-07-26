@@ -105,7 +105,7 @@ func (s *Service) GetAuction(id auction.AuctionID) (*core.Auction, error) {
 func (s *Service) OnReadyToAuction(
 	ctx context.Context,
 	id auction.AuctionID,
-	sdID broker.StorageDealID,
+	sdID broker.BatchID,
 	payloadCid cid.Cid,
 	dealSize, dealDuration uint64,
 	dealReplication uint32,
@@ -116,7 +116,7 @@ func (s *Service) OnReadyToAuction(
 ) error {
 	err := s.lib.CreateAuction(core.Auction{
 		ID:               id,
-		StorageDealID:    sdID,
+		BatchID:          sdID,
 		PayloadCid:       payloadCid,
 		DealSize:         dealSize,
 		DealDuration:     dealDuration,

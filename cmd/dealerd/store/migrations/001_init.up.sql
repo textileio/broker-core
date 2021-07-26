@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS auction_data (
     id text PRIMARY KEY,
-    storage_deal_id text NOT NULL,
+    batch_id text NOT NULL,
     payload_cid text NOT NULL,
     piece_cid text NOT NULL,
     piece_size bigint NOT NULL,

@@ -39,13 +39,13 @@ type AuctionDealStatus db.Status
 
 // AuctionData contains information of data to be stored in Filecoin.
 type AuctionData struct {
-	ID            string
-	StorageDealID broker.StorageDealID
-	PayloadCid    cid.Cid
-	PieceCid      cid.Cid
-	PieceSize     uint64
-	Duration      uint64
-	CreatedAt     time.Time
+	ID         string
+	BatchID    broker.BatchID
+	PayloadCid cid.Cid
+	PieceCid   cid.Cid
+	PieceSize  uint64
+	Duration   uint64
+	CreatedAt  time.Time
 }
 
 // AuctionDeal contains information to make a deal with a particular miner. The data information is stored
@@ -105,12 +105,12 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 	}
 	return s.withTx(ctx, func(txn *db.Queries) error {
 		if err := txn.CreateAuctionData(ctx, db.CreateAuctionDataParams{
-			ID:            ad.ID,
-			StorageDealID: ad.StorageDealID,
-			PayloadCid:    ad.PayloadCid.String(),
-			PieceCid:      ad.PieceCid.String(),
-			PieceSize:     ad.PieceSize,
-			Duration:      ad.Duration,
+			ID:         ad.ID,
+			BatchID:    ad.BatchID,
+			PayloadCid: ad.PayloadCid.String(),
+			PieceCid:   ad.PieceCid.String(),
+			PieceSize:  ad.PieceSize,
+			Duration:   ad.Duration,
 		}); err != nil {
 			return fmt.Errorf("saving auction data in datastore: %s", err)
 		}
@@ -220,13 +220,13 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 				return fmt.Errorf("parsing piece cid from db: %s", err)
 			}
 			ad = AuctionData{
-				ID:            datum.ID,
-				StorageDealID: datum.StorageDealID,
-				PayloadCid:    payloadCid,
-				PieceCid:      pieceCid,
-				PieceSize:     datum.PieceSize,
-				Duration:      datum.Duration,
-				CreatedAt:     datum.CreatedAt,
+				ID:         datum.ID,
+				BatchID:    datum.BatchID,
+				PayloadCid: payloadCid,
+				PieceCid:   pieceCid,
+				PieceSize:  datum.PieceSize,
+				Duration:   datum.Duration,
+				CreatedAt:  datum.CreatedAt,
 			}
 		}
 		return err
@@ -299,7 +299,7 @@ func validate(ad *AuctionData, ads []*AuctionDeal) error {
 	if ad.Duration <= 0 {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
 	}
-	if ad.StorageDealID == "" {
+	if ad.BatchID == "" {
 		return errors.New("storage deal id is empty")
 	}
 	if !ad.PayloadCid.Defined() {

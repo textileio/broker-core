@@ -23,7 +23,7 @@ var (
 )
 
 // Packer provides batching strategies to bundle multiple
-// BrokerRequest into a StorageDeal.
+// BrokerRequest into a Batch.
 type Packer struct {
 	daemonFreq        time.Duration
 	exportMetricsFreq time.Duration

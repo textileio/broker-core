@@ -1,7 +1,7 @@
 CREATE TYPE unprepared_batch_status AS ENUM ('pending','executing','done');
 
 CREATE TABLE IF NOT EXISTS unprepared_batches (
-    storage_deal_id TEXT PRIMARY KEY,
+    batch_id TEXT PRIMARY KEY,
     status unprepared_batch_status NOT NULL DEFAULT 'pending',
     data_cid TEXT NOT NULL,
     ready_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

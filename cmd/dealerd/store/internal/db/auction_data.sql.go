@@ -12,7 +12,7 @@ import (
 const createAuctionData = `-- name: CreateAuctionData :exec
 INSERT INTO auction_data(
     id,
-    storage_deal_id,
+    batch_id,
     payload_cid,
     piece_cid,
     piece_size,
@@ -28,18 +28,18 @@ INSERT INTO auction_data(
 `
 
 type CreateAuctionDataParams struct {
-	ID            string               `json:"id"`
-	StorageDealID broker.StorageDealID `json:"storageDealID"`
-	PayloadCid    string               `json:"payloadCid"`
-	PieceCid      string               `json:"pieceCid"`
-	PieceSize     uint64               `json:"pieceSize"`
-	Duration      uint64               `json:"duration"`
+	ID         string         `json:"id"`
+	BatchID    broker.BatchID `json:"batchID"`
+	PayloadCid string         `json:"payloadCid"`
+	PieceCid   string         `json:"pieceCid"`
+	PieceSize  uint64         `json:"pieceSize"`
+	Duration   uint64         `json:"duration"`
 }
 
 func (q *Queries) CreateAuctionData(ctx context.Context, arg CreateAuctionDataParams) error {
 	_, err := q.exec(ctx, q.createAuctionDataStmt, createAuctionData,
 		arg.ID,
-		arg.StorageDealID,
+		arg.BatchID,
 		arg.PayloadCid,
 		arg.PieceCid,
 		arg.PieceSize,
@@ -49,7 +49,7 @@ func (q *Queries) CreateAuctionData(ctx context.Context, arg CreateAuctionDataPa
 }
 
 const getAuctionData = `-- name: GetAuctionData :one
-SELECT id, storage_deal_id, payload_cid, piece_cid, piece_size, duration, created_at FROM auction_data
+SELECT id, batch_id, payload_cid, piece_cid, piece_size, duration, created_at FROM auction_data
 WHERE id = $1
 `
 
@@ -58,7 +58,7 @@ func (q *Queries) GetAuctionData(ctx context.Context, id string) (AuctionDatum, 
 	var i AuctionDatum
 	err := row.Scan(
 		&i.ID,
-		&i.StorageDealID,
+		&i.BatchID,
 		&i.PayloadCid,
 		&i.PieceCid,
 		&i.PieceSize,
