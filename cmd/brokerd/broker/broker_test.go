@@ -417,7 +417,7 @@ func TestStorageDealAuctionedExactRepFactor(t *testing.T) {
 	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
 }
 
-func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
+func TestStorageDealAuctionedInvalidAmountWinners(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	b, mb, _ := createBroker(t)
@@ -466,31 +466,15 @@ func TestStorageDealAuctionedLessRepFactor(t *testing.T) {
 		WinningBids:     winningBids,
 	}
 	err = b.StorageDealAuctioned(ctx, a)
-	require.NoError(t, err)
+	require.Error(t, err)
 
-	// 3- Check that the broker deal has bumped the auction retry counter.
-	sd2, err := b.GetStorageDeal(ctx, sdID)
-	require.NoError(t, err)
-	require.Equal(t, 1, sd2.AuctionRetries)
-
-	// 4- Check we received 5 messages:
-	//    Two from Create(), one for NewBatchCreated(), one from NewBatchPrepared(),
-	//    and two from AuctionClosed() (the second is fill-the-gap reauctioning)
-	require.Equal(t, 5, mb.TotalPublished())
-	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
-	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 1) // Inspect re-auction auction.
-	require.NoError(t, err)
-	rda := &pb.ReadyToAuction{}
-	err = proto.Unmarshal(data, rda)
-	require.NoError(t, err)
-	require.Equal(t, auction.MaxDealDuration, rda.DealDuration)
-	require.Equal(t, brgCid.Bytes(), rda.PayloadCid)
-	require.Equal(t, dpr.PieceSize, rda.DealSize)
-	require.Equal(t, string(sdID), rda.StorageDealId)
-	require.Equal(t, uint32(1), rda.DealReplication)
-	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-	require.Contains(t, rda.ExcludedMiners, "f01111")
-	require.Contains(t, rda.ExcludedMiners, "f02222")
+	require.Equal(t, 3, mb.TotalPublished())
+	// Check no re-auction was done. Only one message from `NewBatchPrepared` above.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	// Check no deal making was done.
+	require.Equal(t, 0, mb.TotalPublishedTopic(mbroker.ReadyToCreateDealsTopic))
+	// Check that no-rebatching was done. The closed auction is completely invalid.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToBatchTopic))
 }
 
 func TestStorageDealFailedAuction(t *testing.T) {
