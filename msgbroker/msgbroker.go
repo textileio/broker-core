@@ -72,7 +72,7 @@ type ReadyToBatchListener interface {
 	OnReadyToBatch(context.Context, OperationID, []ReadyToBatchData) error
 }
 
-// ReadyToBatchData contains broker request data information to be batched.
+// ReadyToBatchData contains storage request data information to be batched.
 type ReadyToBatchData struct {
 	StorageRequestID broker.StorageRequestID
 	DataCid          cid.Cid
@@ -127,7 +127,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return fmt.Errorf("unmarshal new batch created: %s", err)
 			}
 			if r.Id == "" {
-				return errors.New("storage deal id is empty")
+				return errors.New("batch id is empty")
 			}
 			sdID := broker.BatchID(r.Id)
 
@@ -139,12 +139,12 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("data cid is undefined")
 			}
 			if len(r.StorageRequestIds) == 0 {
-				return errors.New("broker requests list is empty")
+				return errors.New("storage requests list is empty")
 			}
 			brids := make([]broker.StorageRequestID, len(r.StorageRequestIds))
 			for i, id := range r.StorageRequestIds {
 				if id == "" {
-					return fmt.Errorf("broker request id can't be empty")
+					return fmt.Errorf("storage request id can't be empty")
 				}
 				brids[i] = broker.StorageRequestID(id)
 			}
@@ -208,7 +208,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			rtb := make([]ReadyToBatchData, len(r.DataCids))
 			for i := range r.DataCids {
 				if r.DataCids[i].StorageRequestId == "" {
-					return fmt.Errorf("broker request id is empty")
+					return fmt.Errorf("storage request id is empty")
 				}
 				brID := broker.StorageRequestID(r.DataCids[i].StorageRequestId)
 				dataCid, err := cid.Cast(r.DataCids[i].DataCid)
@@ -242,7 +242,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return fmt.Errorf("unmarshal ready-to-create-deals: %s", err)
 			}
 			if r.BatchId == "" {
-				return errors.New("storage deal id is empty")
+				return errors.New("batch id is empty")
 			}
 
 			payloadCid, err := cid.Cast(r.PayloadCid)
@@ -317,7 +317,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return fmt.Errorf("unmarshal finalized deal msg: %s", err)
 			}
 			if r.BatchId == "" {
-				return errors.New("storage deal id is empty")
+				return errors.New("batch id is empty")
 			}
 			if r.ErrorCause == "" {
 				if r.DealId <= 0 {
@@ -368,7 +368,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return fmt.Errorf("unmarshal deal-proposal-accepted msg: %s", err)
 			}
 			if r.BatchId == "" {
-				return errors.New("storage deal id is empty")
+				return errors.New("batch id is empty")
 			}
 			if r.MinerId == "" {
 				return errors.New("miner id is empty")
@@ -412,7 +412,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("auction-id is empty")
 			}
 			if req.BatchId == "" {
-				return errors.New("storage deal id is empty")
+				return errors.New("batch id is empty")
 			}
 			payloadCid, err := cid.Cast(req.PayloadCid)
 			if err != nil {
@@ -497,7 +497,7 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 
 	for i := range dataCids {
 		if dataCids[i].StorageRequestID == "" {
-			return fmt.Errorf("broker-request-id is empty")
+			return fmt.Errorf("storage-request-id is empty")
 		}
 		if !dataCids[i].DataCid.Defined() {
 			return fmt.Errorf("data-cid is undefined")
@@ -559,7 +559,7 @@ func PublishMsgNewBatchPrepared(
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
-		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
+		return fmt.Errorf("signaling broker that batch is prepared: %s", err)
 	}
 	if err := mb.PublishMsg(ctx, NewBatchPreparedTopic, data); err != nil {
 		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
@@ -834,7 +834,7 @@ func closedAuctionFromPb(pba *pb.AuctionClosed) (broker.ClosedAuction, error) {
 		return broker.ClosedAuction{}, errors.New("closed auction id is empty")
 	}
 	if pba.BatchId == "" {
-		return broker.ClosedAuction{}, errors.New("storage deal id is empty")
+		return broker.ClosedAuction{}, errors.New("batch id is empty")
 	}
 	if pba.DealDuration == 0 {
 		return broker.ClosedAuction{}, errors.New("deal duration is zero")

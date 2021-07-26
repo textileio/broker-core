@@ -74,7 +74,7 @@ type Broker interface {
 	// CreatePrepared creates a new StorageRequest for prepared data.
 	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (StorageRequest, error)
 
-	// GetStorageRequestInfo returns a broker request information by id.
+	// GetStorageRequestInfo returns a storage request information by id.
 	GetStorageRequestInfo(ctx context.Context, ID StorageRequestID) (StorageRequestInfo, error)
 }
 

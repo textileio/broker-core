@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	// ErrBatchExists if the provided storage deal id already exists.
-	ErrBatchExists = errors.New("storage-deal-id already exists")
+	// ErrBatchExists if the provided batch id already exists.
+	ErrBatchExists = errors.New("batch-id already exists")
 )
 
 // UnpreparedBatchStatus is the status of an unprepared batch.
@@ -70,7 +70,7 @@ func New(postgresURI string) (*Store, error) {
 // CreateUnpreparedBatch creates a new pending unprepared batch to be prepared.
 func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.BatchID, dataCid cid.Cid) error {
 	if sdID == "" {
-		return errors.New("storage-deal-id is empty")
+		return errors.New("batch-id is empty")
 	}
 	if !dataCid.Defined() {
 		return errors.New("data-cid is undefined")

@@ -109,7 +109,7 @@ func StorageRequestToProto(br broker.StorageRequest) (*pb.StorageRequest, error)
 func StorageRequestInfoToProto(br broker.StorageRequestInfo) (*pb.GetStorageRequestInfoResponse, error) {
 	protobr, err := StorageRequestToProto(br.StorageRequest)
 	if err != nil {
-		return nil, fmt.Errorf("creating proto for broker request: %s", err)
+		return nil, fmt.Errorf("creating proto for storage request: %s", err)
 	}
 
 	deals := make([]*pb.GetStorageRequestInfoResponse_StorageRequestDeal, len(br.Deals))

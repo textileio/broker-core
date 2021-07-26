@@ -210,7 +210,7 @@ func (bs *BrokerStorage) uploadToPinata(r io.Reader) (cid.Cid, error) {
 	return pinataCid, nil
 }
 
-// CreateFromExternalSource creates a broker request for prepared data.
+// CreateFromExternalSource creates a storage request for prepared data.
 func (bs *BrokerStorage) CreateFromExternalSource(
 	ctx context.Context,
 	adr storage.AuctionDataRequest) (storage.Request, error) {
@@ -314,7 +314,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage.RequestInfo, error) {
 	br, err := bs.broker.GetStorageRequestInfo(ctx, broker.StorageRequestID(id))
 	if err != nil {
-		return storage.RequestInfo{}, fmt.Errorf("getting broker request info: %s", err)
+		return storage.RequestInfo{}, fmt.Errorf("getting storage request info: %s", err)
 	}
 
 	status, err := storageRequestStatusToStorageRequestStatus(br.StorageRequest.Status)

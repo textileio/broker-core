@@ -20,7 +20,7 @@ const (
 	MaxDealReplication = 10
 )
 
-// StorageRequestID is the type used for broker request identity.
+// StorageRequestID is the type used for storage request identity.
 type StorageRequestID string
 
 // StorageRequest references a storage request for a Cid.
@@ -33,13 +33,13 @@ type StorageRequest struct {
 	UpdatedAt time.Time
 }
 
-// StorageRequestInfo returns information about a broker request.
+// StorageRequestInfo returns information about a storage request.
 type StorageRequestInfo struct {
 	StorageRequest StorageRequest
 	Deals          []StorageRequestDeal
 }
 
-// StorageRequestDeal describes on-chain deals of a broker-request.
+// StorageRequestDeal describes on-chain deals of a storage-request.
 type StorageRequestDeal struct {
 	MinerID    string
 	DealID     int64
@@ -62,17 +62,17 @@ type StorageRequestStatus int
 const (
 	// RequestUnknown is an invalid status value. Defined for safety.
 	RequestUnknown StorageRequestStatus = iota
-	// RequestBatching indicates that a broker request is being batched.
+	// RequestBatching indicates that a storage request is being batched.
 	RequestBatching
-	// RequestPreparing indicates that a broker request is being prepared.
+	// RequestPreparing indicates that a storage request is being prepared.
 	RequestPreparing
-	// RequestAuctioning indicates that a broker request is in bidding stage.
+	// RequestAuctioning indicates that a storage request is in bidding stage.
 	RequestAuctioning
-	// RequestDealMaking indicates that the broker request deals are being executed.
+	// RequestDealMaking indicates that the storage request deals are being executed.
 	RequestDealMaking
-	// RequestSuccess indicates that the broker request was successfully stored in Filecoin.
+	// RequestSuccess indicates that the storage request was successfully stored in Filecoin.
 	RequestSuccess
-	// RequestError indicates that the broker request storage errored.
+	// RequestError indicates that the storage request storage errored.
 	RequestError
 )
 

@@ -46,11 +46,11 @@ func TestCreateBatch(t *testing.T) {
 	ctx := context.Background()
 	s := newStore(t)
 
-	// 0- Test retrieving a non-existent storage deal
+	// 0- Test retrieving a non-existent batch
 	_, err := s.GetBatch(ctx, broker.BatchID("fake"))
 	require.Error(t, ErrNotFound, err)
 
-	// 1- Create two broker requests.
+	// 1- Create two storage requests.
 	br1 := broker.StorageRequest{
 		ID:      "BR1",
 		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
@@ -66,7 +66,7 @@ func TestCreateBatch(t *testing.T) {
 	err = s.CreateStorageRequest(ctx, br2)
 	require.NoError(t, err)
 
-	// 2- Create a storage deal linked with those two broker request.
+	// 2- Create a batch linked with those two storage request.
 	sd := broker.Batch{
 		ID:         "SD1",
 		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jB1"),
@@ -76,7 +76,7 @@ func TestCreateBatch(t *testing.T) {
 	err = s.CreateBatch(ctx, &sd, brIDs)
 	require.NoError(t, err)
 
-	// 3- Get the created storage deal by id, and check that fields are coherent.
+	// 3- Get the created batch by id, and check that fields are coherent.
 	sd2, err := s.GetBatch(ctx, sd.ID)
 	require.NoError(t, err)
 	assert.Equal(t, sd.ID, sd2.ID)
@@ -84,13 +84,13 @@ func TestCreateBatch(t *testing.T) {
 	assert.True(t, time.Since(sd2.CreatedAt) < 100*time.Millisecond, time.Since(sd2.CreatedAt))
 	assert.True(t, time.Since(sd2.UpdatedAt) < 100*time.Millisecond, time.Since(sd2.CreatedAt))
 
-	// 4- Check that both broker requests are associated to the storage deal.
+	// 4- Check that both storage requests are associated to the batch.
 	brs, err := s.db.GetStorageRequests(ctx, batchIDToSQL(sd.ID))
 	require.NoError(t, err)
 	assert.Equal(t, len(brIDs), len(brs))
 
 	// 5- Check that the underlying storage request, moved to Preparing and are linked to the created
-	//    storage deal!
+	//    batch!
 	gbr1, err := s.GetStorageRequest(ctx, br1.ID)
 	require.NoError(t, err)
 	assert.Equal(t, broker.RequestPreparing, gbr1.Status)

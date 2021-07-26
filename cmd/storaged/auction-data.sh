@@ -15,7 +15,7 @@ PIECE_SIZE=$6
 REP_FACTOR=${7:-1}
 DEADLINE=${8:-$(date --date="(date --rfc-3339=seconds) + 3 days" --rfc-3339=second | sed 's/ /T/g')}
 
-echo "Creating broker-request with $CAR_URL [$PAYLOAD_CID, $PIECE_CID, $PIECE_SIZE bytes] with rep-factor $REP_FACTOR and deadline $DEADLINE..."
+echo "Creating storage-request with $CAR_URL [$PAYLOAD_CID, $PIECE_CID, $PIECE_SIZE bytes] with rep-factor $REP_FACTOR and deadline $DEADLINE..."
 
 JSON_TEMPLATE='{"payloadCid":"%s","pieceCid":"%s","pieceSize":%s, "repFactor":%s, "deadline":"%s", "carURL":{"url":"%s"}}\n'
 BODY=$(printf "$JSON_TEMPLATE" "$PAYLOAD_CID" "$PIECE_CID" "$PIECE_SIZE" "$REP_FACTOR" "$DEADLINE" "$CAR_URL")

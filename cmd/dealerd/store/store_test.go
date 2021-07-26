@@ -43,7 +43,7 @@ func TestCreateFail(t *testing.T) {
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
-	t.Run("auction-data undef storage deal id", func(t *testing.T) {
+	t.Run("auction-data undef batch id", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
 		ad.BatchID = ""
