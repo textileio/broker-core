@@ -88,7 +88,6 @@ type StorageDeal struct {
 	DealDuration       int
 	Sources            auction.Sources
 	DisallowRebatching bool
-	AuctionRetries     int
 	FilEpochDeadline   uint64
 	Error              string
 

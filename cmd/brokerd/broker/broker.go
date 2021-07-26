@@ -26,7 +26,6 @@ import (
 
 const (
 	filecoinGenesisUnixEpoch = 1598306400
-	causeMaxAuctionRetries   = "reached max number of retries"
 )
 
 var (
@@ -411,69 +410,22 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 				return fmt.Errorf("erroring storage deal and rebatching: %s", err)
 			}
 		case true:
-			if sd.AuctionRetries >= b.conf.auctionMaxRetries {
-				log.Warnf("auction %s reached max-retries %d, erroring...", sd.ID, sd.AuctionRetries)
-				_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
-				if err != nil {
-					return fmt.Errorf("moving storage deal to error status: %s", err)
-				}
-				return nil
-			}
-
-			// The batch can't be rebatched, since it's a prepared CAR file.
-			// We simply foce to create a new auction.
-			auctionID, err := b.newID()
+			_, err := b.store.StorageDealError(ctx, sd.ID, au.ErrorCause, false)
 			if err != nil {
-				return fmt.Errorf("generating auction id: %s", err)
-			}
-			if err := mbroker.PublishMsgReadyToAuction(
-				ctx,
-				b.mb,
-				auction.AuctionID(auctionID),
-				sd.ID,
-				sd.PayloadCid,
-				int(sd.PieceSize),
-				sd.DealDuration,
-				sd.RepFactor,
-				b.conf.verifiedDeals,
-				nil,
-				sd.FilEpochDeadline,
-				sd.Sources,
-			); err != nil {
-				return fmt.Errorf("publish ready to auction re-auctioning for prepared data: %s", err)
-			}
-			log.Debugf("re-auctioned direct auction %s in new auction %s ", au.ID, auctionID)
-			if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
-				return fmt.Errorf("increasing auction retry: %s", err)
+				return fmt.Errorf("moving storage deal to error status: %s", err)
 			}
 		}
 		return nil
 	}
 
-	if len(au.WinningBids) == 0 {
-		return fmt.Errorf("winning bids list is empty")
+	if len(au.WinningBids) != sd.RepFactor {
+		return fmt.Errorf("winning bids expected %d, got %d", sd.RepFactor, len(au.WinningBids))
 	}
 
-	if len(au.WinningBids) > sd.RepFactor {
-		return fmt.Errorf("%d winning-bids when the rep. factor is %d", len(au.WinningBids), sd.RepFactor)
-	}
-
-	if sd.Status != broker.StorageDealAuctioning && sd.Status != broker.StorageDealDealMaking {
+	if sd.Status != broker.StorageDealAuctioning {
 		return fmt.Errorf("storage-deal isn't in expected status: %s", sd.Status)
 	}
 
-	deltaRepFactor := sd.RepFactor - len(au.WinningBids)
-	// If we have less than expected winning bids, and we already auctioned max amount of times
-	// we error.
-	if deltaRepFactor > 0 && sd.AuctionRetries >= b.conf.auctionMaxRetries {
-		log.Warnf("stop partial winning auction for %s re-auctioning after %d retries", sd.ID, sd.AuctionRetries)
-		_, err := b.store.StorageDealError(ctx, sd.ID, causeMaxAuctionRetries, false)
-		if err != nil {
-			return fmt.Errorf("moving storage deal to error status: %s", err)
-		}
-		return nil
-	}
-	// 1. We tell dealerd to start making deals with the miners from winning bids.
 	ads := dealer.AuctionDeals{
 		StorageDealID: sd.ID,
 		PayloadCid:    sd.PayloadCid,
@@ -499,55 +451,6 @@ func (b *Broker) StorageDealAuctioned(ctx context.Context, au broker.ClosedAucti
 
 	if err := b.store.AddMinerDeals(ctx, au); err != nil {
 		return fmt.Errorf("adding miner deals: %s", err)
-	}
-
-	// 2. There's a chance that the winning bids from the auction are less than what we specified
-	//    in the replication factor.
-	if deltaRepFactor > 0 {
-		// We exclude all previous/currently miners involved with this data, this includes:
-		// - Miners that already confirmed a deal on-chain.
-		// - Miners that errored making the deal.
-		// - Miners that are in progress of making the deal.
-		// Saying it differently: we want to create an auction and expect *new* miners to jump
-		// in to satisfy the missing rep factor.
-		var excludedMiners []string
-		deals, err := b.store.GetMinerDeals(ctx, sd.ID)
-		if err != nil {
-			return fmt.Errorf("getting miner deals: %s", err)
-		}
-		for _, deal := range deals {
-			excludedMiners = append(excludedMiners, deal.MinerID)
-		}
-		for _, deal := range ads.Proposals {
-			excludedMiners = append(excludedMiners, deal.MinerID)
-		}
-		auctionID, err := b.newID()
-		if err != nil {
-			return fmt.Errorf("generating auction id: %s", err)
-		}
-		if err := mbroker.PublishMsgReadyToAuction(
-			ctx,
-			b.mb,
-			auction.AuctionID(auctionID),
-			sd.ID,
-			sd.PayloadCid,
-			int(sd.PieceSize),
-			sd.DealDuration,
-			deltaRepFactor,
-			b.conf.verifiedDeals,
-			excludedMiners,
-			sd.FilEpochDeadline,
-			sd.Sources,
-		); err != nil {
-			return fmt.Errorf("publish ready to auction for missing bids %d: %s", deltaRepFactor, err)
-		}
-
-		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
-			return fmt.Errorf("increasing auction retry: %s", err)
-		}
-
-		log.Infof("auction %s re-auctioning in new auction %s for %d/%d missing bids",
-			auctionID, deltaRepFactor, len(au.WinningBids))
 	}
 
 	log.Debugf("publishing ready to create deals for auction %s, storage-deal", au.ID, au.StorageDealID)
@@ -613,9 +516,6 @@ func (b *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.Finali
 			sd.Sources,
 		); err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
-		}
-		if err := b.store.CountAuctionRetry(ctx, sd.ID); err != nil {
-			return fmt.Errorf("increasing auction retry: %s", err)
 		}
 		return nil
 	}

@@ -171,7 +171,6 @@ func (s *Store) CreateStorageDeal(ctx context.Context, sd *broker.StorageDeal, b
 		PieceCid:           pieceCid,
 		PieceSize:          sd.PieceSize,
 		DisallowRebatching: sd.DisallowRebatching,
-		AuctionRetries:     sd.AuctionRetries,
 		FilEpochDeadline:   sd.FilEpochDeadline,
 		CarUrl:             dsources.carURL,
 		CarIpfsCid:         dsources.ipfsCid,
@@ -382,13 +381,6 @@ func (s *Store) StorageDealSuccess(ctx context.Context, id broker.StorageDealID)
 	})
 }
 
-// CountAuctionRetry increases the number of auction retries counter for a storage deal.
-func (s *Store) CountAuctionRetry(ctx context.Context, id broker.StorageDealID) error {
-	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		return q.ReauctionStorageDeal(ctx, id)
-	})
-}
-
 // AddMinerDeals includes new deals from a finalized auction.
 func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction) error {
 	return s.withTx(ctx, func(txn *db.Queries) error {
@@ -559,7 +551,6 @@ func storageDealFromDB(sd *db.StorageDeal) (sd2 *broker.StorageDeal, err error) 
 		PieceSize:          sd.PieceSize,
 		Sources:            sources,
 		DisallowRebatching: sd.DisallowRebatching,
-		AuctionRetries:     sd.AuctionRetries,
 		FilEpochDeadline:   sd.FilEpochDeadline,
 		Error:              sd.Error,
 		CreatedAt:          sd.CreatedAt,

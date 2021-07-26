@@ -26,8 +26,6 @@ overrides:
     go_type: "int"
   - column: "storage_deals.deal_duration"
     go_type: "int"
-  - column: "storage_deals.auction_retries"
-    go_type: "int"
   - column: "storage_deals.fil_epoch_deadline"
     go_type: "uint64"
   - column: "storage_deals.piece_size"

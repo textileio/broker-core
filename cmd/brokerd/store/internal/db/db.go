@@ -58,9 +58,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.nextUnpinJobStmt, err = db.PrepareContext(ctx, nextUnpinJob); err != nil {
 		return nil, fmt.Errorf("error preparing query NextUnpinJob: %w", err)
 	}
-	if q.reauctionStorageDealStmt, err = db.PrepareContext(ctx, reauctionStorageDeal); err != nil {
-		return nil, fmt.Errorf("error preparing query ReauctionStorageDeal: %w", err)
-	}
 	if q.rebatchBrokerRequestsStmt, err = db.PrepareContext(ctx, rebatchBrokerRequests); err != nil {
 		return nil, fmt.Errorf("error preparing query RebatchBrokerRequests: %w", err)
 	}
@@ -145,11 +142,6 @@ func (q *Queries) Close() error {
 	if q.nextUnpinJobStmt != nil {
 		if cerr := q.nextUnpinJobStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing nextUnpinJobStmt: %w", cerr)
-		}
-	}
-	if q.reauctionStorageDealStmt != nil {
-		if cerr := q.reauctionStorageDealStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing reauctionStorageDealStmt: %w", cerr)
 		}
 	}
 	if q.rebatchBrokerRequestsStmt != nil {
@@ -238,7 +230,6 @@ type Queries struct {
 	getMinerDealsStmt                   *sql.Stmt
 	getStorageDealStmt                  *sql.Stmt
 	nextUnpinJobStmt                    *sql.Stmt
-	reauctionStorageDealStmt            *sql.Stmt
 	rebatchBrokerRequestsStmt           *sql.Stmt
 	unpinJobToPendingStmt               *sql.Stmt
 	updateBrokerRequestsStatusStmt      *sql.Stmt
@@ -264,7 +255,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getMinerDealsStmt:                   q.getMinerDealsStmt,
 		getStorageDealStmt:                  q.getStorageDealStmt,
 		nextUnpinJobStmt:                    q.nextUnpinJobStmt,
-		reauctionStorageDealStmt:            q.reauctionStorageDealStmt,
 		rebatchBrokerRequestsStmt:           q.rebatchBrokerRequestsStmt,
 		unpinJobToPendingStmt:               q.unpinJobToPendingStmt,
 		updateBrokerRequestsStatusStmt:      q.updateBrokerRequestsStatusStmt,

@@ -19,7 +19,6 @@ INSERT INTO storage_deals(
     car_ipfs_cid,
     car_ipfs_addrs,
     disallow_rebatching,
-    auction_retries,
     fil_epoch_deadline,
     error,
     payload_cid,
@@ -38,8 +37,7 @@ INSERT INTO storage_deals(
       $10,
       $11,
       $12,
-      $13,
-      $14
+      $13
       )
 `
 
@@ -52,7 +50,6 @@ type CreateStorageDealParams struct {
 	CarIpfsCid         string                   `json:"carIpfsCid"`
 	CarIpfsAddrs       string                   `json:"carIpfsAddrs"`
 	DisallowRebatching bool                     `json:"disallowRebatching"`
-	AuctionRetries     int                      `json:"auctionRetries"`
 	FilEpochDeadline   uint64                   `json:"filEpochDeadline"`
 	Error              string                   `json:"error"`
 	PayloadCid         string                   `json:"payloadCid"`
@@ -70,7 +67,6 @@ func (q *Queries) CreateStorageDeal(ctx context.Context, arg CreateStorageDealPa
 		arg.CarIpfsCid,
 		arg.CarIpfsAddrs,
 		arg.DisallowRebatching,
-		arg.AuctionRetries,
 		arg.FilEpochDeadline,
 		arg.Error,
 		arg.PayloadCid,
@@ -81,7 +77,7 @@ func (q *Queries) CreateStorageDeal(ctx context.Context, arg CreateStorageDealPa
 }
 
 const getStorageDeal = `-- name: GetStorageDeal :one
-SELECT id, status, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, auction_retries, fil_epoch_deadline, error, created_at, updated_at FROM storage_deals
+SELECT id, status, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, created_at, updated_at FROM storage_deals
 WHERE id = $1
 `
 
@@ -100,25 +96,12 @@ func (q *Queries) GetStorageDeal(ctx context.Context, id broker.StorageDealID) (
 		&i.CarIpfsCid,
 		&i.CarIpfsAddrs,
 		&i.DisallowRebatching,
-		&i.AuctionRetries,
 		&i.FilEpochDeadline,
 		&i.Error,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const reauctionStorageDeal = `-- name: ReauctionStorageDeal :exec
-UPDATE storage_deals
-SET auction_retries = auction_retries + 1,
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-`
-
-func (q *Queries) ReauctionStorageDeal(ctx context.Context, id broker.StorageDealID) error {
-	_, err := q.exec(ctx, q.reauctionStorageDealStmt, reauctionStorageDeal, id)
-	return err
 }
 
 const updateStorageDeal = `-- name: UpdateStorageDeal :exec
