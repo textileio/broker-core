@@ -16,6 +16,6 @@ type FilClient interface {
 	CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, bool, error)
 	CheckDealStatusWithMiner(
 		ctx context.Context,
-		MinerID string,
+		minerID string,
 		propCid cid.Cid) (*storagemarket.ProviderDealState, error)
 }
