@@ -176,7 +176,7 @@ func (b *Broker) CreatePrepared(
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("generating storage deal id: %s", err)
 	}
-	sd := broker.Batch{
+	ba := broker.Batch{
 		// TODO(jsign): this might change depending if gRPC is still used for this API.
 		ID:                 broker.BatchID(sdID),
 		RepFactor:          pc.RepFactor,
@@ -206,7 +206,7 @@ func (b *Broker) CreatePrepared(
 	}
 
 	log.Debugf("creating prepared broker-request payload-cid %s, storage-deal %s", payloadCid, sdID)
-	if err := b.store.CreateBatch(ctx, &sd, []broker.StorageRequestID{br.ID}); err != nil {
+	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{br.ID}); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("creating storage deal: %w", err)
 	}
 
@@ -218,17 +218,17 @@ func (b *Broker) CreatePrepared(
 		ctx,
 		b.mb,
 		auction.AuctionID(auctionID),
-		sd.ID,
-		sd.PayloadCid,
-		int(sd.PieceSize),
-		sd.DealDuration,
-		sd.RepFactor,
+		ba.ID,
+		ba.PayloadCid,
+		int(ba.PieceSize),
+		ba.DealDuration,
+		ba.RepFactor,
 		b.conf.verifiedDeals,
 		nil,
-		sd.FilEpochDeadline,
-		sd.Sources,
+		ba.FilEpochDeadline,
+		ba.Sources,
 	); err != nil {
-		return broker.StorageRequest{}, fmt.Errorf("publish ready to auction %s: %s", sd.ID, err)
+		return broker.StorageRequest{}, fmt.Errorf("publish ready to auction %s: %s", ba.ID, err)
 	}
 	log.Debugf("created prepared auction %s for storage-deal %s", auctionID, sdID)
 
@@ -295,7 +295,7 @@ func (b *Broker) CreateNewBatch(
 	if err != nil {
 		return "", fmt.Errorf("creating cid url fragment: %s", err)
 	}
-	sd := broker.Batch{
+	ba := broker.Batch{
 		ID:                 batchID,
 		PayloadCid:         batchCid,
 		RepFactor:          int(b.conf.dealReplication),
@@ -310,12 +310,12 @@ func (b *Broker) CreateNewBatch(
 		},
 	}
 
-	if err := b.store.CreateBatch(ctx, &sd, brIDs); err != nil {
+	if err := b.store.CreateBatch(ctx, &ba, brIDs); err != nil {
 		return "", fmt.Errorf("creating storage deal: %w", err)
 	}
-	log.Debugf("new storage-deal %s created with batchCid %s with %d broker-requests", sd.ID, batchCid, len(brIDs))
+	log.Debugf("new storage-deal %s created with batchCid %s with %d broker-requests", ba.ID, batchCid, len(brIDs))
 
-	return sd.ID, nil
+	return ba.ID, nil
 }
 
 // NewBatchPrepared contains information of a prepared batch.
@@ -479,11 +479,11 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 		return fmt.Errorf("adding finalized info to the store: %s", err)
 	}
 
-	sd, err := b.store.GetBatch(ctx, fad.BatchID)
+	ba, err := b.store.GetBatch(ctx, fad.BatchID)
 	if err != nil {
 		return fmt.Errorf("get storage deal: %s", err)
 	}
-	deals, err := b.store.GetDeals(ctx, sd.ID)
+	deals, err := b.store.GetDeals(ctx, ba.ID)
 	if err != nil {
 		return fmt.Errorf("adding miner deals: %s", err)
 	}
@@ -505,15 +505,15 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 			ctx,
 			b.mb,
 			auction.AuctionID(auctionID),
-			sd.ID,
-			sd.PayloadCid,
-			int(sd.PieceSize),
-			sd.DealDuration,
+			ba.ID,
+			ba.PayloadCid,
+			int(ba.PieceSize),
+			ba.DealDuration,
 			1,
 			b.conf.verifiedDeals,
 			excludedMiners,
-			sd.FilEpochDeadline,
-			sd.Sources,
+			ba.FilEpochDeadline,
+			ba.Sources,
 		); err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
@@ -529,13 +529,13 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 		}
 	}
 
-	log.Debugf("auction %s, storage-deal %s finalized deal: %d/%d", fad.AuctionID, sd.ID, numConfirmedDeals, sd.RepFactor)
+	log.Debugf("auction %s, storage-deal %s finalized deal: %d/%d", fad.AuctionID, ba.ID, numConfirmedDeals, ba.RepFactor)
 	// Are we done?
-	if numConfirmedDeals == sd.RepFactor {
-		if err := b.store.BatchSuccess(ctx, sd.ID); err != nil {
+	if numConfirmedDeals == ba.RepFactor {
+		if err := b.store.BatchSuccess(ctx, ba.ID); err != nil {
 			return fmt.Errorf("moving to storage deal success: %s", err)
 		}
-		log.Debugf("storage deal %s success", sd.ID)
+		log.Debugf("storage deal %s success", ba.ID)
 	}
 
 	return nil
