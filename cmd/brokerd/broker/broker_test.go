@@ -339,7 +339,7 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, broker.BatchStatusDealMaking, sd2.Status)
 	require.NotEmpty(t, sd2.ID)
-	deals, err := b.store.GetMinerDeals(ctx, sd)
+	deals, err := b.store.GetDeals(ctx, sd)
 	require.NoError(t, err)
 	require.Len(t, deals, 2)
 	require.Equal(t, int(a.DealReplication), sd2.RepFactor)

@@ -28,7 +28,7 @@ type Batch struct {
 	UpdatedAt          time.Time          `json:"updatedAt"`
 }
 
-type MinerDeal struct {
+type Deal struct {
 	BatchID        broker.BatchID    `json:"batchID"`
 	AuctionID      auction.AuctionID `json:"auctionID"`
 	BidID          auction.BidID     `json:"bidID"`

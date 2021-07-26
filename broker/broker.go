@@ -140,12 +140,12 @@ func (sds BatchStatus) String() string {
 	}
 }
 
-// MinerDeal contains information about a miner deal resulted from
+// Deal contains information about a miner deal resulted from
 // winned auctions:
 // If ErrCause is not empty, is a failed deal.
 // If ErrCause is empty, and DealID is zero then the deal is in progress.
 // IF ErrCause is empty, and DealID is not zero then is final.
-type MinerDeal struct {
+type Deal struct {
 	BatchID   BatchID
 	AuctionID auction.AuctionID
 	BidID     auction.BidID

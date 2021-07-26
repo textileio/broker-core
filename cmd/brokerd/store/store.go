@@ -381,8 +381,8 @@ func (s *Store) BatchSuccess(ctx context.Context, id broker.BatchID) error {
 	})
 }
 
-// AddMinerDeals includes new deals from a finalized auction.
-func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction) error {
+// AddDeals includes new deals from a finalized auction.
+func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) error {
 	return s.withTx(ctx, func(txn *db.Queries) error {
 		sd, err := txn.GetBatch(ctx, auction.BatchID)
 		if err != nil {
@@ -396,7 +396,7 @@ func (s *Store) AddMinerDeals(ctx context.Context, auction broker.ClosedAuction)
 
 		// Add winning bids to list of deals.
 		for bidID, bid := range auction.WinningBids {
-			if err := txn.CreateMinerDeal(ctx, db.CreateMinerDealParams{
+			if err := txn.CreateDeal(ctx, db.CreateDealParams{
 				BatchID:   auction.BatchID,
 				AuctionID: auction.ID,
 				BidID:     bidID,
@@ -447,10 +447,10 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 	return
 }
 
-// GetMinerDeals gets miner deals for a storage deal.
-func (s *Store) GetMinerDeals(ctx context.Context, id broker.BatchID) (deals []db.MinerDeal, err error) {
+// GetDeals gets miner deals for a storage deal.
+func (s *Store) GetDeals(ctx context.Context, id broker.BatchID) (deals []db.Deal, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		deals, err = q.GetMinerDeals(ctx, id)
+		deals, err = q.GetDeals(ctx, id)
 		return err
 	})
 	return
@@ -466,12 +466,12 @@ func (s *Store) GetStorageRequestIDs(ctx context.Context, id broker.BatchID) (
 	return
 }
 
-// SaveMinerDeals saves a new finalized (succeeded or errored) auction deal
+// SaveDeals saves a new finalized (succeeded or errored) auction deal
 // into the storage deal.
-func (s *Store) SaveMinerDeals(ctx context.Context, fad broker.FinalizedDeal) error {
+func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		rows, err := q.UpdateMinerDeals(ctx,
-			db.UpdateMinerDealsParams{
+		rows, err := q.UpdateDeals(ctx,
+			db.UpdateDealsParams{
 				BatchID:        fad.BatchID,
 				MinerID:        fad.Miner,
 				DealExpiration: fad.DealExpiration,
