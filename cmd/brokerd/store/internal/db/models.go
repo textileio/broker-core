@@ -45,7 +45,6 @@ type StorageDeal struct {
 	CarIpfsCid         string                   `json:"carIpfsCid"`
 	CarIpfsAddrs       string                   `json:"carIpfsAddrs"`
 	DisallowRebatching bool                     `json:"disallowRebatching"`
-	AuctionRetries     int                      `json:"auctionRetries"`
 	FilEpochDeadline   uint64                   `json:"filEpochDeadline"`
 	Error              string                   `json:"error"`
 	CreatedAt          time.Time                `json:"createdAt"`

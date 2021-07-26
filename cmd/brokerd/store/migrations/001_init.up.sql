@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS storage_deals (
     car_ipfs_cid text NOT NULL DEFAULT '',
     car_ipfs_addrs text NOT NULL DEFAULT '',
     disallow_rebatching boolean NOT NULL DEFAULT FALSE,
-    auction_retries int NOT NULL DEFAULT 0,
     fil_epoch_deadline bigint NOT NULL,
     error text NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
