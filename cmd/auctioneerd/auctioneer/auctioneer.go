@@ -467,7 +467,7 @@ func acceptBid(auction *auctioneer.Auction, bid *core.Bid) bool {
 			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
 		return false
 	}
-	for _, addr := range auction.ExcludedMiners {
+	for _, addr := range auction.ExcludedStorageProviders {
 		if bid.MinerAddr == addr {
 			log.Debugf("miner %s is explicitly excluded from auction %s", bid.MinerAddr, auction.ID)
 			return false

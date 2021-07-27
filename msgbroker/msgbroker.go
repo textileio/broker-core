@@ -103,7 +103,7 @@ type ReadyToAuctionListener interface {
 		dealSize, dealDuration uint64,
 		dealReplication uint32,
 		dealVerified bool,
-		excludedMiners []string,
+		excludedStorageProviders []string,
 		filEpochDeadline uint64,
 		sources auction.Sources,
 	) error
@@ -275,7 +275,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			}
 			for i, t := range r.Proposals {
 				if t.StorageProviderId == "" {
-					return errors.New("miner ID is empty")
+					return errors.New("storage-provider-id is empty")
 				}
 				if t.PricePerGibPerEpoch < 0 {
 					return errors.New("price per gib per epoch is negative")
@@ -332,7 +332,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				}
 			}
 			if r.StorageProviderId == "" {
-				return errors.New("miner id is empty")
+				return errors.New("storage-provider-id is empty")
 			}
 			if r.AuctionId == "" {
 				return errors.New("auction-id is empty")
@@ -341,13 +341,13 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("bid-id is empty")
 			}
 			fd := broker.FinalizedDeal{
-				BatchID:        broker.BatchID(r.BatchId),
-				DealID:         r.DealId,
-				DealExpiration: r.DealExpiration,
-				Miner:          r.StorageProviderId,
-				ErrorCause:     r.ErrorCause,
-				AuctionID:      auction.AuctionID(r.AuctionId),
-				BidID:          auction.BidID(r.BidId),
+				BatchID:           broker.BatchID(r.BatchId),
+				DealID:            r.DealId,
+				DealExpiration:    r.DealExpiration,
+				StorageProviderID: r.StorageProviderId,
+				ErrorCause:        r.ErrorCause,
+				AuctionID:         auction.AuctionID(r.AuctionId),
+				BidID:             auction.BidID(r.BidId),
 			}
 
 			if err := l.OnFinalizedDeal(ctx, fd); err != nil {
@@ -371,7 +371,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("batch id is empty")
 			}
 			if r.StorageProviderId == "" {
-				return errors.New("miner id is empty")
+				return errors.New("storage-provider-id is empty")
 			}
 			proposalCid, err := cid.Cast(r.ProposalCid)
 			if err != nil || !proposalCid.Defined() {
@@ -444,7 +444,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				req.DealDuration,
 				req.DealReplication,
 				req.DealVerified,
-				req.ExcludedMiners,
+				req.ExcludedStorageProviders,
 				req.FilEpochDeadline,
 				sources,
 			); err != nil {
@@ -583,7 +583,7 @@ func PublishMsgReadyToCreateDeals(
 	}
 	for i, t := range ads.Proposals {
 		if t.StorageProviderID == "" {
-			return errors.New("miner is empty")
+			return errors.New("storage-provider-id is empty")
 		}
 		if t.StartEpoch == 0 {
 			return errors.New("start-epoch is zero")
@@ -619,7 +619,7 @@ func PublishMsgReadyToCreateDeals(
 func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.FinalizedDeal) error {
 	msg := &pb.FinalizedDeal{
 		BatchId:           string(fd.BatchID),
-		StorageProviderId: fd.Miner,
+		StorageProviderId: fd.StorageProviderID,
 		DealId:            fd.DealID,
 		DealExpiration:    fd.DealExpiration,
 		ErrorCause:        fd.ErrorCause,
@@ -673,20 +673,20 @@ func PublishMsgReadyToAuction(
 	payloadCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
-	excludedMiners []string,
+	excludedStorageProviders []string,
 	filEpochDeadline uint64,
 	sources auction.Sources) error {
 	msg := &pb.ReadyToAuction{
-		Id:               string(id),
-		BatchId:          string(BatchID),
-		PayloadCid:       payloadCid.Bytes(),
-		DealSize:         uint64(dealSize),
-		DealDuration:     uint64(dealDuration),
-		DealReplication:  uint32(dealReplication),
-		DealVerified:     dealVerified,
-		ExcludedMiners:   excludedMiners,
-		FilEpochDeadline: filEpochDeadline,
-		Sources:          sourcesToPb(sources),
+		Id:                       string(id),
+		BatchId:                  string(BatchID),
+		PayloadCid:               payloadCid.Bytes(),
+		DealSize:                 uint64(dealSize),
+		DealDuration:             uint64(dealDuration),
+		DealReplication:          uint32(dealReplication),
+		DealVerified:             dealVerified,
+		ExcludedStorageProviders: excludedStorageProviders,
+		FilEpochDeadline:         filEpochDeadline,
+		Sources:                  sourcesToPb(sources),
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -810,7 +810,7 @@ func auctionWinningBidsToPb(
 	pbbids := make(map[string]*pb.AuctionClosed_WinningBid)
 	for k, v := range bids {
 		if v.StorageProviderID == "" {
-			return nil, errors.New("miner id is empty")
+			return nil, errors.New("storage-provider-id is empty")
 		}
 		if v.StartEpoch == 0 {
 			return nil, errors.New("start epoch is zero")
@@ -876,7 +876,7 @@ func auctionWinningBidsFromPb(
 	wbids := make(map[auction.BidID]broker.WinningBid)
 	for k, v := range pbbids {
 		if v.StorageProviderId == "" {
-			return nil, errors.New("miner id is empty")
+			return nil, errors.New("storage-provider-id is empty")
 		}
 		if v.Price < 0 {
 			return nil, errors.New("price is negative")

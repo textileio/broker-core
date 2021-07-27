@@ -605,10 +605,10 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	// 2- Call BatchFinalizedDeals with the first deal having
 	//    success. We'll make a further call to the second one.
 	fad1 := broker.FinalizedDeal{
-		BatchID:        auction.BatchID,
-		DealID:         100,
-		DealExpiration: 200,
-		Miner:          "f0011",
+		BatchID:           auction.BatchID,
+		DealID:            100,
+		DealExpiration:    200,
+		StorageProviderID: "f0011",
 	}
 	err = b.BatchFinalizedDeal(ctx, fad1)
 	require.NoError(t, err)
@@ -628,10 +628,10 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	// 4- Let's finalize the other one.
 	chainAPI.clean() // clean the previous call stack
 	fad2 := broker.FinalizedDeal{
-		BatchID:        auction.BatchID,
-		Miner:          "f0012",
-		DealID:         101,
-		DealExpiration: 201,
+		BatchID:           auction.BatchID,
+		StorageProviderID: "f0012",
+		DealID:            101,
+		DealExpiration:    201,
 	}
 	err = b.BatchFinalizedDeal(ctx, fad2)
 	require.NoError(t, err)
@@ -665,10 +665,10 @@ func TestBatchFinalizedDeals(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, bri.Deals, 2)
 		sort.Slice(bri.Deals, func(i, j int) bool { return bri.Deals[i].StorageProviderID < bri.Deals[j].StorageProviderID })
-		require.Equal(t, bri.Deals[0].StorageProviderID, fad1.Miner)
+		require.Equal(t, bri.Deals[0].StorageProviderID, fad1.StorageProviderID)
 		require.Equal(t, bri.Deals[0].DealID, fad1.DealID)
 		require.Equal(t, bri.Deals[0].Expiration, fad1.DealExpiration)
-		require.Equal(t, bri.Deals[1].StorageProviderID, fad2.Miner)
+		require.Equal(t, bri.Deals[1].StorageProviderID, fad2.StorageProviderID)
 		require.Equal(t, bri.Deals[1].DealID, fad2.DealID)
 		require.Equal(t, bri.Deals[1].Expiration, fad2.DealExpiration)
 	}

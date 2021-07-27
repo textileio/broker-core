@@ -140,22 +140,6 @@ func (sds BatchStatus) String() string {
 	}
 }
 
-// Deal contains information about a miner deal resulted from
-// winned auctions:
-// If ErrCause is not empty, is a failed deal.
-// If ErrCause is empty, and DealID is zero then the deal is in progress.
-// IF ErrCause is empty, and DealID is not zero then is final.
-type Deal struct {
-	BatchID   BatchID
-	AuctionID auction.AuctionID
-	BidID     auction.BidID
-
-	Miner          string
-	DealID         int64
-	DealExpiration uint64
-	ErrorCause     string
-}
-
 // DataPreparationResult is the result of preparing a batch.
 type DataPreparationResult struct {
 	PieceSize uint64
@@ -175,11 +159,11 @@ func (dpr DataPreparationResult) Validate() error {
 
 // FinalizedDeal contains information about a finalized deal.
 type FinalizedDeal struct {
-	BatchID        BatchID
-	Miner          string
-	DealID         int64
-	DealExpiration uint64
-	ErrorCause     string
-	AuctionID      auction.AuctionID
-	BidID          auction.BidID
+	BatchID           BatchID
+	StorageProviderID string
+	DealID            int64
+	DealExpiration    uint64
+	ErrorCause        string
+	AuctionID         auction.AuctionID
+	BidID             auction.BidID
 }
