@@ -21,6 +21,7 @@ import (
 	filclientmocks "github.com/textileio/bidbot/mocks/lib/filclient"
 	lotusclientmocks "github.com/textileio/bidbot/mocks/service/lotusclient"
 	bidbotsrv "github.com/textileio/bidbot/service"
+	"github.com/textileio/bidbot/service/limiter"
 	bidstore "github.com/textileio/bidbot/service/store"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -253,6 +254,7 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 					Max: 32 * 1000 * 1000 * 1000,
 				},
 			},
+			BytesLimiter: limiter.NopeLimiter{},
 		}
 
 		s, err := bidbotsrv.New(config, store, newLotusClientMock(), newFilClientMock())
