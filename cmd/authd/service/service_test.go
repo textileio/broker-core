@@ -131,11 +131,13 @@ func TestService_detectInput(t *testing.T) {
 func TestService_RawAuthToken(t *testing.T) {
 	s := newService(t)
 	ctx := context.Background()
+	c := newClient(t, s.Config.Listener.(*bufconn.Listener))
 	err := s.store.CreateAuthToken(ctx, "TOKEN-1", "IDENTITY-1", "ORIGIN-1")
 	require.NoError(t, err)
 
 	// Valid case.
-	res, err := s.Auth(ctx, &pb.AuthRequest{Token: "TOKEN-1"})
+	req := &pb.AuthRequest{Token: "TOKEN-1"}
+	res, err := c.Auth(ctx, req)
 	require.NoError(t, err)
 	require.Equal(t, "IDENTITY-1", res.Identity)
 	require.Equal(t, "ORIGIN-1", res.Origin)
@@ -175,13 +177,14 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	mockChain.AssertExpectations(t)
 }
 
-func TestClient_Setup(t *testing.T) {
+func TestClient_NEARToken(t *testing.T) {
 	s := newService(t)
 	c := newClient(t, s.Config.Listener.(*bufconn.Listener))
 	req := &pb.AuthRequest{Token: TOKEN}
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, res.Identity, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
+	require.Equal(t, res.Origin, "NEAR")
 }
 
 func newClient(t *testing.T, listener *bufconn.Listener) pb.AuthAPIServiceClient {

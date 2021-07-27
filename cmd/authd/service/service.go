@@ -249,6 +249,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		log.Debugf("successful chain authentication: %s", token.Iss)
 		return &pb.AuthResponse{
 			Identity: token.Sub,
+			Origin:   "NEAR",
 		}, nil
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown token type")
