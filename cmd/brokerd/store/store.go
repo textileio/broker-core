@@ -399,10 +399,10 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 		// Add winning bids to list of deals.
 		for bidID, bid := range auction.WinningBids {
 			if err := txn.CreateDeal(ctx, db.CreateDealParams{
-				BatchID:   auction.BatchID,
-				AuctionID: auction.ID,
-				BidID:     bidID,
-				MinerID:   bid.MinerID,
+				BatchID:           auction.BatchID,
+				AuctionID:         auction.ID,
+				BidID:             bidID,
+				StorageProviderID: bid.StorageProviderID,
 			}); err != nil {
 				return fmt.Errorf("save batch: %s", err)
 			}
@@ -474,11 +474,11 @@ func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
 		rows, err := q.UpdateDeals(ctx,
 			db.UpdateDealsParams{
-				BatchID:        fad.BatchID,
-				MinerID:        fad.Miner,
-				DealExpiration: fad.DealExpiration,
-				DealID:         fad.DealID,
-				ErrorCause:     fad.ErrorCause,
+				BatchID:           fad.BatchID,
+				StorageProviderID: fad.Miner,
+				DealExpiration:    fad.DealExpiration,
+				DealID:            fad.DealID,
+				ErrorCause:        fad.ErrorCause,
 			})
 		if err != nil {
 			return fmt.Errorf("get batch: %s", err)

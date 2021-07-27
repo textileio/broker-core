@@ -309,16 +309,16 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	// 2- Call BatchAuctioned as if the auctioneer did.
 	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerID:       "f01111",
-			Price:         200,
-			StartEpoch:    300,
-			FastRetrieval: true,
+			StorageProviderID: "f01111",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
 		},
 		auction.BidID("Bid2"): {
-			MinerID:       "f02222",
-			Price:         1200,
-			StartEpoch:    1300,
-			FastRetrieval: false,
+			StorageProviderID: "f02222",
+			Price:             1200,
+			StartEpoch:        1300,
+			FastRetrieval:     false,
 		},
 	}
 
@@ -358,7 +358,7 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 				require.Equal(t, a.ID, deal.AuctionID)
 				require.Greater(t, deal.CreatedAt.Unix(), int64(0))
 				require.Greater(t, deal.UpdatedAt.Unix(), int64(0))
-				require.Equal(t, wb.MinerID, deal.MinerID)
+				require.Equal(t, wb.StorageProviderID, deal.StorageProviderID)
 				require.Equal(t, int64(0), deal.DealID)
 				require.Equal(t, uint64(0), deal.DealExpiration)
 				require.Empty(t, deal.ErrorCause)
@@ -387,12 +387,12 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	for _, tr := range r.Proposals {
 		var bid broker.WinningBid
 		for _, b := range winningBids {
-			if tr.MinerId == b.MinerID {
+			if tr.StorageProviderId == b.StorageProviderID {
 				bid = b
 				break
 			}
 		}
-		if bid.MinerID == "" {
+		if bid.StorageProviderID == "" {
 			t.Errorf("AuctionDealsTarget has no corresponding Bid")
 		}
 		require.Equal(t, bid.Price, tr.PricePerGibPerEpoch)
@@ -443,16 +443,16 @@ func TestBatchAuctionedInvalidAmountWinners(t *testing.T) {
 	// 2- Call BatchAuctioned as if the auctioneer did.
 	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerID:       "f01111",
-			Price:         200,
-			StartEpoch:    300,
-			FastRetrieval: true,
+			StorageProviderID: "f01111",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
 		},
 		auction.BidID("Bid2"): {
-			MinerID:       "f02222",
-			Price:         1200,
-			StartEpoch:    1300,
-			FastRetrieval: false,
+			StorageProviderID: "f02222",
+			Price:             1200,
+			StartEpoch:        1300,
+			FastRetrieval:     false,
 		},
 	}
 	a := broker.ClosedAuction{
@@ -578,16 +578,16 @@ func TestBatchFinalizedDeals(t *testing.T) {
 
 	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
-			MinerID:       "f0011",
-			Price:         200,
-			StartEpoch:    300,
-			FastRetrieval: true,
+			StorageProviderID: "f0011",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
 		},
 		auction.BidID("Bid2"): {
-			MinerID:       "f0012",
-			Price:         1200,
-			StartEpoch:    1300,
-			FastRetrieval: false,
+			StorageProviderID: "f0012",
+			Price:             1200,
+			StartEpoch:        1300,
+			FastRetrieval:     false,
 		},
 	}
 
@@ -664,11 +664,11 @@ func TestBatchFinalizedDeals(t *testing.T) {
 		bri, err := b.GetStorageRequestInfo(ctx, br.ID)
 		require.NoError(t, err)
 		require.Len(t, bri.Deals, 2)
-		sort.Slice(bri.Deals, func(i, j int) bool { return bri.Deals[i].MinerID < bri.Deals[j].MinerID })
-		require.Equal(t, bri.Deals[0].MinerID, fad1.Miner)
+		sort.Slice(bri.Deals, func(i, j int) bool { return bri.Deals[i].StorageProviderID < bri.Deals[j].StorageProviderID })
+		require.Equal(t, bri.Deals[0].StorageProviderID, fad1.Miner)
 		require.Equal(t, bri.Deals[0].DealID, fad1.DealID)
 		require.Equal(t, bri.Deals[0].Expiration, fad1.DealExpiration)
-		require.Equal(t, bri.Deals[1].MinerID, fad2.Miner)
+		require.Equal(t, bri.Deals[1].StorageProviderID, fad2.Miner)
 		require.Equal(t, bri.Deals[1].DealID, fad2.DealID)
 		require.Equal(t, bri.Deals[1].Expiration, fad2.DealExpiration)
 	}

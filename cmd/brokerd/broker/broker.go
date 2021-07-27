@@ -261,9 +261,9 @@ func (b *Broker) GetStorageRequestInfo(
 				continue
 			}
 			di := broker.StorageRequestDeal{
-				MinerID:    deal.MinerID,
-				DealID:     deal.DealID,
-				Expiration: deal.DealExpiration,
+				StorageProviderID: deal.StorageProviderID,
+				DealID:            deal.DealID,
+				Expiration:        deal.DealExpiration,
 			}
 			bri.Deals = append(bri.Deals, di)
 		}
@@ -438,7 +438,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, au broker.ClosedAuction) (e
 	var i int
 	for id, bid := range au.WinningBids {
 		ads.Proposals[i] = dealer.Proposal{
-			MinerID:             bid.MinerID,
+			StorageProviderID:   bid.StorageProviderID,
 			PricePerGiBPerEpoch: bid.Price,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            au.DealVerified,
@@ -493,7 +493,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 	if fad.ErrorCause != "" {
 		var excludedMiners []string
 		for _, deal := range deals {
-			excludedMiners = append(excludedMiners, deal.MinerID)
+			excludedMiners = append(excludedMiners, deal.StorageProviderID)
 		}
 		log.Infof("creating new auction for failed deal with miner %s", fad.Miner)
 

@@ -35,7 +35,7 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		Duration:   525600,
 	}
 	aud := store.AuctionDeal{
-		MinerID:             "f01278",
+		StorageProviderID:   "f01278",
 		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            false,

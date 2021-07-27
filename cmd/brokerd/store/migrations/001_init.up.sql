@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS deals (
     batch_id text NOT NULL,
     auction_id text NOT NULL,
     bid_id text NOT NULL,
-    miner_id text NOT NULL,
+    storage_provider_id text NOT NULL,
     deal_id bigint NOT NULL,
     deal_expiration bigint NOT NULL,
     error_cause text NOT NULL DEFAULT '',
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS deals (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_batch_id FOREIGN KEY(batch_id) REFERENCES batches(id)
     );
-CREATE INDEX IF NOT EXISTS deals_miner_id ON deals (miner_id);
+CREATE INDEX IF NOT EXISTS deals_storage_provider_id ON deals (storage_provider_id);
 
 CREATE TABLE IF NOT EXISTS unpin_jobs (
     id text PRIMARY KEY,

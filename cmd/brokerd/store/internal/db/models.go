@@ -29,15 +29,15 @@ type Batch struct {
 }
 
 type Deal struct {
-	BatchID        broker.BatchID    `json:"batchID"`
-	AuctionID      auction.AuctionID `json:"auctionID"`
-	BidID          auction.BidID     `json:"bidID"`
-	MinerID        string            `json:"minerID"`
-	DealID         int64             `json:"dealID"`
-	DealExpiration uint64            `json:"dealExpiration"`
-	ErrorCause     string            `json:"errorCause"`
-	CreatedAt      time.Time         `json:"createdAt"`
-	UpdatedAt      time.Time         `json:"updatedAt"`
+	BatchID           broker.BatchID    `json:"batchID"`
+	AuctionID         auction.AuctionID `json:"auctionID"`
+	BidID             auction.BidID     `json:"bidID"`
+	StorageProviderID string            `json:"storageProviderID"`
+	DealID            int64             `json:"dealID"`
+	DealExpiration    uint64            `json:"dealExpiration"`
+	ErrorCause        string            `json:"errorCause"`
+	CreatedAt         time.Time         `json:"createdAt"`
+	UpdatedAt         time.Time         `json:"updatedAt"`
 }
 
 type StorageRequest struct {

@@ -2,7 +2,7 @@
 INSERT INTO auction_deals(
 id,
 auction_data_id,
-miner_id,
+storage_provider_id,
 price_per_gib_per_epoch,
 start_epoch,
 verified,
@@ -56,7 +56,7 @@ RETURNING *;
 UPDATE auction_deals
 SET 
     auction_data_id = @auction_data_id,
-    miner_id = @miner_id,
+    storage_provider_id = @storage_provider_id,
     price_per_gib_per_epoch = @price_per_gib_per_epoch,
     start_epoch = @start_epoch,
     verified = @verified,
