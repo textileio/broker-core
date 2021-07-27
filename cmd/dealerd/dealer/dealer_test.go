@@ -32,6 +32,7 @@ var (
 	fakeDealID             = int64(1337)
 	fakeExpiration         = uint64(98765)
 	auds                   = dealeri.AuctionDeals{
+		ID:         "id-1",
 		BatchID:    "SD1",
 		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
 		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
@@ -91,6 +92,19 @@ func TestReadyToCreateDeals(t *testing.T) {
 	require.Equal(t, auds.PieceCid, ad.PieceCid)
 	require.Equal(t, auds.PieceSize, ad.PieceSize)
 	require.Equal(t, auds.Duration, ad.Duration)
+}
+
+func TestReadyToCreateDealsIdempotency(t *testing.T) {
+	t.Parallel()
+
+	dealer, _ := newDealer(t)
+
+	ctx := context.Background()
+	err := dealer.ReadyToCreateDeals(ctx, auds)
+	require.NoError(t, err)
+	err = dealer.ReadyToCreateDeals(ctx, auds)
+	require.ErrorIs(t, err, store.ErrAuctionDataExists)
+
 }
 
 func TestStateMachineExecPending(t *testing.T) {

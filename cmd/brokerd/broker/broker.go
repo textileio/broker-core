@@ -435,6 +435,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, au broker.ClosedAuction) (e
 	}
 
 	ads := dealer.AuctionDeals{
+		ID:         uuid.New().String(),
 		BatchID:    sd.ID,
 		PayloadCid: sd.PayloadCid,
 		PieceCid:   sd.PieceCid,

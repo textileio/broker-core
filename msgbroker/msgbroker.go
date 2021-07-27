@@ -254,6 +254,10 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal ready-to-create-deals: %s", err)
 			}
+			if r.Id == "" {
+				return errors.New("id is empty")
+			}
+
 			if r.BatchId == "" {
 				return errors.New("batch id is empty")
 			}
@@ -279,6 +283,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("list of proposals is empty")
 			}
 			ads := dealer.AuctionDeals{
+				ID:         r.Id,
 				BatchID:    broker.BatchID(r.BatchId),
 				PayloadCid: payloadCid,
 				PieceCid:   pieceCid,

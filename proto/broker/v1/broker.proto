@@ -88,12 +88,13 @@ message ReadyToAuction {
     Sources sources = 10;
 }
 message ReadyToCreateDeals {
-  string batch_id = 1;
-  bytes payload_cid = 2;
-  bytes piece_cid = 3;
-  uint64 piece_size = 4;
-  uint64 duration = 5;
-  repeated Proposal proposals = 6;
+  string id = 1;
+  string batch_id = 2;
+  bytes payload_cid = 3;
+  bytes piece_cid = 4;
+  uint64 piece_size = 5;
+  uint64 duration = 6;
+  repeated Proposal proposals = 7;
 
   message Proposal {
     string storage_provider_id = 1;
