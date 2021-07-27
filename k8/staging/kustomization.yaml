@@ -53,4 +53,3 @@ patchesStrategicMerge:
 - ingress-patch.yaml
 - mongo-patch.yaml
 - dealerd-patch.yaml
-- storaged-patch.yaml
