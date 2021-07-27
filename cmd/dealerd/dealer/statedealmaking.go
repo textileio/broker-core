@@ -67,7 +67,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		return fmt.Errorf("get auction data %s: %s", aud.AuctionDataID, err)
 	}
 
-	log.Debugf("%s executing deal from SD %s for %s with miner %s", aud.ID, ad.BatchID, ad.PayloadCid, aud.MinerID)
+	log.Debugf("%s executing deal from SD %s for %s with miner %s", aud.ID, ad.BatchID, ad.PayloadCid, aud.StorageProviderID)
 	proposalCid, retry, err := d.filclient.ExecuteAuctionDeal(d.daemonCtx, ad, aud)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
@@ -79,7 +79,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 	if retry {
 		aud.Retries++
 		if aud.Retries > d.config.dealMakingMaxRetries {
-			log.Warnf("deal for %s with %s failed the max number of retries, failing", ad.PayloadCid, aud.MinerID)
+			log.Warnf("deal for %s with %s failed the max number of retries, failing", ad.PayloadCid, aud.StorageProviderID)
 			aud.ErrorCause = failureDealMakingMaxRetries
 			aud.ReadyAt = time.Unix(0, 0)
 			if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusReportFinalized); err != nil {
@@ -88,7 +88,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 			return nil
 		}
 
-		log.Warnf("deal for %s with %s failed, we'll retry soon...", ad.PayloadCid, aud.MinerID)
+		log.Warnf("deal for %s with %s failed, we'll retry soon...", ad.PayloadCid, aud.StorageProviderID)
 		aud.ReadyAt = time.Now().Add(d.config.dealMakingRetryDelay)
 		if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusDealMaking); err != nil {
 			return fmt.Errorf("saving auction deal: %s", err)
@@ -96,7 +96,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		return nil
 	}
 
-	log.Infof("deal with payloadcid %s with %s successfully executed", ad.PayloadCid, aud.MinerID)
+	log.Infof("deal with payloadcid %s with %s successfully executed", ad.PayloadCid, aud.StorageProviderID)
 	aud.Retries = 0
 	aud.ProposalCid = proposalCid.String()
 	aud.ReadyAt = time.Unix(0, 0)
@@ -111,7 +111,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		ad.BatchID,
 		aud.AuctionID,
 		aud.BidID,
-		aud.MinerID,
+		aud.StorageProviderID,
 		proposalCid); err != nil {
 		return fmt.Errorf("publish deal-proposal-accepted msg of proposal %s to msgbroker: %s", proposalCid, err)
 	}

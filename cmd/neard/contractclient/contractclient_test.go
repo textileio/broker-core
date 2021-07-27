@@ -94,7 +94,7 @@ func TestIt(t *testing.T) {
 // 		Deals: []DealInfo{
 // 			{
 // 				DealID:     "dealId",
-// 				MinerID:    "minerId",
+// 				StorageProviderID:    "storageProviderID",
 // 				Expiration: 100,
 // 			},
 // 		},
@@ -119,7 +119,7 @@ func TestIt(t *testing.T) {
 // 		Deals: []DealInfo{
 // 			{
 // 				DealID:     "dealId",
-// 				MinerID:    "minerId",
+// 				StorageProviderID:    "storageProviderID",
 // 				Expiration: 100,
 // 			},
 // 		},

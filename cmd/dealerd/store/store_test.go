@@ -80,7 +80,7 @@ func TestCreateFail(t *testing.T) {
 		t.Parallel()
 		ad := gad1
 		aud := gaud1
-		aud.MinerID = ""
+		aud.StorageProviderID = ""
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
@@ -345,7 +345,7 @@ func deepCheckAuctionDeals(t *testing.T, s *Store, auds ...AuctionDeal) {
 }
 
 func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
-	require.Equal(t, aud1.MinerID, aud2.MinerID)
+	require.Equal(t, aud1.StorageProviderID, aud2.StorageProviderID)
 	require.Equal(t, aud1.PricePerGibPerEpoch, aud2.PricePerGibPerEpoch)
 	require.Equal(t, aud1.StartEpoch, aud2.StartEpoch)
 	require.Equal(t, aud1.Verified, aud2.Verified)
@@ -368,14 +368,14 @@ var (
 	}
 
 	gaud1 = AuctionDeal{
-		MinerID:             "f011001",
+		StorageProviderID:   "f011001",
 		PricePerGibPerEpoch: 10,
 		StartEpoch:          20,
 		Verified:            true,
 		FastRetrieval:       true,
 	}
 	gaud2 = AuctionDeal{
-		MinerID:             "f011002",
+		StorageProviderID:   "f011002",
 		PricePerGibPerEpoch: 11,
 		StartEpoch:          21,
 		Verified:            true,

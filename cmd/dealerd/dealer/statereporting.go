@@ -59,7 +59,7 @@ func (d *Dealer) reportFinalizedAuctionDeal(ctx context.Context, aud store.Aucti
 		ErrorCause:     aud.ErrorCause,
 		DealID:         aud.DealID,
 		DealExpiration: aud.DealExpiration,
-		Miner:          aud.MinerID,
+		Miner:          aud.StorageProviderID,
 		AuctionID:      aud.AuctionID,
 		BidID:          aud.BidID,
 	}

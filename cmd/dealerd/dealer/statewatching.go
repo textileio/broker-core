@@ -76,11 +76,11 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 	}
 
 	if aud.DealID == 0 {
-		log.Debugf("%s deal without deal-id, trying resolving with miner %s", aud.ProposalCid, aud.MinerID)
+		log.Debugf("%s deal without deal-id, trying resolving with miner %s", aud.ProposalCid, aud.StorageProviderID)
 		if dealID == 0 {
 			if stillHaveTime {
 				// No problem, we'll try later on a new iteration.
-				log.Debugf("still can't resolve the %s deal-id with %s, but have time...", aud.ProposalCid, aud.MinerID)
+				log.Debugf("still can't resolve the %s deal-id with %s, but have time...", aud.ProposalCid, aud.StorageProviderID)
 				aud.ReadyAt = time.Now().Add(d.config.dealWatchingResolveDealIDRetryDelay)
 				if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusConfirmation); err != nil {
 					return fmt.Errorf("saving retry resolve deal id: %s", err)
@@ -89,7 +89,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 			}
 
 			// The miner lost the race, it's game-over.
-			log.Warnf("still can't resolve %s deal-id with %s and time is over; failing", aud.ProposalCid, aud.MinerID)
+			log.Warnf("still can't resolve %s deal-id with %s and time is over; failing", aud.ProposalCid, aud.StorageProviderID)
 			aud.ErrorCause = failureUnfulfilledStartEpoch
 			aud.ReadyAt = time.Unix(0, 0)
 			if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusReportFinalized); err != nil {
@@ -98,7 +98,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 			return nil
 		}
 
-		log.Infof("%s deal-id %d with miner %s resolved!", aud.ProposalCid, dealID, aud.MinerID)
+		log.Infof("%s deal-id %d with miner %s resolved!", aud.ProposalCid, dealID, aud.StorageProviderID)
 		// We know the deal-id now. Persist it, and keep moving.
 		aud.DealID = dealID
 		if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.AuctionDealStatus(aud.Status)); err != nil {
@@ -106,7 +106,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 		}
 	}
 
-	log.Debugf("%s checking on-chain confirmation for deal-id %d with miner %s", aud.ProposalCid, aud.DealID, aud.MinerID)
+	log.Debugf("%s checking on-chain confirmation for deal-id %d with miner %s", aud.ProposalCid, aud.DealID, aud.StorageProviderID)
 	// We can ask the chain now for final confirmation.
 	// Now we can stop asking/trusting the miner for confirmation, and start asking
 	// the chain.
@@ -134,7 +134,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 
 		// If the miner still has time, let's check later again.
 		if aud.StartEpoch > currentChainHeight {
-			log.Debugf("%s/%d/%s not active, we have time...", aud.ProposalCid, aud.DealID, aud.MinerID)
+			log.Debugf("%s/%d/%s not active, we have time...", aud.ProposalCid, aud.DealID, aud.StorageProviderID)
 			aud.ReadyAt = time.Now().Add(d.config.dealWatchingCheckChainRetryDelay)
 			if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusConfirmation); err != nil {
 				return fmt.Errorf("saving auction deal: %s", err)
@@ -143,7 +143,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 		}
 
 		// The miner lost the race, it's game-over.
-		log.Warnf("%s/%d/%s not active, reached deadline, gameover", aud.ProposalCid, aud.DealID, aud.MinerID)
+		log.Warnf("%s/%d/%s not active, reached deadline, gameover", aud.ProposalCid, aud.DealID, aud.StorageProviderID)
 		aud.ErrorCause = failureUnfulfilledStartEpoch
 		aud.ReadyAt = time.Unix(0, 0)
 		if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusReportFinalized); err != nil {
@@ -153,7 +153,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 		return nil
 	}
 
-	log.Infof("%s deal-id %d with miner %s confirmed on-chain!", aud.ProposalCid, aud.DealID, aud.MinerID)
+	log.Infof("%s deal-id %d with miner %s confirmed on-chain!", aud.ProposalCid, aud.DealID, aud.StorageProviderID)
 	aud.DealExpiration = expiration
 	aud.ReadyAt = time.Unix(0, 0)
 	if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusReportFinalized); err != nil {
@@ -177,7 +177,7 @@ func (d *Dealer) tryResolvingDealID(
 		log.Errorf("parsing proposal cid: %s", err)
 		return 0, 0, true
 	}
-	pds, err := d.filclient.CheckDealStatusWithMiner(ctx, aud.MinerID, proposalCid)
+	pds, err := d.filclient.CheckDealStatusWithMiner(ctx, aud.StorageProviderID, proposalCid)
 	if err != nil {
 		log.Errorf("checking deal status with miner: %s", err)
 		return 0, 0, true

@@ -43,7 +43,7 @@ type AuctionDatum struct {
 type AuctionDeal struct {
 	ID                  string            `json:"id"`
 	AuctionDataID       string            `json:"auctionDataID"`
-	MinerID             string            `json:"minerID"`
+	StorageProviderID   string            `json:"storageProviderID"`
 	PricePerGibPerEpoch int64             `json:"pricePerGibPerEpoch"`
 	StartEpoch          uint64            `json:"startEpoch"`
 	Verified            bool              `json:"verified"`

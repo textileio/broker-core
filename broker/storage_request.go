@@ -41,9 +41,9 @@ type StorageRequestInfo struct {
 
 // StorageRequestDeal describes on-chain deals of a storage-request.
 type StorageRequestDeal struct {
-	MinerID    string
-	DealID     int64
-	Expiration uint64
+	StorageProviderID string
+	DealID            int64
+	Expiration        uint64
 }
 
 // PreparedCAR contains information about prepared data.

@@ -16,10 +16,10 @@ const (
 
 // WinningBid contains details about a winning bid in a closed auction.
 type WinningBid struct {
-	MinerID       string
-	Price         int64
-	StartEpoch    uint64
-	FastRetrieval bool
+	StorageProviderID string
+	Price             int64
+	StartEpoch        uint64
+	FastRetrieval     bool
 }
 
 // ClosedAuction contains closed auction details auctioneer reports back to the broker.

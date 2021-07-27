@@ -39,7 +39,7 @@ var (
 		PieceSize:  456,
 		Proposals: []dealeri.Proposal{
 			{
-				MinerID:             "f0001",
+				StorageProviderID:   "f0001",
 				FastRetrieval:       true,
 				PricePerGiBPerEpoch: 100,
 				StartEpoch:          200,
@@ -67,7 +67,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 	// Check that the corresponding AuctionDeal has correct values.
 	require.NotEmpty(t, aud.ID)
 	require.NotEmpty(t, aud.AuctionDataID)
-	require.Equal(t, auds.Proposals[0].MinerID, aud.MinerID)
+	require.Equal(t, auds.Proposals[0].StorageProviderID, aud.StorageProviderID)
 	require.Equal(t, auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGibPerEpoch)
 	require.Equal(t, auds.Proposals[0].StartEpoch, aud.StartEpoch)
 	require.Equal(t, auds.Proposals[0].Verified, aud.Verified)
@@ -169,7 +169,7 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.Equal(t, string(auds.Proposals[0].AuctionID), dpa.AuctionId)
 	require.Equal(t, string(auds.Proposals[0].BidID), dpa.BidId)
 	require.Equal(t, string(auds.BatchID), dpa.BatchId)
-	require.Equal(t, auds.Proposals[0].MinerID, dpa.MinerId)
+	require.Equal(t, auds.Proposals[0].StorageProviderID, dpa.StorageProviderId)
 	require.Equal(t, fakeProposalCid.Bytes(), dpa.ProposalCid)
 }
 
@@ -283,9 +283,9 @@ func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint6
 }
 func (fc *fcMock) CheckDealStatusWithMiner(
 	ctx context.Context,
-	minerID string,
+	storageProviderID string,
 	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
-	args := fc.Called(ctx, minerID, propCid)
+	args := fc.Called(ctx, storageProviderID, propCid)
 
 	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)
 }

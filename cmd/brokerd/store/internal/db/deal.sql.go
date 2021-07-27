@@ -15,7 +15,7 @@ INSERT INTO deals(
     batch_id,
     auction_id,
     bid_id,
-    miner_id,
+    storage_provider_id,
     deal_id,
     deal_expiration,
     error_cause
@@ -31,13 +31,13 @@ INSERT INTO deals(
 `
 
 type CreateDealParams struct {
-	BatchID        broker.BatchID    `json:"batchID"`
-	AuctionID      auction.AuctionID `json:"auctionID"`
-	BidID          auction.BidID     `json:"bidID"`
-	MinerID        string            `json:"minerID"`
-	DealID         int64             `json:"dealID"`
-	DealExpiration uint64            `json:"dealExpiration"`
-	ErrorCause     string            `json:"errorCause"`
+	BatchID           broker.BatchID    `json:"batchID"`
+	AuctionID         auction.AuctionID `json:"auctionID"`
+	BidID             auction.BidID     `json:"bidID"`
+	StorageProviderID string            `json:"storageProviderID"`
+	DealID            int64             `json:"dealID"`
+	DealExpiration    uint64            `json:"dealExpiration"`
+	ErrorCause        string            `json:"errorCause"`
 }
 
 func (q *Queries) CreateDeal(ctx context.Context, arg CreateDealParams) error {
@@ -45,7 +45,7 @@ func (q *Queries) CreateDeal(ctx context.Context, arg CreateDealParams) error {
 		arg.BatchID,
 		arg.AuctionID,
 		arg.BidID,
-		arg.MinerID,
+		arg.StorageProviderID,
 		arg.DealID,
 		arg.DealExpiration,
 		arg.ErrorCause,
@@ -54,7 +54,7 @@ func (q *Queries) CreateDeal(ctx context.Context, arg CreateDealParams) error {
 }
 
 const getDeals = `-- name: GetDeals :many
-SELECT batch_id, auction_id, bid_id, miner_id, deal_id, deal_expiration, error_cause, created_at, updated_at FROM deals WHERE batch_id = $1
+SELECT batch_id, auction_id, bid_id, storage_provider_id, deal_id, deal_expiration, error_cause, created_at, updated_at FROM deals WHERE batch_id = $1
 `
 
 func (q *Queries) GetDeals(ctx context.Context, batchID broker.BatchID) ([]Deal, error) {
@@ -70,7 +70,7 @@ func (q *Queries) GetDeals(ctx context.Context, batchID broker.BatchID) ([]Deal,
 			&i.BatchID,
 			&i.AuctionID,
 			&i.BidID,
-			&i.MinerID,
+			&i.StorageProviderID,
 			&i.DealID,
 			&i.DealExpiration,
 			&i.ErrorCause,
@@ -95,21 +95,21 @@ UPDATE deals
 SET deal_id = $3,
     deal_expiration = $4,
     error_cause = $5
-WHERE batch_id = $1 AND miner_id = $2
+WHERE batch_id = $1 AND storage_provider_id = $2
 `
 
 type UpdateDealsParams struct {
-	BatchID        broker.BatchID `json:"batchID"`
-	MinerID        string         `json:"minerID"`
-	DealID         int64          `json:"dealID"`
-	DealExpiration uint64         `json:"dealExpiration"`
-	ErrorCause     string         `json:"errorCause"`
+	BatchID           broker.BatchID `json:"batchID"`
+	StorageProviderID string         `json:"storageProviderID"`
+	DealID            int64          `json:"dealID"`
+	DealExpiration    uint64         `json:"dealExpiration"`
+	ErrorCause        string         `json:"errorCause"`
 }
 
 func (q *Queries) UpdateDeals(ctx context.Context, arg UpdateDealsParams) (int64, error) {
 	result, err := q.exec(ctx, q.updateDealsStmt, updateDeals,
 		arg.BatchID,
-		arg.MinerID,
+		arg.StorageProviderID,
 		arg.DealID,
 		arg.DealExpiration,
 		arg.ErrorCause,

@@ -78,7 +78,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 	auctionDeals := make([]*store.AuctionDeal, len(ad.Proposals))
 	for i, t := range ad.Proposals {
 		auctionDeal := &store.AuctionDeal{
-			MinerID:             t.MinerID,
+			StorageProviderID:   t.StorageProviderID,
 			PricePerGibPerEpoch: t.PricePerGiBPerEpoch,
 			StartEpoch:          t.StartEpoch,
 			Verified:            t.Verified,
