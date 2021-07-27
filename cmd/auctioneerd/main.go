@@ -110,8 +110,8 @@ var daemonCmd = &cobra.Command{
 			"auctioneer/queue",
 			"auctioneer/service",
 			"psrpc",
-			"psrpc/pubsub",
 			"psrpc/mdns",
+			"psrpc/peer",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},
