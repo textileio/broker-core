@@ -23,9 +23,9 @@ type AuctionDeals struct {
 	Proposals  []Proposal
 }
 
-// Proposal describes information for deal making with a miner.
+// Proposal describes information for deal making with a storage-provider.
 type Proposal struct {
-	MinerID             string
+	StorageProviderID   string
 	PricePerGiBPerEpoch int64
 	StartEpoch          uint64
 	Verified            bool

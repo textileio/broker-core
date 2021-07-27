@@ -63,9 +63,9 @@ func FromProtoStorageRequestInfo(brproto *pb.GetStorageRequestInfoResponse) (bro
 	}
 	for i, d := range brproto.Deals {
 		deal := broker.StorageRequestDeal{
-			MinerID:    d.MinerId,
-			DealID:     d.DealId,
-			Expiration: d.Expiration,
+			StorageProviderID: d.StorageProviderId,
+			DealID:            d.DealId,
+			Expiration:        d.Expiration,
 		}
 		bri.Deals[i] = deal
 	}
@@ -115,9 +115,9 @@ func StorageRequestInfoToProto(br broker.StorageRequestInfo) (*pb.GetStorageRequ
 	deals := make([]*pb.GetStorageRequestInfoResponse_StorageRequestDeal, len(br.Deals))
 	for i, d := range br.Deals {
 		deal := &pb.GetStorageRequestInfoResponse_StorageRequestDeal{
-			MinerId:    d.MinerID,
-			DealId:     d.DealID,
-			Expiration: d.Expiration,
+			StorageProviderId: d.StorageProviderID,
+			DealId:            d.DealID,
+			Expiration:        d.Expiration,
 		}
 		deals[i] = deal
 	}

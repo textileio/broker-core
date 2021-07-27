@@ -54,13 +54,13 @@ func (_m *FilClient) CheckChainDeal(ctx context.Context, dealID int64) (bool, ui
 	return r0, r1, r2, r3
 }
 
-// CheckDealStatusWithMiner provides a mock function with given fields: ctx, minerID, propCid
-func (_m *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerID string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
-	ret := _m.Called(ctx, minerID, propCid)
+// CheckDealStatusWithStorageProvider provides a mock function with given fields: ctx, storageProviderID, propCid
+func (_m *FilClient) CheckDealStatusWithStorageProvider(ctx context.Context, storageProviderID string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
+	ret := _m.Called(ctx, storageProviderID, propCid)
 
 	var r0 *storagemarket.ProviderDealState
 	if rf, ok := ret.Get(0).(func(context.Context, string, cid.Cid) *storagemarket.ProviderDealState); ok {
-		r0 = rf(ctx, minerID, propCid)
+		r0 = rf(ctx, storageProviderID, propCid)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*storagemarket.ProviderDealState)
@@ -69,7 +69,7 @@ func (_m *FilClient) CheckDealStatusWithMiner(ctx context.Context, minerID strin
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string, cid.Cid) error); ok {
-		r1 = rf(ctx, minerID, propCid)
+		r1 = rf(ctx, storageProviderID, propCid)
 	} else {
 		r1 = ret.Error(1)
 	}

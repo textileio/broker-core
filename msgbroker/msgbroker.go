@@ -103,7 +103,7 @@ type ReadyToAuctionListener interface {
 		dealSize, dealDuration uint64,
 		dealReplication uint32,
 		dealVerified bool,
-		excludedMiners []string,
+		excludedStorageProviders []string,
 		filEpochDeadline uint64,
 		sources auction.Sources,
 	) error
@@ -274,8 +274,8 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				Proposals:  make([]dealer.Proposal, len(r.Proposals)),
 			}
 			for i, t := range r.Proposals {
-				if t.MinerId == "" {
-					return errors.New("miner ID is empty")
+				if t.StorageProviderId == "" {
+					return errors.New("storage-provider-id is empty")
 				}
 				if t.PricePerGibPerEpoch < 0 {
 					return errors.New("price per gib per epoch is negative")
@@ -290,7 +290,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 					return errors.New("bid-id is empty")
 				}
 				ads.Proposals[i] = dealer.Proposal{
-					MinerID:             t.MinerId,
+					StorageProviderID:   t.StorageProviderId,
 					PricePerGiBPerEpoch: t.PricePerGibPerEpoch,
 					StartEpoch:          t.StartEpoch,
 					Verified:            t.Verified,
@@ -331,8 +331,8 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 						r.DealExpiration)
 				}
 			}
-			if r.MinerId == "" {
-				return errors.New("miner id is empty")
+			if r.StorageProviderId == "" {
+				return errors.New("storage-provider-id is empty")
 			}
 			if r.AuctionId == "" {
 				return errors.New("auction-id is empty")
@@ -341,13 +341,13 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("bid-id is empty")
 			}
 			fd := broker.FinalizedDeal{
-				BatchID:        broker.BatchID(r.BatchId),
-				DealID:         r.DealId,
-				DealExpiration: r.DealExpiration,
-				Miner:          r.MinerId,
-				ErrorCause:     r.ErrorCause,
-				AuctionID:      auction.AuctionID(r.AuctionId),
-				BidID:          auction.BidID(r.BidId),
+				BatchID:           broker.BatchID(r.BatchId),
+				DealID:            r.DealId,
+				DealExpiration:    r.DealExpiration,
+				StorageProviderID: r.StorageProviderId,
+				ErrorCause:        r.ErrorCause,
+				AuctionID:         auction.AuctionID(r.AuctionId),
+				BidID:             auction.BidID(r.BidId),
 			}
 
 			if err := l.OnFinalizedDeal(ctx, fd); err != nil {
@@ -370,8 +370,8 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.BatchId == "" {
 				return errors.New("batch id is empty")
 			}
-			if r.MinerId == "" {
-				return errors.New("miner id is empty")
+			if r.StorageProviderId == "" {
+				return errors.New("storage-provider-id is empty")
 			}
 			proposalCid, err := cid.Cast(r.ProposalCid)
 			if err != nil || !proposalCid.Defined() {
@@ -444,7 +444,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				req.DealDuration,
 				req.DealReplication,
 				req.DealVerified,
-				req.ExcludedMiners,
+				req.ExcludedStorageProviders,
 				req.FilEpochDeadline,
 				sources,
 			); err != nil {
@@ -582,8 +582,8 @@ func PublishMsgReadyToCreateDeals(
 		Proposals:  make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
 	}
 	for i, t := range ads.Proposals {
-		if t.MinerID == "" {
-			return errors.New("miner is empty")
+		if t.StorageProviderID == "" {
+			return errors.New("storage-provider-id is empty")
 		}
 		if t.StartEpoch == 0 {
 			return errors.New("start-epoch is zero")
@@ -595,7 +595,7 @@ func PublishMsgReadyToCreateDeals(
 			return errors.New("bid-id is empty")
 		}
 		msg.Proposals[i] = &pb.ReadyToCreateDeals_Proposal{
-			MinerId:             t.MinerID,
+			StorageProviderId:   t.StorageProviderID,
 			PricePerGibPerEpoch: t.PricePerGiBPerEpoch,
 			StartEpoch:          t.StartEpoch,
 			Verified:            t.Verified,
@@ -618,13 +618,13 @@ func PublishMsgReadyToCreateDeals(
 // PublishMsgFinalizedDeal publishes a message to the finalized-deal topic.
 func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.FinalizedDeal) error {
 	msg := &pb.FinalizedDeal{
-		BatchId:        string(fd.BatchID),
-		MinerId:        fd.Miner,
-		DealId:         fd.DealID,
-		DealExpiration: fd.DealExpiration,
-		ErrorCause:     fd.ErrorCause,
-		AuctionId:      string(fd.AuctionID),
-		BidId:          string(fd.BidID),
+		BatchId:           string(fd.BatchID),
+		StorageProviderId: fd.StorageProviderID,
+		DealId:            fd.DealID,
+		DealExpiration:    fd.DealExpiration,
+		ErrorCause:        fd.ErrorCause,
+		AuctionId:         string(fd.AuctionID),
+		BidId:             string(fd.BidID),
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -644,14 +644,14 @@ func PublishMsgDealProposalAccepted(
 	sdID broker.BatchID,
 	auctionID auction.AuctionID,
 	bidID auction.BidID,
-	minerID string,
+	storageProviderID string,
 	propCid cid.Cid) error {
 	msg := &pb.DealProposalAccepted{
-		BatchId:     string(sdID),
-		MinerId:     minerID,
-		ProposalCid: propCid.Bytes(),
-		AuctionId:   string(auctionID),
-		BidId:       string(bidID),
+		BatchId:           string(sdID),
+		StorageProviderId: storageProviderID,
+		ProposalCid:       propCid.Bytes(),
+		AuctionId:         string(auctionID),
+		BidId:             string(bidID),
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -673,20 +673,20 @@ func PublishMsgReadyToAuction(
 	payloadCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
 	dealVerified bool,
-	excludedMiners []string,
+	excludedStorageProviders []string,
 	filEpochDeadline uint64,
 	sources auction.Sources) error {
 	msg := &pb.ReadyToAuction{
-		Id:               string(id),
-		BatchId:          string(BatchID),
-		PayloadCid:       payloadCid.Bytes(),
-		DealSize:         uint64(dealSize),
-		DealDuration:     uint64(dealDuration),
-		DealReplication:  uint32(dealReplication),
-		DealVerified:     dealVerified,
-		ExcludedMiners:   excludedMiners,
-		FilEpochDeadline: filEpochDeadline,
-		Sources:          sourcesToPb(sources),
+		Id:                       string(id),
+		BatchId:                  string(BatchID),
+		PayloadCid:               payloadCid.Bytes(),
+		DealSize:                 uint64(dealSize),
+		DealDuration:             uint64(dealDuration),
+		DealReplication:          uint32(dealReplication),
+		DealVerified:             dealVerified,
+		ExcludedStorageProviders: excludedStorageProviders,
+		FilEpochDeadline:         filEpochDeadline,
+		Sources:                  sourcesToPb(sources),
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -809,17 +809,17 @@ func auctionWinningBidsToPb(
 ) (map[string]*pb.AuctionClosed_WinningBid, error) {
 	pbbids := make(map[string]*pb.AuctionClosed_WinningBid)
 	for k, v := range bids {
-		if v.MinerID == "" {
-			return nil, errors.New("miner id is empty")
+		if v.StorageProviderID == "" {
+			return nil, errors.New("storage-provider-id is empty")
 		}
 		if v.StartEpoch == 0 {
 			return nil, errors.New("start epoch is zero")
 		}
 		pbbids[string(k)] = &pb.AuctionClosed_WinningBid{
-			MinerId:       v.MinerID,
-			Price:         v.Price,
-			StartEpoch:    v.StartEpoch,
-			FastRetrieval: v.FastRetrieval,
+			StorageProviderId: v.StorageProviderID,
+			Price:             v.Price,
+			StartEpoch:        v.StartEpoch,
+			FastRetrieval:     v.FastRetrieval,
 		}
 	}
 	return pbbids, nil
@@ -875,8 +875,8 @@ func auctionWinningBidsFromPb(
 ) (map[auction.BidID]broker.WinningBid, error) {
 	wbids := make(map[auction.BidID]broker.WinningBid)
 	for k, v := range pbbids {
-		if v.MinerId == "" {
-			return nil, errors.New("miner id is empty")
+		if v.StorageProviderId == "" {
+			return nil, errors.New("storage-provider-id is empty")
 		}
 		if v.Price < 0 {
 			return nil, errors.New("price is negative")
@@ -885,10 +885,10 @@ func auctionWinningBidsFromPb(
 			return nil, errors.New("start-epoch is zero")
 		}
 		wbids[auction.BidID(k)] = broker.WinningBid{
-			MinerID:       v.MinerId,
-			Price:         v.Price,
-			StartEpoch:    v.StartEpoch,
-			FastRetrieval: v.FastRetrieval,
+			StorageProviderID: v.StorageProviderId,
+			Price:             v.Price,
+			StartEpoch:        v.StartEpoch,
+			FastRetrieval:     v.FastRetrieval,
 		}
 	}
 	return wbids, nil

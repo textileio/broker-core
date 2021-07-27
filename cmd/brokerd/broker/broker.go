@@ -261,9 +261,9 @@ func (b *Broker) GetStorageRequestInfo(
 				continue
 			}
 			di := broker.StorageRequestDeal{
-				MinerID:    deal.MinerID,
-				DealID:     deal.DealID,
-				Expiration: deal.DealExpiration,
+				StorageProviderID: deal.StorageProviderID,
+				DealID:            deal.DealID,
+				Expiration:        deal.DealExpiration,
 			}
 			bri.Deals = append(bri.Deals, di)
 		}
@@ -438,7 +438,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, au broker.ClosedAuction) (e
 	var i int
 	for id, bid := range au.WinningBids {
 		ads.Proposals[i] = dealer.Proposal{
-			MinerID:             bid.MinerID,
+			StorageProviderID:   bid.StorageProviderID,
 			PricePerGiBPerEpoch: bid.Price,
 			StartEpoch:          bid.StartEpoch,
 			Verified:            au.DealVerified,
@@ -450,7 +450,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, au broker.ClosedAuction) (e
 	}
 
 	if err := b.store.AddDeals(ctx, au); err != nil {
-		return fmt.Errorf("adding miner deals: %s", err)
+		return fmt.Errorf("adding storage-provider deals: %s", err)
 	}
 
 	log.Debugf("publishing ready to create deals for auction %s, batch", au.ID, au.BatchID)
@@ -463,8 +463,8 @@ func (b *Broker) BatchAuctioned(ctx context.Context, au broker.ClosedAuction) (e
 
 // BatchFinalizedDeal report a deal that reached final status in the Filecoin network.
 func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDeal) (err error) {
-	log.Debugf("finalized deal from auction (%s, %s), batch %s, deal-id %s, miner %s",
-		fad.AuctionID, fad.BidID, fad.BatchID, fad.DealID, fad.Miner)
+	log.Debugf("finalized deal from auction (%s, %s), batch %s, deal-id %s, storage-provider %s",
+		fad.AuctionID, fad.BidID, fad.BatchID, fad.DealID, fad.StorageProviderID)
 
 	ctx, err = b.store.CtxWithTx(ctx)
 	if err != nil {
@@ -485,17 +485,17 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 	}
 	deals, err := b.store.GetDeals(ctx, ba.ID)
 	if err != nil {
-		return fmt.Errorf("adding miner deals: %s", err)
+		return fmt.Errorf("adding storage-provider deals: %s", err)
 	}
 
 	// 1.a If the finalized deal errored, we should create a new auction with replication factor 1,
 	//     and we're done.
 	if fad.ErrorCause != "" {
-		var excludedMiners []string
+		var excludedStorageProviders []string
 		for _, deal := range deals {
-			excludedMiners = append(excludedMiners, deal.MinerID)
+			excludedStorageProviders = append(excludedStorageProviders, deal.StorageProviderID)
 		}
-		log.Infof("creating new auction for failed deal with miner %s", fad.Miner)
+		log.Infof("creating new auction for failed deal with storage-provider %s", fad.StorageProviderID)
 
 		auctionID, err := b.newID()
 		if err != nil {
@@ -511,7 +511,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context, fad broker.FinalizedDea
 			ba.DealDuration,
 			1,
 			b.conf.verifiedDeals,
-			excludedMiners,
+			excludedStorageProviders,
 			ba.FilEpochDeadline,
 			ba.Sources,
 		); err != nil {

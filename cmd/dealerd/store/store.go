@@ -48,7 +48,7 @@ type AuctionData struct {
 	CreatedAt  time.Time
 }
 
-// AuctionDeal contains information to make a deal with a particular miner. The data information is stored
+// AuctionDeal contains information to make a deal with a particular storage-provider. The data information is stored
 // in the linked AuctionData.
 type AuctionDeal db.AuctionDeal
 
@@ -125,7 +125,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 			if err := txn.CreateAuctionDeal(ctx, db.CreateAuctionDealParams{
 				ID:                  deal.ID,
 				AuctionDataID:       deal.AuctionDataID,
-				MinerID:             deal.MinerID,
+				StorageProviderID:   deal.StorageProviderID,
 				PricePerGibPerEpoch: deal.PricePerGibPerEpoch,
 				StartEpoch:          deal.StartEpoch,
 				Verified:            deal.Verified,
@@ -177,7 +177,7 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 		rows, err := q.UpdateAuctionDeal(ctx, db.UpdateAuctionDealParams{
 			ID:                  aud.ID,
 			AuctionDataID:       aud.AuctionDataID,
-			MinerID:             aud.MinerID,
+			StorageProviderID:   aud.StorageProviderID,
 			PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
 			StartEpoch:          aud.StartEpoch,
 			Verified:            aud.Verified,
@@ -313,8 +313,8 @@ func validate(ad *AuctionData, ads []*AuctionDeal) error {
 	}
 
 	for _, auctionDeal := range ads {
-		if auctionDeal.MinerID == "" {
-			return errors.New("miner address is empty")
+		if auctionDeal.StorageProviderID == "" {
+			return errors.New("storage-provider address is empty")
 		}
 		if auctionDeal.PricePerGibPerEpoch < 0 {
 			return errors.New("price-per-gib-per-epoch is negative")

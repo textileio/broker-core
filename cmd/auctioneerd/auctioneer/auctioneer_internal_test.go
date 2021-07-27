@@ -18,6 +18,10 @@ func TestAcceptBid(t *testing.T) {
 	require.False(t, acceptBid(&auctioneer.Auction{FilEpochDeadline: 89999}, &core.Bid{}))
 
 	require.True(t, acceptBid(&auctioneer.Auction{}, &core.Bid{MinerAddr: "f0001"}))
-	require.True(t, acceptBid(&auctioneer.Auction{ExcludedMiners: []string{"f0002"}}, &core.Bid{MinerAddr: "f0001"}))
-	require.False(t, acceptBid(&auctioneer.Auction{ExcludedMiners: []string{"f0001"}}, &core.Bid{MinerAddr: "f0001"}))
+	require.True(t, acceptBid(&auctioneer.Auction{
+		ExcludedStorageProviders: []string{"f0002"}},
+		&core.Bid{MinerAddr: "f0001"}))
+	require.False(t, acceptBid(&auctioneer.Auction{
+		ExcludedStorageProviders: []string{"f0001"},
+	}, &core.Bid{MinerAddr: "f0001"}))
 }
