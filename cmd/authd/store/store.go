@@ -55,6 +55,30 @@ func (s *Store) GetAuthToken(ctx context.Context, token string) (AuthToken, bool
 	return AuthToken(rt), true, nil
 }
 
+// CreateAuthToken creates a new authentication token.
+func (s *Store) CreateAuthToken(ctx context.Context, token, identity, origin string) error {
+	if identity == "" {
+		return errors.New("identity is empty")
+	}
+	if token == "" {
+		return errors.New("token is empty")
+	}
+	if origin == "" {
+		return errors.New("origin is empty")
+	}
+	params := db.CreateAuthTokenParams{
+		Token:    token,
+		Identity: identity,
+		Origin:   origin,
+	}
+	err := s.db.CreateAuthToken(ctx, params)
+	if err != nil {
+		return fmt.Errorf("db create auth token: %s", err)
+	}
+
+	return nil
+}
+
 // Close closes the store.
 func (s *Store) Close() error {
 	if err := s.conn.Close(); err != nil {

@@ -128,6 +128,23 @@ func TestService_detectInput(t *testing.T) {
 	require.Equal(t, chainToken, input.tokenType)
 }
 
+func TestService_RawAuthToken(t *testing.T) {
+	s := newService(t)
+	ctx := context.Background()
+	err := s.store.CreateAuthToken(ctx, "TOKEN-1", "IDENTITY-1", "ORIGIN-1")
+	require.NoError(t, err)
+
+	// Valid case.
+	res, err := s.Auth(ctx, &pb.AuthRequest{Token: "TOKEN-1"})
+	require.NoError(t, err)
+	require.Equal(t, "IDENTITY-1", res.Identity)
+	require.Equal(t, "ORIGIN-1", res.Origin)
+
+	// Error case.
+	res, err = s.Auth(ctx, &pb.AuthRequest{Token: "TOKEN-X"})
+	require.Error(t, err)
+}
+
 func TestService_ValidateLockedFunds(t *testing.T) {
 	// Funds ok
 	sub := "sub"
