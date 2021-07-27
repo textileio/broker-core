@@ -14,12 +14,12 @@ import (
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/filclient"
-	"github.com/textileio/bidbot/lib/finalizer"
-	"github.com/textileio/bidbot/lib/marketpeer"
+	"github.com/textileio/bidbot/lib/peerflags"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 )
@@ -56,7 +56,7 @@ func init() {
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
-	flags = append(flags, marketpeer.Flags...)
+	flags = append(flags, peerflags.Flags...)
 
 	cobra.OnInitialize(func() {
 		v.SetConfigType("json")
@@ -92,7 +92,7 @@ environment variable:
 `,
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
-		path, err := marketpeer.WriteConfig(v, "AUCTIONEER_PATH", defaultConfigPath)
+		path, err := peerflags.WriteConfig(v, "AUCTIONEER_PATH", defaultConfigPath)
 		common.CheckErrf("writing config: %v", err)
 		fmt.Printf("Initialized configuration file: %s\n", path)
 	},
@@ -109,14 +109,14 @@ var daemonCmd = &cobra.Command{
 			"auctioneer",
 			"auctioneer/queue",
 			"auctioneer/service",
-			"mpeer",
-			"mpeer/pubsub",
-			"mpeer/mdns",
+			"psrpc",
+			"psrpc/pubsub",
+			"psrpc/mdns",
 		})
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		pconfig, err := marketpeer.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
+		pconfig, err := peerflags.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
 		common.CheckErrf("getting peer config: %v", err)
 
 		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "private-key", "wallet-addr-sig", "gpubsub-api-key")
