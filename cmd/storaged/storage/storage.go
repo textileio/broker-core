@@ -5,12 +5,13 @@ import (
 	"io"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/broker-core/auth"
 )
 
 // Requester contains handles raw-files uploads of data to be
 // stored with the Broker service.
 type Requester interface {
-	IsAuthorized(ctx context.Context, identity string) (bool, string, error)
+	IsAuthorized(ctx context.Context, identity string) (auth.AuthorizedEntity, bool, string, error)
 	CreateFromReader(ctx context.Context, r io.Reader) (Request, error)
 	CreateFromExternalSource(ctx context.Context, adr AuctionDataRequest) (Request, error)
 	GetCARHeader(ctx context.Context, c cid.Cid, w io.Writer) (bool, error)

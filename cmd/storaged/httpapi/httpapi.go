@@ -12,6 +12,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/auth"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -26,7 +27,7 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester, maxUploadS
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
-		Handler:           createMux(s, skipAuth, maxUploadSize),
+		Handler:           createMux(s, maxUploadSize),
 	}
 
 	log.Info("running HTTP API...")
@@ -39,18 +40,18 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester, maxUploadS
 	return httpServer, nil
 }
 
-func createMux(s storage.Requester, skipAuth bool, maxUploadSize uint) *http.ServeMux {
+func createMux(s storage.Requester, maxUploadSize uint) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 
-	uploadHandler := wrapMiddlewares(s, skipAuth, uploadHandler(s, maxUploadSize), "upload")
+	uploadHandler := wrapMiddlewares(uploadHandler(s, maxUploadSize), "upload")
 	mux.Handle("/upload", uploadHandler)
 
-	storageRequestStatusHandler := wrapMiddlewares(s, true, storageRequestHandler(s), "storagerequest")
+	storageRequestStatusHandler := wrapMiddlewares(storageRequestHandler(s), "storagerequest")
 	mux.Handle("/storagerequest/", storageRequestStatusHandler)
 
-	auctionDataHandler := wrapMiddlewares(s, skipAuth, auctionDataHandler(s), "auction-data")
+	auctionDataHandler := wrapMiddlewares(auctionDataHandler(s), "auction-data")
 	mux.Handle("/auction-data", auctionDataHandler)
 
 	mux.HandleFunc("/car/", carDownloadHandler(s))
@@ -66,11 +67,8 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func wrapMiddlewares(s storage.Requester, skipAuth bool, h http.HandlerFunc, name string) http.Handler {
+func wrapMiddlewares(h http.HandlerFunc, name string) http.Handler {
 	handler := instrumentHandler(h, name)
-	if !skipAuth {
-		handler = authenticateHandler(handler, s)
-	}
 	handler = corsHandler(handler)
 
 	return handler
@@ -93,41 +91,16 @@ func corsHandler(h http.Handler) http.Handler {
 	})
 }
 
-func authenticateHandler(h http.Handler, s storage.Requester) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader, ok := r.Header["Authorization"]
-		if !ok || len(authHeader) == 0 {
-			httpError(w, "Authorization header is required", http.StatusUnauthorized)
-			return
-		}
-		if len(authHeader) > 1 {
-			httpError(w, "there should only be one authorization value", http.StatusBadRequest)
-			return
-		}
-		authParts := strings.SplitN(authHeader[0], " ", 2)
-		if len(authParts) != 2 {
-			httpError(w, "invalid authorization value", http.StatusBadRequest)
-			return
-		}
-
-		ok, authErr, err := s.IsAuthorized(r.Context(), authParts[1])
-		if err != nil {
-			httpError(w, fmt.Sprintf("calling authorizer: %s", err), http.StatusInternalServerError)
-			return
-		}
-		if !ok {
-			httpError(w, fmt.Sprintf("unauthorized: %s", authErr), http.StatusUnauthorized)
-			return
-		}
-
-		h.ServeHTTP(w, r)
-	})
-}
-
 func uploadHandler(s storage.Requester, maxUploadSize uint) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
+			return
+		}
+
+		_, status, err := getAuth(r, s)
+		if err != nil {
+			httpError(w, err.Error(), status)
 			return
 		}
 
@@ -217,6 +190,13 @@ func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 			return
 		}
+
+		_, status, err := getAuth(r, s)
+		if err != nil {
+			httpError(w, err.Error(), status)
+			return
+		}
+
 		body := http.MaxBytesReader(w, r.Body, 1<<20)
 
 		jsonDecoder := json.NewDecoder(body)
@@ -239,6 +219,31 @@ func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 			return
 		}
 	}
+}
+
+func getAuth(r *http.Request, s storage.Requester) (auth.AuthorizedEntity, int, error) {
+	authHeader, ok := r.Header["Authorization"]
+	if !ok || len(authHeader) == 0 {
+		return auth.AuthorizedEntity{}, http.StatusBadRequest, errors.New("authorization header is required")
+	}
+	if len(authHeader) > 1 {
+		return auth.AuthorizedEntity{}, http.StatusBadRequest, errors.New("only one authorization header is allowed")
+	}
+	authParts := strings.SplitN(authHeader[0], " ", 2)
+	if len(authParts) != 2 {
+		return auth.AuthorizedEntity{}, http.StatusBadRequest, errors.New("invalid authorization format")
+	}
+
+	ae, ok, authErr, err := s.IsAuthorized(r.Context(), authParts[1])
+	if err != nil {
+		log.Errorf("authorizer: %s", err)
+		return auth.AuthorizedEntity{}, http.StatusInternalServerError, fmt.Errorf("authorization failed")
+	}
+	if !ok {
+		return auth.AuthorizedEntity{}, http.StatusUnauthorized, fmt.Errorf("authorization failed: %s", authErr)
+	}
+
+	return ae, http.StatusOK, nil
 }
 
 func httpError(w http.ResponseWriter, err string, status int) {

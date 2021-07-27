@@ -12,6 +12,7 @@ import (
 	"github.com/textileio/broker-core/storeutil"
 )
 
+// AuthToken is an authorization token.
 type AuthToken db.AuthToken
 
 // Store is a store for authentication information.
