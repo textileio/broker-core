@@ -13,6 +13,7 @@ type Requester interface {
 	IsAuthorized(ctx context.Context, identity string) (bool, string, error)
 	CreateFromReader(ctx context.Context, r io.Reader) (Request, error)
 	CreateFromExternalSource(ctx context.Context, adr AuctionDataRequest) (Request, error)
+	GetCARHeader(ctx context.Context, c cid.Cid, w io.Writer) (bool, error)
 	GetCAR(ctx context.Context, c cid.Cid, w io.Writer) (bool, error)
 	GetRequestInfo(ctx context.Context, id string) (RequestInfo, error)
 }

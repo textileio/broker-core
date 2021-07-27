@@ -341,6 +341,23 @@ func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage
 	return sri, nil
 }
 
+// GetCARHeader generates a CAR header from the provided Cid and writes it to a io.Writer.
+// If the Cid can not be found, it does nothing and returns false without error.
+func (bs *BrokerStorage) GetCARHeader(ctx context.Context, c cid.Cid, w io.Writer) (bool, error) {
+	_, found := ipfsutil.GetNodeGetterForCid(bs.ipfsApis, c)
+	if !found {
+		return false, nil
+	}
+	h := &car.CarHeader{
+		Roots:   []cid.Cid{c},
+		Version: 1,
+	}
+	if err := car.WriteHeader(h, w); err != nil {
+		return true, fmt.Errorf("failed to write car header: %s", err)
+	}
+	return true, nil
+}
+
 // GetCAR generates a CAR file from the provided Cid and writes it a io.Writer.
 // If the Cid can not be found, it does nothing and returns false without error.
 func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) (bool, error) {

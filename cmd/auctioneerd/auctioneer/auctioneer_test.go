@@ -17,17 +17,18 @@ import (
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/datauri/apitest"
 	"github.com/textileio/bidbot/lib/dshelper"
-	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/bidbot/lib/logging"
-	"github.com/textileio/bidbot/lib/marketpeer"
-	filclientmocks "github.com/textileio/bidbot/lib/mocks/filclient"
-	lotusclientmocks "github.com/textileio/bidbot/lib/mocks/lotusclient"
+	filclientmocks "github.com/textileio/bidbot/mocks/lib/filclient"
+	lotusclientmocks "github.com/textileio/bidbot/mocks/service/lotusclient"
 	bidbotsrv "github.com/textileio/bidbot/service"
+	"github.com/textileio/bidbot/service/limiter"
 	bidstore "github.com/textileio/bidbot/service/store"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
+	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -47,8 +48,8 @@ func init() {
 		"auctioneer/service": golog.LevelDebug,
 		"bidbot/service":     golog.LevelDebug,
 		"bidbot/store":       golog.LevelDebug,
-		"mpeer":              golog.LevelDebug,
-		"mpeer/pubsub":       golog.LevelDebug,
+		"psrpc/peer":         golog.LevelDebug,
+		"psrpc":              golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
@@ -191,7 +192,7 @@ func newClient(t *testing.T, attempts uint32) *service.Service {
 	listener := bufconn.Listen(bufConnSize)
 	fin.Add(listener)
 	config := service.Config{
-		Peer: marketpeer.Config{
+		Peer: rpcpeer.Config{
 			RepoPath:   dir,
 			EnableMDNS: true,
 		},
@@ -229,7 +230,7 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 		fin.Add(store)
 
 		config := bidbotsrv.Config{
-			Peer: marketpeer.Config{
+			Peer: rpcpeer.Config{
 				RepoPath:   dir,
 				EnableMDNS: true,
 			},
@@ -253,6 +254,7 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 					Max: 32 * 1000 * 1000 * 1000,
 				},
 			},
+			BytesLimiter: limiter.NopeLimiter{},
 		}
 
 		s, err := bidbotsrv.New(config, store, newLotusClientMock(), newFilClientMock())
