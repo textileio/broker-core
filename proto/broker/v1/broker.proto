@@ -76,7 +76,7 @@ message ReadyToAuction {
     uint64 deal_duration = 5;
     uint32 deal_replication = 6;
     bool deal_verified = 7;
-    repeated string excluded_miners = 8;
+    repeated string excluded_storage_providers = 8;
     uint64 fil_epoch_deadline = 9;
     Sources sources = 10;
 }

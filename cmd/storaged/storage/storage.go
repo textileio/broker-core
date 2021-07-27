@@ -53,9 +53,9 @@ type RequestInfo struct {
 
 // Deal contains information of an on-chain deal.
 type Deal struct {
-	Miner      string `json:"miner"`
-	DealID     int64  `json:"deal_id"`
-	Expiration uint64 `json:"deal_expiration"`
+	StorageProviderID string `json:"storage_provider_id"`
+	DealID            int64  `json:"deal_id"`
+	Expiration        uint64 `json:"deal_expiration"`
 }
 
 // AuctionDataRequest contains information about a prepared dataset hosted externally.

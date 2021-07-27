@@ -331,9 +331,9 @@ func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage
 
 	for _, d := range br.Deals {
 		deal := storage.Deal{
-			Miner:      d.StorageProviderID,
-			DealID:     d.DealID,
-			Expiration: d.Expiration,
+			StorageProviderID: d.StorageProviderID,
+			DealID:            d.DealID,
+			Expiration:        d.Expiration,
 		}
 		sri.Deals = append(sri.Deals, deal)
 	}

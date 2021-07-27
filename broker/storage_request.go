@@ -14,9 +14,9 @@ const (
 	DefaultPreparedCARDeadline = time.Hour * 48
 	// MaxPieceSize is the maximum piece size accepted for prepared data.
 	MaxPieceSize = 32 << 30
-	// MinDealReplication is the minimum allowed deal replication requested of miners.
+	// MinDealReplication is the minimum allowed deal replication requested of storage-providers.
 	MinDealReplication = 1
-	// MaxDealReplication is the maximum allowed deal replication requested of miners.
+	// MaxDealReplication is the maximum allowed deal replication requested of storage-providers.
 	MaxDealReplication = 10
 )
 

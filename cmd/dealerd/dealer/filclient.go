@@ -14,7 +14,7 @@ type FilClient interface {
 	GetChainHeight(ctx context.Context) (uint64, error)
 	ResolveDealIDFromMessage(ctx context.Context, proposalCid cid.Cid, publishDealMessage cid.Cid) (int64, error)
 	CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, bool, error)
-	CheckDealStatusWithMiner(
+	CheckDealStatusWithStorageProvider(
 		ctx context.Context,
 		storageProviderID string,
 		propCid cid.Cid) (*storagemarket.ProviderDealState, error)

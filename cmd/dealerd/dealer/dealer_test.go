@@ -221,7 +221,7 @@ func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	fc := &fcMock{}
 	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
 
-	cdswmCall := fc.On("CheckDealStatusWithMiner", mock.Anything, mock.Anything, mock.Anything)
+	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&storagemarket.ProviderDealState{
 		PublishCid: &fakePublishDealMessage,
 	}, nil)
@@ -281,7 +281,7 @@ func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint6
 	args := fc.Called(ctx, dealID)
 	return args.Bool(0), args.Get(1).(uint64), args.Bool(2), args.Error(3)
 }
-func (fc *fcMock) CheckDealStatusWithMiner(
+func (fc *fcMock) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
 	storageProviderID string,
 	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {

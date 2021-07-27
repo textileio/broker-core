@@ -48,7 +48,7 @@ type AuctionData struct {
 	CreatedAt  time.Time
 }
 
-// AuctionDeal contains information to make a deal with a particular miner. The data information is stored
+// AuctionDeal contains information to make a deal with a particular storage-provider. The data information is stored
 // in the linked AuctionData.
 type AuctionDeal db.AuctionDeal
 
@@ -314,7 +314,7 @@ func validate(ad *AuctionData, ads []*AuctionDeal) error {
 
 	for _, auctionDeal := range ads {
 		if auctionDeal.StorageProviderID == "" {
-			return errors.New("miner address is empty")
+			return errors.New("storage-provider address is empty")
 		}
 		if auctionDeal.PricePerGibPerEpoch < 0 {
 			return errors.New("price-per-gib-per-epoch is negative")

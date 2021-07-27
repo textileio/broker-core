@@ -449,7 +449,7 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 	return
 }
 
-// GetDeals gets miner deals for a batch.
+// GetDeals gets storage-provider deals for a batch.
 func (s *Store) GetDeals(ctx context.Context, id broker.BatchID) (deals []db.Deal, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
 		deals, err = q.GetDeals(ctx, id)
@@ -475,7 +475,7 @@ func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 		rows, err := q.UpdateDeals(ctx,
 			db.UpdateDealsParams{
 				BatchID:           fad.BatchID,
-				StorageProviderID: fad.Miner,
+				StorageProviderID: fad.StorageProviderID,
 				DealExpiration:    fad.DealExpiration,
 				DealID:            fad.DealID,
 				ErrorCause:        fad.ErrorCause,

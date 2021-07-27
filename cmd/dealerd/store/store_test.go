@@ -76,7 +76,7 @@ func TestCreateFail(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("auction-deal empty miner", func(t *testing.T) {
+	t.Run("auction-deal empty storage-provider", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
 		aud := gaud1

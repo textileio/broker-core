@@ -110,21 +110,21 @@ func (s *Service) OnReadyToAuction(
 	dealSize, dealDuration uint64,
 	dealReplication uint32,
 	dealVerified bool,
-	excludedMiners []string,
+	excludedStorageProviders []string,
 	filEpochDeadline uint64,
 	sources auction.Sources,
 ) error {
 	err := s.lib.CreateAuction(core.Auction{
-		ID:               id,
-		BatchID:          sdID,
-		PayloadCid:       payloadCid,
-		DealSize:         dealSize,
-		DealDuration:     dealDuration,
-		DealReplication:  dealReplication,
-		DealVerified:     dealVerified,
-		ExcludedMiners:   excludedMiners,
-		FilEpochDeadline: filEpochDeadline,
-		Sources:          sources,
+		ID:                       id,
+		BatchID:                  sdID,
+		PayloadCid:               payloadCid,
+		DealSize:                 dealSize,
+		DealDuration:             dealDuration,
+		DealReplication:          dealReplication,
+		DealVerified:             dealVerified,
+		ExcludedStorageProviders: excludedStorageProviders,
+		FilEpochDeadline:         filEpochDeadline,
+		Sources:                  sources,
 	})
 	if err != nil {
 		return fmt.Errorf("processing ready-to-auction msg: %s", err)
@@ -133,7 +133,7 @@ func (s *Service) OnReadyToAuction(
 	return nil
 }
 
-// OnDealProposalAccepted receives an accepted deal proposal from a miner.
+// OnDealProposalAccepted receives an accepted deal proposal from a storage-provider.
 func (s *Service) OnDealProposalAccepted(
 	ctx context.Context,
 	auctionID auction.AuctionID,
