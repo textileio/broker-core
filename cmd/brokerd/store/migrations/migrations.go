@@ -94,15 +94,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "001_init.down.sql", size: 96, mode: os.FileMode(420), modTime: time.Unix(1627341929, 0)}
-=======
-	info := bindataFileInfo{name: "001_init.down.sql", size: 96, mode: os.FileMode(436), modTime: time.Unix(1627387286, 0)}
->>>>>>> 654500d... rename: minerID to storageProviderID
-=======
-	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(436), modTime: time.Unix(1627393229, 0)}
->>>>>>> f7935aa... rename: more renamings
+	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(436), modTime: time.Unix(1627393930, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -122,11 +114,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1926, mode: os.FileMode(420), modTime: time.Unix(1627341929, 0)}
-=======
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1959, mode: os.FileMode(436), modTime: time.Unix(1627392429, 0)}
->>>>>>> 654500d... rename: minerID to storageProviderID
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1959, mode: os.FileMode(436), modTime: time.Unix(1627393919, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
