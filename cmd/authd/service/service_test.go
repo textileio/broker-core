@@ -108,22 +108,19 @@ func TestService_validateToken(t *testing.T) {
 func TestService_detectInput(t *testing.T) {
 	// Valid token
 	token := TOKEN
-	input, err := detectInput(token)
-	require.NoError(t, err)
+	input := detectInput(token)
 	require.Equal(t, token, input.token)
 	require.Equal(t, chainToken, input.tokenType)
 
 	// Raw token
 	token = "RAW_TOKEN"
-	input, err = detectInput(token)
-	require.NoError(t, err)
+	input = detectInput(token)
 	require.Equal(t, token, input.token)
 	require.Equal(t, rawToken, input.tokenType)
 
 	// Valid token with no height
 	token = TOKEN
-	input, err = detectInput(token)
-	require.NoError(t, err)
+	input = detectInput(token)
 	require.Equal(t, token, input.token)
 	require.Equal(t, chainToken, input.tokenType)
 }
@@ -143,7 +140,7 @@ func TestService_RawAuthToken(t *testing.T) {
 	require.Equal(t, "ORIGIN-1", res.Origin)
 
 	// Error case.
-	res, err = s.Auth(ctx, &pb.AuthRequest{Token: "TOKEN-X"})
+	_, err = s.Auth(ctx, &pb.AuthRequest{Token: "TOKEN-X"})
 	require.Error(t, err)
 }
 

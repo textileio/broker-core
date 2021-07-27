@@ -33,13 +33,16 @@ var _ auth.Authorizer = (*AuthService)(nil)
 
 // IsAuthorized returns the identity that is authorized to use the storage service, otherwise returning an error.
 // The token is a base64 URL encoded JWT.
-func (a *AuthService) IsAuthorized(ctx context.Context, token string) (bool, string, error) {
+func (a *AuthService) IsAuthorized(ctx context.Context, token string) (auth.AuthorizedEntity, bool, string, error) {
 	req := &authd.AuthRequest{Token: token}
-	_, err := a.client.Auth(ctx, req)
+	res, err := a.client.Auth(ctx, req)
 	if status.Code(err) == codes.Unauthenticated {
-		return false, err.Error(), nil
+		return auth.AuthorizedEntity{}, false, err.Error(), nil
 	} else if err != nil {
-		return false, err.Error(), err
+		return auth.AuthorizedEntity{}, false, err.Error(), err
 	}
-	return true, "", nil
+	return auth.AuthorizedEntity{
+		Identity: res.Identity,
+		Origin:   res.Origin,
+	}, true, "", nil
 }

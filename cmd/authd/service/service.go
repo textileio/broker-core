@@ -104,19 +104,19 @@ type AuthClaims struct {
 	jwt.StandardClaims
 }
 
-func detectInput(token string) (*detectedInput, error) {
+func detectInput(token string) *detectedInput {
 	parts := strings.Split(token, ".")
 	if len(parts) == 3 {
 		return &detectedInput{
 			token:     token,
 			tokenType: chainToken,
-		}, nil
+		}
 	}
 
 	return &detectedInput{
 		token:     token,
 		tokenType: rawToken,
-	}, nil
+	}
 }
 
 // validateToken validates the JWT token.
@@ -211,14 +211,11 @@ func validateDepositedFunds(
 // 3. Validates that the user has locked funds on-chain using a service provided by neard.
 // It returns the key DID.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	validInput, err := detectInput(req.Token)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid request input: %s (%v)", req, err)
-	}
+	input := detectInput(req.Token)
 
-	switch validInput.tokenType {
+	switch input.tokenType {
 	case rawToken:
-		rt, ok, err := s.store.GetAuthToken(ctx, validInput.token)
+		rt, ok, err := s.store.GetAuthToken(ctx, input.token)
 		if err != nil {
 			return nil, fmt.Errorf("find raw token: %s", err)
 		}
@@ -232,7 +229,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		}, nil
 	case chainToken:
 		// Validate the JWT token.
-		token, err := validateToken(validInput.token)
+		token, err := validateToken(input.token)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", err)
 		}
