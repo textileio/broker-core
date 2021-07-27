@@ -13,6 +13,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM alpine
 
+# TODO(jsign): k8 stuff
 RUN apk --no-cache add postgresql-client
 COPY /bin/with-postgres.sh /app/
 

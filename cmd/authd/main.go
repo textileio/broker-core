@@ -21,6 +21,7 @@ var (
 
 func init() {
 	flags := []common.Flag{
+		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "near-addr", DefValue: "", Description: "NEAR chain API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -41,7 +42,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"))
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "postgres-uri")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -59,7 +60,10 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("creating listener connection: %v", err)
 		}
-		config := service.Config{Listener: listener}
+		config := service.Config{
+			Listener:    listener,
+			PostgresURI: v.GetString("postgres-uri"),
+		}
 		deps := service.Deps{NearAPI: nearAPIClient}
 		serv, err := service.New(config, deps)
 		common.CheckErr(err)

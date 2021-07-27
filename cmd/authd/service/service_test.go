@@ -1,4 +1,4 @@
-package service_test
+package service
 
 import (
 	"context"
@@ -10,11 +10,10 @@ import (
 	"github.com/textileio/bidbot/lib/logging"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	mocks "github.com/textileio/broker-core/mocks/chainapi"
+	"github.com/textileio/broker-core/tests"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
-
-	"github.com/textileio/broker-core/cmd/authd/service"
 )
 
 const bufSize = 1024 * 1024
@@ -64,28 +63,28 @@ func TestService_validateKeyDID(t *testing.T) {
 	// Valid sub, valid x
 	sub := "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4"
 	x := "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM="
-	ok, err := service.ValidateKeyDID(sub, x)
+	ok, err := validateKeyDID(sub, x)
 	require.NoError(t, err)
 	require.True(t, ok)
 
 	// Valid sub, invalid x
 	sub = "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4"
 	x = "INVALID_X"
-	ok, err = service.ValidateKeyDID(sub, x)
+	ok, err = validateKeyDID(sub, x)
 	require.Error(t, err)
 	require.False(t, ok)
 
 	// Invalid sub, valid x
 	sub = "INVALID_SUB"
 	x = "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM="
-	ok, err = service.ValidateKeyDID(sub, x)
+	ok, err = validateKeyDID(sub, x)
 	require.Error(t, err)
 	require.False(t, ok)
 
 	// Invalid sub, Invalid x
 	sub = "INVALID_SUB"
 	x = "INVALID_X"
-	ok, err = service.ValidateKeyDID(sub, x)
+	ok, err = validateKeyDID(sub, x)
 	require.Error(t, err)
 	require.False(t, ok)
 }
@@ -93,7 +92,7 @@ func TestService_validateKeyDID(t *testing.T) {
 func TestService_validateToken(t *testing.T) {
 	// Valid token
 	token := TOKEN
-	output, err := service.ValidateToken(token)
+	output, err := validateToken(token)
 	require.NoError(t, err)
 	require.Equal(t, output.Iss, "carsonfarmer.testnet")
 	require.Equal(t, output.Sub, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
@@ -102,28 +101,31 @@ func TestService_validateToken(t *testing.T) {
 
 	// Invalid token
 	token = "INVALID_TOKEN"
-	output, err = service.ValidateToken(token)
+	output, err = validateToken(token)
 	require.Error(t, err)
 	require.Nil(t, output)
 }
-func TestService_validateInput(t *testing.T) {
+func TestService_detectInput(t *testing.T) {
 	// Valid token
 	token := TOKEN
-	input, err := service.ValidateInput(token)
+	input, err := detectInput(token)
 	require.NoError(t, err)
-	require.Equal(t, token, input.Token)
+	require.Equal(t, token, input.token)
+	require.Equal(t, chainToken, input.tokenType)
 
-	// Invalid token with valid height
-	token = "INVALID_TOKEN"
-	input, err = service.ValidateInput(token)
-	require.Error(t, err)
-	require.Nil(t, input)
+	// Raw token
+	token = "RAW_TOKEN"
+	input, err = detectInput(token)
+	require.NoError(t, err)
+	require.Equal(t, token, input.token)
+	require.Equal(t, rawToken, input.tokenType)
 
 	// Valid token with no height
 	token = TOKEN
-	input, err = service.ValidateInput(token)
+	input, err = detectInput(token)
 	require.NoError(t, err)
-	require.Equal(t, token, input.Token)
+	require.Equal(t, token, input.token)
+	require.Equal(t, chainToken, input.tokenType)
 }
 
 func TestService_ValidateLockedFunds(t *testing.T) {
@@ -137,7 +139,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 	).Return(true, nil)
-	ok, err := service.ValidateDepositedFunds(context.Background(), aud, sub, mockChain)
+	ok, err := validateDepositedFunds(context.Background(), aud, sub, mockChain)
 	require.NoError(t, err)
 	require.True(t, ok)
 	mockChain.AssertExpectations(t)
@@ -150,7 +152,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 	).Return(false, nil)
-	ok, err = service.ValidateDepositedFunds(context.Background(), aud, sub, mockChain)
+	ok, err = validateDepositedFunds(context.Background(), aud, sub, mockChain)
 	require.Error(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
@@ -185,11 +187,16 @@ func newChainAPIClientMock() *mocks.ChainAPI {
 	return mockChain
 }
 
-func newService(t *testing.T) *service.Service {
+func newService(t *testing.T) *Service {
 	listener := bufconn.Listen(bufSize)
-	config := service.Config{Listener: listener}
-	deps := service.Deps{NearAPI: newChainAPIClientMock()}
-	serv, err := service.New(config, deps)
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	config := Config{
+		Listener:    listener,
+		PostgresURI: u,
+	}
+	deps := Deps{NearAPI: newChainAPIClientMock()}
+	serv, err := New(config, deps)
 	require.NoError(t, err)
 	return serv
 }
