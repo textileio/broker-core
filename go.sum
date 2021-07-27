@@ -304,7 +304,6 @@ github.com/dgraph-io/ristretto v0.0.2/go.mod h1:KPxhHT9ZxKefz+PCeOGsrHpl1qZ7i70d
 github.com/dgraph-io/ristretto v0.0.3-0.20200630154024-f66de99634de/go.mod h1:KPxhHT9ZxKefz+PCeOGsrHpl1qZ7i70dGTu2u+Ahh6E=
 github.com/dgraph-io/ristretto v0.0.4-0.20210122082011-bb5d392ed82d h1:eQYOG6A4td1tht0NdJB9Ls6DsXRGb2Ft6X9REU/MbbE=
 github.com/dgraph-io/ristretto v0.0.4-0.20210122082011-bb5d392ed82d/go.mod h1:tv2ec8nA7vRpSYX7/MbP52ihrUMXIHit54CQMq8npXQ=
-github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-bitstream v0.0.0-20180413035011-3522498ce2c8/go.mod h1:VMaSuZ+SZcx/wljOQKvp5srsbCiKDEb6K2wC4+PiBmQ=
 github.com/dgryski/go-farm v0.0.0-20190104051053-3adb47b1fb0f/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
@@ -562,6 +561,8 @@ github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69
 github.com/gogo/status v1.0.3/go.mod h1:SavQ51ycCLnc7dGyJxp8YAmudx8xqiVrRf+6IXRsugc=
 github.com/gogo/status v1.1.0 h1:+eIkrewn5q6b30y+g/BJINVVdi2xH7je5MPJ3ZPK3JA=
 github.com/gogo/status v1.1.0/go.mod h1:BFv9nrluPLmrS0EmGVvLaPNmRosr9KapBYd5/hpY1WM=
+github.com/golang-jwt/jwt v3.2.1+incompatible h1:73Z+4BJcrTC+KczS6WvTPvRGOp1WmfEP4Q1lOd9Z/+c=
+github.com/golang-jwt/jwt v3.2.1+incompatible/go.mod h1:8pz2t5EyA70fFQQSrl6XZXzqecmYZeUEB8OUGHkxJ+I=
 github.com/golang-migrate/migrate/v4 v4.14.1 h1:qmRd/rNGjM1r3Ve5gHd5ZplytrD02UcItYNxJ3iUHHE=
 github.com/golang-migrate/migrate/v4 v4.14.1/go.mod h1:l7Ks0Au6fYHuUIxUhQ0rcVX1uLlJg54C/VvW7tvxSz0=
 github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe/go.mod h1:8vg3r2VgvsThLBIFL93Qb5yWzgyZWhEmBwUJWevAkK0=
@@ -1342,8 +1343,8 @@ github.com/libp2p/go-libp2p-protocol v0.1.0/go.mod h1:KQPHpAabB57XQxGrXCNvbL6UEX
 github.com/libp2p/go-libp2p-pubsub v0.1.1/go.mod h1:ZwlKzRSe1eGvSIdU5bD7+8RZN/Uzw0t1Bp9R1znpR/Q=
 github.com/libp2p/go-libp2p-pubsub v0.3.2-0.20200527132641-c0712c6e92cf/go.mod h1:TxPOBuo1FPdsTjFnv+FGZbNbWYsp74Culx+4ViQpato=
 github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210212194758-6c1addf493eb/go.mod h1:izkeMLvz6Ht8yAISXjx60XUQZMq9ZMe5h2ih4dLIBIQ=
-github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210517161200-e6ad80cf4782 h1:LGsbfJ6gYdhIdoj2Wp16/dguR1aTSqK+MA1c6wwMRGg=
-github.com/libp2p/go-libp2p-pubsub v0.4.2-0.20210517161200-e6ad80cf4782/go.mod h1:MKnrsQkFgPcrQs1KVmOXy6Uz2RDQ1xO7dQo/P0Ba+ig=
+github.com/libp2p/go-libp2p-pubsub v0.5.0 h1:OzcIuCWyJpOrWH0PTOfvxTzqFur4tiXpY5jXC8OxjyE=
+github.com/libp2p/go-libp2p-pubsub v0.5.0/go.mod h1:MKnrsQkFgPcrQs1KVmOXy6Uz2RDQ1xO7dQo/P0Ba+ig=
 github.com/libp2p/go-libp2p-quic-transport v0.1.1/go.mod h1:wqG/jzhF3Pu2NrhJEvE+IE0NTHNXslOPn9JQzyCAxzU=
 github.com/libp2p/go-libp2p-quic-transport v0.5.0/go.mod h1:IEcuC5MLxvZ5KuHKjRu+dr3LjCT1Be3rcD/4d8JrX8M=
 github.com/libp2p/go-libp2p-quic-transport v0.9.0/go.mod h1:xyY+IgxL0qsW7Kiutab0+NlxM0/p9yRtrGTYsuMWf70=
@@ -2008,8 +2009,8 @@ github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpP
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954 h1:xQdMZ1WLrgkkvOZ/LDQxjVxMLdby7osSh4ZEVa5sIjs=
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954/go.mod h1:u2MKkTVTVJWe5D1rCvame8WqhBd88EuIwODJZ1VHCPM=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
-github.com/textileio/bidbot v0.0.5-0.20210720130729-168109d189e2 h1:u2ama6Xd63oABAgTrYYQb/pSQv7dccd37IhgDq0kN90=
-github.com/textileio/bidbot v0.0.5-0.20210720130729-168109d189e2/go.mod h1:ukN5+Re+UZyiAHUt5RwZC7xoKyz9rXWy1nqucGfyNlk=
+github.com/textileio/bidbot v0.0.5-0.20210727000230-bc470e198d6e h1:JlShXdCIfBN3REOkR5VscXUcmHLvLmZqx9MoaCfAHjU=
+github.com/textileio/bidbot v0.0.5-0.20210727000230-bc470e198d6e/go.mod h1:kSKHBuschFqfQaYuR5V4eWI5gzg3f1sHW6Km4quvumo=
 github.com/textileio/go-datastore-extensions v1.0.1 h1:qIJGqJaigQ1wD4TdwS/hf73u0HChhXvvUSJuxBEKS+c=
 github.com/textileio/go-datastore-extensions v1.0.1/go.mod h1:Pzj9FDRkb55910dr/FX8M7WywvnS26gBgEDez1ZBuLE=
 github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c h1:iOWa9/AXFssCi7VhbEvVkpCYXqq/n3E2zKH6u+9pIfM=
@@ -2018,10 +2019,12 @@ github.com/textileio/go-ds-mongo v0.1.4 h1:5PPMEmqCfeCySzadtuBXMEJVDGP1Cga/CQXo3
 github.com/textileio/go-ds-mongo v0.1.4/go.mod h1:Zf6JlMPiIQUUmGlFFn5Z65C9p9LAvPg7XvX+qdGmTsU=
 github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1 h1:GBOrYYZVlMlX3OAbl9Yu2+a3VN0U4jEVvOmEPKh3zaU=
 github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1/go.mod h1:YmSRTZNqAvVUg3BIG8uhT/BOkFk9+R2iCbxw5zOlnWY=
+github.com/textileio/go-libp2p-pubsub-rpc v0.0.1 h1:h1dTR2eKKBZuCuVuNqRi/Mg8Rye1GSCxpK7vU+H0i00=
+github.com/textileio/go-libp2p-pubsub-rpc v0.0.1/go.mod h1:hZ9OeFmGIjjH1fqahmxj6yvlPR6X7uPZ2rII1SyTsog=
 github.com/textileio/go-log/v2 v2.1.3-gke-1 h1:7e3xSUXQB8hn4uUe5fp41kLThW1o9T65gSM7qjS323g=
 github.com/textileio/go-log/v2 v2.1.3-gke-1/go.mod h1:DwACkjFS3kjZZR/4Spx3aPfSsciyslwUe5bxV8CEU2w=
-github.com/textileio/jwt-go-eddsa v0.2.0 h1:ATKV476mtTzV/id3bJqBOG14LUyEaX9Dg4U5ou6Q6T8=
-github.com/textileio/jwt-go-eddsa v0.2.0/go.mod h1:l+DF16TBg7Bt7O5O29ToYxWgMJop1qSFueUsERDEas4=
+github.com/textileio/jwt-go-eddsa v0.2.1 h1:+08aBfLoy/Mgdhn8EM4RwD9kTA28I0iwhhQEUrw5XB4=
+github.com/textileio/jwt-go-eddsa v0.2.1/go.mod h1:Cxdn7h4kRvcMAuR2TRnEF2nX8uM97eKvPhj4TvSjbHk=
 github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e/go.mod h1:XDKHRm5ThF8YJjx001LtgelzsoaEcvnA7lVWz9EeX3g=
 github.com/tidwall/gjson v1.6.0/go.mod h1:P256ACg0Mn+j1RXIDXoss50DeIABTYK1PULOJHhxOls=
 github.com/tidwall/match v1.0.1/go.mod h1:LujAq0jyVjBy028G1WhWfIzbpQfMO8bBZ6Tyb0+pL9E=

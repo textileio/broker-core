@@ -39,16 +39,16 @@ type AuctionDealStatus db.Status
 
 // AuctionData contains information of data to be stored in Filecoin.
 type AuctionData struct {
-	ID            string
-	StorageDealID broker.StorageDealID
-	PayloadCid    cid.Cid
-	PieceCid      cid.Cid
-	PieceSize     uint64
-	Duration      uint64
-	CreatedAt     time.Time
+	ID         string
+	BatchID    broker.BatchID
+	PayloadCid cid.Cid
+	PieceCid   cid.Cid
+	PieceSize  uint64
+	Duration   uint64
+	CreatedAt  time.Time
 }
 
-// AuctionDeal contains information to make a deal with a particular miner. The data information is stored
+// AuctionDeal contains information to make a deal with a particular storage-provider. The data information is stored
 // in the linked AuctionData.
 type AuctionDeal db.AuctionDeal
 
@@ -105,12 +105,12 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 	}
 	return s.withTx(ctx, func(txn *db.Queries) error {
 		if err := txn.CreateAuctionData(ctx, db.CreateAuctionDataParams{
-			ID:            ad.ID,
-			StorageDealID: ad.StorageDealID,
-			PayloadCid:    ad.PayloadCid.String(),
-			PieceCid:      ad.PieceCid.String(),
-			PieceSize:     ad.PieceSize,
-			Duration:      ad.Duration,
+			ID:         ad.ID,
+			BatchID:    ad.BatchID,
+			PayloadCid: ad.PayloadCid.String(),
+			PieceCid:   ad.PieceCid.String(),
+			PieceSize:  ad.PieceSize,
+			Duration:   ad.Duration,
 		}); err != nil {
 			return fmt.Errorf("saving auction data in datastore: %s", err)
 		}
@@ -125,7 +125,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 			if err := txn.CreateAuctionDeal(ctx, db.CreateAuctionDealParams{
 				ID:                  deal.ID,
 				AuctionDataID:       deal.AuctionDataID,
-				MinerID:             deal.MinerID,
+				StorageProviderID:   deal.StorageProviderID,
 				PricePerGibPerEpoch: deal.PricePerGibPerEpoch,
 				StartEpoch:          deal.StartEpoch,
 				Verified:            deal.Verified,
@@ -177,7 +177,7 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 		rows, err := q.UpdateAuctionDeal(ctx, db.UpdateAuctionDealParams{
 			ID:                  aud.ID,
 			AuctionDataID:       aud.AuctionDataID,
-			MinerID:             aud.MinerID,
+			StorageProviderID:   aud.StorageProviderID,
 			PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
 			StartEpoch:          aud.StartEpoch,
 			Verified:            aud.Verified,
@@ -220,13 +220,13 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 				return fmt.Errorf("parsing piece cid from db: %s", err)
 			}
 			ad = AuctionData{
-				ID:            datum.ID,
-				StorageDealID: datum.StorageDealID,
-				PayloadCid:    payloadCid,
-				PieceCid:      pieceCid,
-				PieceSize:     datum.PieceSize,
-				Duration:      datum.Duration,
-				CreatedAt:     datum.CreatedAt,
+				ID:         datum.ID,
+				BatchID:    datum.BatchID,
+				PayloadCid: payloadCid,
+				PieceCid:   pieceCid,
+				PieceSize:  datum.PieceSize,
+				Duration:   datum.Duration,
+				CreatedAt:  datum.CreatedAt,
 			}
 		}
 		return err
@@ -299,8 +299,8 @@ func validate(ad *AuctionData, ads []*AuctionDeal) error {
 	if ad.Duration <= 0 {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
 	}
-	if ad.StorageDealID == "" {
-		return errors.New("storage deal id is empty")
+	if ad.BatchID == "" {
+		return errors.New("batch id is empty")
 	}
 	if !ad.PayloadCid.Defined() {
 		return errors.New("invalid payload cid")
@@ -313,8 +313,8 @@ func validate(ad *AuctionData, ads []*AuctionDeal) error {
 	}
 
 	for _, auctionDeal := range ads {
-		if auctionDeal.MinerID == "" {
-			return errors.New("miner address is empty")
+		if auctionDeal.StorageProviderID == "" {
+			return errors.New("storage-provider address is empty")
 		}
 		if auctionDeal.PricePerGibPerEpoch < 0 {
 			return errors.New("price-per-gib-per-epoch is negative")

@@ -141,8 +141,8 @@ func validate(a auctioneer.Auction) error {
 	if a.ID == "" {
 		return errors.New("auction id is empty")
 	}
-	if a.StorageDealID == "" {
-		return errors.New("storage deal id is empty")
+	if a.BatchID == "" {
+		return errors.New("batch id is empty")
 	}
 	if !a.PayloadCid.Defined() {
 		return errors.New("payload cid is empty")

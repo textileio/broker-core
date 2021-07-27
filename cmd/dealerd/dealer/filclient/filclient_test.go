@@ -35,7 +35,7 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		Duration:   525600,
 	}
 	aud := store.AuctionDeal{
-		MinerID:             "f01278",
+		StorageProviderID:   "f01278",
 		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            false,
@@ -72,7 +72,7 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 	require.Equal(t, uint64(1279995), expiration)
 }
 
-func TestCheckStatusWithMiner(t *testing.T) {
+func TestCheckStatusWithStorageProvider(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 
@@ -82,7 +82,7 @@ func TestCheckStatusWithMiner(t *testing.T) {
 
 	proposalCid, err := cid.Decode("bafyreibru2chqj7wanixo6m5qnmamovvgby7672ws3yojzyttimu7fl72q")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithMiner(ctx, "f01278", proposalCid)
+	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f01278", proposalCid)
 	require.NoError(t, err)
 	fmt.Printf("%s\n", logging.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])

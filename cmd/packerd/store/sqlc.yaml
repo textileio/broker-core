@@ -14,8 +14,8 @@ packages:
 
 overrides:
   - column: "storage_requests.storage_request_id"
-    go_type: "github.com/textileio/broker-core/broker.BrokerRequestID"
+    go_type: "github.com/textileio/broker-core/broker.StorageRequestID"
   - column: "batches.batch_id"
-    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"
   - column: "storage_requests.batch_id"
-    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"

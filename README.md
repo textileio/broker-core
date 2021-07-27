@@ -13,7 +13,7 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 - [Background](#background)
 - [Install](#install)
 - [Getting Started](#getting-started)
-  - [Miners: Run a `bidbot`](#miners-run-a-bidbot)
+  - [Storage providers: Run a `bidbot`](#storage providers-run-a-bidbot)
   - [Running locally with some test data](#running-locally-with-some-test-data)
   - [Step to deploy a daemon](#steps-to-deploy-a-daemon)
 - [Contributing](#contributing)
@@ -22,7 +22,7 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 
 ## Background
 
-Broker packs and auctions uploaded data to miners on the Filecoin network.
+Broker packs and auctions uploaded data to storage providers on the Filecoin network.
 
 ## Install
 
@@ -32,21 +32,21 @@ go get github.com/textileio/broker-core
 
 ## Getting Started
 
-### Miners: Run a `bidbot`
+### Storage providers: Run a `bidbot`
 
-Miners on the Filecoin Network can bid in storage deal auctions.
+Storage providers on the Filecoin Network can bid in storage deal auctions.
 
 1. [Install Go 1.15 or newer](https://golang.org/doc/install)
 2. `git clone https://github.com/textileio/broker-core.git`
 3. `cd broker-core`
 4. `make install-bidbot`
 5. `bidbot init`
-6. The output from step 5 will ask you to sign a token with the owner address of your miner.
+6. The output from step 5 will ask you to sign a token with the owner address of your storage provider.
 7. Configure your _ask price_, other bid settings, and auction filters. See `bidbot help daemon` for details. You can edit the configuration file generated in step 5 or use the equivalent flag for any given option.
-8. Use the signature you generated in step 6 to start the daemon: `bidbot daemon --miner-addr [address] --wallet-addr-sig [signature]`
+8. Use the signature you generated in step 6 to start the daemon: `bidbot daemon --storage provider-addr [address] --wallet-addr-sig [signature]`
 9. Good luck! Your `bidbot` will automatically bid in open deal auctions. If it wins an auction, the broker will automatically start making a deal with the Lotus wallet address used in step 6.   
 
-For testing environments, you can use the `--fake-mode` flag to run in unsafe mode, where the provided wallet signature won't be verified with the owner address of the miner that is posted on-chain. The `auctioneerd` should also be running with `--fake-mode` to avoid verifying signatures. If you're a real miner, **don't** use this flag, since there's no reason to fake signatures.
+For testing environments, you can use the `--fake-mode` flag to run in unsafe mode, where the provided wallet signature won't be verified with the owner address of the storage provider that is posted on-chain. The `auctioneerd` should also be running with `--fake-mode` to avoid verifying signatures. If you're a real storage provider, **don't** use this flag, since there's no reason to fake signatures.
 
 ### Running locally with some test data
 

@@ -23,14 +23,14 @@ import (
 	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
-	"github.com/textileio/bidbot/lib/finalizer"
-	"github.com/textileio/bidbot/lib/marketpeer"
-	"github.com/textileio/bidbot/lib/pubsub"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
 	mbroker "github.com/textileio/broker-core/msgbroker"
+	rpc "github.com/textileio/go-libp2p-pubsub-rpc"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
+	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
 )
 
 var (
@@ -72,9 +72,9 @@ type Auctioneer struct {
 	started     bool
 	auctionConf AuctionConfig
 
-	peer     *marketpeer.Peer
+	peer     *rpcpeer.Peer
 	fc       filclient.FilClient
-	auctions *pubsub.Topic
+	auctions *rpc.Topic
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
@@ -90,7 +90,7 @@ type Auctioneer struct {
 
 // New returns a new Auctioneer.
 func New(
-	peer *marketpeer.Peer,
+	peer *rpcpeer.Peer,
 	store txndswrap.TxnDatastore,
 	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
@@ -339,7 +339,7 @@ func (a *Auctioneer) processAuction(
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message: %v", err)
 	}
-	if _, err := a.auctions.Publish(ctx, msg, pubsub.WithIgnoreResponse(true)); err != nil {
+	if _, err := a.auctions.Publish(ctx, msg, rpc.WithIgnoreResponse(true)); err != nil {
 		return nil, fmt.Errorf("publishing auction: %v", err)
 	}
 
@@ -436,15 +436,15 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 			price = bid.AskPrice
 		}
 		wbids[wbid] = broker.WinningBid{
-			MinerID:       bid.MinerAddr,
-			Price:         price,
-			StartEpoch:    bid.StartEpoch,
-			FastRetrieval: bid.FastRetrieval,
+			StorageProviderID: bid.MinerAddr,
+			Price:             price,
+			StartEpoch:        bid.StartEpoch,
+			FastRetrieval:     bid.FastRetrieval,
 		}
 	}
 	return broker.ClosedAuction{
 		ID:              a.ID,
-		StorageDealID:   a.StorageDealID,
+		BatchID:         a.BatchID,
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
 		DealVerified:    a.DealVerified,
@@ -467,7 +467,7 @@ func acceptBid(auction *auctioneer.Auction, bid *core.Bid) bool {
 			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
 		return false
 	}
-	for _, addr := range auction.ExcludedMiners {
+	for _, addr := range auction.ExcludedStorageProviders {
 		if bid.MinerAddr == addr {
 			log.Debugf("miner %s is explicitly excluded from auction %s", bid.MinerAddr, auction.ID)
 			return false
@@ -650,7 +650,7 @@ func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core
 		return fmt.Errorf("publishing win to %s: %v", bidder, err)
 	}
 	r := <-res
-	if errors.Is(r.Err, pubsub.ErrResponseNotReceived) {
+	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
 		return fmt.Errorf("publishing win to %s: %v", bidder, r.Err)
 	} else if r.Err != nil {
 		return fmt.Errorf("publishing win; bidder %s returned error: %v", bidder, r.Err)
@@ -691,7 +691,7 @@ func (a *Auctioneer) publishProposal(
 		return fmt.Errorf("publishing proposal to %s: %v", bidder, err)
 	}
 	r := <-res
-	if errors.Is(r.Err, pubsub.ErrResponseNotReceived) {
+	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
 		return fmt.Errorf("publishing proposal to %s: %v", bidder, r.Err)
 	} else if r.Err != nil {
 		return fmt.Errorf("publishing proposal; bidder %s returned error: %v", bidder, r.Err)

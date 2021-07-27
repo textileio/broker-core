@@ -2,7 +2,6 @@ package ipfsutil
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -24,10 +23,9 @@ type IpfsAPI struct {
 	API     iface.CoreAPI
 }
 
-// GetNodeGetterForCid returns a NodeGetter that is pinning or can access a Cid block from a list.
-func GetNodeGetterForCid(ipfsApis []IpfsAPI, c cid.Cid) (format.NodeGetter, error) {
-	var ng format.NodeGetter
-
+// GetNodeGetterForCid returns a NodeGetter that is pinning or can access a Cid
+// block from a list.
+func GetNodeGetterForCid(ipfsApis []IpfsAPI, c cid.Cid) (ng format.NodeGetter, found bool) {
 	rand.Shuffle(len(ipfsApis), func(i, j int) {
 		ipfsApis[i], ipfsApis[j] = ipfsApis[j], ipfsApis[i]
 	})
@@ -64,9 +62,9 @@ func GetNodeGetterForCid(ipfsApis []IpfsAPI, c cid.Cid) (format.NodeGetter, erro
 		}
 
 		if ng == nil {
-			return nil, fmt.Errorf("node getter for cid %s not found", c)
+			return nil, false
 		}
 	}
 
-	return ng, nil
+	return ng, true
 }

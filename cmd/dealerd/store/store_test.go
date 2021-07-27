@@ -43,10 +43,10 @@ func TestCreateFail(t *testing.T) {
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
-	t.Run("auction-data undef storage deal id", func(t *testing.T) {
+	t.Run("auction-data undef batch id", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
-		ad.StorageDealID = ""
+		ad.BatchID = ""
 		aud := gaud1
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
@@ -76,11 +76,11 @@ func TestCreateFail(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("auction-deal empty miner", func(t *testing.T) {
+	t.Run("auction-deal empty storage-provider", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
 		aud := gaud1
-		aud.MinerID = ""
+		aud.StorageProviderID = ""
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
@@ -323,7 +323,7 @@ func deepCheckAuctionData(t *testing.T, s *Store, ad AuctionData) {
 }
 
 func cmpAuctionData(t *testing.T, ad1, ad2 AuctionData) {
-	require.Equal(t, ad1.StorageDealID, ad2.StorageDealID)
+	require.Equal(t, ad1.BatchID, ad2.BatchID)
 	require.Equal(t, ad1.PayloadCid, ad2.PayloadCid)
 	require.Equal(t, ad1.PieceCid, ad2.PieceCid)
 	require.Equal(t, ad1.Duration, ad2.Duration)
@@ -345,7 +345,7 @@ func deepCheckAuctionDeals(t *testing.T, s *Store, auds ...AuctionDeal) {
 }
 
 func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
-	require.Equal(t, aud1.MinerID, aud2.MinerID)
+	require.Equal(t, aud1.StorageProviderID, aud2.StorageProviderID)
 	require.Equal(t, aud1.PricePerGibPerEpoch, aud2.PricePerGibPerEpoch)
 	require.Equal(t, aud1.StartEpoch, aud2.StartEpoch)
 	require.Equal(t, aud1.Verified, aud2.Verified)
@@ -360,22 +360,22 @@ func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
 
 var (
 	gad1 = AuctionData{
-		StorageDealID: broker.StorageDealID("1"),
-		PayloadCid:    castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jP1"),
-		PieceCid:      castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),
-		Duration:      10,
-		PieceSize:     100,
+		BatchID:    broker.BatchID("1"),
+		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jP1"),
+		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),
+		Duration:   10,
+		PieceSize:  100,
 	}
 
 	gaud1 = AuctionDeal{
-		MinerID:             "f011001",
+		StorageProviderID:   "f011001",
 		PricePerGibPerEpoch: 10,
 		StartEpoch:          20,
 		Verified:            true,
 		FastRetrieval:       true,
 	}
 	gaud2 = AuctionDeal{
-		MinerID:             "f011002",
+		StorageProviderID:   "f011002",
 		PricePerGibPerEpoch: 11,
 		StartEpoch:          21,
 		Verified:            true,

@@ -18,9 +18,9 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type APIServiceClient interface {
-	CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error)
-	CreatePreparedBrokerRequest(ctx context.Context, in *CreatePreparedBrokerRequestRequest, opts ...grpc.CallOption) (*CreatePreparedBrokerRequestResponse, error)
-	GetBrokerRequestInfo(ctx context.Context, in *GetBrokerRequestInfoRequest, opts ...grpc.CallOption) (*GetBrokerRequestInfoResponse, error)
+	CreateStorageRequest(ctx context.Context, in *CreateStorageRequestRequest, opts ...grpc.CallOption) (*CreateStorageRequestResponse, error)
+	CreatePreparedStorageRequest(ctx context.Context, in *CreatePreparedStorageRequestRequest, opts ...grpc.CallOption) (*CreatePreparedStorageRequestResponse, error)
+	GetStorageRequestInfo(ctx context.Context, in *GetStorageRequestInfoRequest, opts ...grpc.CallOption) (*GetStorageRequestInfoResponse, error)
 }
 
 type aPIServiceClient struct {
@@ -31,27 +31,27 @@ func NewAPIServiceClient(cc grpc.ClientConnInterface) APIServiceClient {
 	return &aPIServiceClient{cc}
 }
 
-func (c *aPIServiceClient) CreateBrokerRequest(ctx context.Context, in *CreateBrokerRequestRequest, opts ...grpc.CallOption) (*CreateBrokerRequestResponse, error) {
-	out := new(CreateBrokerRequestResponse)
-	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateBrokerRequest", in, out, opts...)
+func (c *aPIServiceClient) CreateStorageRequest(ctx context.Context, in *CreateStorageRequestRequest, opts ...grpc.CallOption) (*CreateStorageRequestResponse, error) {
+	out := new(CreateStorageRequestResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreateStorageRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *aPIServiceClient) CreatePreparedBrokerRequest(ctx context.Context, in *CreatePreparedBrokerRequestRequest, opts ...grpc.CallOption) (*CreatePreparedBrokerRequestResponse, error) {
-	out := new(CreatePreparedBrokerRequestResponse)
-	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreatePreparedBrokerRequest", in, out, opts...)
+func (c *aPIServiceClient) CreatePreparedStorageRequest(ctx context.Context, in *CreatePreparedStorageRequestRequest, opts ...grpc.CallOption) (*CreatePreparedStorageRequestResponse, error) {
+	out := new(CreatePreparedStorageRequestResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/CreatePreparedStorageRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *aPIServiceClient) GetBrokerRequestInfo(ctx context.Context, in *GetBrokerRequestInfoRequest, opts ...grpc.CallOption) (*GetBrokerRequestInfoResponse, error) {
-	out := new(GetBrokerRequestInfoResponse)
-	err := c.cc.Invoke(ctx, "/broker.v1.APIService/GetBrokerRequestInfo", in, out, opts...)
+func (c *aPIServiceClient) GetStorageRequestInfo(ctx context.Context, in *GetStorageRequestInfoRequest, opts ...grpc.CallOption) (*GetStorageRequestInfoResponse, error) {
+	out := new(GetStorageRequestInfoResponse)
+	err := c.cc.Invoke(ctx, "/broker.v1.APIService/GetStorageRequestInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +62,9 @@ func (c *aPIServiceClient) GetBrokerRequestInfo(ctx context.Context, in *GetBrok
 // All implementations must embed UnimplementedAPIServiceServer
 // for forward compatibility
 type APIServiceServer interface {
-	CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error)
-	CreatePreparedBrokerRequest(context.Context, *CreatePreparedBrokerRequestRequest) (*CreatePreparedBrokerRequestResponse, error)
-	GetBrokerRequestInfo(context.Context, *GetBrokerRequestInfoRequest) (*GetBrokerRequestInfoResponse, error)
+	CreateStorageRequest(context.Context, *CreateStorageRequestRequest) (*CreateStorageRequestResponse, error)
+	CreatePreparedStorageRequest(context.Context, *CreatePreparedStorageRequestRequest) (*CreatePreparedStorageRequestResponse, error)
+	GetStorageRequestInfo(context.Context, *GetStorageRequestInfoRequest) (*GetStorageRequestInfoResponse, error)
 	mustEmbedUnimplementedAPIServiceServer()
 }
 
@@ -72,14 +72,14 @@ type APIServiceServer interface {
 type UnimplementedAPIServiceServer struct {
 }
 
-func (UnimplementedAPIServiceServer) CreateBrokerRequest(context.Context, *CreateBrokerRequestRequest) (*CreateBrokerRequestResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateBrokerRequest not implemented")
+func (UnimplementedAPIServiceServer) CreateStorageRequest(context.Context, *CreateStorageRequestRequest) (*CreateStorageRequestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateStorageRequest not implemented")
 }
-func (UnimplementedAPIServiceServer) CreatePreparedBrokerRequest(context.Context, *CreatePreparedBrokerRequestRequest) (*CreatePreparedBrokerRequestResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreatePreparedBrokerRequest not implemented")
+func (UnimplementedAPIServiceServer) CreatePreparedStorageRequest(context.Context, *CreatePreparedStorageRequestRequest) (*CreatePreparedStorageRequestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePreparedStorageRequest not implemented")
 }
-func (UnimplementedAPIServiceServer) GetBrokerRequestInfo(context.Context, *GetBrokerRequestInfoRequest) (*GetBrokerRequestInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBrokerRequestInfo not implemented")
+func (UnimplementedAPIServiceServer) GetStorageRequestInfo(context.Context, *GetStorageRequestInfoRequest) (*GetStorageRequestInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStorageRequestInfo not implemented")
 }
 func (UnimplementedAPIServiceServer) mustEmbedUnimplementedAPIServiceServer() {}
 
@@ -94,56 +94,56 @@ func RegisterAPIServiceServer(s grpc.ServiceRegistrar, srv APIServiceServer) {
 	s.RegisterService(&APIService_ServiceDesc, srv)
 }
 
-func _APIService_CreateBrokerRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateBrokerRequestRequest)
+func _APIService_CreateStorageRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateStorageRequestRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).CreateBrokerRequest(ctx, in)
+		return srv.(APIServiceServer).CreateStorageRequest(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.v1.APIService/CreateBrokerRequest",
+		FullMethod: "/broker.v1.APIService/CreateStorageRequest",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).CreateBrokerRequest(ctx, req.(*CreateBrokerRequestRequest))
+		return srv.(APIServiceServer).CreateStorageRequest(ctx, req.(*CreateStorageRequestRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _APIService_CreatePreparedBrokerRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreatePreparedBrokerRequestRequest)
+func _APIService_CreatePreparedStorageRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreatePreparedStorageRequestRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).CreatePreparedBrokerRequest(ctx, in)
+		return srv.(APIServiceServer).CreatePreparedStorageRequest(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.v1.APIService/CreatePreparedBrokerRequest",
+		FullMethod: "/broker.v1.APIService/CreatePreparedStorageRequest",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).CreatePreparedBrokerRequest(ctx, req.(*CreatePreparedBrokerRequestRequest))
+		return srv.(APIServiceServer).CreatePreparedStorageRequest(ctx, req.(*CreatePreparedStorageRequestRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _APIService_GetBrokerRequestInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetBrokerRequestInfoRequest)
+func _APIService_GetStorageRequestInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStorageRequestInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServiceServer).GetBrokerRequestInfo(ctx, in)
+		return srv.(APIServiceServer).GetStorageRequestInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/broker.v1.APIService/GetBrokerRequestInfo",
+		FullMethod: "/broker.v1.APIService/GetStorageRequestInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServiceServer).GetBrokerRequestInfo(ctx, req.(*GetBrokerRequestInfoRequest))
+		return srv.(APIServiceServer).GetStorageRequestInfo(ctx, req.(*GetStorageRequestInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -156,16 +156,16 @@ var APIService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*APIServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateBrokerRequest",
-			Handler:    _APIService_CreateBrokerRequest_Handler,
+			MethodName: "CreateStorageRequest",
+			Handler:    _APIService_CreateStorageRequest_Handler,
 		},
 		{
-			MethodName: "CreatePreparedBrokerRequest",
-			Handler:    _APIService_CreatePreparedBrokerRequest_Handler,
+			MethodName: "CreatePreparedStorageRequest",
+			Handler:    _APIService_CreatePreparedStorageRequest_Handler,
 		},
 		{
-			MethodName: "GetBrokerRequestInfo",
-			Handler:    _APIService_GetBrokerRequestInfo_Handler,
+			MethodName: "GetStorageRequestInfo",
+			Handler:    _APIService_GetStorageRequestInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,5 +1,5 @@
--- name: CreateStorageDeal :exec
-INSERT INTO storage_deals(
+-- name: CreateBatch :exec
+INSERT INTO batches(
     id,
     status,
     rep_factor,
@@ -8,7 +8,6 @@ INSERT INTO storage_deals(
     car_ipfs_cid,
     car_ipfs_addrs,
     disallow_rebatching,
-    auction_retries,
     fil_epoch_deadline,
     error,
     payload_cid,
@@ -27,37 +26,30 @@ INSERT INTO storage_deals(
       $10,
       $11,
       $12,
-      $13,
-      $14
+      $13
       );
 
--- name: GetStorageDeal :one
-SELECT * FROM storage_deals
+-- name: GetBatch :one
+SELECT * FROM batches
 WHERE id = $1;
 
--- name: UpdateStorageDeal :exec
-UPDATE storage_deals
+-- name: UpdateBatch :exec
+UPDATE batches
 SET status = $2,
     piece_cid = $3,
     piece_size = $4,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $1;
 
--- name: UpdateStorageDealStatus :exec
-UPDATE storage_deals
+-- name: UpdateBatchStatus :exec
+UPDATE batches
 SET status = $2,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $1;
 
--- name: UpdateStorageDealStatusAndError :exec
-UPDATE storage_deals
+-- name: UpdateBatchStatusAndError :exec
+UPDATE batches
 SET status = $2,
     error = $3,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $1;
-
--- name: ReauctionStorageDeal :exec
-UPDATE storage_deals
-SET auction_retries = auction_retries + 1,
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = $1;

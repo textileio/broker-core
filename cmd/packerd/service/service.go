@@ -8,11 +8,11 @@ import (
 
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	"github.com/textileio/broker-core/cmd/packerd/store"
 	"github.com/textileio/broker-core/msgbroker"
 	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	golog "github.com/textileio/go-log/v2"
 )
 

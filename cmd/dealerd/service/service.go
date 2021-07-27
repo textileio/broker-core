@@ -7,12 +7,12 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
-	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
 	dealeri "github.com/textileio/broker-core/dealer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	golog "github.com/textileio/go-log/v2"
 )
 

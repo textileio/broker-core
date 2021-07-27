@@ -11,26 +11,26 @@ import (
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
-	"github.com/textileio/bidbot/lib/finalizer"
-	"github.com/textileio/bidbot/lib/marketpeer"
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
+	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
 )
 
 var log = golog.Logger("auctioneer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Peer    marketpeer.Config
+	Peer    rpcpeer.Config
 	Auction auctioneer.AuctionConfig
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
 type Service struct {
 	mb   mbroker.MsgBroker
-	peer *marketpeer.Peer
+	peer *rpcpeer.Peer
 	lib  *auctioneer.Auctioneer
 
 	finalizer *finalizer.Finalizer
@@ -44,7 +44,7 @@ func New(conf Config, store txndswrap.TxnDatastore, mb mbroker.MsgBroker, fc fil
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer
-	p, err := marketpeer.New(conf.Peer)
+	p, err := rpcpeer.New(conf.Peer)
 	if err != nil {
 		return nil, fin.Cleanupf("creating peer: %v", err)
 	}
@@ -92,7 +92,7 @@ func (s *Service) DAGService() format.DAGService {
 }
 
 // PeerInfo returns the peer's public information.
-func (s *Service) PeerInfo() (*marketpeer.PeerInfo, error) {
+func (s *Service) PeerInfo() (*rpcpeer.Info, error) {
 	return s.peer.Info()
 }
 
@@ -105,26 +105,26 @@ func (s *Service) GetAuction(id auction.AuctionID) (*core.Auction, error) {
 func (s *Service) OnReadyToAuction(
 	ctx context.Context,
 	id auction.AuctionID,
-	sdID broker.StorageDealID,
+	sdID broker.BatchID,
 	payloadCid cid.Cid,
 	dealSize, dealDuration uint64,
 	dealReplication uint32,
 	dealVerified bool,
-	excludedMiners []string,
+	excludedStorageProviders []string,
 	filEpochDeadline uint64,
 	sources auction.Sources,
 ) error {
 	err := s.lib.CreateAuction(core.Auction{
-		ID:               id,
-		StorageDealID:    sdID,
-		PayloadCid:       payloadCid,
-		DealSize:         dealSize,
-		DealDuration:     dealDuration,
-		DealReplication:  dealReplication,
-		DealVerified:     dealVerified,
-		ExcludedMiners:   excludedMiners,
-		FilEpochDeadline: filEpochDeadline,
-		Sources:          sources,
+		ID:                       id,
+		BatchID:                  sdID,
+		PayloadCid:               payloadCid,
+		DealSize:                 dealSize,
+		DealDuration:             dealDuration,
+		DealReplication:          dealReplication,
+		DealVerified:             dealVerified,
+		ExcludedStorageProviders: excludedStorageProviders,
+		FilEpochDeadline:         filEpochDeadline,
+		Sources:                  sources,
 	})
 	if err != nil {
 		return fmt.Errorf("processing ready-to-auction msg: %s", err)
@@ -133,7 +133,7 @@ func (s *Service) OnReadyToAuction(
 	return nil
 }
 
-// OnDealProposalAccepted receives an accepted deal proposal from a miner.
+// OnDealProposalAccepted receives an accepted deal proposal from a storage-provider.
 func (s *Service) OnDealProposalAccepted(
 	ctx context.Context,
 	auctionID auction.AuctionID,

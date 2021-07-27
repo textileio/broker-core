@@ -28,7 +28,7 @@ func New(mb mbroker.MsgBroker) *Dealer {
 
 // ReadyToCreateDeals registers deals to execute.
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, sdb dealeri.AuctionDeals) error {
-	log.Debugf("received ready to create deals %s", sdb.StorageDealID)
+	log.Debugf("received ready to create deals %s", sdb.BatchID)
 	go d.reportToBroker(sdb)
 	return nil
 }
@@ -38,12 +38,12 @@ func (d *Dealer) reportToBroker(sdb dealeri.AuctionDeals) {
 
 	for _, p := range sdb.Proposals {
 		fd := broker.FinalizedDeal{
-			StorageDealID:  sdb.StorageDealID,
-			DealID:         rand.Int63(),
-			DealExpiration: uint64(rand.Int63()),
-			Miner:          p.MinerID,
-			AuctionID:      p.AuctionID,
-			BidID:          p.BidID,
+			BatchID:           sdb.BatchID,
+			DealID:            rand.Int63(),
+			DealExpiration:    uint64(rand.Int63()),
+			StorageProviderID: p.StorageProviderID,
+			AuctionID:         p.AuctionID,
+			BidID:             p.BidID,
 		}
 		if err := mbroker.PublishMsgFinalizedDeal(context.Background(), d.mb, fd); err != nil {
 			log.Errorf("publishing finalized-deal msg to msgbroker: %s", err)

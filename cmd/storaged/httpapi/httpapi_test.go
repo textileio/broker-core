@@ -239,10 +239,16 @@ func (um *uploaderMock) GetRequestInfo(ctx context.Context, id string) (storage.
 	return args.Get(0).(storage.RequestInfo), args.Error(1)
 }
 
-func (um *uploaderMock) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error {
+func (um *uploaderMock) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) (bool, error) {
 	args := um.Called(ctx, c, w)
 
-	return args.Error(0)
+	return args.Bool(0), args.Error(1)
+}
+
+func (um *uploaderMock) GetCARHeader(ctx context.Context, c cid.Cid, w io.Writer) (bool, error) {
+	args := um.Called(ctx, c, w)
+
+	return args.Bool(0), args.Error(1)
 }
 
 func (um *uploaderMock) CreateFromExternalSource(

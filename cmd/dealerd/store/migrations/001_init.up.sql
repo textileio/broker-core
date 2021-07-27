@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS auction_data (
     id text PRIMARY KEY,
-    storage_deal_id text NOT NULL,
+    batch_id text NOT NULL,
     payload_cid text NOT NULL,
     piece_cid text NOT NULL,
     piece_size bigint NOT NULL,
@@ -17,7 +17,7 @@ CREATE TYPE status AS ENUM (
 CREATE TABLE IF NOT EXISTS auction_deals (
     id text PRIMARY KEY,
     auction_data_id text NOT NULL,
-    miner_id text NOT NULL,
+    storage_provider_id text NOT NULL,
     price_per_gib_per_epoch bigint NOT NULL,
     start_epoch bigint NOT NULL,
     verified boolean NOT NULL,
@@ -38,4 +38,4 @@ CREATE TABLE IF NOT EXISTS auction_deals (
     CONSTRAINT fk_auction_data_id FOREIGN KEY(auction_data_id) REFERENCES auction_data(id)
     );
 
-CREATE INDEX IF NOT EXISTS auction_deals_miner_id ON auction_deals (miner_id);
+CREATE INDEX IF NOT EXISTS auction_deals_storage_provider_id ON auction_deals (storage_provider_id);

@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	cloud.google.com/go/pubsub v1.12.1
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/filecoin-project/go-address v0.0.5
@@ -17,6 +16,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48
 	github.com/filecoin-project/lotus v1.10.0
 	github.com/filecoin-project/specs-actors v0.9.13
+	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -49,11 +49,12 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.0.5-0.20210720130729-168109d189e2
+	github.com/textileio/bidbot v0.0.5-0.20210727000230-bc470e198d6e
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.1
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
-	github.com/textileio/jwt-go-eddsa v0.2.0
+	github.com/textileio/jwt-go-eddsa v0.2.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/metric v0.21.0

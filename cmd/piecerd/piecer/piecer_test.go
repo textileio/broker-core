@@ -15,13 +15,13 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/store"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -30,7 +30,7 @@ func TestE2E(t *testing.T) {
 	p, mb, ipfs := newClient(t)
 
 	dataCid := addRandomData(t, ipfs)
-	sdID := broker.StorageDealID("SD1")
+	sdID := broker.BatchID("SD1")
 	err := p.ReadyToPrepare(context.Background(), sdID, dataCid)
 	require.NoError(t, err)
 
@@ -61,12 +61,12 @@ func TestIdempotency(t *testing.T) {
 	p, _, ipfs := newClient(t)
 
 	dataCid := addRandomData(t, ipfs)
-	sdID := broker.StorageDealID("SD1")
+	sdID := broker.BatchID("SD1")
 	err := p.ReadyToPrepare(context.Background(), sdID, dataCid)
 	require.NoError(t, err)
 
 	err = p.ReadyToPrepare(context.Background(), sdID, dataCid)
-	require.ErrorIs(t, err, store.ErrStorageDealExists)
+	require.ErrorIs(t, err, store.ErrBatchExists)
 }
 
 func TestE2EFail(t *testing.T) {
@@ -76,7 +76,7 @@ func TestE2EFail(t *testing.T) {
 	// Fake a cid that doesn't exist in the IPFS node, so the preparation can fail.
 	dataCid, err := cid.Decode("baga6ea4seaqabf42l52koxdzu4prvzf55a4dxnfbahilkyiqfp4yxgznifvscmj")
 	require.NoError(t, err)
-	sdID := broker.StorageDealID("SD1")
+	sdID := broker.BatchID("SD1")
 	err = p.ReadyToPrepare(context.Background(), sdID, dataCid)
 	require.NoError(t, err)
 

@@ -48,11 +48,11 @@ type FilClient struct {
 	api  v0api.FullNode
 	host host.Host
 
-	metricExecAuctionDeal          metric.Int64Counter
-	metricGetChainHeight           metric.Int64Counter
-	metricResolveDealIDFromMessage metric.Int64Counter
-	metricCheckDealStatusWithMiner metric.Int64Counter
-	metricCheckChainDeal           metric.Int64Counter
+	metricExecAuctionDeal                    metric.Int64Counter
+	metricGetChainHeight                     metric.Int64Counter
+	metricResolveDealIDFromMessage           metric.Int64Counter
+	metricCheckDealStatusWithStorageProvider metric.Int64Counter
+	metricCheckChainDeal                     metric.Int64Counter
 }
 
 // New returns a new FilClient.
@@ -81,7 +81,7 @@ func New(api v0api.FullNode, opts ...Option) (*FilClient, error) {
 	return fc, nil
 }
 
-// ExecuteAuctionDeal creates a deal with a miner using the data described in an auction deal.
+// ExecuteAuctionDeal creates a deal with a storage-provider using the data described in an auction deal.
 func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
@@ -102,7 +102,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	log.Debugf("created proposal: %s", logging.MustJSONIndent(p))
 	pr, err := fc.sendProposal(ctx, p)
 	if err != nil {
-		log.Errorf("sending proposal to miner: %s", err)
+		log.Errorf("sending proposal to storage-provider: %s", err)
 		// Any error here deserves retries.
 		return cid.Undef, true, nil
 	}
@@ -232,20 +232,21 @@ func (fc *FilClient) CheckChainDeal(
 	return false, 0, false, nil
 }
 
-// CheckDealStatusWithMiner checks a deal proposal status with a miner. The caller should be aware that
-// shouldn't fully trust data from miners. To fully confirm the deal, a call to CheckChainDeal
-// must be made after the miner publishes the deal on-chain.
-func (fc *FilClient) CheckDealStatusWithMiner(
+// CheckDealStatusWithStorageProvider checks a deal proposal status with a storage-provider.
+// The caller should be aware that shouldn't fully trust data from storage-providers.
+// To fully confirm the deal, a call to CheckChainDeal must be made after the storage-provider
+// publishes the deal on-chain.
+func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
-	minerAddr string,
+	storageProviderID string,
 	propCid cid.Cid) (status *storagemarket.ProviderDealState, err error) {
-	log.Debugf("checking status of proposal %s with miner %s", propCid, minerAddr)
+	log.Debugf("checking status of proposal %s with storage-provider %s", propCid, storageProviderID)
 	defer func() {
-		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithMiner)
+		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithStorageProvider)
 	}()
-	miner, err := address.NewFromString(minerAddr)
+	sp, err := address.NewFromString(storageProviderID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid miner address %s: %s", minerAddr, err)
+		return nil, fmt.Errorf("invalid storage-provider address %s: %s", storageProviderID, err)
 	}
 	cidb, err := cborutil.Dump(propCid)
 	if err != nil {
@@ -262,9 +263,9 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 		Signature: *sig,
 	}
 
-	s, err := fc.streamToMiner(ctx, miner, dealStatusProtocol)
+	s, err := fc.streamToStorageProvider(ctx, sp, dealStatusProtocol)
 	if err != nil {
-		return nil, fmt.Errorf("opening stream with %s: %s", minerAddr, err)
+		return nil, fmt.Errorf("opening stream with %s: %s", storageProviderID, err)
 	}
 
 	if err := cborutil.WriteCborRPC(s, req); err != nil {
@@ -275,8 +276,8 @@ func (fc *FilClient) CheckDealStatusWithMiner(
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
-	log.Debugf("miner %s replied proposal %s status check: %s",
-		minerAddr, propCid, storagemarket.DealStates[resp.DealState.State])
+	log.Debugf("storage-provider %s replied proposal %s status check: %s",
+		storageProviderID, propCid, storagemarket.DealStates[resp.DealState.State])
 
 	return &resp.DealState, nil
 }
@@ -304,9 +305,9 @@ func (fc *FilClient) createDealProposal(
 		return nil, fmt.Errorf("failed to construct label field: %w", err)
 	}
 
-	miner, err := address.NewFromString(aud.MinerID)
+	sp, err := address.NewFromString(aud.StorageProviderID)
 	if err != nil {
-		return nil, fmt.Errorf("parsing miner address: %s", err)
+		return nil, fmt.Errorf("parsing storage-provider address: %s", err)
 	}
 
 	// set provider collateral 10% above minimum to avoid fluctuations causing deal failure
@@ -316,7 +317,7 @@ func (fc *FilClient) createDealProposal(
 		PieceSize:    abi.PaddedPieceSize(ad.PieceSize), // Check padding vs not padding.
 		VerifiedDeal: aud.Verified,
 		Client:       fc.conf.pubKey,
-		Provider:     miner,
+		Provider:     sp,
 
 		Label: label,
 
@@ -357,13 +358,13 @@ func (fc *FilClient) createDealProposal(
 	}, nil
 }
 
-func (fc *FilClient) streamToMiner(
+func (fc *FilClient) streamToStorageProvider(
 	ctx context.Context,
 	maddr address.Address,
 	protocol protocol.ID) (inet.Stream, error) {
-	mpid, err := fc.connectToMiner(ctx, maddr)
+	mpid, err := fc.connectToStorageProvider(ctx, maddr)
 	if err != nil {
-		return nil, fmt.Errorf("connecting with miner: %s", err)
+		return nil, fmt.Errorf("connecting with storage-provider: %s", err)
 	}
 
 	s, err := fc.host.NewStream(ctx, mpid, protocol)
@@ -374,15 +375,15 @@ func (fc *FilClient) streamToMiner(
 	return s, nil
 }
 
-func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) (peer.ID, error) {
+func (fc *FilClient) connectToStorageProvider(ctx context.Context, maddr address.Address) (peer.ID, error) {
 	minfo, err := fc.api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
 	if err != nil {
-		return "", fmt.Errorf("state miner info call: %s", err)
+		return "", fmt.Errorf("state storage-provider info call: %s", err)
 	}
 
 	if minfo.PeerId == nil {
-		log.Warnf("miner %s doesn't have a PeerID on-chain", maddr)
-		return "", fmt.Errorf("miner %s has no peer ID set", maddr)
+		log.Warnf("storage-provider %s doesn't have a PeerID on-chain", maddr)
+		return "", fmt.Errorf("storage-provider %s has no peer ID set", maddr)
 	}
 
 	addrInfo, err := fc.api.NetFindPeer(ctx, *minfo.PeerId)
@@ -398,22 +399,22 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 		for _, mma := range minfo.Multiaddrs {
 			ma, err := multiaddr.NewMultiaddrBytes(mma)
 			if err != nil {
-				return "", fmt.Errorf("miner %s had invalid multiaddrs in their info: %w", maddr, err)
+				return "", fmt.Errorf("storage-provider %s had invalid multiaddrs in their info: %w", maddr, err)
 			}
 			maddrs = append(maddrs, ma)
 		}
 	}
 
 	if len(maddrs) == 0 {
-		return "", fmt.Errorf("no available multiaddresses for miner %s", maddr)
+		return "", fmt.Errorf("no available multiaddresses for storage-provider %s", maddr)
 	}
 
 	if err := fc.host.Connect(ctx, peer.AddrInfo{
 		ID:    *minfo.PeerId,
 		Addrs: maddrs,
 	}); err != nil {
-		log.Warnf("failed connecting with miner %s", maddr)
-		return "", fmt.Errorf("connecting to miner: %s", err)
+		log.Warnf("failed connecting with storage-provider %s", maddr)
+		return "", fmt.Errorf("connecting to storage-provider: %s", err)
 	}
 
 	return *minfo.PeerId, nil
@@ -422,9 +423,9 @@ func (fc *FilClient) connectToMiner(ctx context.Context, maddr address.Address) 
 func (fc *FilClient) sendProposal(
 	ctx context.Context,
 	proposal *network.Proposal) (res *network.SignedResponse, err error) {
-	s, err := fc.streamToMiner(ctx, proposal.DealProposal.Proposal.Provider, dealProtocol)
+	s, err := fc.streamToStorageProvider(ctx, proposal.DealProposal.Proposal.Provider, dealProtocol)
 	if err != nil {
-		return nil, fmt.Errorf("opening stream to miner: %w", err)
+		return nil, fmt.Errorf("opening stream to storage-provider: %w", err)
 	}
 
 	defer func() {
@@ -434,12 +435,12 @@ func (fc *FilClient) sendProposal(
 	}()
 
 	if err := cborutil.WriteCborRPC(s, proposal); err != nil {
-		return nil, fmt.Errorf("failed to write proposal to miner: %w", err)
+		return nil, fmt.Errorf("failed to write proposal to storage-provider: %w", err)
 	}
 
 	var resp network.SignedResponse
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
-		return nil, fmt.Errorf("failed to read response from miner: %w", err)
+		return nil, fmt.Errorf("failed to read response from storage-provider: %w", err)
 	}
 
 	return &resp, nil

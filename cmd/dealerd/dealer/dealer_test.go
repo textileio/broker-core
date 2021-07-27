@@ -32,14 +32,14 @@ var (
 	fakeDealID             = int64(1337)
 	fakeExpiration         = uint64(98765)
 	auds                   = dealeri.AuctionDeals{
-		StorageDealID: "SD1",
-		PayloadCid:    castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
-		PieceCid:      castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
-		Duration:      123,
-		PieceSize:     456,
+		BatchID:    "SD1",
+		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1"),
+		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
+		Duration:   123,
+		PieceSize:  456,
 		Proposals: []dealeri.Proposal{
 			{
-				MinerID:             "f0001",
+				StorageProviderID:   "f0001",
 				FastRetrieval:       true,
 				PricePerGiBPerEpoch: 100,
 				StartEpoch:          200,
@@ -67,7 +67,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 	// Check that the corresponding AuctionDeal has correct values.
 	require.NotEmpty(t, aud.ID)
 	require.NotEmpty(t, aud.AuctionDataID)
-	require.Equal(t, auds.Proposals[0].MinerID, aud.MinerID)
+	require.Equal(t, auds.Proposals[0].StorageProviderID, aud.StorageProviderID)
 	require.Equal(t, auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGibPerEpoch)
 	require.Equal(t, auds.Proposals[0].StartEpoch, aud.StartEpoch)
 	require.Equal(t, auds.Proposals[0].Verified, aud.Verified)
@@ -86,7 +86,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 	ad, err := dealer.store.GetAuctionData(ctx, aud.AuctionDataID)
 	require.NoError(t, err)
 	require.Equal(t, aud.AuctionDataID, ad.ID)
-	require.Equal(t, auds.StorageDealID, ad.StorageDealID)
+	require.Equal(t, auds.BatchID, ad.BatchID)
 	require.Equal(t, auds.PayloadCid, ad.PayloadCid)
 	require.Equal(t, auds.PieceCid, ad.PieceCid)
 	require.Equal(t, auds.PieceSize, ad.PieceSize)
@@ -168,8 +168,8 @@ func TestStateMachineExecWaitingConfirmation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(auds.Proposals[0].AuctionID), dpa.AuctionId)
 	require.Equal(t, string(auds.Proposals[0].BidID), dpa.BidId)
-	require.Equal(t, string(auds.StorageDealID), dpa.StorageDealId)
-	require.Equal(t, auds.Proposals[0].MinerID, dpa.MinerId)
+	require.Equal(t, string(auds.BatchID), dpa.BatchId)
+	require.Equal(t, auds.Proposals[0].StorageProviderID, dpa.StorageProviderId)
 	require.Equal(t, fakeProposalCid.Bytes(), dpa.ProposalCid)
 }
 
@@ -210,7 +210,7 @@ func TestStateMachineExecReporting(t *testing.T) {
 	err = proto.Unmarshal(data, fd)
 	require.NoError(t, err)
 
-	require.Equal(t, string(auds.StorageDealID), fd.StorageDealId)
+	require.Equal(t, string(auds.BatchID), fd.BatchId)
 	require.Equal(t, fakeDealID, fd.DealId)
 	require.Equal(t, fakeExpiration, fd.DealExpiration)
 	require.Empty(t, fd.ErrorCause)
@@ -221,7 +221,7 @@ func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	fc := &fcMock{}
 	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
 
-	cdswmCall := fc.On("CheckDealStatusWithMiner", mock.Anything, mock.Anything, mock.Anything)
+	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&storagemarket.ProviderDealState{
 		PublishCid: &fakePublishDealMessage,
 	}, nil)
@@ -281,11 +281,11 @@ func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint6
 	args := fc.Called(ctx, dealID)
 	return args.Bool(0), args.Get(1).(uint64), args.Bool(2), args.Error(3)
 }
-func (fc *fcMock) CheckDealStatusWithMiner(
+func (fc *fcMock) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
-	minerAddr string,
+	storageProviderID string,
 	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
-	args := fc.Called(ctx, minerAddr, propCid)
+	args := fc.Called(ctx, storageProviderID, propCid)
 
 	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)
 }

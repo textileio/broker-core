@@ -36,10 +36,7 @@ func init() {
 // - Receiving a message from a topic.
 // - Sending messages to a topic through a message handler (not entirely relevant, but covered).
 func TestE2E(t *testing.T) {
-	t.Parallel()
-
 	t.Run("emulator", func(t *testing.T) {
-		t.Parallel()
 		launchPubsubEmulator(t)
 		ps, err := New("", "", "test-", "testd")
 		require.NoError(t, err)
@@ -52,7 +49,6 @@ func TestE2E(t *testing.T) {
 	})
 
 	t.Run("real", func(t *testing.T) {
-		t.Parallel()
 		t.SkipNow() // Skipped by default, only useful when providing credentials.
 
 		secretProjectID := "fill-me"
@@ -115,7 +111,6 @@ func rune2e(t *testing.T, ps *PubsubMsgBroker) {
 }
 
 func TestTwoSubscriptions(t *testing.T) {
-	t.Parallel()
 	waitCh := make(chan struct{})
 
 	launchPubsubEmulator(t)

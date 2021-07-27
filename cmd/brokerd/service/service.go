@@ -127,11 +127,11 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 	return s, nil
 }
 
-// CreatePreparedBrokerRequest creates a new prepared BrokerRequest.
-func (s *Service) CreatePreparedBrokerRequest(
+// CreatePreparedStorageRequest creates a new prepared StorageRequest.
+func (s *Service) CreatePreparedStorageRequest(
 	ctx context.Context,
-	r *pb.CreatePreparedBrokerRequestRequest) (*pb.CreatePreparedBrokerRequestResponse, error) {
-	log.Debugf("received prepared broker request")
+	r *pb.CreatePreparedStorageRequestRequest) (*pb.CreatePreparedStorageRequestResponse, error) {
+	log.Debugf("received prepared storage request")
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
@@ -223,22 +223,22 @@ func (s *Service) CreatePreparedBrokerRequest(
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
-	pbr, err := cast.BrokerRequestToProto(br)
+	pbr, err := cast.StorageRequestToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
-	res := &pb.CreatePreparedBrokerRequestResponse{
+	res := &pb.CreatePreparedStorageRequestResponse{
 		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// CreateBrokerRequest creates a new BrokerRequest.
-func (s *Service) CreateBrokerRequest(
+// CreateStorageRequest creates a new StorageRequest.
+func (s *Service) CreateStorageRequest(
 	ctx context.Context,
-	r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
-	log.Debugf("received broker request")
+	r *pb.CreateStorageRequestRequest) (*pb.CreateStorageRequestResponse, error) {
+	log.Debugf("received storage request")
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
@@ -253,31 +253,31 @@ func (s *Service) CreateBrokerRequest(
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
-	pbr, err := cast.BrokerRequestToProto(br)
+	pbr, err := cast.StorageRequestToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
-	res := &pb.CreateBrokerRequestResponse{
+	res := &pb.CreateStorageRequestResponse{
 		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// GetBrokerRequestInfo gets information about a broker request by id.
-func (s *Service) GetBrokerRequestInfo(
+// GetStorageRequestInfo gets information about a storage request by id.
+func (s *Service) GetStorageRequestInfo(
 	ctx context.Context,
-	r *pb.GetBrokerRequestInfoRequest) (*pb.GetBrokerRequestInfoResponse, error) {
+	r *pb.GetStorageRequestInfoRequest) (*pb.GetStorageRequestInfoResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
 
-	br, err := s.broker.GetBrokerRequestInfo(ctx, broker.BrokerRequestID(r.Id))
+	br, err := s.broker.GetStorageRequestInfo(ctx, broker.StorageRequestID(r.Id))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "get broker request: %s", err)
+		return nil, status.Errorf(codes.Internal, "get storage request: %s", err)
 	}
 
-	res, err := cast.BrokerRequestInfoToProto(br)
+	res, err := cast.StorageRequestInfoToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
@@ -288,10 +288,10 @@ func (s *Service) GetBrokerRequestInfo(
 // OnNewBatchCreated handles new messages in new-batch-created topic.
 func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
-	id broker.StorageDealID,
-	batchCid cid.Cid, brids []broker.BrokerRequestID) error {
+	id broker.BatchID,
+	batchCid cid.Cid, brids []broker.StorageRequestID) error {
 	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
-		return fmt.Errorf("creating storage deal: %s", err)
+		return fmt.Errorf("creating batch: %s", err)
 	}
 	log.Debugf("new batch created: %s", id)
 
@@ -300,7 +300,7 @@ func (s *Service) OnNewBatchCreated(
 
 // OnAuctionClosed handles new messages in auction-closed topic.
 func (s *Service) OnAuctionClosed(ctx context.Context, au broker.ClosedAuction) error {
-	if err := s.broker.StorageDealAuctioned(ctx, au); err != nil {
+	if err := s.broker.BatchAuctioned(ctx, au); err != nil {
 		return fmt.Errorf("processing closed auction: %s", err)
 	}
 	return nil
@@ -309,7 +309,7 @@ func (s *Service) OnAuctionClosed(ctx context.Context, au broker.ClosedAuction) 
 // OnNewBatchPrepared handles new messages in new-batch-prepared topic.
 func (s *Service) OnNewBatchPrepared(
 	ctx context.Context,
-	id broker.StorageDealID,
+	id broker.BatchID,
 	pr broker.DataPreparationResult) error {
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
 		return fmt.Errorf("processing new prepared batch: %s", err)
@@ -320,7 +320,7 @@ func (s *Service) OnNewBatchPrepared(
 
 // OnFinalizedDeal handles new messages in the finalized-deal topic.
 func (s *Service) OnFinalizedDeal(ctx context.Context, fd broker.FinalizedDeal) error {
-	if err := s.broker.StorageDealFinalizedDeal(ctx, fd); err != nil {
+	if err := s.broker.BatchFinalizedDeal(ctx, fd); err != nil {
 		return fmt.Errorf("processing finalized deal: %s", err)
 	}
 

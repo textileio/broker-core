@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -140,7 +141,7 @@ func uploadHandler(s storage.Requester, maxUploadSize uint) func(w http.Response
 
 		storageRequest, err := s.CreateFromReader(r.Context(), file)
 		if err != nil {
-			httpError(w, fmt.Sprintf("upload data and create broker request: %s", err), http.StatusInternalServerError)
+			httpError(w, fmt.Sprintf("upload data and create storage request: %s", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -268,8 +269,15 @@ func carDownloadHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 			return
 		}
 
-		if err := s.GetCAR(r.Context(), cid, w); err != nil {
+		responder := s.GetCAR
+		if r.Header.Get(auction.HTTPCarHeaderOnly) != "" {
+			responder = s.GetCARHeader
+		}
+		if found, err := responder(r.Context(), cid, w); err != nil {
 			httpError(w, fmt.Sprintf("writing car stream: %s", err), http.StatusInternalServerError)
+			return
+		} else if !found {
+			httpError(w, fmt.Sprintf("cid %s not found", cid), http.StatusNotFound)
 			return
 		}
 	}
