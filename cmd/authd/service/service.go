@@ -8,7 +8,7 @@ import (
 	"net"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
 	varint "github.com/multiformats/go-varint"
