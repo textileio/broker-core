@@ -48,11 +48,11 @@ type FilClient struct {
 	api  v0api.FullNode
 	host host.Host
 
-	metricExecAuctionDeal                   metric.Int64Counter
-	metricGetChainHeight                    metric.Int64Counter
-	metricResolveDealIDFromMessage          metric.Int64Counter
-	metricCheckDealStatusWithStatusProvider metric.Int64Counter
-	metricCheckChainDeal                    metric.Int64Counter
+	metricExecAuctionDeal                    metric.Int64Counter
+	metricGetChainHeight                     metric.Int64Counter
+	metricResolveDealIDFromMessage           metric.Int64Counter
+	metricCheckDealStatusWithStorageProvider metric.Int64Counter
+	metricCheckChainDeal                     metric.Int64Counter
 }
 
 // New returns a new FilClient.
@@ -242,7 +242,7 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	propCid cid.Cid) (status *storagemarket.ProviderDealState, err error) {
 	log.Debugf("checking status of proposal %s with storage-provider %s", propCid, storageProviderID)
 	defer func() {
-		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithStatusProvider)
+		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithStorageProvider)
 	}()
 	sp, err := address.NewFromString(storageProviderID)
 	if err != nil {
