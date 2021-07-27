@@ -10,12 +10,18 @@ services:
       - AUTH_LOG_JSON=false
       - AUTH_RPC_ADDR=:5000
       - AUTH_NEAR_ADDR=neard:5000
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=auth
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
       - neard
+      - postgres
     restart: unless-stopped
   neard:
     build:
