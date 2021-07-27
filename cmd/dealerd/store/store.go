@@ -73,19 +73,6 @@ func New(postgresURI string) (*Store, error) {
 	return &Store{conn: conn, db: db.New(conn)}, nil
 }
 
-// CtxWithTx attach a database transaction to the context. It returns the
-// context unchanged if there's error starting the transaction.
-func (s *Store) CtxWithTx(ctx context.Context, opts ...storeutil.TxOptions) (context.Context, error) {
-	return storeutil.CtxWithTx(ctx, s.conn, opts...)
-}
-
-//nolint:unparam
-func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...storeutil.TxOptions) (err error) {
-	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
-		return f(s.db.WithTx(tx))
-	}, opts...)
-}
-
 func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
 	return storeutil.WithCtxTx(ctx,
 		func(tx *sql.Tx) error { return f(s.db.WithTx(tx)) },
@@ -103,7 +90,8 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 	if ad.ID, err = s.newID(); err != nil {
 		return fmt.Errorf("generating new id: %s", err)
 	}
-	return s.withTx(ctx, func(txn *db.Queries) error {
+	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
+		txn := s.db.WithTx(tx)
 		if err := txn.CreateAuctionData(ctx, db.CreateAuctionDataParams{
 			ID:         ad.ID,
 			BatchID:    ad.BatchID,
@@ -240,7 +228,8 @@ func (s *Store) RemoveAuctionDeal(ctx context.Context, aud AuctionDeal) error {
 	if aud.Status != db.StatusReportFinalized || !aud.Executing {
 		return fmt.Errorf("only auction deals in final status can be removed")
 	}
-	return s.withTx(ctx, func(txn *db.Queries) error {
+	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
+		txn := s.db.WithTx(tx)
 		// 1. Remove the auction deal.
 		if err := txn.RemoveAuctionDeal(ctx, aud.ID); err != nil {
 			return fmt.Errorf("deleting auction deal: %s", err)
