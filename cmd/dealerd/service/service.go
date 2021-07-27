@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
@@ -93,6 +95,10 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 // OnReadyToCreateDeals process an event for deals to be executed.
 func (s *Service) OnReadyToCreateDeals(ctx context.Context, ads dealeri.AuctionDeals) error {
 	if err := s.dealer.ReadyToCreateDeals(ctx, ads); err != nil {
+		if errors.Is(err, store.ErrAuctionDataExists) {
+			log.Warnf("auction data with ID %s already processed, acking", ads.ID)
+			return nil
+		}
 		return fmt.Errorf("processing ready to create deals: %s", err)
 	}
 

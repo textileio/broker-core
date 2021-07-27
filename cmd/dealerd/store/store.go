@@ -2,17 +2,17 @@ package store
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgconn"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/store/internal/db"
@@ -32,6 +32,9 @@ const (
 var (
 	// ErrNotFound is returned if the item isn't found in the store.
 	ErrNotFound = errors.New("key not found")
+
+	// ErrAuctionDataExists indicates that the auction data already exists.
+	ErrAuctionDataExists = errors.New("auction data already exists")
 )
 
 // AuctionDealStatus is the type of action deal status.
@@ -48,8 +51,8 @@ type AuctionData struct {
 	CreatedAt  time.Time
 }
 
-// AuctionDeal contains information to make a deal with a particular storage-provider. The data information is stored
-// in the linked AuctionData.
+// AuctionDeal contains information to make a deal with a particular
+// storage-provider. The data information is stored in the linked AuctionData.
 type AuctionDeal db.AuctionDeal
 
 // Store provides persistent storage for Bids.
@@ -87,9 +90,6 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 		return fmt.Errorf("invalid auction data: %s", err)
 	}
 
-	if ad.ID, err = s.newID(); err != nil {
-		return fmt.Errorf("generating new id: %s", err)
-	}
 	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
 		txn := s.db.WithTx(tx)
 		if err := txn.CreateAuctionData(ctx, db.CreateAuctionDataParams{
@@ -100,35 +100,38 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 			PieceSize:  ad.PieceSize,
 			Duration:   ad.Duration,
 		}); err != nil {
-			return fmt.Errorf("saving auction data in datastore: %s", err)
-		}
-		for _, deal := range ads {
-			deal.ID, err = s.newID()
-			if err != nil {
-				return fmt.Errorf("generating new id: %s", err)
+			if err, ok := err.(*pgconn.PgError); ok {
+				if err.Code == "23505" {
+					return ErrAuctionDataExists
+				}
 			}
-			deal.AuctionDataID = ad.ID
-			deal.Status = db.StatusDealMaking
-			deal.ReadyAt = time.Unix(0, 0)
+
+			return fmt.Errorf("saving auction data in db: %s", err)
+		}
+		for _, aud := range ads {
+			aud.ID = uuid.New().String()
+			aud.AuctionDataID = ad.ID
+			aud.Status = db.StatusDealMaking
+			aud.ReadyAt = time.Unix(0, 0)
 			if err := txn.CreateAuctionDeal(ctx, db.CreateAuctionDealParams{
-				ID:                  deal.ID,
-				AuctionDataID:       deal.AuctionDataID,
-				StorageProviderID:   deal.StorageProviderID,
-				PricePerGibPerEpoch: deal.PricePerGibPerEpoch,
-				StartEpoch:          deal.StartEpoch,
-				Verified:            deal.Verified,
-				FastRetrieval:       deal.FastRetrieval,
-				AuctionID:           deal.AuctionID,
-				BidID:               deal.BidID,
-				Status:              deal.Status,
-				Executing:           deal.Executing,
-				ErrorCause:          deal.ErrorCause,
-				Retries:             deal.Retries,
-				ProposalCid:         deal.ProposalCid,
-				DealID:              deal.DealID,
-				DealExpiration:      deal.DealExpiration,
-				DealMarketStatus:    deal.DealMarketStatus,
-				ReadyAt:             deal.ReadyAt,
+				ID:                  aud.ID,
+				AuctionDataID:       aud.AuctionDataID,
+				StorageProviderID:   aud.StorageProviderID,
+				PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
+				StartEpoch:          aud.StartEpoch,
+				Verified:            aud.Verified,
+				FastRetrieval:       aud.FastRetrieval,
+				AuctionID:           aud.AuctionID,
+				BidID:               aud.BidID,
+				Status:              aud.Status,
+				Executing:           aud.Executing,
+				ErrorCause:          aud.ErrorCause,
+				Retries:             aud.Retries,
+				ProposalCid:         aud.ProposalCid,
+				DealID:              aud.DealID,
+				DealExpiration:      aud.DealExpiration,
+				DealMarketStatus:    aud.DealMarketStatus,
+				ReadyAt:             aud.ReadyAt,
 			}); err != nil {
 				return fmt.Errorf("saving auction deal in datastore: %s", err)
 			}
@@ -264,29 +267,12 @@ func (s *Store) GetStatusCounts(ctx context.Context) (map[storagemarket.StorageD
 	return ret, nil
 }
 
-func (s *Store) newID() (string, error) {
-	s.lock.Lock()
-	// Not deferring unlock since can be recursive.
-
-	if s.entropy == nil {
-		s.entropy = ulid.Monotonic(rand.Reader, 0)
-	}
-	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), s.entropy)
-	if errors.Is(err, ulid.ErrMonotonicOverflow) {
-		s.entropy = nil
-		s.lock.Unlock()
-		return s.newID()
-	} else if err != nil {
-		s.lock.Unlock()
-		return "", fmt.Errorf("generating id: %v", err)
-	}
-	s.lock.Unlock()
-	return strings.ToLower(id.String()), nil
-}
-
 func validate(ad *AuctionData, ads []*AuctionDeal) error {
 	if ad.Duration <= 0 {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
+	}
+	if ad.ID == "" {
+		return errors.New("id is empty")
 	}
 	if ad.BatchID == "" {
 		return errors.New("batch id is empty")
