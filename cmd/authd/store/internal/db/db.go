@@ -22,6 +22,9 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.createAuthTokenStmt, err = db.PrepareContext(ctx, createAuthToken); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateAuthToken: %w", err)
+	}
 	if q.getAuthTokenStmt, err = db.PrepareContext(ctx, getAuthToken); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAuthToken: %w", err)
 	}
@@ -30,6 +33,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 
 func (q *Queries) Close() error {
 	var err error
+	if q.createAuthTokenStmt != nil {
+		if cerr := q.createAuthTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createAuthTokenStmt: %w", cerr)
+		}
+	}
 	if q.getAuthTokenStmt != nil {
 		if cerr := q.getAuthTokenStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAuthTokenStmt: %w", cerr)
@@ -72,15 +80,17 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db               DBTX
-	tx               *sql.Tx
-	getAuthTokenStmt *sql.Stmt
+	db                  DBTX
+	tx                  *sql.Tx
+	createAuthTokenStmt *sql.Stmt
+	getAuthTokenStmt    *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:               tx,
-		tx:               tx,
-		getAuthTokenStmt: q.getAuthTokenStmt,
+		db:                  tx,
+		tx:                  tx,
+		createAuthTokenStmt: q.createAuthTokenStmt,
+		getAuthTokenStmt:    q.getAuthTokenStmt,
 	}
 }
