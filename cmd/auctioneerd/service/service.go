@@ -11,26 +11,26 @@ import (
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
-	"github.com/textileio/bidbot/lib/finalizer"
-	"github.com/textileio/bidbot/lib/marketpeer"
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
+	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
 )
 
 var log = golog.Logger("auctioneer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Peer    marketpeer.Config
+	Peer    rpcpeer.Config
 	Auction auctioneer.AuctionConfig
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
 type Service struct {
 	mb   mbroker.MsgBroker
-	peer *marketpeer.Peer
+	peer *rpcpeer.Peer
 	lib  *auctioneer.Auctioneer
 
 	finalizer *finalizer.Finalizer
@@ -44,7 +44,7 @@ func New(conf Config, store txndswrap.TxnDatastore, mb mbroker.MsgBroker, fc fil
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer
-	p, err := marketpeer.New(conf.Peer)
+	p, err := rpcpeer.New(conf.Peer)
 	if err != nil {
 		return nil, fin.Cleanupf("creating peer: %v", err)
 	}
@@ -92,7 +92,7 @@ func (s *Service) DAGService() format.DAGService {
 }
 
 // PeerInfo returns the peer's public information.
-func (s *Service) PeerInfo() (*marketpeer.PeerInfo, error) {
+func (s *Service) PeerInfo() (*rpcpeer.Info, error) {
 	return s.peer.Info()
 }
 
