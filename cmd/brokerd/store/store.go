@@ -75,7 +75,7 @@ func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...s
 	}, opts...)
 }
 
-func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
+func (s *Store) withCtxTx(ctx context.Context, f func(*db.Queries) error) (err error) {
 	return storeutil.WithCtxTx(ctx,
 		func(tx *sql.Tx) error { return f(s.db.WithTx(tx)) },
 		func() error { return f(s.db) })
@@ -83,7 +83,7 @@ func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (er
 
 // CreateStorageRequest creates the provided StorageRequest in store.
 func (s *Store) CreateStorageRequest(ctx context.Context, br broker.StorageRequest) error {
-	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	return s.withCtxTx(ctx, func(q *db.Queries) error {
 		return q.CreateStorageRequest(ctx,
 			db.CreateStorageRequestParams{
 				ID:      br.ID,
@@ -98,7 +98,7 @@ func (s *Store) CreateStorageRequest(ctx context.Context, br broker.StorageReque
 func (s *Store) GetStorageRequest(
 	ctx context.Context,
 	id broker.StorageRequestID) (br broker.StorageRequest, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		r, err := s.db.GetStorageRequest(ctx, id)
 		if err == sql.ErrNoRows {
 			return ErrNotFound
@@ -455,7 +455,7 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 // GetBatch gets an existing batch by id. If the batch doesn't exists, it returns
 // ErrNotFound.
 func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Batch, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		var dbSD db.Batch
 		dbSD, err = q.GetBatch(ctx, id)
 		if err != nil {
@@ -473,7 +473,7 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 
 // GetDeals gets storage-provider deals for a batch.
 func (s *Store) GetDeals(ctx context.Context, id broker.BatchID) (deals []db.Deal, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		deals, err = q.GetDeals(ctx, id)
 		return err
 	})
@@ -483,7 +483,7 @@ func (s *Store) GetDeals(ctx context.Context, id broker.BatchID) (deals []db.Dea
 // GetStorageRequestIDs gets the ids of the storage requests for a batch.
 func (s *Store) GetStorageRequestIDs(ctx context.Context, id broker.BatchID) (
 	brIDs []broker.StorageRequestID, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		brIDs, err = q.GetStorageRequestIDs(ctx, batchIDToSQL(id))
 		return err
 	})
@@ -493,7 +493,7 @@ func (s *Store) GetStorageRequestIDs(ctx context.Context, id broker.BatchID) (
 // SaveDeals saves a new finalized (succeeded or errored) auction deal
 // into the batch.
 func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
-	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	return s.withCtxTx(ctx, func(q *db.Queries) error {
 		rows, err := q.UpdateDeals(ctx,
 			db.UpdateDealsParams{
 				BatchID:           fad.BatchID,
