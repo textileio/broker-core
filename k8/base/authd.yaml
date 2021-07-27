@@ -53,6 +53,7 @@ spec:
       labels:
         app: auth-v1
     spec:
+      serviceAccountName: postgres-cloud-sql
       containers:
         - name: auth
           image: textile/auth
@@ -62,6 +63,19 @@ spec:
               containerPort: 5000
             - name: metrics
               containerPort: 9090
+          env:
+            - name: DAEMON
+              value: "auth"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: postgres-password
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: auth-db-password
           envFrom:
             - configMapRef:
                 name: configmap-auth
