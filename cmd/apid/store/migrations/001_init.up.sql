@@ -2,7 +2,7 @@ CREATE TYPE auction_status AS ENUM ('unspecified', 'queued','started','finalized
 
 CREATE TABLE IF NOT EXISTS auctions (
     id TEXT PRIMARY KEY,
-    storage_deal_id TEXT NOT NULL,
+    batch_id TEXT NOT NULL,
     payload_cid TEXT NOT NULL,
     deal_size BIGINT NOT NULL,
     deal_duration BIGINT NOT NULL,

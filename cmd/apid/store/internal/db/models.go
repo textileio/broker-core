@@ -34,22 +34,22 @@ func (e *AuctionStatus) Scan(src interface{}) error {
 }
 
 type Auction struct {
-	ID                                 auction.AuctionID    `json:"id"`
-	StorageDealID                      broker.StorageDealID `json:"storageDealID"`
-	PayloadCid                         string               `json:"payloadCid"`
-	DealSize                           int64                `json:"dealSize"`
-	DealDuration                       int64                `json:"dealDuration"`
-	DealReplication                    int32                `json:"dealReplication"`
-	DealVerified                       bool                 `json:"dealVerified"`
-	FilEpochDeadline                   int64                `json:"filEpochDeadline"`
-	ExcludedMiners                     []string             `json:"excludedMiners"`
-	Status                             AuctionStatus        `json:"status"`
-	StartedAt                          time.Time            `json:"startedAt"`
-	UpdatedAt                          time.Time            `json:"updatedAt"`
-	Duration                           int64                `json:"duration"`
-	Attempts                           int32                `json:"attempts"`
-	ErrorCause                         sql.NullString       `json:"errorCause"`
-	BrokerAlreadyNotifiedClosedAuction bool                 `json:"brokerAlreadyNotifiedClosedAuction"`
+	ID                                 auction.AuctionID `json:"id"`
+	BatchID                            broker.BatchID    `json:"batchID"`
+	PayloadCid                         string            `json:"payloadCid"`
+	DealSize                           int64             `json:"dealSize"`
+	DealDuration                       int64             `json:"dealDuration"`
+	DealReplication                    int32             `json:"dealReplication"`
+	DealVerified                       bool              `json:"dealVerified"`
+	FilEpochDeadline                   int64             `json:"filEpochDeadline"`
+	ExcludedMiners                     []string          `json:"excludedMiners"`
+	Status                             AuctionStatus     `json:"status"`
+	StartedAt                          time.Time         `json:"startedAt"`
+	UpdatedAt                          time.Time         `json:"updatedAt"`
+	Duration                           int64             `json:"duration"`
+	Attempts                           int32             `json:"attempts"`
+	ErrorCause                         sql.NullString    `json:"errorCause"`
+	BrokerAlreadyNotifiedClosedAuction bool              `json:"brokerAlreadyNotifiedClosedAuction"`
 }
 
 type Bid struct {

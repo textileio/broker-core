@@ -1,0 +1,79 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+type WinInfo {
+  bid: Bid!
+  auction: Auction!
+  bidderId: ID!
+  acknowledged: Boolean!
+  proposalCid: String!
+  proposalCidAcknowledged: Boolean!
+}
+
+type Bid {
+  id: ID!
+  minerAddr: String!
+  walletAddeSigBase64: String!
+  bidderId: ID!
+  askPrice: Int! # int64
+  verifiedAskPrice: Int # int64
+  startEpoch: Int! # int64
+  fastRetrieval: Boolean!
+  receivedAt: Time!
+  auction: Auction!
+  winInfo: WinInfo
+}
+
+interface AuctionSource {
+  auction: Auction!
+}
+
+type CarUrlSource implements AuctionSource {
+  auction: Auction!
+  urlString: String!
+}
+
+type CarIpfsSource implements AuctionSource {
+  auction: Auction!
+  cid: String!
+  multiaddrs: [String!]!
+}
+
+enum AuctionStatus {
+  UNSPECIFIED
+  QUEUED
+  STARTED
+  FINALIZED
+}
+
+type Auction {
+  id: ID!
+  batchId: String!
+  payloadCid: String!
+  dealSize: Int! # int64
+  dealDuration: Int! # int64
+  dealReplication: Int!
+  dealVerified: Boolean!
+  filEpochDeadline: Int! # int64
+  excludedMiners: [String!]!
+  status: AuctionStatus!
+  startedAt: Time!
+  updatedAt: Time!
+  duration: Int! # int64
+  attempts: Int!
+  errorCause: String
+  brokerAlreadyNotifiedClosedAuction: Boolean!
+  bids: [Bid!]!
+  winningBids: [WinInfo!]!
+  source: AuctionSource!
+}
+
+scalar Time
+
+type Query {
+  auctions: [Auction!]!
+  bids: [Bid!]!
+  winningBids: [WinInfo!]!
+  auctionSources: [AuctionSource!]!
+}

@@ -15,8 +15,8 @@ packages:
 overrides:
   - column: "auctions.id"
     go_type: "github.com/textileio/bidbot/lib/auction.AuctionID"
-  - column: "auctions.storage_deal_id"
-    go_type: "github.com/textileio/broker-core/broker.StorageDealID"
+  - column: "auctions.batch_id"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"
   - column: "bids.bidder_id"
     go_type: "github.com/libp2p/go-libp2p-core/peer.ID"
   - column: "winning_bids.bidder_id"
