@@ -27,7 +27,7 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester, maxUploadS
 	httpServer := &http.Server{
 		Addr:              listenAddr,
 		ReadHeaderTimeout: time.Second * 5,
-		Handler:           createMux(s, maxUploadSize),
+		Handler:           createMux(s, maxUploadSize, skipAuth),
 	}
 
 	log.Info("running HTTP API...")
@@ -40,18 +40,22 @@ func NewServer(listenAddr string, skipAuth bool, s storage.Requester, maxUploadS
 	return httpServer, nil
 }
 
-func createMux(s storage.Requester, maxUploadSize uint) *http.ServeMux {
+func createMux(s storage.Requester, maxUploadSize uint, skipAuth bool) *http.ServeMux {
+	var reqAuth requestAuthorizer = getAuth
+	if skipAuth {
+		reqAuth = getAuthMock
+	}
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 
-	uploadHandler := wrapMiddlewares(uploadHandler(s, maxUploadSize), "upload")
+	uploadHandler := wrapMiddlewares(uploadHandler(reqAuth, s, maxUploadSize), "upload")
 	mux.Handle("/upload", uploadHandler)
 
 	storageRequestStatusHandler := wrapMiddlewares(storageRequestHandler(s), "storagerequest")
 	mux.Handle("/storagerequest/", storageRequestStatusHandler)
 
-	auctionDataHandler := wrapMiddlewares(auctionDataHandler(s), "auction-data")
+	auctionDataHandler := wrapMiddlewares(auctionDataHandler(reqAuth, s), "auction-data")
 	mux.Handle("/auction-data", auctionDataHandler)
 
 	mux.HandleFunc("/car/", carDownloadHandler(s))
@@ -91,14 +95,17 @@ func corsHandler(h http.Handler) http.Handler {
 	})
 }
 
-func uploadHandler(s storage.Requester, maxUploadSize uint) func(w http.ResponseWriter, r *http.Request) {
+func uploadHandler(
+	reqAuth requestAuthorizer,
+	s storage.Requester,
+	maxUploadSize uint) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 			return
 		}
 
-		ae, status, err := getAuth(r, s)
+		ae, status, err := reqAuth(r, s)
 		if err != nil {
 			httpError(w, err.Error(), status)
 			return
@@ -112,14 +119,14 @@ func uploadHandler(s storage.Requester, maxUploadSize uint) func(w http.Response
 			return
 		}
 
-		storageRequest, err := s.CreateFromReader(r.Context(), file, ae.Origin)
+		sr, err := s.CreateFromReader(r.Context(), file, ae.Origin)
 		if err != nil {
 			httpError(w, fmt.Sprintf("upload data and create storage request: %s", err), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(storageRequest); err != nil {
+		if err := json.NewEncoder(w).Encode(sr); err != nil {
 			httpError(w, fmt.Sprintf("marshaling response: %s", err), http.StatusInternalServerError)
 			return
 		}
@@ -184,14 +191,14 @@ Loop:
 	return file, nil
 }
 
-func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
+func auctionDataHandler(reqAuth requestAuthorizer, s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			httpError(w, "only POST method is allowed", http.StatusBadRequest)
 			return
 		}
 
-		ae, status, err := getAuth(r, s)
+		ae, status, err := reqAuth(r, s)
 		if err != nil {
 			httpError(w, err.Error(), status)
 			return
@@ -221,6 +228,8 @@ func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 	}
 }
 
+type requestAuthorizer func(*http.Request, storage.Requester) (auth.AuthorizedEntity, int, error)
+
 func getAuth(r *http.Request, s storage.Requester) (auth.AuthorizedEntity, int, error) {
 	authHeader, ok := r.Header["Authorization"]
 	if !ok || len(authHeader) == 0 {
@@ -244,6 +253,13 @@ func getAuth(r *http.Request, s storage.Requester) (auth.AuthorizedEntity, int, 
 	}
 
 	return ae, http.StatusOK, nil
+}
+
+func getAuthMock(r *http.Request, s storage.Requester) (auth.AuthorizedEntity, int, error) {
+	return auth.AuthorizedEntity{
+		Identity: "identity-fake",
+		Origin:   "origin-fake",
+	}, http.StatusOK, nil
 }
 
 func httpError(w http.ResponseWriter, err string, status int) {

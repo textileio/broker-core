@@ -207,7 +207,7 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 
 		for key, value := range ba.Tags {
 			if err := txn.CreateBatchTag(ctx, db.CreateBatchTagParams{
-				BatchID: string(ba.ID),
+				BatchID: ba.ID,
 				Key:     key,
 				Value:   value,
 			}); err != nil {
@@ -461,7 +461,11 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 		if err != nil {
 			return err
 		}
-		sd, err = batchFromDB(&dbSD)
+		tags, err := q.GetBatchTags(ctx, id)
+		if err != nil {
+			return err
+		}
+		sd, err = batchFromDB(&dbSD, tags)
 		return err
 	})
 	return
@@ -528,7 +532,7 @@ func (s *Store) newID() (string, error) {
 	return strings.ToLower(id.String()), nil
 }
 
-func batchFromDB(sd *db.Batch) (sd2 *broker.Batch, err error) {
+func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error) {
 	var payloadCid cid.Cid
 	if sd.PayloadCid != "" {
 		payloadCid, err = cid.Parse(sd.PayloadCid)
@@ -561,6 +565,11 @@ func batchFromDB(sd *db.Batch) (sd2 *broker.Batch, err error) {
 			sources.CARIPFS = carIPFS
 		}
 	}
+	mtags := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		mtags[tag.Key] = tag.Value
+	}
+
 	return &broker.Batch{
 		ID:                 sd.ID,
 		Status:             sd.Status,
@@ -573,6 +582,7 @@ func batchFromDB(sd *db.Batch) (sd2 *broker.Batch, err error) {
 		DisallowRebatching: sd.DisallowRebatching,
 		FilEpochDeadline:   sd.FilEpochDeadline,
 		Origin:             sd.Origin,
+		Tags:               mtags,
 		Error:              sd.Error,
 		CreatedAt:          sd.CreatedAt,
 		UpdatedAt:          sd.UpdatedAt,

@@ -128,12 +128,12 @@ func (b *Broker) Create(ctx context.Context, dataCid cid.Cid, origin string) (br
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	log.Debugf("creating broker-request %s with dataCid %s", brID, dataCid)
+	log.Debugf("creating storage-request %s with data-cid %s from origin %s", brID, dataCid, origin)
 	if err := b.store.CreateStorageRequest(ctx, br); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("create storage request in store: %s", err)
 	}
 
-	log.Debugf("publishing broker-request %s with dataCid %s in ready-to-batch topic", brID, dataCid)
+	log.Debugf("publishing storage-request %s with data-cid %s in ready-to-batch topic", brID, dataCid)
 	dataCids := []mbroker.ReadyToBatchData{{StorageRequestID: br.ID, DataCid: br.DataCid, Origin: origin}}
 	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("publishing to msg broker: %s", err)

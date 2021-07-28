@@ -28,10 +28,9 @@ func TestCreateSuccess(t *testing.T) {
 	expectedSRI := storage.RequestInfo{Request: expectedSR}
 	usm := &uploaderMock{}
 	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
-	usm.On("IsAuthorized", mock.Anything, mock.Anything, mock.Anything).Return(auth.AuthorizedEntity{}, true, "", nil)
 	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
-	mux := createMux(usm, 1<<20)
+	mux := createMux(usm, 1<<20, true)
 	mux.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
 
@@ -65,10 +64,9 @@ func TestCreatePreparedSuccess(t *testing.T) {
 	expectedSRI := storage.RequestInfo{Request: expectedSR}
 	usm := &uploaderMock{}
 	usm.On("CreateFromExternalSource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
-	usm.On("IsAuthorized", mock.Anything, mock.Anything, mock.Anything).Return(auth.AuthorizedEntity{}, true, "", nil)
 	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
-	mux := createMux(usm, 1<<20)
+	mux := createMux(usm, 1<<20, true)
 	mux.ServeHTTP(res, req)
 	require.Equal(t, http.StatusOK, res.Code)
 
@@ -140,13 +138,13 @@ func TestFail(t *testing.T) {
 			call.Run(func(args mock.Arguments) {
 				a := args.String(1)
 				if a == "valid-auth" {
-					call.Return(true, "", nil)
+					call.Return(auth.AuthorizedEntity{}, true, "", nil)
 					return
 				}
 				call.Return(auth.AuthorizedEntity{}, false, "sorry, you're unauthorized", nil)
 			})
 
-			mux := createMux(usm, 1<<20)
+			mux := createMux(usm, 1<<20, false)
 			mux.ServeHTTP(res, req)
 
 			require.Equal(t, tc.expectedStatusCode, res.Code)
@@ -161,9 +159,8 @@ func TestFail(t *testing.T) {
 		usm := &uploaderMock{}
 		usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).
 			Return(storage.Request{}, fmt.Errorf("oops"))
-		usm.On("IsAuthorized", mock.Anything, mock.Anything, mock.Anything).Return(auth.AuthorizedEntity{}, true, "", nil)
 
-		mux := createMux(usm, 1<<20)
+		mux := createMux(usm, 1<<20, true)
 		mux.ServeHTTP(res, req)
 		require.Equal(t, http.StatusInternalServerError, res.Code)
 		usm.AssertExpectations(t)

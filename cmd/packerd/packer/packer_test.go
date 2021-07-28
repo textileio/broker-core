@@ -88,6 +88,7 @@ func TestPack(t *testing.T) {
 
 	require.Len(t, msg.StorageRequestIds, numFiles)
 	require.Equal(t, numFiles, numBatchedCids)
+	require.Equal(t, "OR", msg.Origin)
 	require.NotEmpty(t, msg.BatchCid)
 	bcid, err := cid.Cast(msg.BatchCid)
 	require.NoError(t, err)
@@ -99,7 +100,7 @@ func TestPack(t *testing.T) {
 	require.True(t, pinned)
 }
 
-func TestPackBatch(t *testing.T) {
+func TestPackMultiple(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -155,6 +156,7 @@ func TestPackBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, pinned)
 }
+
 func TestStats(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

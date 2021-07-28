@@ -46,6 +46,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getBatchStmt, err = db.PrepareContext(ctx, getBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBatch: %w", err)
 	}
+	if q.getBatchTagsStmt, err = db.PrepareContext(ctx, getBatchTags); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBatchTags: %w", err)
+	}
 	if q.getDealsStmt, err = db.PrepareContext(ctx, getDeals); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDeals: %w", err)
 	}
@@ -125,6 +128,11 @@ func (q *Queries) Close() error {
 	if q.getBatchStmt != nil {
 		if cerr := q.getBatchStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getBatchStmt: %w", cerr)
+		}
+	}
+	if q.getBatchTagsStmt != nil {
+		if cerr := q.getBatchTagsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBatchTagsStmt: %w", cerr)
 		}
 	}
 	if q.getDealsStmt != nil {
@@ -234,6 +242,7 @@ type Queries struct {
 	createUnpinJobStmt              *sql.Stmt
 	deleteExecutingUnpinJobStmt     *sql.Stmt
 	getBatchStmt                    *sql.Stmt
+	getBatchTagsStmt                *sql.Stmt
 	getDealsStmt                    *sql.Stmt
 	getStorageRequestStmt           *sql.Stmt
 	getStorageRequestIDsStmt        *sql.Stmt
@@ -260,6 +269,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createUnpinJobStmt:              q.createUnpinJobStmt,
 		deleteExecutingUnpinJobStmt:     q.deleteExecutingUnpinJobStmt,
 		getBatchStmt:                    q.getBatchStmt,
+		getBatchTagsStmt:                q.getBatchTagsStmt,
 		getDealsStmt:                    q.getDealsStmt,
 		getStorageRequestStmt:           q.getStorageRequestStmt,
 		getStorageRequestIDsStmt:        q.getStorageRequestIDsStmt,
