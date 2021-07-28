@@ -15,7 +15,7 @@ message CreateStorageRequestResponse {
 
 message CreatePreparedStorageRequestRequest {
   string cid = 1;
-  PreparedCAR preparedCAR = 2;
+  PreparedCAR prepared_car = 2;
   Metadata metadata = 3;
 
   message Metadata {
@@ -66,7 +66,7 @@ message Sources {
   CARIPFS car_ipfs = 2;
 
   message CARURL {
-    string URL = 1;
+    string url = 1;
   }
 
   message CARIPFS {
@@ -184,13 +184,13 @@ message StorageRequest {
   google.protobuf.Timestamp updated_at = 7; 
 
   enum Status {
-    UNSPECIFIED = 0;
-    BATCHING = 1;
-    PREPARING = 2;
-    AUCTIONING = 3;
-    DEALMAKING = 4;
-    SUCCESS = 5;
-    ERROR = 6;
+    STATUS_UNSPECIFIED = 0;
+    STATUS_BATCHING = 1;
+    STATUS_PREPARING = 2;
+    STATUS_AUCTIONING = 3;
+    STATUS_DEALMAKING = 4;
+    STATUS_SUCCESS = 5;
+    STATUS_ERROR = 6;
   }
 }
 

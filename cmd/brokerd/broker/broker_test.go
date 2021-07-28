@@ -288,7 +288,7 @@ func TestBatchPrepared(t *testing.T) {
 	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
 	require.Zero(t, rda.FilEpochDeadline)
 	require.NotNil(t, rda.Sources.CarUrl)
-	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), rda.Sources.CarUrl.URL)
+	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), rda.Sources.CarUrl.Url)
 
 	// 5- Verify that the underlying storage requests also moved to
 	//    their correct statuses.

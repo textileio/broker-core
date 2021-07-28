@@ -135,7 +135,7 @@ func (s *Service) CreatePreparedStorageRequest(
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
-	if r.PreparedCAR == nil {
+	if r.PreparedCar == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty prepared car information")
 	}
 
@@ -146,7 +146,7 @@ func (s *Service) CreatePreparedStorageRequest(
 
 	var pc broker.PreparedCAR
 	// Validate PieceCid.
-	pc.PieceCid, err = cid.Decode(r.PreparedCAR.PieceCid)
+	pc.PieceCid, err = cid.Decode(r.PreparedCar.PieceCid)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "piece-cid is invalid: %s", err)
 	}
@@ -155,27 +155,27 @@ func (s *Service) CreatePreparedStorageRequest(
 	}
 
 	// Validate PieceSize.
-	if r.PreparedCAR.PieceSize <= 0 {
+	if r.PreparedCar.PieceSize <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "piece-size must be greater than zero")
 	}
-	if r.PreparedCAR.PieceSize&(r.PreparedCAR.PieceSize-1) != 0 {
+	if r.PreparedCar.PieceSize&(r.PreparedCar.PieceSize-1) != 0 {
 		return nil, status.Error(codes.InvalidArgument, "piece-size must be a power of two")
 	}
-	if r.PreparedCAR.PieceSize > broker.MaxPieceSize {
+	if r.PreparedCar.PieceSize > broker.MaxPieceSize {
 		return nil, status.Errorf(codes.InvalidArgument, "piece-size can't be greater than %d", broker.MaxPieceSize)
 	}
-	pc.PieceSize = r.PreparedCAR.PieceSize
+	pc.PieceSize = r.PreparedCar.PieceSize
 
 	// Validate rep factor.
-	if r.PreparedCAR.RepFactor < 0 {
+	if r.PreparedCar.RepFactor < 0 {
 		return nil, status.Error(codes.InvalidArgument, "rep-factor can't be negative")
 	}
-	pc.RepFactor = int(r.PreparedCAR.RepFactor)
+	pc.RepFactor = int(r.PreparedCar.RepFactor)
 
-	pc.Deadline = r.PreparedCAR.Deadline.AsTime()
+	pc.Deadline = r.PreparedCar.Deadline.AsTime()
 
-	if r.PreparedCAR.CarUrl != nil {
-		url, err := url.Parse(r.PreparedCAR.CarUrl.Url)
+	if r.PreparedCar.CarUrl != nil {
+		url, err := url.Parse(r.PreparedCar.CarUrl.Url)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "parsing CAR URL: %s", err)
 		}
@@ -188,13 +188,13 @@ func (s *Service) CreatePreparedStorageRequest(
 		}
 	}
 
-	if r.PreparedCAR.CarIpfs != nil {
-		carCid, err := cid.Decode(r.PreparedCAR.CarIpfs.Cid)
+	if r.PreparedCar.CarIpfs != nil {
+		carCid, err := cid.Decode(r.PreparedCar.CarIpfs.Cid)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "car cid isn't valid: %s", err)
 		}
-		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCAR.CarIpfs.Multiaddrs))
-		for i, smaddr := range r.PreparedCAR.CarIpfs.Multiaddrs {
+		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCar.CarIpfs.Multiaddrs))
+		for i, smaddr := range r.PreparedCar.CarIpfs.Multiaddrs {
 			maddr, err := multiaddr.NewMultiaddr(smaddr)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "invalid multiaddr %s: %s", smaddr, err)

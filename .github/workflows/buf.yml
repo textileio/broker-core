@@ -1,0 +1,28 @@
+name: Buf
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.16
+      - name: checkout
+        if: success()
+        uses: actions/checkout@v1
+        with:
+          ref: master
+      - name: checkout-master
+        if: success()
+        run: git checkout master
+      - name: checkout
+        if: success()
+        uses: actions/checkout@v1
+      - name: make local
+        if: success()
+        run: make buf-local
