@@ -323,7 +323,7 @@ func (s *Service) OnNewBatchCreated(
 func (s *Service) OnAuctionClosed(ctx context.Context, opID msgbroker.OperationID, au broker.ClosedAuction) error {
 	if err := s.broker.BatchAuctioned(ctx, opID, au); err != nil {
 		if errors.Is(err, brokeri.ErrOperationIDExists) {
-			log.Warnf("auction %s already close, acking", au.ID)
+			log.Warnf("operation %s already exists, acking", opID)
 			return nil
 		}
 		return fmt.Errorf("processing closed auction: %s", err)
