@@ -431,7 +431,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 
 	ba, err := b.store.GetBatch(ctx, au.BatchID)
 	if err != nil {
-		return fmt.Errorf("batch not found: %s", err)
+		return fmt.Errorf("get batch: %s", err)
 	}
 
 	if ba.Status != broker.BatchStatusAuctioning {
@@ -464,7 +464,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 
 	adID, err := b.newID()
 	if err != nil {
-		return fmt.Errorf("generating id: %s", err)
+		return fmt.Errorf("generating auction deal id: %s", err)
 	}
 
 	ads := dealer.AuctionDeals{

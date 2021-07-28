@@ -488,12 +488,11 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.OperationId == "" {
 				return errors.New("operation-id is empty")
 			}
-			opID := r.OperationId
 			auction, err := closedAuctionFromPb(r)
 			if err != nil {
 				return fmt.Errorf("invalid auction closed: %s", err)
 			}
-			if err := l.OnAuctionClosed(ctx, OperationID(opID), auction); err != nil {
+			if err := l.OnAuctionClosed(ctx, OperationID(r.OperationId), auction); err != nil {
 				return fmt.Errorf("calling auction-closed handler: %s", err)
 			}
 			return nil
