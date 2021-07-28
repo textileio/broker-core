@@ -31,8 +31,10 @@ func New(addr string) (*AuthService, error) {
 
 var _ auth.Authorizer = (*AuthService)(nil)
 
-// IsAuthorized returns the identity that is authorized to use the storage service, otherwise returning an error.
-// The token is a base64 URL encoded JWT.
+// IsAuthorized evaluates a authentication token and returns associated information about it.
+// If the authorization token is invalid, the second parameter will return false and the third one will
+// explain why. If the authorization is valid, the returned values are true and "" respectively.
+// The returned AuthorizedEntity value contains valid information only on successful authentications.
 func (a *AuthService) IsAuthorized(ctx context.Context, token string) (auth.AuthorizedEntity, bool, string, error) {
 	req := &authd.AuthRequest{Token: token}
 	res, err := a.client.Auth(ctx, req)

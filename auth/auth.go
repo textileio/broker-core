@@ -2,7 +2,7 @@ package auth
 
 import "context"
 
-// AuthorizedEntity contains information about an authorized entity.
+// AuthorizedEntity contains identity and origin information form an authorizer entity.
 type AuthorizedEntity struct {
 	Identity string
 	Origin   string
