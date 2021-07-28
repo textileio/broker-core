@@ -15,6 +15,7 @@ type Dealer interface {
 
 // AuctionDeals describes a set of deals for some prepared data.
 type AuctionDeals struct {
+	ID         string
 	BatchID    broker.BatchID
 	PayloadCid cid.Cid
 	PieceCid   cid.Cid

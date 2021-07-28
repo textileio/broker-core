@@ -17,6 +17,7 @@ import (
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
+	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 
@@ -307,6 +308,10 @@ func (s *Service) OnNewBatchCreated(
 	brids []broker.StorageRequestID,
 	origin string) error {
 	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin); err != nil {
+		if errors.Is(err, store.ErrBatchExists) {
+			log.Warnf("batch ID %s already created, acking", id)
+			return nil
+		}
 		return fmt.Errorf("creating batch: %s", err)
 	}
 	log.Debugf("new batch created: %s", id)
@@ -315,8 +320,12 @@ func (s *Service) OnNewBatchCreated(
 }
 
 // OnAuctionClosed handles new messages in auction-closed topic.
-func (s *Service) OnAuctionClosed(ctx context.Context, au broker.ClosedAuction) error {
-	if err := s.broker.BatchAuctioned(ctx, au); err != nil {
+func (s *Service) OnAuctionClosed(ctx context.Context, opID msgbroker.OperationID, au broker.ClosedAuction) error {
+	if err := s.broker.BatchAuctioned(ctx, opID, au); err != nil {
+		if errors.Is(err, brokeri.ErrOperationIDExists) {
+			log.Warnf("operation %s already exists, acking", opID)
+			return nil
+		}
 		return fmt.Errorf("processing closed auction: %s", err)
 	}
 	return nil
@@ -328,6 +337,7 @@ func (s *Service) OnNewBatchPrepared(
 	id broker.BatchID,
 	pr broker.DataPreparationResult) error {
 	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
+		// idempotency is taken care of by NewBatchPrepared
 		return fmt.Errorf("processing new prepared batch: %s", err)
 	}
 
@@ -335,8 +345,12 @@ func (s *Service) OnNewBatchPrepared(
 }
 
 // OnFinalizedDeal handles new messages in the finalized-deal topic.
-func (s *Service) OnFinalizedDeal(ctx context.Context, fd broker.FinalizedDeal) error {
-	if err := s.broker.BatchFinalizedDeal(ctx, fd); err != nil {
+func (s *Service) OnFinalizedDeal(ctx context.Context, opID msgbroker.OperationID, fd broker.FinalizedDeal) error {
+	if err := s.broker.BatchFinalizedDeal(ctx, opID, fd); err != nil {
+		if errors.Is(err, brokeri.ErrOperationIDExists) {
+			log.Warnf("operation %s already exists, acking", opID)
+			return nil
+		}
 		return fmt.Errorf("processing finalized deal: %s", err)
 	}
 
