@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
@@ -13,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgconn"
-	"github.com/oklog/ulid/v2"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/dealerd/store/migrations"
@@ -57,10 +55,8 @@ type AuctionDeal db.AuctionDeal
 
 // Store provides persistent storage for Bids.
 type Store struct {
-	conn    *sql.DB
-	db      *db.Queries
-	lock    sync.Mutex
-	entropy *ulid.MonotonicEntropy
+	conn *sql.DB
+	db   *db.Queries
 }
 
 // New returns a *Store.

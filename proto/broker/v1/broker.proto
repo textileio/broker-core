@@ -135,14 +135,15 @@ message DealProposalAccepted {
 }
 
 message AuctionClosed {
-    string id = 1;
-    string batch_id = 2;
-    uint64 deal_duration = 3;
-    uint32 deal_replication = 4;
-    bool deal_verified = 5;
-    Status status = 6;
-    map<string, WinningBid> winning_bids = 7;
-    string error = 8;
+    string operation_id = 1;
+    string id = 2;
+    string batch_id = 3;
+    uint64 deal_duration = 4;
+    uint32 deal_replication = 5;
+    bool deal_verified = 6;
+    Status status = 7;
+    map<string, WinningBid> winning_bids = 8;
+    string error = 9;
                                
     enum Status {
         STATUS_UNSPECIFIED = 0;
@@ -166,13 +167,14 @@ message NewBatchPrepared {
 }
 
 message FinalizedDeal {
-    string batch_id = 1;
-    int64 deal_id = 2;
-    uint64 deal_expiration = 3;
-    string storage_provider_id = 4;
-    string error_cause = 5;
-    string auction_id = 6;
-    string bid_id = 7;
+    string operation_id = 1;
+    string batch_id = 2;
+    int64 deal_id = 3;
+    uint64 deal_expiration = 4;
+    string storage_provider_id = 5;
+    string error_cause = 6;
+    string auction_id = 7;
+    string bid_id = 8;
 }
 
 message StorageRequest {

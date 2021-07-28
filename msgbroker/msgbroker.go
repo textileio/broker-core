@@ -91,7 +91,7 @@ type ReadyToCreateDealsListener interface {
 
 // FinalizedDealListener is a handler for finalized-deal topic.
 type FinalizedDealListener interface {
-	OnFinalizedDeal(context.Context, broker.FinalizedDeal) error
+	OnFinalizedDeal(context.Context, OperationID, broker.FinalizedDeal) error
 }
 
 // DealProposalAcceptedListener is a handler for deal-proposal-accepted topic.
@@ -117,7 +117,7 @@ type ReadyToAuctionListener interface {
 
 // AuctionClosedListener is a handler for auction-closed topic.
 type AuctionClosedListener interface {
-	OnAuctionClosed(context.Context, broker.ClosedAuction) error
+	OnAuctionClosed(context.Context, OperationID, broker.ClosedAuction) error
 }
 
 // RegisterHandlers automatically calls mb.RegisterTopicHandler in the methods that
@@ -334,6 +334,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal finalized deal msg: %s", err)
 			}
+			if r.OperationId == "" {
+				return errors.New("operation id is empty")
+			}
 			if r.BatchId == "" {
 				return errors.New("batch id is empty")
 			}
@@ -368,7 +371,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				BidID:             auction.BidID(r.BidId),
 			}
 
-			if err := l.OnFinalizedDeal(ctx, fd); err != nil {
+			if err := l.OnFinalizedDeal(ctx, OperationID(r.OperationId), fd); err != nil {
 				return fmt.Errorf("calling finalized-deal handler: %s", err)
 			}
 			return nil
@@ -482,11 +485,15 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err := proto.Unmarshal(data, r); err != nil {
 				return fmt.Errorf("unmarshal auction closed: %s", err)
 			}
+			if r.OperationId == "" {
+				return errors.New("operation-id is empty")
+			}
+			opID := r.OperationId
 			auction, err := closedAuctionFromPb(r)
 			if err != nil {
 				return fmt.Errorf("invalid auction closed: %s", err)
 			}
-			if err := l.OnAuctionClosed(ctx, auction); err != nil {
+			if err := l.OnAuctionClosed(ctx, OperationID(opID), auction); err != nil {
 				return fmt.Errorf("calling auction-closed handler: %s", err)
 			}
 			return nil
@@ -663,6 +670,7 @@ func PublishMsgReadyToCreateDeals(
 // PublishMsgFinalizedDeal publishes a message to the finalized-deal topic.
 func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.FinalizedDeal) error {
 	msg := &pb.FinalizedDeal{
+		OperationId:       uuid.New().String(),
 		BatchId:           string(fd.BatchID),
 		StorageProviderId: fd.StorageProviderID,
 		DealId:            fd.DealID,
@@ -822,6 +830,7 @@ func closedAuctionToPb(a broker.ClosedAuction) (*pb.AuctionClosed, error) {
 		return nil, fmt.Errorf("converting status to pb: %s", err)
 	}
 	pba := &pb.AuctionClosed{
+		OperationId:     uuid.New().String(),
 		Id:              string(a.ID),
 		BatchId:         string(a.BatchID),
 		DealDuration:    a.DealDuration,
@@ -875,6 +884,7 @@ func closedAuctionFromPb(pba *pb.AuctionClosed) (broker.ClosedAuction, error) {
 	if err != nil {
 		return broker.ClosedAuction{}, fmt.Errorf("decoding bids: %v", err)
 	}
+
 	if pba.Id == "" {
 		return broker.ClosedAuction{}, errors.New("closed auction id is empty")
 	}

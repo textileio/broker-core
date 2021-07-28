@@ -104,7 +104,6 @@ func TestReadyToCreateDealsIdempotency(t *testing.T) {
 	require.NoError(t, err)
 	err = dealer.ReadyToCreateDeals(ctx, auds)
 	require.ErrorIs(t, err, store.ErrAuctionDataExists)
-
 }
 
 func TestStateMachineExecPending(t *testing.T) {
