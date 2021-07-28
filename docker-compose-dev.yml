@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: ./cmd/authd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./authd"]
     environment:
       - AUTH_LOG_DEBUG=true
       - AUTH_LOG_JSON=false

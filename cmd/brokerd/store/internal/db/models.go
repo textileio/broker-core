@@ -30,10 +30,10 @@ type Batch struct {
 }
 
 type BatchTag struct {
-	BatchID   string    `json:"batchID"`
-	Key       string    `json:"key"`
-	Value     string    `json:"value"`
-	CreatedAt time.Time `json:"createdAt"`
+	BatchID   broker.BatchID `json:"batchID"`
+	Key       string         `json:"key"`
+	Value     string         `json:"value"`
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
 type Deal struct {

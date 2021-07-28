@@ -179,6 +179,12 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, payloadCid, sd.PayloadCid)
 	require.Equal(t, pc.PieceCid, sd.PieceCid)
 	require.Equal(t, pc.PieceSize, sd.PieceSize)
+	require.Len(t, sd.Tags, len(meta.Tags))
+	for k, v := range meta.Tags {
+		v2, ok := sd.Tags[k]
+		require.True(t, ok)
+		require.Equal(t, v, v2)
+	}
 
 	// 4- Check that we made the call to create the auction.
 	require.Equal(t, 1, mb.TotalPublished())
