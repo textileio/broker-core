@@ -67,24 +67,24 @@ func (c *Client) CreatePrepared(
 			Tags:   meta.Tags,
 		},
 	}
-	req.PreparedCAR = &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
+	req.PreparedCar = &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
 		PieceCid:  pc.PieceCid.String(),
 		PieceSize: pc.PieceSize,
 		RepFactor: int64(pc.RepFactor),
 		Deadline:  timestamppb.New(pc.Deadline),
 	}
 	if pc.Sources.CARURL != nil {
-		req.PreparedCAR.CarUrl = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARURL{
+		req.PreparedCar.CarUrl = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARURL{
 			Url: pc.Sources.CARURL.URL.String(),
 		}
 	}
 	if pc.Sources.CARIPFS != nil {
-		req.PreparedCAR.CarIpfs = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARIPFS{
+		req.PreparedCar.CarIpfs = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARIPFS{
 			Cid:        pc.Sources.CARIPFS.Cid.String(),
 			Multiaddrs: make([]string, len(pc.Sources.CARIPFS.Multiaddrs)),
 		}
 		for i, ma := range pc.Sources.CARIPFS.Multiaddrs {
-			req.PreparedCAR.CarIpfs.Multiaddrs[i] = ma.String()
+			req.PreparedCar.CarIpfs.Multiaddrs[i] = ma.String()
 		}
 	}
 
