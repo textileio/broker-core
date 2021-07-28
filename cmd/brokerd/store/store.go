@@ -84,8 +84,13 @@ func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (er
 // CreateStorageRequest creates the provided StorageRequest in store.
 func (s *Store) CreateStorageRequest(ctx context.Context, br broker.StorageRequest) error {
 	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		return q.CreateStorageRequest(ctx, db.CreateStorageRequestParams{
-			ID: br.ID, DataCid: br.DataCid.String(), Status: br.Status})
+		return q.CreateStorageRequest(ctx,
+			db.CreateStorageRequestParams{
+				ID:      br.ID,
+				DataCid: br.DataCid.String(),
+				Status:  br.Status,
+				Origin:  br.Origin,
+			})
 	})
 }
 
@@ -112,6 +117,7 @@ func (s *Store) GetStorageRequest(
 			ID:        r.ID,
 			DataCid:   dataCid,
 			Status:    r.Status,
+			Origin:    r.Origin,
 			BatchID:   broker.BatchID(r.BatchID.String),
 			CreatedAt: r.CreatedAt,
 			UpdatedAt: r.UpdatedAt,
@@ -177,6 +183,7 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 		CarUrl:             dsources.carURL,
 		CarIpfsCid:         dsources.ipfsCid,
 		CarIpfsAddrs:       strings.Join(dsources.ipfsMultiaddrs, ","),
+		Origin:             ba.Origin,
 	}
 	ids := make([]string, len(brIDs))
 	for i, id := range brIDs {
@@ -197,6 +204,17 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 			return fmt.Errorf("unknown storage request ids %v: %w",
 				sliceDiff(ids, updated), ErrBatchContainsUnknownStorageRequest)
 		}
+
+		for key, value := range ba.Tags {
+			if err := txn.CreateBatchTag(ctx, db.CreateBatchTagParams{
+				BatchID: string(ba.ID),
+				Key:     key,
+				Value:   value,
+			}); err != nil {
+				return fmt.Errorf("creating tag: %s", err)
+			}
+		}
+
 		return nil
 	})
 }
@@ -554,6 +572,7 @@ func batchFromDB(sd *db.Batch) (sd2 *broker.Batch, err error) {
 		Sources:            sources,
 		DisallowRebatching: sd.DisallowRebatching,
 		FilEpochDeadline:   sd.FilEpochDeadline,
+		Origin:             sd.Origin,
 		Error:              sd.Error,
 		CreatedAt:          sd.CreatedAt,
 		UpdatedAt:          sd.UpdatedAt,

@@ -16,20 +16,20 @@ type Broker struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: ctx, dataCid
-func (_m *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageRequest, error) {
-	ret := _m.Called(ctx, dataCid)
+// Create provides a mock function with given fields: ctx, dataCid, origin
+func (_m *Broker) Create(ctx context.Context, dataCid cid.Cid, origin string) (broker.StorageRequest, error) {
+	ret := _m.Called(ctx, dataCid, origin)
 
 	var r0 broker.StorageRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid) broker.StorageRequest); ok {
-		r0 = rf(ctx, dataCid)
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, string) broker.StorageRequest); ok {
+		r0 = rf(ctx, dataCid, origin)
 	} else {
 		r0 = ret.Get(0).(broker.StorageRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid) error); ok {
-		r1 = rf(ctx, dataCid)
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, string) error); ok {
+		r1 = rf(ctx, dataCid, origin)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -37,20 +37,20 @@ func (_m *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageRe
 	return r0, r1
 }
 
-// CreatePrepared provides a mock function with given fields: ctx, payloadCid, pc
-func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR) (broker.StorageRequest, error) {
-	ret := _m.Called(ctx, payloadCid, pc)
+// CreatePrepared provides a mock function with given fields: ctx, payloadCid, pc, m
+func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR, m broker.BatchMetadata) (broker.StorageRequest, error) {
+	ret := _m.Called(ctx, payloadCid, pc, m)
 
 	var r0 broker.StorageRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.PreparedCAR) broker.StorageRequest); ok {
-		r0 = rf(ctx, payloadCid, pc)
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata) broker.StorageRequest); ok {
+		r0 = rf(ctx, payloadCid, pc, m)
 	} else {
 		r0 = ret.Get(0).(broker.StorageRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.PreparedCAR) error); ok {
-		r1 = rf(ctx, payloadCid, pc)
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata) error); ok {
+		r1 = rf(ctx, payloadCid, pc, m)
 	} else {
 		r1 = ret.Error(1)
 	}

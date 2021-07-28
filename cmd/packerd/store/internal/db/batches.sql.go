@@ -35,11 +35,16 @@ func (q *Queries) AddStorageRequestInBatch(ctx context.Context, arg AddStorageRe
 }
 
 const createOpenBatch = `-- name: CreateOpenBatch :exec
-INSERT INTO batches (batch_id) values ($1)
+INSERT INTO batches (batch_id,origin) values ($1,$2)
 `
 
-func (q *Queries) CreateOpenBatch(ctx context.Context, batchID broker.BatchID) error {
-	_, err := q.exec(ctx, q.createOpenBatchStmt, createOpenBatch, batchID)
+type CreateOpenBatchParams struct {
+	BatchID broker.BatchID `json:"batchID"`
+	Origin  string         `json:"origin"`
+}
+
+func (q *Queries) CreateOpenBatch(ctx context.Context, arg CreateOpenBatchParams) error {
+	_, err := q.exec(ctx, q.createOpenBatchStmt, createOpenBatch, arg.BatchID, arg.Origin)
 	return err
 }
 
@@ -63,22 +68,29 @@ func (q *Queries) DoneBatchStats(ctx context.Context) (DoneBatchStatsRow, error)
 }
 
 const findOpenBatchWithSpace = `-- name: FindOpenBatchWithSpace :one
-SELECT batch_id, status, total_size, ready_at, created_at, updated_at
+SELECT batch_id, status, total_size, origin, ready_at, created_at, updated_at
 FROM batches
 WHERE status='open' AND
-      total_size<=$1
+      total_size<=$1 AND
+      origin=$2
 ORDER BY created_at
 FOR UPDATE
 LIMIT 1
 `
 
-func (q *Queries) FindOpenBatchWithSpace(ctx context.Context, totalSize int64) (Batch, error) {
-	row := q.queryRow(ctx, q.findOpenBatchWithSpaceStmt, findOpenBatchWithSpace, totalSize)
+type FindOpenBatchWithSpaceParams struct {
+	TotalSize int64  `json:"totalSize"`
+	Origin    string `json:"origin"`
+}
+
+func (q *Queries) FindOpenBatchWithSpace(ctx context.Context, arg FindOpenBatchWithSpaceParams) (Batch, error) {
+	row := q.queryRow(ctx, q.findOpenBatchWithSpaceStmt, findOpenBatchWithSpace, arg.TotalSize, arg.Origin)
 	var i Batch
 	err := row.Scan(
 		&i.BatchID,
 		&i.Status,
 		&i.TotalSize,
+		&i.Origin,
 		&i.ReadyAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -94,18 +106,19 @@ WHERE batch_id = (SELECT b.batch_id FROM batches b
 		  ORDER BY b.ready_at asc
 		  FOR UPDATE SKIP LOCKED
 	          LIMIT 1)
-RETURNING batch_id, total_size
+RETURNING batch_id, total_size, origin
 `
 
 type GetNextReadyBatchRow struct {
 	BatchID   broker.BatchID `json:"batchID"`
 	TotalSize int64          `json:"totalSize"`
+	Origin    string         `json:"origin"`
 }
 
 func (q *Queries) GetNextReadyBatch(ctx context.Context) (GetNextReadyBatchRow, error) {
 	row := q.queryRow(ctx, q.getNextReadyBatchStmt, getNextReadyBatch)
 	var i GetNextReadyBatchRow
-	err := row.Scan(&i.BatchID, &i.TotalSize)
+	err := row.Scan(&i.BatchID, &i.TotalSize, &i.Origin)
 	return i, err
 }
 

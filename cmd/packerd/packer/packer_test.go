@@ -64,7 +64,11 @@ func TestPack(t *testing.T) {
 		err = packer.ReadyToBatch(
 			ctx,
 			mbroker.OperationID(strconv.Itoa(i)),
-			[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)), DataCid: dataCid}},
+			[]mbroker.ReadyToBatchData{
+				{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)),
+					DataCid: dataCid,
+					Origin:  "OR",
+				}},
 		)
 		require.NoError(t, err)
 	}
@@ -117,7 +121,11 @@ func TestPackBatch(t *testing.T) {
 	// 3- Batch the 100 files in a single call
 	rtbs := make([]mbroker.ReadyToBatchData, len(dataCids))
 	for i, dataCid := range dataCids {
-		rtbs[i] = mbroker.ReadyToBatchData{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)), DataCid: dataCid}
+		rtbs[i] = mbroker.ReadyToBatchData{
+			StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)),
+			DataCid:          dataCid,
+			Origin:           "OR",
+		}
 	}
 	err = packer.ReadyToBatch(ctx, "op-1", rtbs)
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 message CreateStorageRequestRequest {
   string cid = 1;
+  string origin = 2;
 }
 
 message CreateStorageRequestResponse {
@@ -15,6 +16,12 @@ message CreateStorageRequestResponse {
 message CreatePreparedStorageRequestRequest {
   string cid = 1;
   PreparedCAR preparedCAR = 2;
+  Metadata metadata = 3;
+
+  message Metadata {
+    string origin = 1;
+    map<string, string> tags = 2;
+  }
 
   message PreparedCAR {
     string piece_cid = 1;
@@ -106,6 +113,7 @@ message ReadyToBatch {
   message ReadyToBatchBR {
     string storage_request_id = 1;
     bytes data_cid = 2;
+    string origin = 3;
   }
 }
 
@@ -113,6 +121,7 @@ message NewBatchCreated {
   string id = 1;
   bytes batch_cid = 2;
   repeated string storage_request_ids = 3;
+  string origin = 4;
 }
 
 
@@ -170,8 +179,9 @@ message StorageRequest {
   bytes data_cid = 2;
   Status status = 3;
   string batch_id = 4;
-  google.protobuf.Timestamp created_at = 5; 
-  google.protobuf.Timestamp updated_at = 6; 
+  string origin = 5;
+  google.protobuf.Timestamp created_at = 6; 
+  google.protobuf.Timestamp updated_at = 7; 
 
   enum Status {
     UNSPECIFIED = 0;

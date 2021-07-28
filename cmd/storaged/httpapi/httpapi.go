@@ -98,7 +98,7 @@ func uploadHandler(s storage.Requester, maxUploadSize uint) func(w http.Response
 			return
 		}
 
-		_, status, err := getAuth(r, s)
+		ae, status, err := getAuth(r, s)
 		if err != nil {
 			httpError(w, err.Error(), status)
 			return
@@ -112,7 +112,7 @@ func uploadHandler(s storage.Requester, maxUploadSize uint) func(w http.Response
 			return
 		}
 
-		storageRequest, err := s.CreateFromReader(r.Context(), file)
+		storageRequest, err := s.CreateFromReader(r.Context(), file, ae.Origin)
 		if err != nil {
 			httpError(w, fmt.Sprintf("upload data and create storage request: %s", err), http.StatusInternalServerError)
 			return
@@ -191,7 +191,7 @@ func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 			return
 		}
 
-		_, status, err := getAuth(r, s)
+		ae, status, err := getAuth(r, s)
 		if err != nil {
 			httpError(w, err.Error(), status)
 			return
@@ -207,7 +207,7 @@ func auctionDataHandler(s storage.Requester) func(w http.ResponseWriter, r *http
 			return
 		}
 
-		sr, err := s.CreateFromExternalSource(r.Context(), ad)
+		sr, err := s.CreateFromExternalSource(r.Context(), ad, ae.Origin)
 		if err != nil {
 			httpError(w, fmt.Sprintf("creating storage-request from external data: %s", err), http.StatusInternalServerError)
 			return

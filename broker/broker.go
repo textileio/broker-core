@@ -69,10 +69,10 @@ func (as AuctionStatus) String() string {
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
 	// Create creates a new StorageRequest for a cid.
-	Create(ctx context.Context, dataCid cid.Cid) (StorageRequest, error)
+	Create(ctx context.Context, dataCid cid.Cid, origin string) (StorageRequest, error)
 
 	// CreatePrepared creates a new StorageRequest for prepared data.
-	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (StorageRequest, error)
+	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR, m BatchMetadata) (StorageRequest, error)
 
 	// GetStorageRequestInfo returns a storage request information by id.
 	GetStorageRequestInfo(ctx context.Context, ID StorageRequestID) (StorageRequestInfo, error)
@@ -90,6 +90,8 @@ type Batch struct {
 	DisallowRebatching bool
 	FilEpochDeadline   uint64
 	Error              string
+	Origin             string
+	Tags               map[string]string
 
 	// Packer calculates this field after batching storage requests.
 	PayloadCid cid.Cid

@@ -28,6 +28,7 @@ type StorageRequest struct {
 	ID        StorageRequestID
 	DataCid   cid.Cid
 	Status    StorageRequestStatus
+	Origin    string
 	BatchID   BatchID
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -53,6 +54,12 @@ type PreparedCAR struct {
 	RepFactor int
 	Deadline  time.Time
 	Sources   auction.Sources
+}
+
+// BatchMetadata is metadata about a batch.
+type BatchMetadata struct {
+	Origin string
+	Tags   map[string]string
 }
 
 // StorageRequestStatus describe the current status of a

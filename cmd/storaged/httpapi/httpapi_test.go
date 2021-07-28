@@ -27,7 +27,7 @@ func TestCreateSuccess(t *testing.T) {
 	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
 	expectedSRI := storage.RequestInfo{Request: expectedSR}
 	usm := &uploaderMock{}
-	usm.On("CreateFromReader", mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything, mock.Anything).Return(auth.AuthorizedEntity{}, true, "", nil)
 	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
@@ -64,7 +64,7 @@ func TestCreatePreparedSuccess(t *testing.T) {
 	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
 	expectedSRI := storage.RequestInfo{Request: expectedSR}
 	usm := &uploaderMock{}
-	usm.On("CreateFromExternalSource", mock.Anything, mock.Anything).Return(expectedSR, nil)
+	usm.On("CreateFromExternalSource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
 	usm.On("IsAuthorized", mock.Anything, mock.Anything, mock.Anything).Return(auth.AuthorizedEntity{}, true, "", nil)
 	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
@@ -222,6 +222,7 @@ type uploaderMock struct {
 func (um *uploaderMock) CreateFromReader(
 	ctx context.Context,
 	r io.Reader,
+	origin string,
 ) (storage.Request, error) {
 	args := um.Called(ctx, r)
 
@@ -256,7 +257,9 @@ func (um *uploaderMock) GetCARHeader(ctx context.Context, c cid.Cid, w io.Writer
 
 func (um *uploaderMock) CreateFromExternalSource(
 	ctx context.Context,
-	adr storage.AuctionDataRequest) (storage.Request, error) {
+	adr storage.AuctionDataRequest,
+	origin string,
+) (storage.Request, error) {
 	args := um.Called(ctx, adr)
 
 	return args.Get(0).(storage.Request), args.Error(1)

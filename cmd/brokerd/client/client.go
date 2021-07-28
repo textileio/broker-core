@@ -36,9 +36,10 @@ func New(brokerAPIAddr string, opts ...grpc.DialOption) (*Client, error) {
 }
 
 // Create creates a new StorageRequest.
-func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageRequest, error) {
+func (c *Client) Create(ctx context.Context, dataCid cid.Cid, origin string) (broker.StorageRequest, error) {
 	req := &pb.CreateStorageRequestRequest{
-		Cid: dataCid.String(),
+		Cid:    dataCid.String(),
+		Origin: origin,
 	}
 	res, err := c.c.CreateStorageRequest(ctx, req)
 	if err != nil {
@@ -57,9 +58,14 @@ func (c *Client) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageReq
 func (c *Client) CreatePrepared(
 	ctx context.Context,
 	dataCid cid.Cid,
-	pc broker.PreparedCAR) (broker.StorageRequest, error) {
+	pc broker.PreparedCAR,
+	meta broker.BatchMetadata) (broker.StorageRequest, error) {
 	req := &pb.CreatePreparedStorageRequestRequest{
 		Cid: dataCid.String(),
+		Metadata: &pb.CreatePreparedStorageRequestRequest_Metadata{
+			Origin: meta.Origin,
+			Tags:   meta.Tags,
+		},
 	}
 	req.PreparedCAR = &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
 		PieceCid:  pc.PieceCid.String(),

@@ -53,23 +53,30 @@ const createStorageRequest = `-- name: CreateStorageRequest :exec
 INSERT INTO storage_requests(
     id,
     data_cid,
-    status
-    ) VALUES ($1, $2, $3)
+    status,
+    origin
+    ) VALUES ($1,$2,$3,$4)
 `
 
 type CreateStorageRequestParams struct {
 	ID      broker.StorageRequestID     `json:"id"`
 	DataCid string                      `json:"dataCid"`
 	Status  broker.StorageRequestStatus `json:"status"`
+	Origin  string                      `json:"origin"`
 }
 
 func (q *Queries) CreateStorageRequest(ctx context.Context, arg CreateStorageRequestParams) error {
-	_, err := q.exec(ctx, q.createStorageRequestStmt, createStorageRequest, arg.ID, arg.DataCid, arg.Status)
+	_, err := q.exec(ctx, q.createStorageRequestStmt, createStorageRequest,
+		arg.ID,
+		arg.DataCid,
+		arg.Status,
+		arg.Origin,
+	)
 	return err
 }
 
 const getStorageRequest = `-- name: GetStorageRequest :one
-SELECT id, data_cid, batch_id, status, rebatch_count, error_cause, created_at, updated_at FROM storage_requests
+SELECT id, data_cid, batch_id, status, origin, rebatch_count, error_cause, created_at, updated_at FROM storage_requests
 WHERE id = $1
 `
 
@@ -81,6 +88,7 @@ func (q *Queries) GetStorageRequest(ctx context.Context, id broker.StorageReques
 		&i.DataCid,
 		&i.BatchID,
 		&i.Status,
+		&i.Origin,
 		&i.RebatchCount,
 		&i.ErrorCause,
 		&i.CreatedAt,
@@ -118,7 +126,7 @@ func (q *Queries) GetStorageRequestIDs(ctx context.Context, batchID sql.NullStri
 }
 
 const getStorageRequests = `-- name: GetStorageRequests :many
-SELECT id, data_cid, batch_id, status, rebatch_count, error_cause, created_at, updated_at FROM storage_requests
+SELECT id, data_cid, batch_id, status, origin, rebatch_count, error_cause, created_at, updated_at FROM storage_requests
 WHERE batch_id = $1
 `
 
@@ -136,6 +144,7 @@ func (q *Queries) GetStorageRequests(ctx context.Context, batchID sql.NullString
 			&i.DataCid,
 			&i.BatchID,
 			&i.Status,
+			&i.Origin,
 			&i.RebatchCount,
 			&i.ErrorCause,
 			&i.CreatedAt,

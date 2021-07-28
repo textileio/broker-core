@@ -2,13 +2,14 @@
 SELECT *
 FROM batches
 WHERE status='open' AND
-      total_size<=$1
+      total_size<=$1 AND
+      origin=$2
 ORDER BY created_at
 FOR UPDATE
 LIMIT 1;
 
 -- name: CreateOpenBatch :exec
-INSERT INTO batches (batch_id) values ($1);
+INSERT INTO batches (batch_id,origin) values ($1,$2);
 
 -- name: AddStorageRequestInBatch :exec
 INSERT INTO storage_requests (operation_id, storage_request_id, data_cid, batch_id, size)
@@ -32,7 +33,7 @@ WHERE batch_id = (SELECT b.batch_id FROM batches b
 		  ORDER BY b.ready_at asc
 		  FOR UPDATE SKIP LOCKED
 	          LIMIT 1)
-RETURNING batch_id, total_size;
+RETURNING batch_id, total_size, origin;
 
 -- name: GetStorageRequestsFromBatch :many
 SELECT * FROM storage_requests where batch_id=$1;

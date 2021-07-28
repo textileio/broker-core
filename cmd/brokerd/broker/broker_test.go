@@ -29,7 +29,7 @@ func TestCreateStorageRequestSuccess(t *testing.T) {
 	b, mb, _ := createBroker(t)
 	c := createCidFromString("StorageRequest1")
 
-	br, err := b.Create(context.Background(), c)
+	br, err := b.Create(context.Background(), c, "OR")
 	require.NoError(t, err)
 	require.NotEmpty(t, br.ID)
 	require.Equal(t, broker.RequestBatching, br.Status)
@@ -45,6 +45,7 @@ func TestCreateStorageRequestSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, r.DataCids, 1)
 	require.NotEmpty(t, r.DataCids[0].StorageRequestId)
+	require.Equal(t, "OR", r.DataCids[0].Origin)
 	dataCid, err := cid.Cast(r.DataCids[0].DataCid)
 	require.NoError(t, err)
 	require.Equal(t, c.String(), dataCid.String())
@@ -56,7 +57,7 @@ func TestCreateStorageRequestFail(t *testing.T) {
 	t.Run("invalid cid", func(t *testing.T) {
 		t.Parallel()
 		b, _, _ := createBroker(t)
-		_, err := b.Create(context.Background(), cid.Undef)
+		_, err := b.Create(context.Background(), cid.Undef, "OR")
 		require.Equal(t, ErrInvalidCid, err)
 	})
 }
@@ -68,18 +69,23 @@ func TestCreateBatch(t *testing.T) {
 
 	// 1- Create two storage requests.
 	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c)
+	br1, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, br1.Status)
 
 	c = createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c)
+	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestBatching, br1.Status)
 
 	// 2- Create a batch with both storage requests.
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(
+		ctx,
+		"SD1",
+		brgCid,
+		[]broker.StorageRequestID{br1.ID, br2.ID},
+		"OR")
 	require.NoError(t, err)
 
 	// Check that all storage request:
@@ -110,6 +116,7 @@ func TestCreateBatch(t *testing.T) {
 	require.Nil(t, sd2.Sources.CARIPFS)
 	require.Zero(t, sd2.FilEpochDeadline)
 	require.False(t, sd2.DisallowRebatching)
+	require.Equal(t, "OR", sd2.Origin)
 }
 
 func TestCreatePrepared(t *testing.T) {
@@ -139,7 +146,7 @@ func TestCreatePrepared(t *testing.T) {
 			},
 		},
 	}
-	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc)
+	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta)
 	require.NoError(t, err)
 
 	// 2- Check that the created StorageRequest moved directly to Auctioning.
@@ -200,7 +207,7 @@ func TestCreateBatchFail(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
-		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, nil)
+		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, nil, "DUKEORIGIN")
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
@@ -209,7 +216,7 @@ func TestCreateBatchFail(t *testing.T) {
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
 		brgCid := createCidFromString("Batch")
-		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, nil)
+		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, nil, "DUKEORIGIN")
 		require.Equal(t, ErrEmptyGroup, err)
 	})
 
@@ -219,7 +226,12 @@ func TestCreateBatchFail(t *testing.T) {
 		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("Batch")
-		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{broker.StorageRequestID("invented")})
+		_, err := b.CreateNewBatch(
+			ctx,
+			"SD1",
+			brgCid,
+			[]broker.StorageRequestID{broker.StorageRequestID("invented")},
+			"DUKEORIGIN")
 		require.ErrorIs(t, err, store.ErrBatchContainsUnknownStorageRequest)
 	})
 }
@@ -231,13 +243,13 @@ func TestBatchPrepared(t *testing.T) {
 
 	// 1- Create two storage requests and a corresponding batch.
 	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c)
+	br1, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	c = createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c)
+	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR")
 	require.NoError(t, err)
 
 	// 2- Call BatchPrepared as if the piecer did.
@@ -291,13 +303,13 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	// 1- Create two storage requests and a corresponding batch, and
 	//    pass through prepared.
 	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c)
+	br1, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	c = createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c)
+	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR")
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -425,13 +437,13 @@ func TestBatchAuctionedInvalidAmountWinners(t *testing.T) {
 	// 1- Create two storage requests and a corresponding batch, and
 	//    pass through prepared.
 	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c)
+	br1, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	c = createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c)
+	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sdID, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
+	sdID, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR")
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -484,13 +496,13 @@ func TestBatchFailedAuction(t *testing.T) {
 	// 1- Create two storage requests and a corresponding batch, and
 	//    pass through prepared.
 	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c)
+	br1, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	c = createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c)
+	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR")
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -561,13 +573,13 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	// 1- Create two storage requests and a corresponding batch, and
 	//    pass through prepared, auctioned, and deal making.
 	c1 := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c1)
+	br1, err := b.Create(ctx, c1, "OR")
 	require.NoError(t, err)
 	c2 := createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c2)
+	br2, err := b.Create(ctx, c2, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID})
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR")
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -715,4 +727,12 @@ func (dr *dumbChainAPI) clean() {
 func castCid(cidStr string) cid.Cid {
 	c, _ := cid.Decode(cidStr)
 	return c
+}
+
+var meta = broker.BatchMetadata{
+	Origin: "DUKE",
+	Tags: map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+	},
 }
