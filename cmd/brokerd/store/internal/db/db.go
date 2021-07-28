@@ -28,6 +28,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createBatchStmt, err = db.PrepareContext(ctx, createBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBatch: %w", err)
 	}
+	if q.createBatchTagStmt, err = db.PrepareContext(ctx, createBatchTag); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBatchTag: %w", err)
+	}
 	if q.createDealStmt, err = db.PrepareContext(ctx, createDeal); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateDeal: %w", err)
 	}
@@ -92,6 +95,11 @@ func (q *Queries) Close() error {
 	if q.createBatchStmt != nil {
 		if cerr := q.createBatchStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createBatchStmt: %w", cerr)
+		}
+	}
+	if q.createBatchTagStmt != nil {
+		if cerr := q.createBatchTagStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBatchTagStmt: %w", cerr)
 		}
 	}
 	if q.createDealStmt != nil {
@@ -220,6 +228,7 @@ type Queries struct {
 	tx                              *sql.Tx
 	batchUpdateStorageRequestsStmt  *sql.Stmt
 	createBatchStmt                 *sql.Stmt
+	createBatchTagStmt              *sql.Stmt
 	createDealStmt                  *sql.Stmt
 	createStorageRequestStmt        *sql.Stmt
 	createUnpinJobStmt              *sql.Stmt
@@ -245,6 +254,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                              tx,
 		batchUpdateStorageRequestsStmt:  q.batchUpdateStorageRequestsStmt,
 		createBatchStmt:                 q.createBatchStmt,
+		createBatchTagStmt:              q.createBatchTagStmt,
 		createDealStmt:                  q.createDealStmt,
 		createStorageRequestStmt:        q.createStorageRequestStmt,
 		createUnpinJobStmt:              q.createUnpinJobStmt,

@@ -128,6 +128,7 @@ func (p *Packer) ReadyToBatch(
 			srID,
 			dataCid,
 			size,
+			rtbd.Origin,
 		); err != nil {
 			return fmt.Errorf("add storage-request to open batch: %w", err)
 		}
@@ -171,7 +172,7 @@ func (p *Packer) daemon() {
 }
 
 func (p *Packer) pack(ctx context.Context) (int, error) {
-	batchID, batchSize, srs, ok, err := p.store.GetNextReadyBatch(ctx)
+	batchID, batchSize, srs, origin, ok, err := p.store.GetNextReadyBatch(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("get next ready batch: %s", err)
 	}
@@ -194,7 +195,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	for i, sr := range srs {
 		srIDs[i] = sr.StorageRequestID
 	}
-	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batchID, batchCid, srIDs); err != nil {
+	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batchID, batchCid, srIDs, origin); err != nil {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 

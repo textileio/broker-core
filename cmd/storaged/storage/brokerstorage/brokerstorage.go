@@ -87,6 +87,7 @@ func (bs *BrokerStorage) IsAuthorized(
 func (bs *BrokerStorage) CreateFromReader(
 	ctx context.Context,
 	or io.Reader,
+	origin string,
 ) (storage.Request, error) {
 	type pinataUploadResult struct {
 		c   cid.Cid
@@ -126,7 +127,7 @@ func (bs *BrokerStorage) CreateFromReader(
 		}
 	}
 
-	sr, err := bs.broker.Create(ctx, c)
+	sr, err := bs.broker.Create(ctx, c, origin)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
@@ -215,7 +216,9 @@ func (bs *BrokerStorage) uploadToPinata(r io.Reader) (cid.Cid, error) {
 // CreateFromExternalSource creates a storage request for prepared data.
 func (bs *BrokerStorage) CreateFromExternalSource(
 	ctx context.Context,
-	adr storage.AuctionDataRequest) (storage.Request, error) {
+	adr storage.AuctionDataRequest,
+	origin string,
+) (storage.Request, error) {
 	// Validate PayloadCid.
 	payloadCid, err := cid.Decode(adr.PayloadCid)
 	if err != nil {
@@ -296,7 +299,14 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		return storage.Request{}, errors.New("at least one source must be specified")
 	}
 
-	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc)
+	if origin == "" {
+		return storage.Request{}, fmt.Errorf("origin is empty")
+	}
+	meta := broker.BatchMetadata{
+		Origin: origin,
+		Tags:   adr.Tags,
+	}
+	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc, meta)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}

@@ -2,8 +2,9 @@
 INSERT INTO storage_requests(
     id,
     data_cid,
-    status
-    ) VALUES ($1, $2, $3);
+    status,
+    origin
+    ) VALUES ($1,$2,$3,$4);
 
 -- name: GetStorageRequest :one
 SELECT * FROM storage_requests
