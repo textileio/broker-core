@@ -13,6 +13,7 @@ import (
 
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgconn"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/bidbot/lib/auction"
@@ -26,6 +27,13 @@ import (
 var (
 	// ErrNotFound is returned if the storage request doesn't exist.
 	ErrNotFound = fmt.Errorf("not found")
+
+	// ErrBatchExists if the provided batch id already exists.
+	ErrBatchExists = errors.New("batch-id already exists")
+
+	// ErrBatchInAuction if the provided batch id is already in auction status.
+	ErrBatchInAuction = errors.New("batch-id already in auction")
+
 	// ErrBatchContainsUnknownStorageRequest is returned if a batch contains an
 	// unknown storage request.
 	ErrBatchContainsUnknownStorageRequest = fmt.Errorf("batch contains an unknown storage request")
@@ -75,7 +83,7 @@ func (s *Store) withTx(ctx context.Context, f func(*db.Queries) error, opts ...s
 	}, opts...)
 }
 
-func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
+func (s *Store) withCtxTx(ctx context.Context, f func(*db.Queries) error) (err error) {
 	return storeutil.WithCtxTx(ctx,
 		func(tx *sql.Tx) error { return f(s.db.WithTx(tx)) },
 		func() error { return f(s.db) })
@@ -83,7 +91,7 @@ func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (er
 
 // CreateStorageRequest creates the provided StorageRequest in store.
 func (s *Store) CreateStorageRequest(ctx context.Context, br broker.StorageRequest) error {
-	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	return s.withCtxTx(ctx, func(q *db.Queries) error {
 		return q.CreateStorageRequest(ctx,
 			db.CreateStorageRequestParams{
 				ID:      br.ID,
@@ -98,7 +106,7 @@ func (s *Store) CreateStorageRequest(ctx context.Context, br broker.StorageReque
 func (s *Store) GetStorageRequest(
 	ctx context.Context,
 	id broker.StorageRequestID) (br broker.StorageRequest, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		r, err := s.db.GetStorageRequest(ctx, id)
 		if err == sql.ErrNoRows {
 			return ErrNotFound
@@ -192,6 +200,11 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 
 	return s.withTx(ctx, func(txn *db.Queries) error {
 		if err := txn.CreateBatch(ctx, isd); err != nil {
+			if err, ok := err.(*pgconn.PgError); ok {
+				if err.Code == "23505" {
+					return ErrBatchExists
+				}
+			}
 			return fmt.Errorf("creating batch: %s", err)
 		}
 		updated, err := txn.BatchUpdateStorageRequests(ctx, db.BatchUpdateStorageRequestsParams{
@@ -227,32 +240,8 @@ func (s *Store) BatchToAuctioning(
 	pieceCid cid.Cid,
 	pieceSize uint64) error {
 	return s.withTx(ctx, func(txn *db.Queries) error {
-		ba, err := txn.GetBatch(ctx, id)
-		if err != nil {
-			return fmt.Errorf("get batch: %s", err)
-		}
-
-		// Take care of correct state transitions.
-		switch ba.Status {
-		case broker.BatchStatusPreparing:
-			if ba.PieceCid != "" || ba.PieceSize > 0 {
-				return fmt.Errorf("piece cid and size should be empty: %s %d", ba.PieceCid, ba.PieceSize)
-			}
-		case broker.BatchStatusAuctioning:
-			if ba.PieceCid != pieceCid.String() {
-				return fmt.Errorf("piececid different from registered: %s %s", ba.PieceCid, pieceCid)
-			}
-			if ba.PieceSize != pieceSize {
-				return fmt.Errorf("piece size different from registered: %d %d", ba.PieceSize, pieceSize)
-			}
-			// auction is in process, do nothing
-			return nil
-		default:
-			return fmt.Errorf("wrong storage request status transition, tried moving to %s", ba.Status)
-		}
-
 		if err := txn.UpdateBatch(ctx, db.UpdateBatchParams{
-			ID:        ba.ID,
+			ID:        id,
 			Status:    broker.BatchStatusAuctioning,
 			PieceCid:  pieceCid.String(),
 			PieceSize: pieceSize,
@@ -261,7 +250,7 @@ func (s *Store) BatchToAuctioning(
 		}
 
 		if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
-			Status: broker.RequestAuctioning, BatchID: batchIDToSQL(ba.ID)}); err != nil {
+			Status: broker.RequestAuctioning, BatchID: batchIDToSQL(id)}); err != nil {
 			return fmt.Errorf("update storage requests status: %s", err)
 		}
 		return nil
@@ -455,7 +444,7 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 // GetBatch gets an existing batch by id. If the batch doesn't exists, it returns
 // ErrNotFound.
 func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Batch, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		var dbSD db.Batch
 		dbSD, err = q.GetBatch(ctx, id)
 		if err != nil {
@@ -473,7 +462,7 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 
 // GetDeals gets storage-provider deals for a batch.
 func (s *Store) GetDeals(ctx context.Context, id broker.BatchID) (deals []db.Deal, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		deals, err = q.GetDeals(ctx, id)
 		return err
 	})
@@ -483,8 +472,24 @@ func (s *Store) GetDeals(ctx context.Context, id broker.BatchID) (deals []db.Dea
 // GetStorageRequestIDs gets the ids of the storage requests for a batch.
 func (s *Store) GetStorageRequestIDs(ctx context.Context, id broker.BatchID) (
 	brIDs []broker.StorageRequestID, err error) {
-	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		brIDs, err = q.GetStorageRequestIDs(ctx, batchIDToSQL(id))
+		return err
+	})
+	return
+}
+
+// OperationExists checks if the operation ID already exists in db.
+func (s *Store) OperationExists(ctx context.Context, opID string) (exists bool, err error) {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
+		err = q.CreateOperation(ctx, opID)
+		if err, ok := err.(*pgconn.PgError); ok {
+			if err.Code == "23505" {
+				exists = true
+				return nil
+			}
+		}
+		exists = false
 		return err
 	})
 	return
@@ -493,7 +498,7 @@ func (s *Store) GetStorageRequestIDs(ctx context.Context, id broker.BatchID) (
 // SaveDeals saves a new finalized (succeeded or errored) auction deal
 // into the batch.
 func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
-	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
+	return s.withCtxTx(ctx, func(q *db.Queries) error {
 		rows, err := q.UpdateDeals(ctx,
 			db.UpdateDealsParams{
 				BatchID:           fad.BatchID,
@@ -503,7 +508,7 @@ func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 				ErrorCause:        fad.ErrorCause,
 			})
 		if err != nil {
-			return fmt.Errorf("get batch: %s", err)
+			return fmt.Errorf("update deal: %s", err)
 		}
 		if rows == 0 {
 			return fmt.Errorf("deal not found: %v", fad)

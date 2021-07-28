@@ -87,6 +87,8 @@ func TestCreateBatch(t *testing.T) {
 		[]broker.StorageRequestID{br1.ID, br2.ID},
 		"OR")
 	require.NoError(t, err)
+	_, err = b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR")
+	require.ErrorIs(t, err, store.ErrBatchExists)
 
 	// Check that all storage request:
 	// 1- Moved to StatusPreparing
@@ -349,8 +351,10 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 		Status:          broker.AuctionStatusFinalized,
 		WinningBids:     winningBids,
 	}
-	err = b.BatchAuctioned(ctx, a)
+	err = b.BatchAuctioned(ctx, "op-1", a)
 	require.NoError(t, err)
+	err = b.BatchAuctioned(ctx, "op-1", a)
+	require.ErrorIs(t, err, ErrOperationIDExists)
 
 	// 3- Verify the batch moved to the correct status
 	sd2, err := b.GetBatch(ctx, sd)
@@ -457,6 +461,9 @@ func TestBatchAuctionedInvalidAmountWinners(t *testing.T) {
 	}
 	err = b.NewBatchPrepared(ctx, sdID, dpr)
 	require.NoError(t, err)
+	// idempotent call
+	err = b.NewBatchPrepared(ctx, sdID, dpr)
+	require.NoError(t, err)
 
 	// 2- Call BatchAuctioned as if the auctioneer did.
 	winningBids := map[auction.BidID]broker.WinningBid{
@@ -482,7 +489,7 @@ func TestBatchAuctionedInvalidAmountWinners(t *testing.T) {
 		Status:          broker.AuctionStatusFinalized,
 		WinningBids:     winningBids,
 	}
-	err = b.BatchAuctioned(ctx, a)
+	err = b.BatchAuctioned(ctx, "op-id", a)
 	require.Error(t, err)
 
 	require.Equal(t, 3, mb.TotalPublished())
@@ -527,7 +534,7 @@ func TestBatchFailedAuction(t *testing.T) {
 		Status:          broker.AuctionStatusFinalized,
 		ErrorCause:      "reached max retries",
 	}
-	err = b.BatchAuctioned(ctx, a)
+	err = b.BatchAuctioned(ctx, "op-id", a)
 	require.NoError(t, err)
 
 	// 3- Verify the batch moved to the correct status with error cause.
@@ -617,7 +624,7 @@ func TestBatchFinalizedDeals(t *testing.T) {
 		Status:          broker.AuctionStatusFinalized,
 		WinningBids:     winningBids,
 	}
-	err = b.BatchAuctioned(ctx, auction)
+	err = b.BatchAuctioned(ctx, "op-id", auction)
 	require.NoError(t, err)
 
 	// 2- Call BatchFinalizedDeals with the first deal having
@@ -628,8 +635,10 @@ func TestBatchFinalizedDeals(t *testing.T) {
 		DealExpiration:    200,
 		StorageProviderID: "f0011",
 	}
-	err = b.BatchFinalizedDeal(ctx, fad1)
+	err = b.BatchFinalizedDeal(ctx, "op1", fad1)
 	require.NoError(t, err)
+	err = b.BatchFinalizedDeal(ctx, "op1", fad1)
+	require.ErrorIs(t, err, ErrOperationIDExists)
 
 	// 3- Verify the batch and underlying storage request are still in deal making,
 	//    since there's another pending deal to be reported.
@@ -651,7 +660,7 @@ func TestBatchFinalizedDeals(t *testing.T) {
 		DealID:            101,
 		DealExpiration:    201,
 	}
-	err = b.BatchFinalizedDeal(ctx, fad2)
+	err = b.BatchFinalizedDeal(ctx, "op2", fad2)
 	require.NoError(t, err)
 
 	// 5- Verify that the batch switched to Success, since at least one of the winning bids

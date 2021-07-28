@@ -43,6 +43,14 @@ func TestCreateFail(t *testing.T) {
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
 		require.Error(t, err)
 	})
+	t.Run("auction-data undef id", func(t *testing.T) {
+		t.Parallel()
+		ad := gad1
+		ad.ID = ""
+		aud := gaud1
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		require.Error(t, err)
+	})
 	t.Run("auction-data undef batch id", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
@@ -223,7 +231,7 @@ func TestGetAllAuctionDeals(t *testing.T) {
 	auds, err := s.getAllPending()
 	require.NoError(t, err)
 	require.Len(t, auds, 2)
-	sort.Slice(auds, func(i, j int) bool { return auds[i].ID < auds[j].ID })
+	sort.Slice(auds, func(i, j int) bool { return auds[i].StorageProviderID < auds[j].StorageProviderID })
 	cmpAuctionDeals(t, aud1, auds[0])
 	cmpAuctionDeals(t, aud2, auds[1])
 }
@@ -360,6 +368,7 @@ func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
 
 var (
 	gad1 = AuctionData{
+		ID:         "id-1",
 		BatchID:    broker.BatchID("1"),
 		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jP1"),
 		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),
