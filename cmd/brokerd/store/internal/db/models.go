@@ -48,6 +48,11 @@ type Deal struct {
 	UpdatedAt         time.Time         `json:"updatedAt"`
 }
 
+type Operation struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 type StorageRequest struct {
 	ID           broker.StorageRequestID     `json:"id"`
 	DataCid      string                      `json:"dataCid"`
