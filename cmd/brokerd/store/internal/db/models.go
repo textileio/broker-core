@@ -24,8 +24,16 @@ type Batch struct {
 	DisallowRebatching bool               `json:"disallowRebatching"`
 	FilEpochDeadline   uint64             `json:"filEpochDeadline"`
 	Error              string             `json:"error"`
+	Origin             string             `json:"origin"`
 	CreatedAt          time.Time          `json:"createdAt"`
 	UpdatedAt          time.Time          `json:"updatedAt"`
+}
+
+type BatchTag struct {
+	BatchID   broker.BatchID `json:"batchID"`
+	Key       string         `json:"key"`
+	Value     string         `json:"value"`
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
 type Deal struct {
@@ -45,6 +53,7 @@ type StorageRequest struct {
 	DataCid      string                      `json:"dataCid"`
 	BatchID      sql.NullString              `json:"batchID"`
 	Status       broker.StorageRequestStatus `json:"status"`
+	Origin       string                      `json:"origin"`
 	RebatchCount int32                       `json:"rebatchCount"`
 	ErrorCause   string                      `json:"errorCause"`
 	CreatedAt    time.Time                   `json:"createdAt"`

@@ -84,8 +84,13 @@ func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (er
 // CreateStorageRequest creates the provided StorageRequest in store.
 func (s *Store) CreateStorageRequest(ctx context.Context, br broker.StorageRequest) error {
 	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		return q.CreateStorageRequest(ctx, db.CreateStorageRequestParams{
-			ID: br.ID, DataCid: br.DataCid.String(), Status: br.Status})
+		return q.CreateStorageRequest(ctx,
+			db.CreateStorageRequestParams{
+				ID:      br.ID,
+				DataCid: br.DataCid.String(),
+				Status:  br.Status,
+				Origin:  br.Origin,
+			})
 	})
 }
 
@@ -112,6 +117,7 @@ func (s *Store) GetStorageRequest(
 			ID:        r.ID,
 			DataCid:   dataCid,
 			Status:    r.Status,
+			Origin:    r.Origin,
 			BatchID:   broker.BatchID(r.BatchID.String),
 			CreatedAt: r.CreatedAt,
 			UpdatedAt: r.UpdatedAt,
@@ -177,6 +183,7 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 		CarUrl:             dsources.carURL,
 		CarIpfsCid:         dsources.ipfsCid,
 		CarIpfsAddrs:       strings.Join(dsources.ipfsMultiaddrs, ","),
+		Origin:             ba.Origin,
 	}
 	ids := make([]string, len(brIDs))
 	for i, id := range brIDs {
@@ -197,6 +204,17 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 			return fmt.Errorf("unknown storage request ids %v: %w",
 				sliceDiff(ids, updated), ErrBatchContainsUnknownStorageRequest)
 		}
+
+		for key, value := range ba.Tags {
+			if err := txn.CreateBatchTag(ctx, db.CreateBatchTagParams{
+				BatchID: ba.ID,
+				Key:     key,
+				Value:   value,
+			}); err != nil {
+				return fmt.Errorf("creating tag: %s", err)
+			}
+		}
+
 		return nil
 	})
 }
@@ -443,7 +461,11 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 		if err != nil {
 			return err
 		}
-		sd, err = batchFromDB(&dbSD)
+		tags, err := q.GetBatchTags(ctx, id)
+		if err != nil {
+			return err
+		}
+		sd, err = batchFromDB(&dbSD, tags)
 		return err
 	})
 	return
@@ -510,7 +532,7 @@ func (s *Store) newID() (string, error) {
 	return strings.ToLower(id.String()), nil
 }
 
-func batchFromDB(sd *db.Batch) (sd2 *broker.Batch, err error) {
+func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error) {
 	var payloadCid cid.Cid
 	if sd.PayloadCid != "" {
 		payloadCid, err = cid.Parse(sd.PayloadCid)
@@ -543,6 +565,11 @@ func batchFromDB(sd *db.Batch) (sd2 *broker.Batch, err error) {
 			sources.CARIPFS = carIPFS
 		}
 	}
+	mtags := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		mtags[tag.Key] = tag.Value
+	}
+
 	return &broker.Batch{
 		ID:                 sd.ID,
 		Status:             sd.Status,
@@ -554,6 +581,8 @@ func batchFromDB(sd *db.Batch) (sd2 *broker.Batch, err error) {
 		Sources:            sources,
 		DisallowRebatching: sd.DisallowRebatching,
 		FilEpochDeadline:   sd.FilEpochDeadline,
+		Origin:             sd.Origin,
+		Tags:               mtags,
 		Error:              sd.Error,
 		CreatedAt:          sd.CreatedAt,
 		UpdatedAt:          sd.UpdatedAt,

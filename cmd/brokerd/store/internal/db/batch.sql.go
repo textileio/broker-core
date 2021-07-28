@@ -23,7 +23,8 @@ INSERT INTO batches(
     error,
     payload_cid,
     piece_cid,
-    piece_size
+    piece_size,
+    origin
     ) VALUES (
       $1,
       $2,
@@ -37,8 +38,8 @@ INSERT INTO batches(
       $10,
       $11,
       $12,
-      $13
-      )
+      $13,
+      $14)
 `
 
 type CreateBatchParams struct {
@@ -55,6 +56,7 @@ type CreateBatchParams struct {
 	PayloadCid         string             `json:"payloadCid"`
 	PieceCid           string             `json:"pieceCid"`
 	PieceSize          uint64             `json:"pieceSize"`
+	Origin             string             `json:"origin"`
 }
 
 func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error {
@@ -72,12 +74,28 @@ func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error 
 		arg.PayloadCid,
 		arg.PieceCid,
 		arg.PieceSize,
+		arg.Origin,
 	)
 	return err
 }
 
+const createBatchTag = `-- name: CreateBatchTag :exec
+INSERT INTO batch_tags (batch_id,key,value) VALUES ($1,$2,$3)
+`
+
+type CreateBatchTagParams struct {
+	BatchID broker.BatchID `json:"batchID"`
+	Key     string         `json:"key"`
+	Value   string         `json:"value"`
+}
+
+func (q *Queries) CreateBatchTag(ctx context.Context, arg CreateBatchTagParams) error {
+	_, err := q.exec(ctx, q.createBatchTagStmt, createBatchTag, arg.BatchID, arg.Key, arg.Value)
+	return err
+}
+
 const getBatch = `-- name: GetBatch :one
-SELECT id, status, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, created_at, updated_at FROM batches
+SELECT id, status, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at FROM batches
 WHERE id = $1
 `
 
@@ -98,10 +116,44 @@ func (q *Queries) GetBatch(ctx context.Context, id broker.BatchID) (Batch, error
 		&i.DisallowRebatching,
 		&i.FilEpochDeadline,
 		&i.Error,
+		&i.Origin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getBatchTags = `-- name: GetBatchTags :many
+SELECT batch_id, key, value, created_at FROM batch_tags
+WHERE batch_id=$1
+`
+
+func (q *Queries) GetBatchTags(ctx context.Context, batchID broker.BatchID) ([]BatchTag, error) {
+	rows, err := q.query(ctx, q.getBatchTagsStmt, getBatchTags, batchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BatchTag
+	for rows.Next() {
+		var i BatchTag
+		if err := rows.Scan(
+			&i.BatchID,
+			&i.Key,
+			&i.Value,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateBatch = `-- name: UpdateBatch :exec

@@ -218,7 +218,19 @@ func (s *Service) CreatePreparedStorageRequest(
 	if err := u.Validate(ctx); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "validating sources: %s", err)
 	}
-	br, err := s.broker.CreatePrepared(ctx, payloadCid, pc)
+
+	if r.Metadata.Origin == "" {
+		return nil, status.Error(codes.InvalidArgument, "origin is empty")
+	}
+	meta := broker.BatchMetadata{
+		Origin: r.Metadata.Origin,
+		Tags:   make(map[string]string, len(r.Metadata.Tags)),
+	}
+	for k, v := range meta.Tags {
+		meta.Tags[k] = v
+	}
+
+	br, err := s.broker.CreatePrepared(ctx, payloadCid, pc, meta)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
@@ -242,13 +254,15 @@ func (s *Service) CreateStorageRequest(
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
-
 	c, err := cid.Decode(r.Cid)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
+	if r.Origin == "" {
+		return nil, status.Error(codes.InvalidArgument, "origin is empty")
+	}
 
-	br, err := s.broker.Create(ctx, c)
+	br, err := s.broker.Create(ctx, c, r.Origin)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
@@ -289,8 +303,10 @@ func (s *Service) GetStorageRequestInfo(
 func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
 	id broker.BatchID,
-	batchCid cid.Cid, brids []broker.StorageRequestID) error {
-	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids); err != nil {
+	batchCid cid.Cid,
+	brids []broker.StorageRequestID,
+	origin string) error {
+	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin); err != nil {
 		return fmt.Errorf("creating batch: %s", err)
 	}
 	log.Debugf("new batch created: %s", id)

@@ -92,7 +92,8 @@ func (s *Store) AddStorageRequestToOpenBatch(
 	opID string,
 	srID broker.StorageRequestID,
 	dataCid cid.Cid,
-	dataSize int64) error {
+	dataSize int64,
+	origin string) error {
 	if opID == "" {
 		return errors.New("operation-id is empty")
 	}
@@ -112,24 +113,27 @@ func (s *Store) AddStorageRequestToOpenBatch(
 		queries := s.db.WithTx(txn)
 
 		openBatchMaxSize := s.batchMaxSize - dataSize
-		ob, err = queries.FindOpenBatchWithSpace(ctx, openBatchMaxSize)
+		params := db.FindOpenBatchWithSpaceParams{TotalSize: openBatchMaxSize, Origin: origin}
+		ob, err = queries.FindOpenBatchWithSpace(ctx, params)
 		if err != nil && err != sql.ErrNoRows {
 			return fmt.Errorf("find open batch: %s", err)
 		}
 
 		if err == sql.ErrNoRows {
-			log.Debugf("open batch with max size %d not found, creating new one", openBatchMaxSize)
+			log.Debugf("open batch from origin %s with max size %d not found, creating it", origin, openBatchMaxSize)
 			newID, err := s.newID()
 			if err != nil {
 				return fmt.Errorf("create open batch id: %s", err)
 			}
 			newBatchID := broker.BatchID(newID)
-			if err := queries.CreateOpenBatch(ctx, newBatchID); err != nil {
+			params := db.CreateOpenBatchParams{BatchID: newBatchID, Origin: origin}
+			if err := queries.CreateOpenBatch(ctx, params); err != nil {
 				return fmt.Errorf("creating open batch: %s", err)
 			}
 			ob = db.Batch{
 				BatchID: newBatchID,
 				Status:  db.BatchStatusOpen,
+				Origin:  origin,
 			}
 		}
 
@@ -213,9 +217,11 @@ func (s *Store) MoveBatchToStatus(
 // status to Executing.
 // The caller is responsible for updating the status later to Ready on error, or Done on success.
 func (s *Store) GetNextReadyBatch(
-	ctx context.Context) (batchID broker.BatchID,
+	ctx context.Context) (
+	batchID broker.BatchID,
 	totalSize int64,
 	srs []StorageRequest,
+	origin string,
 	exists bool,
 	err error) {
 	if err = s.withCtxTx(ctx, func(q *db.Queries) error {
@@ -235,10 +241,11 @@ func (s *Store) GetNextReadyBatch(
 
 		batchID = rb.BatchID
 		totalSize = rb.TotalSize
+		origin = rb.Origin
 		exists = true
 		return nil
 	}); err != nil {
-		return "", 0, nil, false, err
+		return "", 0, nil, "", false, err
 	}
 
 	return

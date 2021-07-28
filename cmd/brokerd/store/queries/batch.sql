@@ -12,7 +12,8 @@ INSERT INTO batches(
     error,
     payload_cid,
     piece_cid,
-    piece_size
+    piece_size,
+    origin
     ) VALUES (
       $1,
       $2,
@@ -26,8 +27,8 @@ INSERT INTO batches(
       $10,
       $11,
       $12,
-      $13
-      );
+      $13,
+      $14);
 
 -- name: GetBatch :one
 SELECT * FROM batches
@@ -53,3 +54,10 @@ SET status = $2,
     error = $3,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $1;
+
+-- name: CreateBatchTag :exec
+INSERT INTO batch_tags (batch_id,key,value) VALUES ($1,$2,$3);
+
+-- name: GetBatchTags :many
+SELECT * FROM batch_tags
+WHERE batch_id=$1;

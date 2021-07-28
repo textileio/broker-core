@@ -110,7 +110,7 @@ var _ broker.Broker = (*Broker)(nil)
 
 // Create creates a new StorageRequest with the provided Cid and
 // Metadata configuration.
-func (b *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageRequest, error) {
+func (b *Broker) Create(ctx context.Context, dataCid cid.Cid, origin string) (broker.StorageRequest, error) {
 	if !dataCid.Defined() {
 		return broker.StorageRequest{}, ErrInvalidCid
 	}
@@ -124,16 +124,17 @@ func (b *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageReq
 		ID:        broker.StorageRequestID(brID),
 		DataCid:   dataCid,
 		Status:    broker.RequestBatching,
+		Origin:    origin,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	log.Debugf("creating broker-request %s with dataCid %s", brID, dataCid)
+	log.Debugf("creating storage-request %s with data-cid %s from origin %s", brID, dataCid, origin)
 	if err := b.store.CreateStorageRequest(ctx, br); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("create storage request in store: %s", err)
 	}
 
-	log.Debugf("publishing broker-request %s with dataCid %s in ready-to-batch topic", brID, dataCid)
-	dataCids := []mbroker.ReadyToBatchData{{StorageRequestID: br.ID, DataCid: br.DataCid}}
+	log.Debugf("publishing storage-request %s with data-cid %s in ready-to-batch topic", brID, dataCid)
+	dataCids := []mbroker.ReadyToBatchData{{StorageRequestID: br.ID, DataCid: br.DataCid, Origin: origin}}
 	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("publishing to msg broker: %s", err)
 	}
@@ -145,10 +146,14 @@ func (b *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.StorageReq
 func (b *Broker) CreatePrepared(
 	ctx context.Context,
 	payloadCid cid.Cid,
-	pc broker.PreparedCAR) (br broker.StorageRequest, err error) {
+	pc broker.PreparedCAR,
+	meta broker.BatchMetadata) (br broker.StorageRequest, err error) {
 	log.Debugf("creating prepared car storage request")
 	if !payloadCid.Defined() {
 		return broker.StorageRequest{}, ErrInvalidCid
+	}
+	if meta.Origin == "" {
+		return broker.StorageRequest{}, fmt.Errorf("origin is empty")
 	}
 
 	now := time.Now()
@@ -160,6 +165,7 @@ func (b *Broker) CreatePrepared(
 		ID:        broker.StorageRequestID(brID),
 		DataCid:   payloadCid,
 		Status:    broker.RequestAuctioning,
+		Origin:    meta.Origin,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -177,7 +183,6 @@ func (b *Broker) CreatePrepared(
 		return broker.StorageRequest{}, fmt.Errorf("generating batch id: %s", err)
 	}
 	ba := broker.Batch{
-		// TODO(jsign): this might change depending if gRPC is still used for this API.
 		ID:                 broker.BatchID(sdID),
 		RepFactor:          pc.RepFactor,
 		DealDuration:       int(b.conf.dealDuration),
@@ -185,8 +190,9 @@ func (b *Broker) CreatePrepared(
 		Sources:            pc.Sources,
 		DisallowRebatching: true,
 		FilEpochDeadline:   filEpochDeadline,
+		Origin:             meta.Origin,
+		Tags:               meta.Tags,
 
-		// We fill what packer+piecer usually do.
 		PayloadCid: payloadCid,
 		PieceCid:   pc.PieceCid,
 		PieceSize:  pc.PieceSize,
@@ -200,12 +206,12 @@ func (b *Broker) CreatePrepared(
 		err = b.store.FinishTxForCtx(ctx, err)
 	}()
 
-	log.Debugf("creating prepared storage request")
+	log.Debugf("creating prepared storage-request")
 	if err = b.store.CreateStorageRequest(ctx, br); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("saving storage request in store: %s", err)
 	}
 
-	log.Debugf("creating prepared broker-request payload-cid %s, batch %s", payloadCid, sdID)
+	log.Debugf("creating prepared batch payload-cid %s, batch %s", payloadCid, sdID)
 	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{br.ID}); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("creating batch: %w", err)
 	}
@@ -244,7 +250,7 @@ func (b *Broker) GetStorageRequestInfo(
 		return broker.StorageRequestInfo{}, ErrNotFound
 	}
 	if err != nil {
-		return broker.StorageRequestInfo{}, fmt.Errorf("get storage request from store: %s", err)
+		return broker.StorageRequestInfo{}, fmt.Errorf("get storage-request from store: %s", err)
 	}
 
 	bri := broker.StorageRequestInfo{
@@ -254,7 +260,7 @@ func (b *Broker) GetStorageRequestInfo(
 	if br.BatchID != "" {
 		deals, err := b.store.GetDeals(ctx, br.BatchID)
 		if err != nil {
-			return broker.StorageRequestInfo{}, fmt.Errorf("get batch: %s", err)
+			return broker.StorageRequestInfo{}, fmt.Errorf("get deals: %s", err)
 		}
 		for _, deal := range deals {
 			if deal.DealID == 0 {
@@ -268,7 +274,7 @@ func (b *Broker) GetStorageRequestInfo(
 			bri.Deals = append(bri.Deals, di)
 		}
 	}
-	log.Debugf("get broker-request info with id %s, batch %s", brID, br.BatchID)
+	log.Debugf("get storage-request info with id %s, batch %s", brID, br.BatchID)
 
 	return bri, nil
 }
@@ -278,7 +284,8 @@ func (b *Broker) CreateNewBatch(
 	ctx context.Context,
 	batchID broker.BatchID,
 	batchCid cid.Cid,
-	brIDs []broker.StorageRequestID) (broker.BatchID, error) {
+	brIDs []broker.StorageRequestID,
+	origin string) (broker.BatchID, error) {
 	if !batchCid.Defined() {
 		return "", ErrInvalidCid
 	}
@@ -301,6 +308,7 @@ func (b *Broker) CreateNewBatch(
 		RepFactor:          int(b.conf.dealReplication),
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.BatchStatusPreparing,
+		Origin:             origin,
 		DisallowRebatching: false,
 		FilEpochDeadline:   0,
 		Sources: auction.Sources{
@@ -574,7 +582,7 @@ func (b *Broker) errorBatchAndRebatch(ctx context.Context, id broker.BatchID, er
 		if err != nil {
 			return fmt.Errorf("get storage request: %s", err)
 		}
-		dataCids[i] = mbroker.ReadyToBatchData{StorageRequestID: br.ID, DataCid: br.DataCid}
+		dataCids[i] = mbroker.ReadyToBatchData{StorageRequestID: br.ID, DataCid: br.DataCid, Origin: br.Origin}
 	}
 	if err := mbroker.PublishMsgReadyToBatch(ctx, b.mb, dataCids); err != nil {
 		return fmt.Errorf("publishing to msg broker: %s", err)

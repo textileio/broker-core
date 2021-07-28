@@ -34,6 +34,7 @@ type Batch struct {
 	BatchID   broker.BatchID `json:"batchID"`
 	Status    BatchStatus    `json:"status"`
 	TotalSize int64          `json:"totalSize"`
+	Origin    string         `json:"origin"`
 	ReadyAt   time.Time      `json:"readyAt"`
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`

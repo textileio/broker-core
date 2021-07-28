@@ -15,6 +15,7 @@ import (
 	"github.com/ockam-network/did"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/chainapi"
+	"github.com/textileio/broker-core/cmd/authd/store"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
@@ -34,11 +35,13 @@ type Service struct {
 	Config
 	Deps
 	server *grpc.Server
+	store  *store.Store
 }
 
 // Config is the service config.
 type Config struct {
-	Listener net.Listener
+	Listener    net.Listener
+	PostgresURI string
 }
 
 // Deps comprises the service dependencies.
@@ -50,10 +53,15 @@ var _ pb.AuthAPIServiceServer = (*Service)(nil)
 
 // New returns a new service.
 func New(config Config, deps Deps) (*Service, error) {
+	store, err := store.New(config.PostgresURI)
+	if err != nil {
+		return nil, fmt.Errorf("creating store: %s", err)
+	}
 	s := &Service{
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		Config: config,
 		Deps:   deps,
+		store:  store,
 	}
 	go func() {
 		pb.RegisterAuthAPIServiceServer(s.server, s)
@@ -71,9 +79,16 @@ func (s *Service) Close() error {
 	return nil
 }
 
-// ValidatedInput represents input that has been validated.
-type ValidatedInput struct {
-	Token string // The base64 URL encoded JWT token
+type tokenType int
+
+const (
+	chainToken tokenType = iota
+	rawToken
+)
+
+type detectedInput struct {
+	token     string
+	tokenType tokenType
 }
 
 // ValidatedToken represents token data that has been validated.
@@ -89,19 +104,23 @@ type AuthClaims struct {
 	jwt.StandardClaims
 }
 
-// ValidateInput sanity checks the raw inputs to the service.
-func ValidateInput(jwtBase64URL string) (*ValidatedInput, error) {
-	parts := strings.Split(jwtBase64URL, ".")
-	if len(parts) != 3 {
-		return nil, errors.New("token contains invalid number of segments")
+func detectInput(token string) *detectedInput {
+	parts := strings.Split(token, ".")
+	if len(parts) == 3 {
+		return &detectedInput{
+			token:     token,
+			tokenType: chainToken,
+		}
 	}
-	return &ValidatedInput{
-		Token: jwtBase64URL,
-	}, nil
+
+	return &detectedInput{
+		token:     token,
+		tokenType: rawToken,
+	}
 }
 
-// ValidateToken validates the JWT token.
-func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
+// validateToken validates the JWT token.
+func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	jwkMap := map[string]string{}
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
 		jwk := token.Header["jwk"]
@@ -141,9 +160,9 @@ func ValidateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	return validatedToken, err
 }
 
-// ValidateKeyDID validates the key DID.
+// validateKeyDID validates the key DID.
 // See the spec: https://w3c-ccg.github.io/did-method-key/
-func ValidateKeyDID(sub string, x string) (bool, error) {
+func validateKeyDID(sub string, x string) (bool, error) {
 	subDID, err := did.Parse(sub)
 	if err != nil {
 		return false, fmt.Errorf("parsing DID: %v", err)
@@ -167,8 +186,8 @@ func ValidateKeyDID(sub string, x string) (bool, error) {
 	return true, nil
 }
 
-// ValidateDepositedFunds validates that the user has locked funds on chain.
-func ValidateDepositedFunds(
+// validateDepositedFunds validates that the user has locked funds on chain.
+func validateDepositedFunds(
 	ctx context.Context,
 	brokerID string,
 	accountID string,
@@ -184,34 +203,52 @@ func ValidateDepositedFunds(
 	return true, nil
 }
 
-// Auth authenticates a user storage request containing a URL encoded base64 JWT with an Ed25519 signature.
+// Auth authenticates a user storage request.
+// It detects raw bearer tokens or JTWs associated with the NEAR blockchain.
+// The latter is an URL encoded base64 JWT with an Ed25519 signature.
 // 1. Validates the JWT
 // 2. Validates that the key DID in the JWT ("sub" in the payload) was created with the public key ("x" in the header)
 // 3. Validates that the user has locked funds on-chain using a service provided by neard.
 // It returns the key DID.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	// Validate the request input.
-	validInput, InputErr := ValidateInput(req.Token)
-	if InputErr != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid request input: %s (%v)", req, InputErr)
+	input := detectInput(req.Token)
+
+	switch input.tokenType {
+	case rawToken:
+		rt, ok, err := s.store.GetAuthToken(ctx, input.token)
+		if err != nil {
+			return nil, fmt.Errorf("find raw token: %s", err)
+		}
+		if !ok {
+			return nil, fmt.Errorf("raw token doesn't exist")
+		}
+		log.Debugf("successful raw authentication identity %s, origin %s", rt.Identity, rt.Origin)
+		return &pb.AuthResponse{
+			Identity: rt.Identity,
+			Origin:   rt.Origin,
+		}, nil
+	case chainToken:
+		// Validate the JWT token.
+		token, err := validateToken(input.token)
+		if err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", err)
+		}
+		// Validate the key DID.
+		keyOk, err := validateKeyDID(token.Sub, token.X)
+		if !keyOk || err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "invalid Key DID: %v", err)
+		}
+		// Check for locked funds
+		fundsOk, err := validateDepositedFunds(ctx, token.Aud, token.Iss, s.Deps.NearAPI)
+		if !fundsOk || err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
+		}
+		log.Debugf("successful chain authentication: %s", token.Iss)
+		return &pb.AuthResponse{
+			Identity: token.Sub,
+			Origin:   "NEAR",
+		}, nil
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown token type")
 	}
-	// Validate the JWT token.
-	token, tokenErr := ValidateToken(validInput.Token)
-	if tokenErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", tokenErr)
-	}
-	// Validate the key DID.
-	keyOk, keyErr := ValidateKeyDID(token.Sub, token.X)
-	if !keyOk || keyErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid Key DID: %v", keyErr)
-	}
-	// Check for locked funds
-	fundsOk, fundsErr := ValidateDepositedFunds(ctx, token.Aud, token.Iss, s.Deps.NearAPI)
-	if !fundsOk || fundsErr != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", fundsErr)
-	}
-	log.Info(fmt.Sprintf("Authenticated successfully: %s", token.Iss))
-	return &pb.AuthResponse{
-		Identity: token.Sub,
-	}, nil
 }

@@ -28,6 +28,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createBatchStmt, err = db.PrepareContext(ctx, createBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBatch: %w", err)
 	}
+	if q.createBatchTagStmt, err = db.PrepareContext(ctx, createBatchTag); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBatchTag: %w", err)
+	}
 	if q.createDealStmt, err = db.PrepareContext(ctx, createDeal); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateDeal: %w", err)
 	}
@@ -42,6 +45,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getBatchStmt, err = db.PrepareContext(ctx, getBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBatch: %w", err)
+	}
+	if q.getBatchTagsStmt, err = db.PrepareContext(ctx, getBatchTags); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBatchTags: %w", err)
 	}
 	if q.getDealsStmt, err = db.PrepareContext(ctx, getDeals); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDeals: %w", err)
@@ -94,6 +100,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createBatchStmt: %w", cerr)
 		}
 	}
+	if q.createBatchTagStmt != nil {
+		if cerr := q.createBatchTagStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBatchTagStmt: %w", cerr)
+		}
+	}
 	if q.createDealStmt != nil {
 		if cerr := q.createDealStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createDealStmt: %w", cerr)
@@ -117,6 +128,11 @@ func (q *Queries) Close() error {
 	if q.getBatchStmt != nil {
 		if cerr := q.getBatchStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getBatchStmt: %w", cerr)
+		}
+	}
+	if q.getBatchTagsStmt != nil {
+		if cerr := q.getBatchTagsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBatchTagsStmt: %w", cerr)
 		}
 	}
 	if q.getDealsStmt != nil {
@@ -220,11 +236,13 @@ type Queries struct {
 	tx                              *sql.Tx
 	batchUpdateStorageRequestsStmt  *sql.Stmt
 	createBatchStmt                 *sql.Stmt
+	createBatchTagStmt              *sql.Stmt
 	createDealStmt                  *sql.Stmt
 	createStorageRequestStmt        *sql.Stmt
 	createUnpinJobStmt              *sql.Stmt
 	deleteExecutingUnpinJobStmt     *sql.Stmt
 	getBatchStmt                    *sql.Stmt
+	getBatchTagsStmt                *sql.Stmt
 	getDealsStmt                    *sql.Stmt
 	getStorageRequestStmt           *sql.Stmt
 	getStorageRequestIDsStmt        *sql.Stmt
@@ -245,11 +263,13 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                              tx,
 		batchUpdateStorageRequestsStmt:  q.batchUpdateStorageRequestsStmt,
 		createBatchStmt:                 q.createBatchStmt,
+		createBatchTagStmt:              q.createBatchTagStmt,
 		createDealStmt:                  q.createDealStmt,
 		createStorageRequestStmt:        q.createStorageRequestStmt,
 		createUnpinJobStmt:              q.createUnpinJobStmt,
 		deleteExecutingUnpinJobStmt:     q.deleteExecutingUnpinJobStmt,
 		getBatchStmt:                    q.getBatchStmt,
+		getBatchTagsStmt:                q.getBatchTagsStmt,
 		getDealsStmt:                    q.getDealsStmt,
 		getStorageRequestStmt:           q.getStorageRequestStmt,
 		getStorageRequestIDsStmt:        q.getStorageRequestIDsStmt,

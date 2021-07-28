@@ -12,15 +12,28 @@ CREATE TABLE IF NOT EXISTS batches (
     disallow_rebatching boolean NOT NULL DEFAULT FALSE,
     fil_epoch_deadline bigint NOT NULL,
     error text NOT NULL DEFAULT '',
+    origin text NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+CREATE TABLE IF NOT EXISTS batch_tags (
+    batch_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY(batch_id, key),
+    CONSTRAINT fk_batch_tags_batch_id FOREIGN KEY(batch_id) REFERENCES batches(id)
+);
+  
 
 CREATE TABLE IF NOT EXISTS storage_requests (
     id text PRIMARY KEY,
     data_cid text NOT NULL,
     batch_id text,
     status smallint NOT NULL,
+    origin TEXT not null,
     rebatch_count int NOT NULL DEFAULT 0,
     error_cause text NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
