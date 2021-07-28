@@ -485,7 +485,7 @@ func (s *Store) OperationExists(ctx context.Context, opID string) (exists bool, 
 		err = q.CreateOperation(ctx, opID)
 		if err, ok := err.(*pgconn.PgError); ok {
 			if err.Code == "23505" {
-				exists, err = true, nil
+				exists = true
 				return nil
 			}
 		}
