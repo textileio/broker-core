@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-
 	"github.com/textileio/bidbot/lib/auction"
 )
 

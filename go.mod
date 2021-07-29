@@ -2,8 +2,11 @@ module github.com/textileio/broker-core
 
 go 1.16
 
+replace github.com/textileio/bidbot => ../bidbot
+
 require (
 	cloud.google.com/go/pubsub v1.12.1
+	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/filecoin-project/go-address v0.0.5
@@ -19,7 +22,6 @@ require (
 	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.2.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-cmds v0.6.0
@@ -67,4 +69,4 @@ replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
 
-replace github.com/hsanjuan/ipfs-lite => github.com/sanderpick/ipfs-lite v1.1.20-0.20210603231246-4c7bb79224a9
+replace github.com/ipfs/go-ipns => github.com/ipfs/go-ipns v0.0.2
