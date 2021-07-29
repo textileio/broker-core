@@ -15,6 +15,7 @@ import (
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/storeutil"
 	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -38,6 +39,7 @@ type Packer struct {
 	daemonClosed    chan struct{}
 
 	metricNewBatch          metric.Int64Counter
+	metricBatchSizeTotal    metric.Int64Counter
 	statLastBatch           time.Time
 	metricLastBatchCreated  metric.Int64ValueObserver
 	statLastBatchCount      int64
@@ -199,7 +201,9 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
-	p.metricNewBatch.Add(ctx, 1)
+	label := attribute.String("origin", origin)
+	p.metricNewBatch.Add(ctx, 1, label)
+	p.metricBatchSizeTotal.Add(ctx, batchSize, label)
 	p.statLastBatch = time.Now()
 	p.statLastBatchCount = int64(len(srIDs))
 	p.statLastBatchSize = batchSize
