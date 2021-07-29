@@ -63,6 +63,7 @@ spec:
               containerPort: 5000
             - name: metrics
               containerPort: 9090
+          command: ["./with-postgres.sh", "./authd"]
           env:
             - name: DAEMON
               value: "auth"
