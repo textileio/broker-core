@@ -140,7 +140,6 @@ func TestQueue_CreateAuction(t *testing.T) {
 	assert.False(t, got.DealVerified)
 	assert.Len(t, got.Bids, 3)
 	assert.Len(t, got.WinningBids, 1)
-	assert.Equal(t, 1, int(got.Attempts))
 	assert.Empty(t, got.ErrorCause)
 	assert.False(t, got.StartedAt.IsZero())
 	assert.False(t, got.UpdatedAt.IsZero())
@@ -176,33 +175,42 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("proposal")))
 
 	// Test auction not found
-	err = q.SetWinningBidProposalCid("foo", "bar", pcid)
+	err = q.SetWinningBidProposalCid("foo", "bar", pcid, func(wb auction.WinningBid) error {
+		return nil
+	})
 	require.ErrorIs(t, err, ErrAuctionNotFound)
 
 	// Test bid not found
-	err = q.SetWinningBidProposalCid(got.ID, "foo", pcid)
+	err = q.SetWinningBidProposalCid(got.ID, "foo", pcid, func(wb auction.WinningBid) error {
+		return nil
+	})
 	require.ErrorIs(t, err, ErrBidNotFound)
 
 	for id := range got.WinningBids {
 		// Test bad proposal cid
-		err = q.SetWinningBidProposalCid(got.ID, id, cid.Undef)
+		err = q.SetWinningBidProposalCid(got.ID, id, cid.Undef, func(wb auction.WinningBid) error {
+			return nil
+		})
 		require.Error(t, err)
 
-		err = q.SetWinningBidProposalCid(got.ID, id, pcid)
+		err = q.SetWinningBidProposalCid(got.ID, id, pcid, func(wb auction.WinningBid) error {
+			return nil
+		})
 		require.NoError(t, err)
 	}
 
-	// Allow to finish
-	time.Sleep(time.Second)
-
-	_, err = q.GetAuction(id)
-	require.ErrorIs(t, err, ErrAuctionNotFound)
+	got, err = q.GetAuction(id)
+	require.NoError(t, err)
+	for _, wb := range got.WinningBids {
+		assert.True(t, wb.ProposalCid.Defined())
+		assert.Empty(t, wb.ErrorCause)
+	}
 }
 
 func newQueue(t *testing.T) *Queue {
 	s, err := badger.NewDatastore(t.TempDir(), &badger.DefaultOptions)
 	require.NoError(t, err)
-	q := NewQueue(s, runner, finalizer, 2)
+	q := NewQueue(s, runner, finalizer)
 	t.Cleanup(func() {
 		require.NoError(t, q.Close())
 		require.NoError(t, s.Close())
@@ -251,26 +259,15 @@ func runner(
 		},
 	}
 
-	if len(a.WinningBids) == 0 {
-		// First run... select winners
-		for i, bid := range receivedBids {
-			id, err := addBid(bid)
-			if err != nil {
-				return nil, err
-			}
-			if i < int(a.DealReplication) {
-				result[id] = auction.WinningBid{
-					BidderID:     receivedBids[0].BidderID,
-					Acknowledged: true,
-				}
-			}
+	// Select winners
+	for i, bid := range receivedBids {
+		id, err := addBid(bid)
+		if err != nil {
+			return nil, err
 		}
-	} else {
-		// Second run from setting proposal cid
-		for id, bid := range a.WinningBids {
-			if bid.ProposalCid.Defined() {
-				bid.ProposalCidAcknowledged = true
-				result[id] = bid
+		if i < int(a.DealReplication) {
+			result[id] = auction.WinningBid{
+				BidderID: receivedBids[0].BidderID,
 			}
 		}
 	}

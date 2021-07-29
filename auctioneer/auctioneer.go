@@ -26,10 +26,5 @@ type Auction struct {
 	StartedAt                time.Time
 	UpdatedAt                time.Time
 	Duration                 time.Duration
-	Attempts                 uint32
 	ErrorCause               string
-	// Ugly trick: a workaround to avoid calling Auctioneer.finalizeAuction
-	// twice, because auction are enqueued to the Queue again indirectly
-	// by Auctioneer.DeliverProposal.
-	BrokerAlreadyNotifiedByClosedAuction bool
 }

@@ -103,7 +103,7 @@ func (s *Service) GetAuction(id auction.AuctionID) (*core.Auction, error) {
 
 // OnReadyToAuction handles messagse from ready-to-auction topic.
 func (s *Service) OnReadyToAuction(
-	ctx context.Context,
+	_ context.Context,
 	id auction.AuctionID,
 	sdID broker.BatchID,
 	payloadCid cid.Cid,
@@ -129,7 +129,6 @@ func (s *Service) OnReadyToAuction(
 	if err != nil {
 		return fmt.Errorf("processing ready-to-auction msg: %s", err)
 	}
-
 	return nil
 }
 
@@ -140,8 +139,8 @@ func (s *Service) OnDealProposalAccepted(
 	bidID auction.BidID,
 	proposalCid cid.Cid,
 ) error {
-	if err := s.lib.DeliverProposal(auctionID, bidID, proposalCid); err != nil {
-		return fmt.Errorf("procesing deal-proposal-accepted msgg : %v", err)
+	if err := s.lib.DeliverProposal(ctx, auctionID, bidID, proposalCid); err != nil {
+		return fmt.Errorf("procesing deal-proposal-accepted msg: %v", err)
 	}
 	return nil
 }

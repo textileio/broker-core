@@ -46,7 +46,6 @@ func init() {
 		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "auction-duration", DefValue: time.Second * 10, Description: "Auction duration"},
-		{Name: "auction-attempts", DefValue: 10, Description: "Number of attempts an auction will run before failing"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
@@ -142,7 +141,6 @@ var daemonCmd = &cobra.Command{
 			Peer: pconfig,
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
-				Attempts: v.GetUint32("auction-attempts"),
 			},
 		}
 
