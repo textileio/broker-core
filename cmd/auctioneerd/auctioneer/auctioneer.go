@@ -39,7 +39,7 @@ var (
 	maxAuctionDuration = time.Minute * 10
 
 	// notifyTimeout is the max duration the auctioneer will wait for a response from bidders.
-	notifyTimeout = time.Second * 10
+	notifyTimeout = time.Second * 30
 
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
@@ -142,7 +142,7 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 	a.finalizer.Add(finalizer.NewContextCloser(cancel))
 
 	// Create the global auctions topic
-	auctions, err := a.peer.NewTopic(ctx, core.AuctionTopic, false)
+	auctions, err := a.peer.NewTopic(ctx, core.Topic, false)
 	if err != nil {
 		return fmt.Errorf("creating auctions topic: %v", err)
 	}
@@ -179,7 +179,7 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
 
 // GetAuction returns an auction by id.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
-func (a *Auctioneer) GetAuction(id core.AuctionID) (*auctioneer.Auction, error) {
+func (a *Auctioneer) GetAuction(id core.ID) (*auctioneer.Auction, error) {
 	auc, err := a.queue.GetAuction(id)
 	if errors.Is(q.ErrAuctionNotFound, err) {
 		return nil, ErrAuctionNotFound
@@ -193,8 +193,8 @@ func (a *Auctioneer) GetAuction(id core.AuctionID) (*auctioneer.Auction, error) 
 // This may be called multiple times by the broker in the event delivery fails.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
-func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.AuctionID, bid core.BidID, pcid cid.Cid) error {
-	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid, func(wb core.WinningBid) error {
+func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.BidID, pcid cid.Cid) error {
+	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid, func(wb auctioneer.WinningBid) error {
 		// Ugly way to retain the transaction in the queue while we try publishing to the biddera
 		return a.publishProposal(ctx, id, bid, wb.BidderID, pcid)
 	}); errors.Is(q.ErrAuctionNotFound, err) {
@@ -223,8 +223,8 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.AuctionID, bid
 func (a *Auctioneer) processAuction(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	addBid func(bid core.Bid) (core.BidID, error),
-) (map[core.BidID]core.WinningBid, error) {
+	addBid func(bid auctioneer.Bid) (core.BidID, error),
+) (map[core.BidID]auctioneer.WinningBid, error) {
 	log.Infof("auction %s started", auction.ID)
 
 	// Subscribe to bids topic
@@ -240,7 +240,7 @@ func (a *Auctioneer) processAuction(
 	topic.SetEventHandler(a.eventHandler)
 
 	var (
-		bids    = make(map[core.BidID]core.Bid)
+		bids    = make(map[core.BidID]auctioneer.Bid)
 		bidders = make(map[peer.ID]struct{})
 		mu      sync.Mutex
 	)
@@ -254,7 +254,7 @@ func (a *Auctioneer) processAuction(
 			return nil, fmt.Errorf("unmarshaling message: %v", err)
 		}
 
-		bid := core.Bid{
+		bid := auctioneer.Bid{
 			MinerAddr:        pbid.MinerAddr,
 			WalletAddrSig:    pbid.WalletAddrSig,
 			BidderID:         from,
@@ -351,7 +351,7 @@ func (a *Auctioneer) processAuction(
 	return winners, nil
 }
 
-func (a *Auctioneer) validateBid(b *core.Bid) error {
+func (a *Auctioneer) validateBid(b *auctioneer.Bid) error {
 	if b.MinerAddr == "" {
 		return errors.New("miner address must not be empty")
 	}
@@ -439,12 +439,12 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 
 func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
-	if topic == core.AuctionTopic && string(msg) == "JOINED" {
+	if topic == core.Topic && string(msg) == "JOINED" {
 		a.peer.Host().ConnManager().Protect(from, "auctioneer:<bidder>")
 	}
 }
 
-func acceptBid(auction *auctioneer.Auction, bid *core.Bid) bool {
+func acceptBid(auction *auctioneer.Auction, bid *auctioneer.Bid) bool {
 	if auction.FilEpochDeadline > 0 && (bid.StartEpoch <= 0 || auction.FilEpochDeadline < bid.StartEpoch) {
 		log.Debugf("miner %s start epoch %d doesn't meet the deadline %d of auction %s",
 			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
@@ -461,10 +461,10 @@ func acceptBid(auction *auctioneer.Auction, bid *core.Bid) bool {
 
 type rankedBid struct {
 	ID  core.BidID
-	Bid core.Bid
+	Bid auctioneer.Bid
 }
 
-func heapifyBids(bids map[core.BidID]core.Bid, dealVerified bool) *BidHeap {
+func heapifyBids(bids map[core.BidID]auctioneer.Bid, dealVerified bool) *BidHeap {
 	h := &BidHeap{dealVerified: dealVerified}
 	heap.Init(h)
 	for id, b := range bids {
@@ -511,8 +511,8 @@ func (bh *BidHeap) Pop() (x interface{}) {
 func (a *Auctioneer) selectWinners(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	bids map[core.BidID]core.Bid,
-) (map[core.BidID]core.WinningBid, error) {
+	bids map[core.BidID]auctioneer.Bid,
+) (map[core.BidID]auctioneer.WinningBid, error) {
 	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
 	if selectCount == 0 {
 		return nil, nil
@@ -523,7 +523,7 @@ func (a *Auctioneer) selectWinners(
 
 	var (
 		bh      = heapifyBids(bids, auction.DealVerified)
-		winners = make(map[core.BidID]core.WinningBid)
+		winners = make(map[core.BidID]auctioneer.WinningBid)
 		i       = 0
 	)
 
@@ -533,7 +533,7 @@ func (a *Auctioneer) selectWinners(
 			break
 		}
 		b := heap.Pop(bh).(rankedBid)
-		winners[b.ID] = core.WinningBid{
+		winners[b.ID] = auctioneer.WinningBid{
 			BidderID: b.Bid.BidderID,
 		}
 
@@ -550,7 +550,7 @@ func (a *Auctioneer) selectWinners(
 	return winners, nil
 }
 
-func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core.BidID, bidder peer.ID) error {
+func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error {
 	topic, err := a.peer.NewTopic(ctx, core.WinsTopic(bidder), false)
 	if err != nil {
 		return fmt.Errorf("creating win topic: %v", err)
@@ -586,7 +586,7 @@ func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core
 
 func (a *Auctioneer) publishProposal(
 	ctx context.Context,
-	id core.AuctionID,
+	id core.ID,
 	bid core.BidID,
 	bidder peer.ID,
 	pcid cid.Cid,

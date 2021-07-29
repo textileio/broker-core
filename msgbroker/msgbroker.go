@@ -96,14 +96,14 @@ type FinalizedDealListener interface {
 
 // DealProposalAcceptedListener is a handler for deal-proposal-accepted topic.
 type DealProposalAcceptedListener interface {
-	OnDealProposalAccepted(context.Context, auction.AuctionID, auction.BidID, cid.Cid) error
+	OnDealProposalAccepted(context.Context, auction.ID, auction.BidID, cid.Cid) error
 }
 
 // ReadyToAuctionListener is a handler for finalized-deal topic.
 type ReadyToAuctionListener interface {
 	OnReadyToAuction(
 		ctx context.Context,
-		id auction.AuctionID,
+		id auction.ID,
 		BatchID broker.BatchID,
 		payloadCid cid.Cid,
 		dealSize, dealDuration uint64,
@@ -313,7 +313,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 					StartEpoch:          t.StartEpoch,
 					Verified:            t.Verified,
 					FastRetrieval:       t.FastRetrieval,
-					AuctionID:           auction.AuctionID(t.AuctionId),
+					AuctionID:           auction.ID(t.AuctionId),
 					BidID:               auction.BidID(t.BidId),
 				}
 			}
@@ -367,7 +367,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				DealExpiration:    r.DealExpiration,
 				StorageProviderID: r.StorageProviderId,
 				ErrorCause:        r.ErrorCause,
-				AuctionID:         auction.AuctionID(r.AuctionId),
+				AuctionID:         auction.ID(r.AuctionId),
 				BidID:             auction.BidID(r.BidId),
 			}
 
@@ -410,7 +410,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 
 			if err := l.OnDealProposalAccepted(
 				ctx,
-				auction.AuctionID(r.AuctionId),
+				auction.ID(r.AuctionId),
 				auction.BidID(r.BidId),
 				proposalCid); err != nil {
 				return fmt.Errorf("calling deal-proposal-accepted handler: %s", err)
@@ -458,7 +458,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 
 			if err := l.OnReadyToAuction(
 				ctx,
-				auction.AuctionID(req.Id),
+				auction.ID(req.Id),
 				broker.BatchID(req.BatchId),
 				payloadCid,
 				req.DealSize,
@@ -694,7 +694,7 @@ func PublishMsgDealProposalAccepted(
 	ctx context.Context,
 	mb MsgBroker,
 	sdID broker.BatchID,
-	auctionID auction.AuctionID,
+	auctionID auction.ID,
 	bidID auction.BidID,
 	storageProviderID string,
 	propCid cid.Cid) error {
@@ -720,7 +720,7 @@ func PublishMsgDealProposalAccepted(
 func PublishMsgReadyToAuction(
 	ctx context.Context,
 	mb MsgBroker,
-	id auction.AuctionID,
+	id auction.ID,
 	BatchID broker.BatchID,
 	payloadCid cid.Cid,
 	dealSize, dealDuration, dealReplication int,
@@ -897,7 +897,7 @@ func closedAuctionFromPb(pba *pb.AuctionClosed) (broker.ClosedAuction, error) {
 		return broker.ClosedAuction{}, errors.New("deal replication is zero")
 	}
 	a := broker.ClosedAuction{
-		ID:              auction.AuctionID(pba.Id),
+		ID:              auction.ID(pba.Id),
 		BatchID:         broker.BatchID(pba.BatchId),
 		DealDuration:    pba.DealDuration,
 		DealReplication: pba.DealReplication,
