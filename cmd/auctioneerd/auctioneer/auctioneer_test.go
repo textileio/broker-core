@@ -87,7 +87,7 @@ func TestClient_GetAuction(t *testing.T) {
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	id := auction.AuctionID("ID1")
+	id := auction.ID("ID1")
 	err = s.OnReadyToAuction(
 		context.Background(),
 		id,
@@ -127,7 +127,7 @@ func TestClient_RunAuction(t *testing.T) {
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	id := auction.AuctionID("ID1")
+	id := auction.ID("ID1")
 	err = s.OnReadyToAuction(
 		context.Background(),
 		id,
@@ -150,6 +150,7 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Empty(t, got.ErrorCause)
+	assert.Len(t, got.Bids, 10)
 	require.Len(t, got.WinningBids, 2)
 
 	for id := range got.WinningBids {

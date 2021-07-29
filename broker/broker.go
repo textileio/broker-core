@@ -23,7 +23,7 @@ type WinningBid struct {
 
 // ClosedAuction contains closed auction details auctioneer reports back to the broker.
 type ClosedAuction struct {
-	ID              auction.AuctionID
+	ID              auction.ID
 	BatchID         BatchID
 	DealDuration    uint64
 	DealReplication uint32
@@ -165,6 +165,6 @@ type FinalizedDeal struct {
 	DealID            int64
 	DealExpiration    uint64
 	ErrorCause        string
-	AuctionID         auction.AuctionID
+	AuctionID         auction.ID
 	BidID             auction.BidID
 }

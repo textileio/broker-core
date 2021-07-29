@@ -63,8 +63,8 @@ var (
 type Handler func(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	addBid func(bid auction.Bid) (auction.BidID, error),
-) (map[auction.BidID]auction.WinningBid, error)
+	addBid func(bid auctioneer.Bid) (auction.BidID, error),
+) (map[auction.BidID]auctioneer.WinningBid, error)
 
 // Finalizer is called when an auction moves from "started" to "finalized".
 type Finalizer func(ctx context.Context, auction *auctioneer.Auction) error
@@ -177,7 +177,7 @@ func validate(a auctioneer.Auction) error {
 }
 
 // newID returns new monotonically increasing auction ids.
-func (q *Queue) newID(t time.Time) (auction.AuctionID, error) {
+func (q *Queue) newID(t time.Time) (auction.ID, error) {
 	q.lk.Lock() // entropy is not safe for concurrent use
 
 	if q.entropy == nil {
@@ -193,12 +193,12 @@ func (q *Queue) newID(t time.Time) (auction.AuctionID, error) {
 		return "", fmt.Errorf("generating id: %v", err)
 	}
 	q.lk.Unlock()
-	return auction.AuctionID(strings.ToLower(id.String())), nil
+	return auction.ID(strings.ToLower(id.String())), nil
 }
 
 // GetAuction returns an auction by id.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
-func (q *Queue) GetAuction(id auction.AuctionID) (*auctioneer.Auction, error) {
+func (q *Queue) GetAuction(id auction.ID) (*auctioneer.Auction, error) {
 	a, err := getAuction(q.store, id)
 	if err != nil {
 		return nil, err
@@ -206,7 +206,7 @@ func (q *Queue) GetAuction(id auction.AuctionID) (*auctioneer.Auction, error) {
 	return a, nil
 }
 
-func getAuction(reader ds.Read, id auction.AuctionID) (*auctioneer.Auction, error) {
+func getAuction(reader ds.Read, id auction.ID) (*auctioneer.Auction, error) {
 	val, err := reader.Get(dsPrefix.ChildString(string(id)))
 	if errors.Is(err, ds.ErrNotFound) {
 		return nil, ErrAuctionNotFound
@@ -220,14 +220,14 @@ func getAuction(reader ds.Read, id auction.AuctionID) (*auctioneer.Auction, erro
 	return &r, nil
 }
 
-// SetWinningBidProposalCid sets the proposal cid.Cid for an auction.WinningBid.
+// SetWinningBidProposalCid sets the proposal cid.Cid for an auctioneer.WinningBid.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
 func (q *Queue) SetWinningBidProposalCid(
-	id auction.AuctionID,
+	id auction.ID,
 	bid auction.BidID,
 	pcid cid.Cid,
-	handler func(wb auction.WinningBid) error,
+	handler func(wb auctioneer.WinningBid) error,
 ) error {
 	if !pcid.Defined() {
 		return errors.New("proposal cid is not defined")
@@ -410,13 +410,13 @@ func (q *Queue) worker(num int) {
 			log.Debugf("worker %d started auction %s", num, a.ID)
 
 			// Handle the auction with the handler func
-			wbs, err := q.handler(q.ctx, *a, func(bid auction.Bid) (auction.BidID, error) {
+			wbs, err := q.handler(q.ctx, *a, func(bid auctioneer.Bid) (auction.BidID, error) {
 				return q.addBid(a, bid)
 			})
 			// Update winning bid state; some bids may have been processed even if there was an error
 			if len(wbs) > 0 {
 				if a.WinningBids == nil {
-					a.WinningBids = make(map[auction.BidID]auction.WinningBid)
+					a.WinningBids = make(map[auction.BidID]auctioneer.WinningBid)
 				}
 				for id, wb := range wbs {
 					a.WinningBids[id] = wb
@@ -456,7 +456,7 @@ func (q *Queue) saveAndFinalizeAuction(a *auctioneer.Auction) {
 	}
 }
 
-func (q *Queue) addBid(a *auctioneer.Auction, bid auction.Bid) (auction.BidID, error) {
+func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) (auction.BidID, error) {
 	if a.Status != broker.AuctionStatusStarted {
 		return "", errors.New("auction has not started")
 	}
@@ -465,7 +465,7 @@ func (q *Queue) addBid(a *auctioneer.Auction, bid auction.Bid) (auction.BidID, e
 		return "", fmt.Errorf("generating bid id: %v", err)
 	}
 	if a.Bids == nil {
-		a.Bids = make(map[auction.BidID]auction.Bid)
+		a.Bids = make(map[auction.BidID]auctioneer.Bid)
 	}
 	a.Bids[auction.BidID(id)] = bid
 
@@ -536,7 +536,7 @@ func (q *Queue) getQueued(txn ds.Txn) (*auctioneer.Auction, error) {
 		return nil, fmt.Errorf("getting next result: %v", res.Error)
 	}
 
-	a, err := getAuction(txn, auction.AuctionID(path.Base(res.Key)))
+	a, err := getAuction(txn, auction.ID(path.Base(res.Key)))
 	if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}
@@ -596,33 +596,6 @@ func (q *Queue) saveAndTransitionStatus(txn ds.Txn, a *auctioneer.Auction,
 		if err := txn.Commit(); err != nil {
 			return fmt.Errorf("committing txn: %v", err)
 		}
-	}
-	return nil
-}
-
-func (q *Queue) delete(a *auctioneer.Auction) error {
-	txn, err := q.store.NewTransaction(false)
-	if err != nil {
-		return fmt.Errorf("creating txn: %v", err)
-	}
-	defer txn.Discard()
-
-	// Delete from status queues
-	if a.Status == broker.AuctionStatusQueued {
-		if err := txn.Delete(dsQueuedPrefix.ChildString(string(a.ID))); err != nil {
-			return fmt.Errorf("deleting from queued: %v", err)
-		}
-	} else if a.Status == broker.AuctionStatusStarted {
-		if err := txn.Delete(dsStartedPrefix.ChildString(string(a.ID))); err != nil {
-			return fmt.Errorf("deleting from started: %v", err)
-		}
-	}
-
-	if err := txn.Delete(dsPrefix.ChildString(string(a.ID))); err != nil {
-		return fmt.Errorf("deleting value: %v", err)
-	}
-	if err := txn.Commit(); err != nil {
-		return fmt.Errorf("committing txn: %v", err)
 	}
 	return nil
 }

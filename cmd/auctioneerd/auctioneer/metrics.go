@@ -19,10 +19,10 @@ func (a *Auctioneer) initMetrics() {
 	a.metricPubsubPeers = metrics.Meter.NewInt64ValueObserver(metrics.Prefix+".libp2p_pubsub_peers", a.lastPubsubPeersCb)
 }
 
-func (a *Auctioneer) lastCreatedAuctionCb(ctx context.Context, r metric.Int64ObserverResult) {
+func (a *Auctioneer) lastCreatedAuctionCb(_ context.Context, r metric.Int64ObserverResult) {
 	r.Observe(a.statLastCreatedAuction.Unix())
 }
 
-func (a *Auctioneer) lastPubsubPeersCb(ctx context.Context, r metric.Int64ObserverResult) {
+func (a *Auctioneer) lastPubsubPeersCb(_ context.Context, r metric.Int64ObserverResult) {
 	r.Observe(int64(len(a.peer.ListPeers())))
 }

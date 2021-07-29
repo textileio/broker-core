@@ -44,7 +44,7 @@ func TestQueue_newID(t *testing.T) {
 	q := newQueue(t)
 
 	// Ensure monotonic
-	var last auction.AuctionID
+	var last auction.ID
 	for i := 0; i < 10000; i++ {
 		id, err := q.newID(time.Now())
 		require.NoError(t, err)
@@ -63,10 +63,10 @@ func TestQueue_ListAuctions(t *testing.T) {
 	limit := 100
 	now := time.Now()
 
-	ids := make([]auction.AuctionID, limit)
+	ids := make([]auction.ID, limit)
 	for i := 0; i < limit; i++ {
 		now = now.Add(time.Millisecond)
-		id := auction.AuctionID(fmt.Sprintf("%03d", i))
+		id := auction.ID(fmt.Sprintf("%03d", i))
 		err := q.CreateAuction(auctioneer.Auction{
 			ID:              id,
 			BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
@@ -112,7 +112,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id := auction.AuctionID("ID-1")
+	id := auction.ID("ID-1")
 	err := q.CreateAuction(auctioneer.Auction{
 		ID:              id,
 		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
@@ -149,7 +149,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id := auction.AuctionID("ID-1")
+	id := auction.ID("ID-1")
 	err := q.CreateAuction(auctioneer.Auction{
 		ID:              id,
 		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
@@ -175,25 +175,25 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("proposal")))
 
 	// Test auction not found
-	err = q.SetWinningBidProposalCid("foo", "bar", pcid, func(wb auction.WinningBid) error {
+	err = q.SetWinningBidProposalCid("foo", "bar", pcid, func(wb auctioneer.WinningBid) error {
 		return nil
 	})
 	require.ErrorIs(t, err, ErrAuctionNotFound)
 
 	// Test bid not found
-	err = q.SetWinningBidProposalCid(got.ID, "foo", pcid, func(wb auction.WinningBid) error {
+	err = q.SetWinningBidProposalCid(got.ID, "foo", pcid, func(wb auctioneer.WinningBid) error {
 		return nil
 	})
 	require.ErrorIs(t, err, ErrBidNotFound)
 
 	for id := range got.WinningBids {
 		// Test bad proposal cid
-		err = q.SetWinningBidProposalCid(got.ID, id, cid.Undef, func(wb auction.WinningBid) error {
+		err = q.SetWinningBidProposalCid(got.ID, id, cid.Undef, func(wb auctioneer.WinningBid) error {
 			return nil
 		})
 		require.Error(t, err)
 
-		err = q.SetWinningBidProposalCid(got.ID, id, pcid, func(wb auction.WinningBid) error {
+		err = q.SetWinningBidProposalCid(got.ID, id, pcid, func(wb auctioneer.WinningBid) error {
 			return nil
 		})
 		require.NoError(t, err)
@@ -221,12 +221,12 @@ func newQueue(t *testing.T) *Queue {
 func runner(
 	_ context.Context,
 	a auctioneer.Auction,
-	addBid func(bid auction.Bid) (auction.BidID, error),
-) (map[auction.BidID]auction.WinningBid, error) {
+	addBid func(bid auctioneer.Bid) (auction.BidID, error),
+) (map[auction.BidID]auctioneer.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)
 
-	result := make(map[auction.BidID]auction.WinningBid)
-	receivedBids := []auction.Bid{
+	result := make(map[auction.BidID]auctioneer.WinningBid)
+	receivedBids := []auctioneer.Bid{
 		{
 			MinerAddr:        "miner1",
 			WalletAddrSig:    []byte("sig1"),
@@ -266,7 +266,7 @@ func runner(
 			return nil, err
 		}
 		if i < int(a.DealReplication) {
-			result[id] = auction.WinningBid{
+			result[id] = auctioneer.WinningBid{
 				BidderID: receivedBids[0].BidderID,
 			}
 		}
