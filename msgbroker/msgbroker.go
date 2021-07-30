@@ -783,7 +783,7 @@ func sourcesToPb(sources auction.Sources) *pb.Sources {
 	var carURL *pb.Sources_CARURL
 	if sources.CARURL != nil {
 		carURL = &pb.Sources_CARURL{
-			URL: sources.CARURL.URL.String(),
+			Url: sources.CARURL.URL.String(),
 		}
 	}
 	return &pb.Sources{
@@ -794,9 +794,9 @@ func sourcesToPb(sources auction.Sources) *pb.Sources {
 
 func sourcesFromPb(pbs *pb.Sources) (sources auction.Sources, err error) {
 	if pbs.CarUrl != nil {
-		u, err := url.Parse(pbs.CarUrl.URL)
+		u, err := url.Parse(pbs.CarUrl.Url)
 		if err != nil {
-			return auction.Sources{}, fmt.Errorf("parsing %s: %s", pbs.CarUrl.URL, err)
+			return auction.Sources{}, fmt.Errorf("parsing %s: %s", pbs.CarUrl.Url, err)
 		}
 		sources.CARURL = &auction.CARURL{URL: *u}
 	}

@@ -22,19 +22,19 @@ func FromProtoStorageRequest(brproto *pb.StorageRequest) (broker.StorageRequest,
 
 	var status broker.StorageRequestStatus
 	switch brproto.Status {
-	case pb.StorageRequest_UNSPECIFIED:
+	case pb.StorageRequest_STATUS_UNSPECIFIED:
 		status = broker.RequestUnknown
-	case pb.StorageRequest_BATCHING:
+	case pb.StorageRequest_STATUS_BATCHING:
 		status = broker.RequestBatching
-	case pb.StorageRequest_PREPARING:
+	case pb.StorageRequest_STATUS_PREPARING:
 		status = broker.RequestPreparing
-	case pb.StorageRequest_AUCTIONING:
+	case pb.StorageRequest_STATUS_AUCTIONING:
 		status = broker.RequestAuctioning
-	case pb.StorageRequest_DEALMAKING:
+	case pb.StorageRequest_STATUS_DEALMAKING:
 		status = broker.RequestDealMaking
-	case pb.StorageRequest_SUCCESS:
+	case pb.StorageRequest_STATUS_SUCCESS:
 		status = broker.RequestSuccess
-	case pb.StorageRequest_ERROR:
+	case pb.StorageRequest_STATUS_ERROR:
 		status = broker.RequestError
 	default:
 		return broker.StorageRequest{}, fmt.Errorf("unknown status: %s", brproto.Status)
@@ -79,19 +79,19 @@ func StorageRequestToProto(br broker.StorageRequest) (*pb.StorageRequest, error)
 	var pbStatus pb.StorageRequest_Status
 	switch br.Status {
 	case broker.RequestUnknown:
-		pbStatus = pb.StorageRequest_UNSPECIFIED
+		pbStatus = pb.StorageRequest_STATUS_UNSPECIFIED
 	case broker.RequestBatching:
-		pbStatus = pb.StorageRequest_BATCHING
+		pbStatus = pb.StorageRequest_STATUS_BATCHING
 	case broker.RequestPreparing:
-		pbStatus = pb.StorageRequest_PREPARING
+		pbStatus = pb.StorageRequest_STATUS_PREPARING
 	case broker.RequestAuctioning:
-		pbStatus = pb.StorageRequest_AUCTIONING
+		pbStatus = pb.StorageRequest_STATUS_AUCTIONING
 	case broker.RequestDealMaking:
-		pbStatus = pb.StorageRequest_DEALMAKING
+		pbStatus = pb.StorageRequest_STATUS_DEALMAKING
 	case broker.RequestSuccess:
-		pbStatus = pb.StorageRequest_SUCCESS
+		pbStatus = pb.StorageRequest_STATUS_SUCCESS
 	case broker.RequestError:
-		pbStatus = pb.StorageRequest_ERROR
+		pbStatus = pb.StorageRequest_STATUS_ERROR
 	default:
 		return nil, fmt.Errorf("unknown status: %d", br.Status)
 	}
