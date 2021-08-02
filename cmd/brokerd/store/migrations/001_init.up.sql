@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS batches (
     id text PRIMARY KEY,
-    status smallint NOT NULL,
+    status text NOT NULL,
     rep_factor int NOT NULL,
     deal_duration int NOT NULL,
     payload_cid text NOT NULL,
