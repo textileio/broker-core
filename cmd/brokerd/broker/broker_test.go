@@ -343,7 +343,7 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	}
 
 	a := broker.ClosedAuction{
-		ID:              auction.AuctionID("AUCTION1"),
+		ID:              auction.ID("AUCTION1"),
 		BatchID:         sd,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
@@ -481,7 +481,7 @@ func TestBatchAuctionedInvalidAmountWinners(t *testing.T) {
 		},
 	}
 	a := broker.ClosedAuction{
-		ID:              auction.AuctionID("AUCTION1"),
+		ID:              auction.ID("AUCTION1"),
 		BatchID:         sdID,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
@@ -526,7 +526,7 @@ func TestBatchFailedAuction(t *testing.T) {
 
 	// 2- Call BatchAuctioned as if the auctioneer did.
 	a := broker.ClosedAuction{
-		ID:              auction.AuctionID("AUCTION1"),
+		ID:              auction.ID("AUCTION1"),
 		BatchID:         sd,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 1,
@@ -617,7 +617,7 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	}
 
 	auction := broker.ClosedAuction{
-		ID:              auction.AuctionID("AUCTION1"),
+		ID:              auction.ID("AUCTION1"),
 		BatchID:         sd,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,

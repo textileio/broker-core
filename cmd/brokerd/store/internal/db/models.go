@@ -37,15 +37,15 @@ type BatchTag struct {
 }
 
 type Deal struct {
-	BatchID           broker.BatchID    `json:"batchID"`
-	AuctionID         auction.AuctionID `json:"auctionID"`
-	BidID             auction.BidID     `json:"bidID"`
-	StorageProviderID string            `json:"storageProviderID"`
-	DealID            int64             `json:"dealID"`
-	DealExpiration    uint64            `json:"dealExpiration"`
-	ErrorCause        string            `json:"errorCause"`
-	CreatedAt         time.Time         `json:"createdAt"`
-	UpdatedAt         time.Time         `json:"updatedAt"`
+	BatchID           broker.BatchID `json:"batchID"`
+	AuctionID         auction.ID     `json:"auctionID"`
+	BidID             auction.BidID  `json:"bidID"`
+	StorageProviderID string         `json:"storageProviderID"`
+	DealID            int64          `json:"dealID"`
+	DealExpiration    uint64         `json:"dealExpiration"`
+	ErrorCause        string         `json:"errorCause"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
 }
 
 type Operation struct {

@@ -31,13 +31,13 @@ INSERT INTO deals(
 `
 
 type CreateDealParams struct {
-	BatchID           broker.BatchID    `json:"batchID"`
-	AuctionID         auction.AuctionID `json:"auctionID"`
-	BidID             auction.BidID     `json:"bidID"`
-	StorageProviderID string            `json:"storageProviderID"`
-	DealID            int64             `json:"dealID"`
-	DealExpiration    uint64            `json:"dealExpiration"`
-	ErrorCause        string            `json:"errorCause"`
+	BatchID           broker.BatchID `json:"batchID"`
+	AuctionID         auction.ID     `json:"auctionID"`
+	BidID             auction.BidID  `json:"bidID"`
+	StorageProviderID string         `json:"storageProviderID"`
+	DealID            int64          `json:"dealID"`
+	DealExpiration    uint64         `json:"dealExpiration"`
+	ErrorCause        string         `json:"errorCause"`
 }
 
 func (q *Queries) CreateDeal(ctx context.Context, arg CreateDealParams) error {

@@ -34,7 +34,7 @@ overrides:
   - column: "deals.batch_id"
     go_type: "github.com/textileio/broker-core/broker.BatchID"
   - column: "deals.auction_id"
-    go_type: "github.com/textileio/bidbot/lib/auction.AuctionID"
+    go_type: "github.com/textileio/bidbot/lib/auction.ID"
   - column: "deals.bid_id"
     go_type: "github.com/textileio/bidbot/lib/auction.BidID"
   - column: "deals.deal_expiration"

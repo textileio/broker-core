@@ -53,24 +53,24 @@ ready_at
 `
 
 type CreateAuctionDealParams struct {
-	ID                  string            `json:"id"`
-	AuctionDataID       string            `json:"auctionDataID"`
-	StorageProviderID   string            `json:"storageProviderID"`
-	PricePerGibPerEpoch int64             `json:"pricePerGibPerEpoch"`
-	StartEpoch          uint64            `json:"startEpoch"`
-	Verified            bool              `json:"verified"`
-	FastRetrieval       bool              `json:"fastRetrieval"`
-	AuctionID           auction.AuctionID `json:"auctionID"`
-	BidID               auction.BidID     `json:"bidID"`
-	Status              Status            `json:"status"`
-	Executing           bool              `json:"executing"`
-	ErrorCause          string            `json:"errorCause"`
-	Retries             int               `json:"retries"`
-	ProposalCid         string            `json:"proposalCid"`
-	DealID              int64             `json:"dealID"`
-	DealExpiration      uint64            `json:"dealExpiration"`
-	DealMarketStatus    uint64            `json:"dealMarketStatus"`
-	ReadyAt             time.Time         `json:"readyAt"`
+	ID                  string        `json:"id"`
+	AuctionDataID       string        `json:"auctionDataID"`
+	StorageProviderID   string        `json:"storageProviderID"`
+	PricePerGibPerEpoch int64         `json:"pricePerGibPerEpoch"`
+	StartEpoch          uint64        `json:"startEpoch"`
+	Verified            bool          `json:"verified"`
+	FastRetrieval       bool          `json:"fastRetrieval"`
+	AuctionID           auction.ID    `json:"auctionID"`
+	BidID               auction.BidID `json:"bidID"`
+	Status              Status        `json:"status"`
+	Executing           bool          `json:"executing"`
+	ErrorCause          string        `json:"errorCause"`
+	Retries             int           `json:"retries"`
+	ProposalCid         string        `json:"proposalCid"`
+	DealID              int64         `json:"dealID"`
+	DealExpiration      uint64        `json:"dealExpiration"`
+	DealMarketStatus    uint64        `json:"dealMarketStatus"`
+	ReadyAt             time.Time     `json:"readyAt"`
 }
 
 func (q *Queries) CreateAuctionDeal(ctx context.Context, arg CreateAuctionDealParams) error {
@@ -280,24 +280,24 @@ SET
 `
 
 type UpdateAuctionDealParams struct {
-	AuctionDataID       string            `json:"auctionDataID"`
-	StorageProviderID   string            `json:"storageProviderID"`
-	PricePerGibPerEpoch int64             `json:"pricePerGibPerEpoch"`
-	StartEpoch          uint64            `json:"startEpoch"`
-	Verified            bool              `json:"verified"`
-	FastRetrieval       bool              `json:"fastRetrieval"`
-	AuctionID           auction.AuctionID `json:"auctionID"`
-	BidID               auction.BidID     `json:"bidID"`
-	Status              Status            `json:"status"`
-	Executing           bool              `json:"executing"`
-	ErrorCause          string            `json:"errorCause"`
-	Retries             int               `json:"retries"`
-	ProposalCid         string            `json:"proposalCid"`
-	DealID              int64             `json:"dealID"`
-	DealExpiration      uint64            `json:"dealExpiration"`
-	DealMarketStatus    uint64            `json:"dealMarketStatus"`
-	ReadyAt             time.Time         `json:"readyAt"`
-	ID                  string            `json:"id"`
+	AuctionDataID       string        `json:"auctionDataID"`
+	StorageProviderID   string        `json:"storageProviderID"`
+	PricePerGibPerEpoch int64         `json:"pricePerGibPerEpoch"`
+	StartEpoch          uint64        `json:"startEpoch"`
+	Verified            bool          `json:"verified"`
+	FastRetrieval       bool          `json:"fastRetrieval"`
+	AuctionID           auction.ID    `json:"auctionID"`
+	BidID               auction.BidID `json:"bidID"`
+	Status              Status        `json:"status"`
+	Executing           bool          `json:"executing"`
+	ErrorCause          string        `json:"errorCause"`
+	Retries             int           `json:"retries"`
+	ProposalCid         string        `json:"proposalCid"`
+	DealID              int64         `json:"dealID"`
+	DealExpiration      uint64        `json:"dealExpiration"`
+	DealMarketStatus    uint64        `json:"dealMarketStatus"`
+	ReadyAt             time.Time     `json:"readyAt"`
+	ID                  string        `json:"id"`
 }
 
 func (q *Queries) UpdateAuctionDeal(ctx context.Context, arg UpdateAuctionDealParams) (int64, error) {
