@@ -18,5 +18,6 @@ deploy: $(KUSTOMIZE)
 .PHONY: deploy
 
 run-uploadbot:
+	kubectl create configmap uploadbot --from-file=../cmd/storaged/bench.sh --dry-run=client -o yaml | kubectl apply -f -
 	- kubectl -n broker-${DEPLOYMENT} delete job/uploadbot
 	cat base/uploadbot.yaml | sed 's/<ENV>/${DEPLOYMENT}/g' | kubectl apply -f -
