@@ -202,9 +202,7 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.B
 	} else if errors.Is(q.ErrBidNotFound, err) {
 		return ErrBidNotFound
 	} else if err != nil {
-		err = fmt.Errorf("delivering proposal %s: %v", pcid, err)
-		log.Error(err)
-		return err
+		return fmt.Errorf("delivering proposal %s: %v", pcid, err)
 	}
 
 	log.Infof("delivered proposal %s for bid %s in auction %s", pcid, bid, id)
@@ -327,6 +325,7 @@ func (a *Auctioneer) processAuction(
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	<-actx.Done()
+	topic.SetMessageHandler(nil)
 
 	log.Infof(
 		"auction %s ended; total bids: %d; num required: %d",
@@ -335,9 +334,7 @@ func (a *Auctioneer) processAuction(
 		auction.DealReplication,
 	)
 
-	mu.Lock()
 	winners, err := a.selectWinners(ctx, auction, bids)
-	mu.Unlock()
 	if err != nil {
 		log.Warnf("auction %s failed: %v", auction.ID, err)
 		return nil, fmt.Errorf("selecting winners: %v", err)
@@ -513,18 +510,15 @@ func (a *Auctioneer) selectWinners(
 	auction auctioneer.Auction,
 	bids map[core.BidID]auctioneer.Bid,
 ) (map[core.BidID]auctioneer.WinningBid, error) {
-	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
-	if selectCount == 0 {
-		return nil, nil
-	}
 	if len(bids) == 0 {
 		return nil, ErrInsufficientBids
 	}
 
 	var (
-		bh      = heapifyBids(bids, auction.DealVerified)
-		winners = make(map[core.BidID]auctioneer.WinningBid)
-		i       = 0
+		bh          = heapifyBids(bids, auction.DealVerified)
+		winners     = make(map[core.BidID]auctioneer.WinningBid)
+		selectCount = int(auction.DealReplication)
+		i           = 0
 	)
 
 	// Select lowest bids until deal replication is met
