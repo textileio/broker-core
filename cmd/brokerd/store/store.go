@@ -136,7 +136,11 @@ func (s *Store) GetStorageRequest(
 }
 
 // CreateBatch persists a batch.
-func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broker.StorageRequestID) error {
+func (s *Store) CreateBatch(
+	ctx context.Context,
+	ba *broker.Batch,
+	brIDs []broker.StorageRequestID,
+	manifest []byte) error {
 	if ba.ID == "" {
 		return fmt.Errorf("batch id is empty")
 	}
@@ -225,6 +229,16 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 				Value:   value,
 			}); err != nil {
 				return fmt.Errorf("creating tag: %s", err)
+			}
+		}
+
+		if manifest != nil {
+			param := db.CreateBatchManifestParams{
+				BatchID:  string(ba.ID),
+				Manifest: manifest,
+			}
+			if err := txn.CreateBatchManifest(ctx, param); err != nil {
+				return fmt.Errorf("saving batch manifest: %s", err)
 			}
 		}
 
@@ -458,6 +472,25 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 		return err
 	})
 	return
+}
+
+// GetBatchManifest gets the stored manifest of a batch. If none is found it returns ErrNotFound.
+func (s *Store) GetBatchManifest(ctx context.Context, id broker.BatchID) ([]byte, error) {
+	var manifest []byte
+	if err := s.withCtxTx(ctx, func(q *db.Queries) error {
+		bm, err := q.GetBatchManifest(ctx, string(id))
+		if err == sql.ErrNoRows {
+			return ErrNotFound
+		} else if err != nil {
+			return fmt.Errorf("db get manifest: %s", err)
+		}
+		manifest = bm.Manifest
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return manifest, nil
 }
 
 // GetDeals gets storage-provider deals for a batch.

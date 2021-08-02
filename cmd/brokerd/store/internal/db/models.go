@@ -29,6 +29,11 @@ type Batch struct {
 	UpdatedAt          time.Time          `json:"updatedAt"`
 }
 
+type BatchManifest struct {
+	BatchID  string `json:"batchID"`
+	Manifest []byte `json:"manifest"`
+}
+
 type BatchTag struct {
 	BatchID   broker.BatchID `json:"batchID"`
 	Key       string         `json:"key"`

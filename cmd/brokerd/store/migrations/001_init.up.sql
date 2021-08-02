@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS batches (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+CREATE TABLE IF NOT EXISTS batch_manifests (
+    batch_id text PRIMARY KEY,
+    manifest bytea NOT NULL
+    );
+
 CREATE TABLE IF NOT EXISTS batch_tags (
     batch_id TEXT NOT NULL,
     key TEXT NOT NULL,

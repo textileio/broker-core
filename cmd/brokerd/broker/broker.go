@@ -215,7 +215,7 @@ func (b *Broker) CreatePrepared(
 	}
 
 	log.Debugf("creating prepared batch payload-cid %s, batch %s", payloadCid, batchID)
-	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{br.ID}); err != nil {
+	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{br.ID}, nil); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("creating batch: %w", err)
 	}
 
@@ -288,7 +288,8 @@ func (b *Broker) CreateNewBatch(
 	batchID broker.BatchID,
 	batchCid cid.Cid,
 	brIDs []broker.StorageRequestID,
-	origin string) (broker.BatchID, error) {
+	origin string,
+	manifest []byte) (broker.BatchID, error) {
 	if !batchCid.Defined() {
 		return "", ErrInvalidCid
 	}
@@ -321,7 +322,7 @@ func (b *Broker) CreateNewBatch(
 		},
 	}
 
-	if err := b.store.CreateBatch(ctx, &ba, brIDs); err != nil {
+	if err := b.store.CreateBatch(ctx, &ba, brIDs, manifest); err != nil {
 		return "", fmt.Errorf("creating batch: %w", err)
 	}
 	log.Debugf("new batch %s created with batchCid %s with %d broker-requests", ba.ID, batchCid, len(brIDs))
