@@ -1,6 +1,7 @@
 package packer
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -184,7 +185,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
 	start := time.Now()
-	batchCid, err := p.createDAGForBatch(ctx, srs)
+	batchCid, manifest, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
@@ -197,7 +198,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	for i, sr := range srs {
 		srIDs[i] = sr.StorageRequestID
 	}
-	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batchID, batchCid, srIDs, origin); err != nil {
+	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batchID, batchCid, srIDs, origin, manifest); err != nil {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
@@ -215,12 +216,12 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	return len(srIDs), nil
 }
 
-func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageRequest) (cid.Cid, error) {
+func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageRequest) (cid.Cid, []byte, error) {
 	lst := make([]aggregator.AggregateDagEntry, len(srs))
 	for i, sr := range srs {
 		dataCid, err := cid.Decode(sr.DataCid)
 		if err != nil {
-			return cid.Undef, fmt.Errorf("decoding cid %s: %s", dataCid, err)
+			return cid.Undef, nil, fmt.Errorf("decoding cid %s: %s", dataCid, err)
 		}
 		lst[i] = aggregator.AggregateDagEntry{
 			RootCid:                   dataCid,
@@ -228,17 +229,23 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 		}
 	}
 	start := time.Now()
-	root, err := aggregator.Aggregate(ctx, p.ipfs.Dag(), lst)
+	root, entries, err := aggregator.Aggregate(ctx, p.ipfs.Dag(), lst)
 	if err != nil {
-		return cid.Undef, fmt.Errorf("aggregating cids: %s", err)
+		return cid.Undef, nil, fmt.Errorf("aggregating cids: %s", err)
 	}
 	log.Debugf("aggregation took %dms", time.Since(start).Milliseconds())
 	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
-		return cid.Undef, fmt.Errorf("pinning batch root: %s", err)
+		return cid.Undef, nil, fmt.Errorf("pinning batch root: %s", err)
 	}
+
+	buf := bytes.NewBuffer(nil)
+	if err := aggregator.EncodeManifestJSON(entries, buf); err != nil {
+		return cid.Undef, nil, fmt.Errorf("encoding manifest json: %s", err)
+	}
+
 	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
 
-	return root, nil
+	return root, buf.Bytes(), nil
 }
 
 // calcBatchLimit does a worst-case estimation of the maximum size the batch DAG can have to fit

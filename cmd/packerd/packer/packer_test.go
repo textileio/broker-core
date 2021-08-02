@@ -3,19 +3,24 @@ package packer
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
 	ipfsfiles "github.com/ipfs/go-ipfs-files"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	ipld "github.com/ipfs/go-ipld-format"
+	unixfile "github.com/ipfs/go-unixfs/file"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/store"
@@ -23,6 +28,7 @@ import (
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
+
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/protobuf/proto"
 )
@@ -93,6 +99,9 @@ func TestPack(t *testing.T) {
 	bcid, err := cid.Cast(msg.BatchCid)
 	require.NoError(t, err)
 	require.True(t, bcid.Defined())
+	require.NotEmpty(t, msg.Manifest)
+	dagManifest := getBatchManifestFromDAG(t, bcid, ipfs.Dag())
+	require.True(t, bytes.Equal(dagManifest, msg.Manifest))
 
 	// Check that the batch cid was pinned in ipfs.
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
@@ -150,6 +159,9 @@ func TestPackMultiple(t *testing.T) {
 	bcid, err := cid.Cast(msg.BatchCid)
 	require.NoError(t, err)
 	require.True(t, bcid.Defined())
+	require.NotEmpty(t, msg.Manifest)
+	dagManifest := getBatchManifestFromDAG(t, bcid, ipfs.Dag())
+	require.True(t, bytes.Equal(dagManifest, msg.Manifest))
 
 	// Check that the batch cid was pinned in ipfs.
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
@@ -313,4 +325,21 @@ func launchIPFSContainer(t *testing.T) *dockertest.Resource {
 	})
 
 	return ipfsDocker
+}
+
+func getBatchManifestFromDAG(t *testing.T, payloadCid cid.Cid, dagService ipld.DAGService) []byte {
+	ctx := context.Background()
+	rootNd, err := dagService.Get(ctx, payloadCid)
+	require.NoError(t, err)
+	manifestLnk := rootNd.Links()[0]
+	manifestNd, err := dagService.Get(ctx, manifestLnk.Cid)
+	require.NoError(t, err)
+	manifestF, err := unixfile.NewUnixfsFile(context.Background(), dagService, manifestNd)
+	require.NoError(t, err)
+	manifest := manifestF.(files.File)
+
+	dagManifest, err := ioutil.ReadAll(manifest)
+	require.NoError(t, err)
+
+	return dagManifest
 }
