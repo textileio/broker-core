@@ -19,7 +19,6 @@ require (
 	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.2.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs-cmds v0.6.0
@@ -49,10 +48,10 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.0.5-0.20210727000230-bc470e198d6e
+	github.com/textileio/bidbot v0.0.5-0.20210802202026-1d12f4bc3d47
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.1
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
 	github.com/textileio/jwt-go-eddsa v0.2.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
@@ -67,4 +66,4 @@ replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
 
-replace github.com/hsanjuan/ipfs-lite => github.com/sanderpick/ipfs-lite v1.1.20-0.20210603231246-4c7bb79224a9
+replace github.com/ipfs/go-ipns => github.com/ipfs/go-ipns v0.0.2

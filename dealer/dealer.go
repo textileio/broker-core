@@ -31,6 +31,6 @@ type Proposal struct {
 	StartEpoch          uint64
 	Verified            bool
 	FastRetrieval       bool
-	AuctionID           auction.AuctionID
+	AuctionID           auction.ID
 	BidID               auction.BidID
 }

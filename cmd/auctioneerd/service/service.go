@@ -5,8 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	golog "github.com/textileio/go-log/v2"
-
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
@@ -17,6 +15,7 @@ import (
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
+	golog "github.com/textileio/go-log/v2"
 )
 
 var log = golog.Logger("auctioneer/service")
@@ -97,14 +96,14 @@ func (s *Service) PeerInfo() (*rpcpeer.Info, error) {
 }
 
 // GetAuction gets the state of an auction by id. Mostly for test purpose.
-func (s *Service) GetAuction(id auction.AuctionID) (*core.Auction, error) {
+func (s *Service) GetAuction(id auction.ID) (*core.Auction, error) {
 	return s.lib.GetAuction(id)
 }
 
 // OnReadyToAuction handles messagse from ready-to-auction topic.
 func (s *Service) OnReadyToAuction(
-	ctx context.Context,
-	id auction.AuctionID,
+	_ context.Context,
+	id auction.ID,
 	sdID broker.BatchID,
 	payloadCid cid.Cid,
 	dealSize, dealDuration uint64,
@@ -129,19 +128,18 @@ func (s *Service) OnReadyToAuction(
 	if err != nil {
 		return fmt.Errorf("processing ready-to-auction msg: %s", err)
 	}
-
 	return nil
 }
 
 // OnDealProposalAccepted receives an accepted deal proposal from a storage-provider.
 func (s *Service) OnDealProposalAccepted(
 	ctx context.Context,
-	auctionID auction.AuctionID,
+	auctionID auction.ID,
 	bidID auction.BidID,
 	proposalCid cid.Cid,
 ) error {
-	if err := s.lib.DeliverProposal(auctionID, bidID, proposalCid); err != nil {
-		return fmt.Errorf("procesing deal-proposal-accepted msgg : %v", err)
+	if err := s.lib.DeliverProposal(ctx, auctionID, bidID, proposalCid); err != nil {
+		return fmt.Errorf("procesing deal-proposal-accepted msg: %v", err)
 	}
 	return nil
 }

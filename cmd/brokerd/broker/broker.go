@@ -226,7 +226,7 @@ func (b *Broker) CreatePrepared(
 	if err = msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
-		auction.AuctionID(auctionID),
+		auction.ID(auctionID),
 		ba.ID,
 		ba.PayloadCid,
 		int(ba.PieceSize),
@@ -386,7 +386,7 @@ func (b *Broker) NewBatchPrepared(
 	if err := msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
-		auction.AuctionID(auctionID),
+		auction.ID(auctionID),
 		batchID,
 		ba.PayloadCid,
 		int(dpr.PieceSize),
@@ -554,7 +554,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		if err := msgbroker.PublishMsgReadyToAuction(
 			ctx,
 			b.mb,
-			auction.AuctionID(auctionID),
+			auction.ID(auctionID),
 			ba.ID,
 			ba.PayloadCid,
 			int(ba.PieceSize),

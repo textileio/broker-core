@@ -48,15 +48,15 @@ func init() {
 		"auctioneer/service": golog.LevelDebug,
 		"bidbot/service":     golog.LevelDebug,
 		"bidbot/store":       golog.LevelDebug,
-		"psrpc/peer":         golog.LevelDebug,
 		"psrpc":              golog.LevelDebug,
+		"psrpc/peer":         golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	s := newClient(t, 1)
+	s := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
@@ -80,14 +80,14 @@ func TestClient_ReadyToAuction(t *testing.T) {
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	s := newClient(t, 1)
+	s := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	id := auction.AuctionID("ID1")
+	id := auction.ID("ID1")
 	err = s.OnReadyToAuction(
 		context.Background(),
 		id,
@@ -112,13 +112,12 @@ func TestClient_GetAuction(t *testing.T) {
 
 	got, err = s.GetAuction(id)
 	require.NoError(t, err)
-	assert.Equal(t, 1, int(got.Attempts))
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status) // no miners making bids
 	assert.NotEmpty(t, got.ErrorCause)
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	s := newClient(t, 2)
+	s := newClient(t)
 	bots := addBidbots(t, 10)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
@@ -128,7 +127,7 @@ func TestClient_RunAuction(t *testing.T) {
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	id := auction.AuctionID("ID1")
+	id := auction.ID("ID1")
 	err = s.OnReadyToAuction(
 		context.Background(),
 		id,
@@ -151,11 +150,11 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Empty(t, got.ErrorCause)
+	assert.Len(t, got.Bids, 10)
 	require.Len(t, got.WinningBids, 2)
 
-	for id, wb := range got.WinningBids {
+	for id := range got.WinningBids {
 		assert.NotNil(t, got.Bids[id])
-		assert.True(t, wb.Acknowledged)
 
 		// Set the proposal as accepted
 		pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
@@ -165,8 +164,16 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
-	// Check if the winning bids were able to fetch the data cid
+	// Re-get auction so we can check proposal cids
+	got, err = s.GetAuction(id)
+	require.NoError(t, err)
+
 	for _, wb := range got.WinningBids {
+		// Check if proposal cid was delivered without error
+		assert.True(t, wb.ProposalCid.Defined())
+		assert.Empty(t, wb.ErrorCause)
+
+		// Check if the winning bids were able to fetch the data cid
 		bot := bots[wb.BidderID]
 		require.NotNil(t, bot)
 
@@ -176,13 +183,9 @@ func TestClient_RunAuction(t *testing.T) {
 		assert.Equal(t, bidstore.BidStatusFinalized, bids[0].Status)
 		assert.Empty(t, bids[0].ErrorCause)
 	}
-
-	_, err = s.GetAuction(id)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), auctioneer.ErrAuctionNotFound.Error())
 }
 
-func newClient(t *testing.T, attempts uint32) *service.Service {
+func newClient(t *testing.T) *service.Service {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -198,7 +201,6 @@ func newClient(t *testing.T, attempts uint32) *service.Service {
 		},
 		Auction: auctioneer.AuctionConfig{
 			Duration: time.Second * 10,
-			Attempts: attempts,
 		},
 	}
 

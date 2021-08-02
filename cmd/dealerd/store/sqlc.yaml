@@ -22,7 +22,7 @@ overrides:
   - column: "auction_deals.batch_id"
     go_type: "github.com/textileio/broker-core/broker.BatchID"
   - column: "auction_deals.auction_id"
-    go_type: "github.com/textileio/bidbot/lib/auction.AuctionID"
+    go_type: "github.com/textileio/bidbot/lib/auction.ID"
   - column: "auction_deals.bid_id"
     go_type: "github.com/textileio/bidbot/lib/auction.BidID"
   - column: "auction_deals.retries"
