@@ -123,6 +123,7 @@ message NewBatchCreated {
   bytes batch_cid = 2;
   repeated string storage_request_ids = 3;
   string origin = 4;
+  bytes manifest = 5;
 }
 
 
