@@ -68,7 +68,8 @@ func (s *Service) OnNewBatchCreated(
 	batchID broker.BatchID,
 	batchCid cid.Cid,
 	_ []broker.StorageRequestID,
-	_ string) error {
+	_ string,
+	_ []byte) error {
 	err := s.piecer.ReadyToPrepare(ctx, batchID, batchCid)
 	if errors.Is(err, store.ErrBatchExists) {
 		log.Warnf("batch-id %s batch-cid %s already processed, acking", batchID, batchCid)

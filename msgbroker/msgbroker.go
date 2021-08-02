@@ -64,7 +64,8 @@ type NewBatchCreatedListener interface {
 		broker.BatchID,
 		cid.Cid,
 		[]broker.StorageRequestID,
-		string) error
+		string,
+		[]byte) error
 }
 
 // NewBatchPreparedListener is a handler for new-batch-prepared topic.
@@ -161,7 +162,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("manifest is empty")
 			}
 
-			if err := l.OnNewBatchCreated(ctx, sdID, batchCid, brids, r.Origin); err != nil {
+			if err := l.OnNewBatchCreated(ctx, sdID, batchCid, brids, r.Origin, r.Manifest); err != nil {
 				return fmt.Errorf("calling on-new-batch-created handler: %s", err)
 			}
 			return nil

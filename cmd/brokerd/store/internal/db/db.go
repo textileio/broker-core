@@ -28,6 +28,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createBatchStmt, err = db.PrepareContext(ctx, createBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBatch: %w", err)
 	}
+	if q.createBatchManifestStmt, err = db.PrepareContext(ctx, createBatchManifest); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBatchManifest: %w", err)
+	}
 	if q.createBatchTagStmt, err = db.PrepareContext(ctx, createBatchTag); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBatchTag: %w", err)
 	}
@@ -48,6 +51,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getBatchStmt, err = db.PrepareContext(ctx, getBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBatch: %w", err)
+	}
+	if q.getBatchManifestStmt, err = db.PrepareContext(ctx, getBatchManifest); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBatchManifest: %w", err)
 	}
 	if q.getBatchTagsStmt, err = db.PrepareContext(ctx, getBatchTags); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBatchTags: %w", err)
@@ -103,6 +109,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createBatchStmt: %w", cerr)
 		}
 	}
+	if q.createBatchManifestStmt != nil {
+		if cerr := q.createBatchManifestStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBatchManifestStmt: %w", cerr)
+		}
+	}
 	if q.createBatchTagStmt != nil {
 		if cerr := q.createBatchTagStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createBatchTagStmt: %w", cerr)
@@ -136,6 +147,11 @@ func (q *Queries) Close() error {
 	if q.getBatchStmt != nil {
 		if cerr := q.getBatchStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getBatchStmt: %w", cerr)
+		}
+	}
+	if q.getBatchManifestStmt != nil {
+		if cerr := q.getBatchManifestStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBatchManifestStmt: %w", cerr)
 		}
 	}
 	if q.getBatchTagsStmt != nil {
@@ -244,6 +260,7 @@ type Queries struct {
 	tx                              *sql.Tx
 	batchUpdateStorageRequestsStmt  *sql.Stmt
 	createBatchStmt                 *sql.Stmt
+	createBatchManifestStmt         *sql.Stmt
 	createBatchTagStmt              *sql.Stmt
 	createDealStmt                  *sql.Stmt
 	createOperationStmt             *sql.Stmt
@@ -251,6 +268,7 @@ type Queries struct {
 	createUnpinJobStmt              *sql.Stmt
 	deleteExecutingUnpinJobStmt     *sql.Stmt
 	getBatchStmt                    *sql.Stmt
+	getBatchManifestStmt            *sql.Stmt
 	getBatchTagsStmt                *sql.Stmt
 	getDealsStmt                    *sql.Stmt
 	getStorageRequestStmt           *sql.Stmt
@@ -272,6 +290,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                              tx,
 		batchUpdateStorageRequestsStmt:  q.batchUpdateStorageRequestsStmt,
 		createBatchStmt:                 q.createBatchStmt,
+		createBatchManifestStmt:         q.createBatchManifestStmt,
 		createBatchTagStmt:              q.createBatchTagStmt,
 		createDealStmt:                  q.createDealStmt,
 		createOperationStmt:             q.createOperationStmt,
@@ -279,6 +298,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createUnpinJobStmt:              q.createUnpinJobStmt,
 		deleteExecutingUnpinJobStmt:     q.deleteExecutingUnpinJobStmt,
 		getBatchStmt:                    q.getBatchStmt,
+		getBatchManifestStmt:            q.getBatchManifestStmt,
 		getBatchTagsStmt:                q.getBatchTagsStmt,
 		getDealsStmt:                    q.getDealsStmt,
 		getStorageRequestStmt:           q.getStorageRequestStmt,
