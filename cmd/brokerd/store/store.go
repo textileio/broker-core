@@ -148,7 +148,7 @@ func (s *Store) CreateBatch(ctx context.Context, ba *broker.Batch, brIDs []broke
 	case broker.BatchStatusAuctioning:
 		brStatus = broker.RequestAuctioning
 	default:
-		return fmt.Errorf("unexpected batch initial status %d", ba.Status)
+		return fmt.Errorf("unexpected batch initial status %s", ba.Status)
 	}
 
 	start := time.Now()
