@@ -88,8 +88,6 @@ spec:
                 name: configmap-dealer
           resources:
             requests:
-              memory: 100Mi
-              cpu: "0.3"
-            limits:
-              memory: 1Gi
+              cpu: 250m
+              memory: 250Mi
 

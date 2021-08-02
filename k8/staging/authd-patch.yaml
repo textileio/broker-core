@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dealer-01
+  name: auth-01
 spec:
   template:
     spec:
@@ -13,12 +13,5 @@ spec:
             - "-instances=textile-310716:us-west1:broker-staging=tcp:5432"
           resources:
             requests:
-              memory: "10Mi"
-              cpu:    "0.1"
-        - name: dealer
-          env:
-            - name: DEALER_LOTUS_EXPORTED_WALLET_ADDRESS
-              valueFrom:
-                secretKeyRef:
-                  name: broker-secret
-                  key: dealer-lotus-exported-wallet-address
+              memory: "100Mi"
+              cpu:    "0.5"
