@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dealer-01
+  name: broker-01
 spec:
   template:
     spec:
@@ -15,10 +15,4 @@ spec:
             requests:
               memory: "500Mi"
               cpu:    "0.5"
-        - name: dealer
-          env:
-            - name: DEALER_LOTUS_EXPORTED_WALLET_ADDRESS
-              valueFrom:
-                secretKeyRef:
-                  name: broker-secret
-                  key: dealer-lotus-exported-wallet-address
+

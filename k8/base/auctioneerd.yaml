@@ -70,11 +70,8 @@ spec:
               mountPath: /data/auctioneerd
           resources:
             requests:
-              memory: 4Gi
-              cpu: "2"
-            limits:
-              memory: 6Gi
-
+              cpu: 250m
+              memory: 512Mi
       volumes:
         - name: configure-env
           configMap:
