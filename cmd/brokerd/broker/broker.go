@@ -508,8 +508,8 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 	opID msgbroker.OperationID,
 	fad broker.FinalizedDeal) (err error) {
-	log.Debugf("finalized deal from auction (%s, %s), batch %s, deal-id %d, storage-provider %s",
-		fad.AuctionID, fad.BidID, fad.BatchID, fad.DealID, fad.StorageProviderID)
+	log.Debugf("finalized deal from auction (%s, %s), batch %s, storage-provider %s",
+		fad.AuctionID, fad.BidID, fad.BatchID, fad.StorageProviderID)
 
 	ctx, err = b.store.CtxWithTx(ctx)
 	if err != nil {
@@ -580,7 +580,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		}
 	}
 
-	log.Debugf("auction %s, batch %s finalized deal: %d/%d", fad.AuctionID, ba.ID, numConfirmedDeals, ba.RepFactor)
+	log.Debugf("auction %s, batch %s finalized deal-id %d: %d/%d", fad.AuctionID, ba.ID, fad.DealID, numConfirmedDeals, ba.RepFactor)
 	// Are we done?
 	if numConfirmedDeals == ba.RepFactor {
 		if err := b.store.BatchSuccess(ctx, ba.ID); err != nil {
