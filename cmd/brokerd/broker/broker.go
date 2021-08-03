@@ -459,10 +459,6 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return nil
 	}
 
-	if len(au.WinningBids) != ba.RepFactor {
-		return fmt.Errorf("winning bids expected %d, got %d", ba.RepFactor, len(au.WinningBids))
-	}
-
 	adID, err := b.newID()
 	if err != nil {
 		return fmt.Errorf("generating auction deal id: %s", err)
