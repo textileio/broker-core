@@ -435,7 +435,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return fmt.Errorf("get batch: %s", err)
 	}
 
-	if ba.Status != broker.BatchStatusAuctioning {
+	if ba.Status != broker.BatchStatusAuctioning && ba.Status != broker.BatchStatusDealMaking {
 		return fmt.Errorf("batch isn't in expected status: %s", ba.Status)
 	}
 
