@@ -32,7 +32,7 @@ func MigrateAndConnectToDB(postgresURI string, as *bindata.AssetSource) (*sql.DB
 		return nil, fmt.Errorf("creating migration: %s", err)
 	}
 	version, dirty, err := m.Version()
-	log.Debugf("current version %d, dirty %v, err: %s", version, dirty, err)
+	log.Debugf("current version %d, dirty %v, err: %v", version, dirty, err)
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return nil, fmt.Errorf("running migration up: %s", err)
 	}
