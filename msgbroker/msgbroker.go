@@ -634,6 +634,7 @@ func PublishMsgReadyToCreateDeals(
 	mb MsgBroker,
 	ads dealer.AuctionDeals) error {
 	msg := &pb.ReadyToCreateDeals{
+		Id:         ads.ID,
 		BatchId:    string(ads.BatchID),
 		PayloadCid: ads.PayloadCid.Bytes(),
 		PieceCid:   ads.PieceCid.Bytes(),
