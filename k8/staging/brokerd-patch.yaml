@@ -13,6 +13,6 @@ spec:
             - "-instances=textile-310716:us-west1:broker-staging=tcp:5432"
           resources:
             requests:
-              memory: "100Mi"
+              memory: "500Mi"
               cpu:    "0.5"
 
