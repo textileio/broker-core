@@ -24,8 +24,8 @@ type config struct {
 
 var defaultConfig = config{
 	dealMakingFreq:       time.Second * 10,
-	dealMakingRateLim:    20,
-	dealMakingMaxRetries: 5,
+	dealMakingRateLim:    10,
+	dealMakingMaxRetries: 50,
 	dealMakingRetryDelay: time.Second * 20,
 
 	dealWatchingFreq:                    time.Second * 20,

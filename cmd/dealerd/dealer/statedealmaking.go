@@ -51,6 +51,11 @@ func (d *Dealer) daemonDealMakerTick() error {
 		rl.Exec(func() error {
 			if err := d.executePendingDealMaking(d.daemonCtx, aud); err != nil {
 				log.Errorf("executing pending deal making: %s", err)
+				aud.ErrorCause = err.Error()
+				aud.ReadyAt = time.Unix(0, 0)
+				if err := d.store.SaveAndMoveAuctionDeal(d.daemonCtx, aud, store.StatusReportFinalized); err != nil {
+					log.Errorf("saving auction deal: %s", err)
+				}
 			}
 			// We're not interested in ratelim error inspection.
 			return nil
@@ -90,7 +95,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		}
 
 		log.Warnf("deal for %s with %s failed, we'll retry soon...", ad.PayloadCid, aud.StorageProviderID)
-		aud.ReadyAt = time.Now().Add(d.config.dealMakingRetryDelay)
+		aud.ReadyAt = time.Now().Add(d.config.dealMakingRetryDelay * time.Duration(aud.Retries))
 		if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusDealMaking); err != nil {
 			return fmt.Errorf("saving auction deal: %s", err)
 		}
