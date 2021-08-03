@@ -580,7 +580,8 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		}
 	}
 
-	log.Debugf("auction %s, batch %s finalized deal-id %d: %d/%d", fad.AuctionID, ba.ID, fad.DealID, numConfirmedDeals, ba.RepFactor)
+	log.Debugf("auction %s, batch %s finalized deal-id %d: %d/%d",
+		fad.AuctionID, ba.ID, fad.DealID, numConfirmedDeals, ba.RepFactor)
 	// Are we done?
 	if numConfirmedDeals == ba.RepFactor {
 		if err := b.store.BatchSuccess(ctx, ba.ID); err != nil {
