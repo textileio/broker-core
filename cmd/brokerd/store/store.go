@@ -341,18 +341,6 @@ func (s *Store) BatchSuccess(ctx context.Context, id broker.BatchID) error {
 			return fmt.Errorf("get batch: %s", err)
 		}
 
-		// Take care of correct state transitions.
-		switch sd.Status {
-		case broker.BatchStatusDealMaking:
-			if sd.Error != "" {
-				return fmt.Errorf("error cause should be empty: %s", sd.Error)
-			}
-		case broker.BatchStatusSuccess:
-			return nil
-		default:
-			return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
-		}
-
 		if err := txn.UpdateBatchStatus(ctx, db.UpdateBatchStatusParams{
 			ID: id, Status: broker.BatchStatusSuccess}); err != nil {
 			return fmt.Errorf("updating batch status: %s", err)
