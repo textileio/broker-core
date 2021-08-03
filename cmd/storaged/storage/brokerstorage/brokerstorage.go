@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -15,10 +14,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
-	format "github.com/ipfs/go-ipld-format"
-	iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/options"
-	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
@@ -26,6 +22,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 	"github.com/textileio/broker-core/cmd/storaged/storage/brokerstorage/uploader"
+	"github.com/textileio/broker-core/ipfsutil"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -38,13 +35,8 @@ type BrokerStorage struct {
 	auth       auth.Authorizer
 	uploader   uploader.Uploader
 	broker     broker.Broker
-	ipfsApis   []ipfsAPI
+	ipfsApis   []ipfsutil.IpfsAPI
 	pinataAuth string
-}
-
-type ipfsAPI struct {
-	address multiaddr.Multiaddr
-	api     iface.CoreAPI
 }
 
 var _ storage.Requester = (*BrokerStorage)(nil)
@@ -57,7 +49,7 @@ func New(
 	ipfsEndpoints []multiaddr.Multiaddr,
 	pinataJWT string,
 ) (*BrokerStorage, error) {
-	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
+	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
 		if err != nil {
@@ -67,7 +59,7 @@ func New(
 		if err != nil {
 			return nil, fmt.Errorf("creating offline core api: %s", err)
 		}
-		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
+		ipfsApis[i] = ipfsutil.IpfsAPI{Address: endpoint, API: coreapi}
 	}
 
 	if pinataJWT != "" {
@@ -85,7 +77,9 @@ func New(
 
 // IsAuthorized resolves if the provided identity is authorized to use the
 // service. If it isn't authorized, the second return parameter explains the cause.
-func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (bool, string, error) {
+func (bs *BrokerStorage) IsAuthorized(
+	ctx context.Context,
+	identity string) (auth.AuthorizedEntity, bool, string, error) {
 	return bs.auth.IsAuthorized(ctx, identity)
 }
 
@@ -93,6 +87,7 @@ func (bs *BrokerStorage) IsAuthorized(ctx context.Context, identity string) (boo
 func (bs *BrokerStorage) CreateFromReader(
 	ctx context.Context,
 	or io.Reader,
+	origin string,
 ) (storage.Request, error) {
 	type pinataUploadResult struct {
 		c   cid.Cid
@@ -132,11 +127,11 @@ func (bs *BrokerStorage) CreateFromReader(
 		}
 	}
 
-	sr, err := bs.broker.Create(ctx, c)
+	sr, err := bs.broker.Create(ctx, c, origin)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
-	status, err := brokerRequestStatusToStorageRequestStatus(sr.Status)
+	status, err := storageRequestStatusToStorageRequestStatus(sr.Status)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
 	}
@@ -218,10 +213,12 @@ func (bs *BrokerStorage) uploadToPinata(r io.Reader) (cid.Cid, error) {
 	return pinataCid, nil
 }
 
-// CreateFromExternalSource creates a broker request for prepared data.
+// CreateFromExternalSource creates a storage request for prepared data.
 func (bs *BrokerStorage) CreateFromExternalSource(
 	ctx context.Context,
-	adr storage.AuctionDataRequest) (storage.Request, error) {
+	adr storage.AuctionDataRequest,
+	origin string,
+) (storage.Request, error) {
 	// Validate PayloadCid.
 	payloadCid, err := cid.Decode(adr.PayloadCid)
 	if err != nil {
@@ -302,11 +299,18 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		return storage.Request{}, errors.New("at least one source must be specified")
 	}
 
-	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc)
+	if origin == "" {
+		return storage.Request{}, fmt.Errorf("origin is empty")
+	}
+	meta := broker.BatchMetadata{
+		Origin: origin,
+		Tags:   adr.Tags,
+	}
+	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc, meta)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
-	status, err := brokerRequestStatusToStorageRequestStatus(sr.Status)
+	status, err := storageRequestStatusToStorageRequestStatus(sr.Status)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("mapping statuses: %s", err)
 	}
@@ -320,28 +324,28 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 
 // GetRequestInfo returns information about a request.
 func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage.RequestInfo, error) {
-	br, err := bs.broker.GetBrokerRequestInfo(ctx, broker.BrokerRequestID(id))
+	br, err := bs.broker.GetStorageRequestInfo(ctx, broker.StorageRequestID(id))
 	if err != nil {
-		return storage.RequestInfo{}, fmt.Errorf("getting broker request info: %s", err)
+		return storage.RequestInfo{}, fmt.Errorf("getting storage request info: %s", err)
 	}
 
-	status, err := brokerRequestStatusToStorageRequestStatus(br.BrokerRequest.Status)
+	status, err := storageRequestStatusToStorageRequestStatus(br.StorageRequest.Status)
 	if err != nil {
 		return storage.RequestInfo{}, fmt.Errorf("mapping statuses: %s", err)
 	}
 	sri := storage.RequestInfo{
 		Request: storage.Request{
-			ID:         string(br.BrokerRequest.ID),
-			Cid:        br.BrokerRequest.DataCid,
+			ID:         string(br.StorageRequest.ID),
+			Cid:        br.StorageRequest.DataCid,
 			StatusCode: status,
 		},
 	}
 
 	for _, d := range br.Deals {
 		deal := storage.Deal{
-			Miner:      d.Miner,
-			DealID:     d.DealID,
-			Expiration: d.Expiration,
+			StorageProviderID: d.StorageProviderID,
+			DealID:            d.DealID,
+			Expiration:        d.Expiration,
 		}
 		sri.Deals = append(sri.Deals, deal)
 	}
@@ -349,50 +353,37 @@ func (bs *BrokerStorage) GetRequestInfo(ctx context.Context, id string) (storage
 	return sri, nil
 }
 
+// GetCARHeader generates a CAR header from the provided Cid and writes it to a io.Writer.
+// If the Cid can not be found, it does nothing and returns false without error.
+func (bs *BrokerStorage) GetCARHeader(ctx context.Context, c cid.Cid, w io.Writer) (bool, error) {
+	_, found := ipfsutil.GetNodeGetterForCid(bs.ipfsApis, c)
+	if !found {
+		return false, nil
+	}
+	h := &car.CarHeader{
+		Roots:   []cid.Cid{c},
+		Version: 1,
+	}
+	if err := car.WriteHeader(h, w); err != nil {
+		return true, fmt.Errorf("failed to write car header: %s", err)
+	}
+	return true, nil
+}
+
 // GetCAR generates a CAR file from the provided Cid and writes it a io.Writer.
-func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) error {
-	ng, err := bs.getNodeGetterForCid(c)
-	if err != nil {
-		return fmt.Errorf("resolving node getter: %s", err)
+// If the Cid can not be found, it does nothing and returns false without error.
+func (bs *BrokerStorage) GetCAR(ctx context.Context, c cid.Cid, w io.Writer) (bool, error) {
+	ng, found := ipfsutil.GetNodeGetterForCid(bs.ipfsApis, c)
+	if !found {
+		return false, nil
 	}
 	if err := car.WriteCar(ctx, ng, []cid.Cid{c}, w); err != nil {
-		return fmt.Errorf("fetching data cid %s: %v", c, err)
+		return false, fmt.Errorf("fetching data cid %s: %v", c, err)
 	}
-	return nil
+	return true, nil
 }
 
-func (bs *BrokerStorage) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
-	var ng format.NodeGetter
-
-	rand.Shuffle(len(bs.ipfsApis), func(i, j int) {
-		bs.ipfsApis[i], bs.ipfsApis[j] = bs.ipfsApis[j], bs.ipfsApis[i]
-	})
-
-	log.Debug("core-api lookup for cid")
-	for _, coreapi := range bs.ipfsApis {
-		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
-		defer cls()
-		_, ok, err := coreapi.api.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
-		if err != nil {
-			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.address, err)
-			continue
-		}
-		if !ok {
-			continue
-		}
-		log.Debugf("found core-api for cid: %s", coreapi.address)
-		ng = coreapi.api.Dag()
-		break
-	}
-
-	if ng == nil {
-		return nil, fmt.Errorf("node getter for cid not found")
-	}
-
-	return ng, nil
-}
-
-func brokerRequestStatusToStorageRequestStatus(status broker.BrokerRequestStatus) (storage.Status, error) {
+func storageRequestStatusToStorageRequestStatus(status broker.StorageRequestStatus) (storage.Status, error) {
 	switch status {
 	case broker.RequestBatching:
 		return storage.StatusBatching, nil

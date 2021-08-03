@@ -12,17 +12,15 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/bidbot/lib/datauri"
 	"github.com/textileio/broker-core/broker"
-	auctioneeri "github.com/textileio/broker-core/cmd/brokerd/auctioneer"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
-	dealeri "github.com/textileio/broker-core/cmd/brokerd/dealer"
-	packeri "github.com/textileio/broker-core/cmd/brokerd/packer"
-	pieceri "github.com/textileio/broker-core/cmd/brokerd/piecer"
+	"github.com/textileio/broker-core/cmd/brokerd/store"
+	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 
-	"github.com/textileio/bidbot/lib/dshelper"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -37,14 +35,9 @@ var (
 type Config struct {
 	ListenAddr string
 
-	PiecerAddr     string
-	PackerAddr     string
-	AuctioneerAddr string
-	DealerAddr     string
-	ReporterAddr   string
+	ReporterAddr string
 
-	MongoDBName string
-	MongoURI    string
+	PostgresURI string
 
 	IPFSAPIMultiaddr string
 
@@ -68,9 +61,13 @@ type Service struct {
 }
 
 var _ pb.APIServiceServer = (*Service)(nil)
+var _ msgbroker.NewBatchCreatedListener = (*Service)(nil)
+var _ msgbroker.NewBatchPreparedListener = (*Service)(nil)
+var _ msgbroker.FinalizedDealListener = (*Service)(nil)
+var _ msgbroker.AuctionClosedListener = (*Service)(nil)
 
 // New returns a new Service.
-func New(config Config) (*Service, error) {
+func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 	if err := validateConfig(config); err != nil {
 		return nil, fmt.Errorf("config is invalid: %s", err)
 	}
@@ -78,31 +75,6 @@ func New(config Config) (*Service, error) {
 	listener, err := net.Listen("tcp", config.ListenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("getting net listener: %v", err)
-	}
-
-	ds, err := dshelper.NewMongoTxnDatastore(config.MongoURI, config.MongoDBName)
-	if err != nil {
-		return nil, fmt.Errorf("creating datastore: %s", err)
-	}
-
-	packer, err := packeri.New(config.PackerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating packer implementation: %s", err)
-	}
-
-	piecer, err := pieceri.New(config.PiecerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating piecer implementation: %s", err)
-	}
-
-	auctioneer, err := auctioneeri.New(config.AuctioneerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating auctioneer implementation: %s", err)
-	}
-
-	dealer, err := dealeri.New(config.DealerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating dealer implementation: %s", err)
 	}
 
 	reporter, err := chainapii.New(config.ReporterAddr)
@@ -120,13 +92,10 @@ func New(config Config) (*Service, error) {
 	}
 
 	broker, err := brokeri.New(
-		ds,
-		packer,
-		piecer,
-		auctioneer,
-		dealer,
+		config.PostgresURI,
 		reporter,
 		ipfsClient,
+		mb,
 		brokeri.WithDealDuration(config.DealDuration),
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
@@ -142,6 +111,11 @@ func New(config Config) (*Service, error) {
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 		broker: broker,
 	}
+
+	if err := msgbroker.RegisterHandlers(mb, s); err != nil {
+		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
+	}
+
 	go func() {
 		pb.RegisterAPIServiceServer(s.server, s)
 		if err := s.server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
@@ -154,26 +128,26 @@ func New(config Config) (*Service, error) {
 	return s, nil
 }
 
-// CreatePreparedBrokerRequest creates a new prepared BrokerRequest.
-func (s *Service) CreatePreparedBrokerRequest(
+// CreatePreparedStorageRequest creates a new prepared StorageRequest.
+func (s *Service) CreatePreparedStorageRequest(
 	ctx context.Context,
-	r *pb.CreatePreparedBrokerRequestRequest) (*pb.CreatePreparedBrokerRequestResponse, error) {
-	log.Debugf("received prepared broker request")
+	r *pb.CreatePreparedStorageRequestRequest) (*pb.CreatePreparedStorageRequestResponse, error) {
+	log.Debugf("received prepared storage request")
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
-	if r.PreparedCAR == nil {
+	if r.PreparedCar == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty prepared car information")
 	}
 
-	c, err := cid.Decode(r.Cid)
+	payloadCid, err := cid.Decode(r.Cid)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
 
 	var pc broker.PreparedCAR
 	// Validate PieceCid.
-	pc.PieceCid, err = cid.Decode(r.PreparedCAR.PieceCid)
+	pc.PieceCid, err = cid.Decode(r.PreparedCar.PieceCid)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "piece-cid is invalid: %s", err)
 	}
@@ -182,27 +156,27 @@ func (s *Service) CreatePreparedBrokerRequest(
 	}
 
 	// Validate PieceSize.
-	if r.PreparedCAR.PieceSize <= 0 {
+	if r.PreparedCar.PieceSize <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "piece-size must be greater than zero")
 	}
-	if r.PreparedCAR.PieceSize&(r.PreparedCAR.PieceSize-1) != 0 {
+	if r.PreparedCar.PieceSize&(r.PreparedCar.PieceSize-1) != 0 {
 		return nil, status.Error(codes.InvalidArgument, "piece-size must be a power of two")
 	}
-	if r.PreparedCAR.PieceSize > broker.MaxPieceSize {
+	if r.PreparedCar.PieceSize > broker.MaxPieceSize {
 		return nil, status.Errorf(codes.InvalidArgument, "piece-size can't be greater than %d", broker.MaxPieceSize)
 	}
-	pc.PieceSize = r.PreparedCAR.PieceSize
+	pc.PieceSize = r.PreparedCar.PieceSize
 
 	// Validate rep factor.
-	if r.PreparedCAR.RepFactor < 0 {
+	if r.PreparedCar.RepFactor < 0 {
 		return nil, status.Error(codes.InvalidArgument, "rep-factor can't be negative")
 	}
-	pc.RepFactor = int(r.PreparedCAR.RepFactor)
+	pc.RepFactor = int(r.PreparedCar.RepFactor)
 
-	pc.Deadline = r.PreparedCAR.Deadline.AsTime()
+	pc.Deadline = r.PreparedCar.Deadline.AsTime()
 
-	if r.PreparedCAR.CarUrl != nil {
-		url, err := url.Parse(r.PreparedCAR.CarUrl.Url)
+	if r.PreparedCar.CarUrl != nil {
+		url, err := url.Parse(r.PreparedCar.CarUrl.Url)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "parsing CAR URL: %s", err)
 		}
@@ -215,13 +189,13 @@ func (s *Service) CreatePreparedBrokerRequest(
 		}
 	}
 
-	if r.PreparedCAR.CarIpfs != nil {
-		carCid, err := cid.Decode(r.PreparedCAR.CarIpfs.Cid)
+	if r.PreparedCar.CarIpfs != nil {
+		carCid, err := cid.Decode(r.PreparedCar.CarIpfs.Cid)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "car cid isn't valid: %s", err)
 		}
-		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCAR.CarIpfs.Multiaddrs))
-		for i, smaddr := range r.PreparedCAR.CarIpfs.Multiaddrs {
+		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCar.CarIpfs.Multiaddrs))
+		for i, smaddr := range r.PreparedCar.CarIpfs.Multiaddrs {
 			maddr, err := multiaddr.NewMultiaddr(smaddr)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "invalid multiaddr %s: %s", smaddr, err)
@@ -238,66 +212,87 @@ func (s *Service) CreatePreparedBrokerRequest(
 		return nil, status.Error(codes.InvalidArgument, "at least one download source must be specified")
 	}
 
-	br, err := s.broker.CreatePrepared(ctx, c, pc)
+	u, err := datauri.NewFromSources(r.Cid, pc.Sources)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "creating data URI from sources: %s", err)
+	}
+	if err := u.Validate(ctx); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "validating sources: %s", err)
+	}
+
+	if r.Metadata.Origin == "" {
+		return nil, status.Error(codes.InvalidArgument, "origin is empty")
+	}
+	meta := broker.BatchMetadata{
+		Origin: r.Metadata.Origin,
+		Tags:   make(map[string]string, len(r.Metadata.Tags)),
+	}
+	for k, v := range meta.Tags {
+		meta.Tags[k] = v
+	}
+
+	br, err := s.broker.CreatePrepared(ctx, payloadCid, pc, meta)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
-	pbr, err := cast.BrokerRequestToProto(br)
+	pbr, err := cast.StorageRequestToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
-	res := &pb.CreatePreparedBrokerRequestResponse{
+	res := &pb.CreatePreparedStorageRequestResponse{
 		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// CreateBrokerRequest creates a new BrokerRequest.
-func (s *Service) CreateBrokerRequest(
+// CreateStorageRequest creates a new StorageRequest.
+func (s *Service) CreateStorageRequest(
 	ctx context.Context,
-	r *pb.CreateBrokerRequestRequest) (*pb.CreateBrokerRequestResponse, error) {
-	log.Debugf("received broker request")
+	r *pb.CreateStorageRequestRequest) (*pb.CreateStorageRequestResponse, error) {
+	log.Debugf("received storage request")
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
-
 	c, err := cid.Decode(r.Cid)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
+	if r.Origin == "" {
+		return nil, status.Error(codes.InvalidArgument, "origin is empty")
+	}
 
-	br, err := s.broker.Create(ctx, c)
+	br, err := s.broker.Create(ctx, c, r.Origin)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
 
-	pbr, err := cast.BrokerRequestToProto(br)
+	pbr, err := cast.StorageRequestToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
-	res := &pb.CreateBrokerRequestResponse{
+	res := &pb.CreateStorageRequestResponse{
 		Request: pbr,
 	}
 
 	return res, nil
 }
 
-// GetBrokerRequestInfo gets information about a broker request by id.
-func (s *Service) GetBrokerRequestInfo(
+// GetStorageRequestInfo gets information about a storage request by id.
+func (s *Service) GetStorageRequestInfo(
 	ctx context.Context,
-	r *pb.GetBrokerRequestInfoRequest) (*pb.GetBrokerRequestInfoResponse, error) {
+	r *pb.GetStorageRequestInfoRequest) (*pb.GetStorageRequestInfoResponse, error) {
 	if r == nil {
 		return nil, status.Error(codes.Internal, "empty request")
 	}
 
-	br, err := s.broker.GetBrokerRequestInfo(ctx, broker.BrokerRequestID(r.Id))
+	br, err := s.broker.GetStorageRequestInfo(ctx, broker.StorageRequestID(r.Id))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "get broker request: %s", err)
+		return nil, status.Errorf(codes.Internal, "get storage request: %s", err)
 	}
 
-	res, err := cast.BrokerRequestInfoToProto(br)
+	res, err := cast.StorageRequestInfoToProto(br)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "converting result to proto: %s", err)
 	}
@@ -305,141 +300,62 @@ func (s *Service) GetBrokerRequestInfo(
 	return res, nil
 }
 
-// CreateStorageDeal deal creates a storage deal.
-func (s *Service) CreateStorageDeal(
+// OnNewBatchCreated handles new messages in new-batch-created topic.
+func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
-	r *pb.CreateStorageDealRequest) (*pb.CreateStorageDealResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-
-	batchCid, err := cid.Decode(r.BatchCid)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", r.BatchCid)
-	}
-
-	brids := make([]broker.BrokerRequestID, len(r.BrokerRequestIds))
-	for i, id := range r.BrokerRequestIds {
-		if id == "" {
-			return nil, status.Error(codes.InvalidArgument, "broker request id can't be empty")
+	id broker.BatchID,
+	batchCid cid.Cid,
+	brids []broker.StorageRequestID,
+	origin string,
+	manifest []byte) error {
+	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin, manifest); err != nil {
+		if errors.Is(err, store.ErrBatchExists) {
+			log.Warnf("batch ID %s already created, acking", id)
+			return nil
 		}
-		brids[i] = broker.BrokerRequestID(id)
+		return fmt.Errorf("creating batch: %s", err)
 	}
+	log.Debugf("new batch created: %s", id)
 
-	sd, err := s.broker.CreateStorageDeal(ctx, batchCid, brids)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "creating storage deal: %s", err)
-	}
-
-	return &pb.CreateStorageDealResponse{Id: string(sd)}, nil
+	return nil
 }
 
-// StorageDealAuctioned indicated that an auction has completed.
-func (s *Service) StorageDealAuctioned(
-	ctx context.Context,
-	r *pb.StorageDealAuctionedRequest) (*pb.StorageDealAuctionedResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-
-	auction, err := cast.ClosedAuctionFromPb(r)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid auction: %s", err)
-	}
-
-	if err := s.broker.StorageDealAuctioned(ctx, auction); err != nil {
-		log.Errorf("storage deal auctioned: %s", err)
-		return nil, status.Errorf(codes.Internal, "storage deal auctioned: %s", err)
-	}
-
-	return &pb.StorageDealAuctionedResponse{}, nil
-}
-
-// StorageDealPrepared indicates that a data batch is prepared for Filecoin onboarding.
-func (s *Service) StorageDealPrepared(
-	ctx context.Context,
-	r *pb.StorageDealPreparedRequest) (*pb.StorageDealPreparedResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-
-	pieceCid, err := cid.Decode(r.PieceCid)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "decoding piece cid: %s", err)
-	}
-	id := broker.StorageDealID(r.StorageDealId)
-	pr := broker.DataPreparationResult{
-		PieceCid:  pieceCid,
-		PieceSize: r.PieceSize,
-	}
-	if err := s.broker.StorageDealPrepared(ctx, id, pr); err != nil {
-		return nil, status.Errorf(codes.Internal, "calling storage deal prepared: %s", err)
-	}
-
-	return &pb.StorageDealPreparedResponse{}, nil
-}
-
-// StorageDealFinalizedDeal reports the result of finalized deals.
-func (s *Service) StorageDealFinalizedDeal(
-	ctx context.Context,
-	r *pb.StorageDealFinalizedDealRequest) (*pb.StorageDealFinalizedDealResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-
-	if r.StorageDealId == "" {
-		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
-	}
-	if r.ErrorCause == "" {
-		if r.DealId <= 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"deal id is %d and should be positive",
-				r.DealId)
+// OnAuctionClosed handles new messages in auction-closed topic.
+func (s *Service) OnAuctionClosed(ctx context.Context, opID msgbroker.OperationID, au broker.ClosedAuction) error {
+	if err := s.broker.BatchAuctioned(ctx, opID, au); err != nil {
+		if errors.Is(err, brokeri.ErrOperationIDExists) {
+			log.Warnf("operation %s already exists, acking", opID)
+			return nil
 		}
-		if r.DealExpiration <= 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"deal expiration is %d and should be positive",
-				r.DealExpiration)
-		}
+		return fmt.Errorf("processing closed auction: %s", err)
 	}
-	fad := broker.FinalizedAuctionDeal{
-		StorageDealID:  broker.StorageDealID(r.StorageDealId),
-		DealID:         r.DealId,
-		DealExpiration: r.DealExpiration,
-		Miner:          r.MinerId,
-		ErrorCause:     r.ErrorCause,
-	}
-
-	if err := s.broker.StorageDealFinalizedDeal(ctx, fad); err != nil {
-		return nil, status.Errorf(codes.Internal, "processing finalized deals: %s", err)
-	}
-
-	return &pb.StorageDealFinalizedDealResponse{}, nil
+	return nil
 }
 
-// StorageDealProposalAccepted notifies the auctioneer that the miner accepted the deal.
-func (s *Service) StorageDealProposalAccepted(
+// OnNewBatchPrepared handles new messages in new-batch-prepared topic.
+func (s *Service) OnNewBatchPrepared(
 	ctx context.Context,
-	r *pb.StorageDealProposalAcceptedRequest) (*pb.StorageDealProposalAcceptedResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+	id broker.BatchID,
+	pr broker.DataPreparationResult) error {
+	if err := s.broker.NewBatchPrepared(ctx, id, pr); err != nil {
+		// idempotency is taken care of by NewBatchPrepared
+		return fmt.Errorf("processing new prepared batch: %s", err)
 	}
 
-	proposalCid, err := cid.Decode(r.ProposalCid)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid cid %s: %s", r.ProposalCid, err)
+	return nil
+}
+
+// OnFinalizedDeal handles new messages in the finalized-deal topic.
+func (s *Service) OnFinalizedDeal(ctx context.Context, opID msgbroker.OperationID, fd broker.FinalizedDeal) error {
+	if err := s.broker.BatchFinalizedDeal(ctx, opID, fd); err != nil {
+		if errors.Is(err, brokeri.ErrOperationIDExists) {
+			log.Warnf("operation %s already exists, acking", opID)
+			return nil
+		}
+		return fmt.Errorf("processing finalized deal: %s", err)
 	}
 
-	if err := s.broker.StorageDealProposalAccepted(
-		ctx,
-		broker.StorageDealID(r.StorageDealId),
-		r.Miner, proposalCid); err != nil {
-		return nil, status.Errorf(codes.Internal, "notifying proposal accepted: %s", err)
-	}
-
-	return &pb.StorageDealProposalAcceptedResponse{}, nil
+	return nil
 }
 
 // Close gracefully closes the service.
@@ -459,26 +375,11 @@ func validateConfig(conf Config) error {
 	if conf.ListenAddr == "" {
 		return errors.New("service listen addr is empty")
 	}
-	if conf.PiecerAddr == "" {
-		return errors.New("piecer api addr is empty")
-	}
-	if conf.PackerAddr == "" {
-		return errors.New("packer api addr is empty")
-	}
-	if conf.AuctioneerAddr == "" {
-		return errors.New("auctioneer api addr is empty")
-	}
-	if conf.DealerAddr == "" {
-		return errors.New("dealer api addr is empty")
-	}
 	if conf.ReporterAddr == "" {
 		return errors.New("reporter api addr is empty")
 	}
-	if conf.MongoDBName == "" {
-		return errors.New("mongo db name is empty")
-	}
-	if conf.MongoURI == "" {
-		return errors.New("mongo uri is empty")
+	if conf.PostgresURI == "" {
+		return errors.New("postgres uri is empty")
 	}
 	if conf.IPFSAPIMultiaddr == "" {
 		return errors.New("ipfs api multiaddress is empty")

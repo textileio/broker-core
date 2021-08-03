@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	_ "net/http/pprof"
 
 	"github.com/multiformats/go-multiaddr"
@@ -29,7 +28,6 @@ func init() {
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "pinata-jwt", DefValue: "",
 			Description: "Pinata API JWT to upload files also to Pinata. If empty, the feature will be considered disabled."},
-		{Name: "bearer-tokens", DefValue: []string{}, Description: "Raw accepted bearer tokens"},
 		{Name: "max-upload-size", DefValue: "4GB", Description: "Maximum upload size"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -48,7 +46,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := marshalConfig(v)
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"))
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -71,7 +69,6 @@ var rootCmd = &cobra.Command{
 			SkipAuth:              v.GetBool("skip-auth"),
 			IpfsMultiaddrs:        ipfsMultiaddrs,
 			PinataJWT:             v.GetString("pinata-jwt"),
-			BearerTokens:          common.ParseStringSlice(v, "bearer-tokens"),
 			MaxUploadSize:         v.GetSizeInBytes("max-upload-size"),
 		}
 		serv, err := service.New(serviceConfig)
@@ -89,12 +86,4 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	common.CheckErr(rootCmd.Execute())
-}
-
-func marshalConfig(v *viper.Viper) ([]byte, error) {
-	all := v.AllSettings()
-	if _, exists := all["bearer-tokens"]; exists {
-		all["bearer-tokens"] = "<redacted>"
-	}
-	return json.MarshalIndent(all, "", "  ")
 }

@@ -18,8 +18,6 @@ spec:
   selector:
     app: dealer-v1 # point this to desired deployment
   ports:
-    - port: 5000
-      name: api
     - port: 9090
       name: metrics
   type: ClusterIP
@@ -53,34 +51,43 @@ spec:
       labels:
         app: dealer-v1
     spec:
+      serviceAccountName: postgres-cloud-sql
       containers:
         - name: dealer
           image: textile/dealer
           imagePullPolicy: Always
           ports:
-            - name: api
-              containerPort: 5000
             - name: metrics
               containerPort: 9090
+          command: ["./with-postgres.sh", "./dealerd"]
+          env:
+            - name: DAEMON
+              value: "dealer"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: postgres-password
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: dealer-db-password
+            - name: DEALER_GPUBSUB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+            - name: DEALER_GPUBSUB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-api-key
           envFrom:
             - configMapRef:
                 name: configmap-dealer
           resources:
             requests:
-              memory: 100Mi
-              cpu: "0.3"
-            limits:
-              memory: 1Gi
-          readinessProbe:
-            tcpSocket:
-              port: api
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            failureThreshold: 3
-          livenessProbe:
-            tcpSocket:
-              port: api
-            initialDelaySeconds: 15
-            periodSeconds: 20
-            failureThreshold: 3
+              cpu: 250m
+              memory: 512Mi
 

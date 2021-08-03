@@ -12,6 +12,11 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
   BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-brokerd
 
 FROM alpine
+
+RUN apk --no-cache add postgresql-client
+COPY /bin/with-postgres.sh /app/
+
 COPY --from=builder /app/brokerd /app/brokerd
+
 WORKDIR /app
 ENTRYPOINT ["./brokerd"]

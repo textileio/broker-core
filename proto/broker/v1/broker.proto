@@ -4,17 +4,24 @@ option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
 import "google/protobuf/timestamp.proto";
 
-message CreateBrokerRequestRequest {
+message CreateStorageRequestRequest {
   string cid = 1;
+  string origin = 2;
 }
 
-message CreateBrokerRequestResponse {
-  BrokerRequest request = 1;
+message CreateStorageRequestResponse {
+  StorageRequest request = 1;
 }
 
-message CreatePreparedBrokerRequestRequest {
+message CreatePreparedStorageRequestRequest {
   string cid = 1;
-  PreparedCAR preparedCAR = 2;
+  PreparedCAR prepared_car = 2;
+  Metadata metadata = 3;
+
+  message Metadata {
+    string origin = 1;
+    map<string, string> tags = 2;
+  }
 
   message PreparedCAR {
     string piece_cid = 1;
@@ -35,54 +42,109 @@ message CreatePreparedBrokerRequestRequest {
   }
 }
 
-message CreatePreparedBrokerRequestResponse {
-  BrokerRequest request = 1;
+message CreatePreparedStorageRequestResponse {
+  StorageRequest request = 1;
 }
 
-
-
-message GetBrokerRequestInfoRequest {
+message GetStorageRequestInfoRequest {
   string id = 1;
 }
 
-message GetBrokerRequestInfoResponse {
-  BrokerRequest broker_request = 1;
-  repeated BrokerRequestDeal deals = 2;
+message GetStorageRequestInfoResponse {
+  StorageRequest storage_request = 1;
+  repeated StorageRequestDeal deals = 2;
 
-  message BrokerRequestDeal {
-	  string miner = 1;
+  message StorageRequestDeal {
+	  string storage_provider_id = 1;
 	  int64 deal_id = 2;
 	  uint64 expiration = 3;
   }
 }
 
-message CreateStorageDealRequest {
-  string batch_cid = 1;
-  repeated string broker_request_ids = 2;
+message Sources {
+  CARURL car_url = 1;
+  CARIPFS car_ipfs = 2;
+
+  message CARURL {
+    string url = 1;
+  }
+
+  message CARIPFS {
+    string cid = 1;
+    repeated string multiaddrs = 2;
+  }
 }
 
-message CreateStorageDealResponse {
-  string id = 1;
-}
-
-message StorageDealProposalAcceptedRequest {
-  string storage_deal_id = 1;
-  string miner = 2;
-  string proposal_cid = 3;
-}
-
-message StorageDealProposalAcceptedResponse {
-}
-
-message StorageDealAuctionedRequest {
+message ReadyToAuction {
     string id = 1;
-    string storage_deal_id = 2;
-    uint64 deal_duration = 3;
-    uint32 deal_replication = 4;
-    bool deal_verified = 5;
-    Status status = 6;
-    map<string, WinningBid> winning_bids = 7;
-    string error = 8;
+    string batch_id = 2;
+    bytes payload_cid = 3;
+    uint64 deal_size = 4;
+    uint64 deal_duration = 5;
+    uint32 deal_replication = 6;
+    bool deal_verified = 7;
+    repeated string excluded_storage_providers = 8;
+    uint64 fil_epoch_deadline = 9;
+    Sources sources = 10;
+}
+message ReadyToCreateDeals {
+  string id = 1;
+  string batch_id = 2;
+  bytes payload_cid = 3;
+  bytes piece_cid = 4;
+  uint64 piece_size = 5;
+  uint64 duration = 6;
+  repeated Proposal proposals = 7;
+
+  message Proposal {
+    string storage_provider_id = 1;
+    int64 price_per_gib_per_epoch = 2;
+    uint64 start_epoch = 3;
+    bool verified = 4;
+    bool fast_retrieval = 5;
+    string auction_id = 6;
+    string bid_id = 7;
+  }
+}
+
+message ReadyToBatch {
+  string operation_id = 1;
+  repeated ReadyToBatchBR data_cids = 2;
+
+  message ReadyToBatchBR {
+    string storage_request_id = 1;
+    bytes data_cid = 2;
+    string origin = 3;
+  }
+}
+
+message NewBatchCreated {
+  string id = 1;
+  bytes batch_cid = 2;
+  repeated string storage_request_ids = 3;
+  string origin = 4;
+  bytes manifest = 5;
+}
+
+
+message DealProposalAccepted {
+  string batch_id = 1;
+  string storage_provider_id = 2;
+  bytes proposal_cid = 3;
+  string auction_id = 4;
+  string bid_id = 5;
+}
+
+message AuctionClosed {
+    string operation_id = 1;
+    string id = 2;
+    string batch_id = 3;
+    uint64 deal_duration = 4;
+    uint32 deal_replication = 5;
+    bool deal_verified = 6;
+    Status status = 7;
+    map<string, WinningBid> winning_bids = 8;
+    string error = 9;
                                
     enum Status {
         STATUS_UNSPECIFIED = 0;
@@ -92,62 +154,52 @@ message StorageDealAuctionedRequest {
     }
 
     message WinningBid {
-        string miner_addr = 1;
+        string storage_provider_id = 1;
         int64 price = 2;
         uint64 start_epoch = 3;
         bool fast_retrieval = 4;
     }
 }
 
-message StorageDealAuctionedResponse {
-}
-
-message StorageDealPreparedRequest {
-  string storage_deal_id = 1;
-  string piece_cid = 2;
+message NewBatchPrepared {
+  string id = 1;
+  bytes piece_cid = 2;
   uint64 piece_size = 3;
 }
 
-message StorageDealPreparedResponse {
+message FinalizedDeal {
+    string operation_id = 1;
+    string batch_id = 2;
+    int64 deal_id = 3;
+    uint64 deal_expiration = 4;
+    string storage_provider_id = 5;
+    string error_cause = 6;
+    string auction_id = 7;
+    string bid_id = 8;
 }
 
-message StorageDealFinalizedDealRequest {
-    string storage_deal_id = 1;
-    int64 deal_id = 2;
-    uint64 deal_expiration = 3;
-    string miner_id = 4;
-    string error_cause = 5;
-}
-
-message StorageDealFinalizedDealResponse {
-}
-
-message BrokerRequest {
+message StorageRequest {
   string id = 1;
-  string data_cid = 2;
+  bytes data_cid = 2;
   Status status = 3;
-  string storage_deal_id = 4;
-  google.protobuf.Timestamp created_at = 5; 
-  google.protobuf.Timestamp updated_at = 6; 
+  string batch_id = 4;
+  string origin = 5;
+  google.protobuf.Timestamp created_at = 6; 
+  google.protobuf.Timestamp updated_at = 7; 
 
   enum Status {
-    UNSPECIFIED = 0;
-    BATCHING = 1;
-    PREPARING = 2;
-    AUCTIONING = 3;
-    DEALMAKING = 4;
-    SUCCESS = 5;
-    ERROR = 6;
+    STATUS_UNSPECIFIED = 0;
+    STATUS_BATCHING = 1;
+    STATUS_PREPARING = 2;
+    STATUS_AUCTIONING = 3;
+    STATUS_DEALMAKING = 4;
+    STATUS_SUCCESS = 5;
+    STATUS_ERROR = 6;
   }
 }
 
 service APIService {
-  rpc CreateBrokerRequest(CreateBrokerRequestRequest) returns (CreateBrokerRequestResponse) {}
-  rpc CreatePreparedBrokerRequest(CreatePreparedBrokerRequestRequest) returns (CreatePreparedBrokerRequestResponse) {}
-  rpc GetBrokerRequestInfo(GetBrokerRequestInfoRequest) returns (GetBrokerRequestInfoResponse) {}
-  rpc CreateStorageDeal(CreateStorageDealRequest) returns (CreateStorageDealResponse) {}
-  rpc StorageDealAuctioned(StorageDealAuctionedRequest) returns (StorageDealAuctionedResponse) {}
-  rpc StorageDealFinalizedDeal(StorageDealFinalizedDealRequest) returns (StorageDealFinalizedDealResponse) {}
-  rpc StorageDealProposalAccepted(StorageDealProposalAcceptedRequest) returns (StorageDealProposalAcceptedResponse) {}
-  rpc StorageDealPrepared(StorageDealPreparedRequest) returns (StorageDealPreparedResponse) {}
+  rpc CreateStorageRequest(CreateStorageRequestRequest) returns (CreateStorageRequestResponse) {}
+  rpc CreatePreparedStorageRequest(CreatePreparedStorageRequestRequest) returns (CreatePreparedStorageRequestResponse) {}
+  rpc GetStorageRequestInfo(GetStorageRequestInfoRequest) returns (GetStorageRequestInfoResponse) {}
 }

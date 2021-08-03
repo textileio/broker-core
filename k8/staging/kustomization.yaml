@@ -52,5 +52,10 @@ patchesStrategicMerge:
 - ipfs-cluster-statefulset-patch.yaml
 - ingress-patch.yaml
 - mongo-patch.yaml
-- dealerd-patch.yaml
 - storaged-patch.yaml
+- brokerd-patch.yaml
+- dealerd-patch.yaml
+- piecerd-patch.yaml
+- packerd-patch.yaml
+- authd-patch.yaml
+

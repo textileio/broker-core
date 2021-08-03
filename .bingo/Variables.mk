@@ -1,4 +1,4 @@
-# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.4.0. DO NOT EDIT.
+# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.5.1. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 BINGO_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 GOPATH ?= $(shell go env GOPATH)
@@ -17,17 +17,23 @@ GO     ?= $(shell which go)
 #	@echo "Running bingo"
 #	@$(BINGO) <flags/args..>
 #
-BINGO := $(GOBIN)/bingo-v0.4.0
+BINGO := $(GOBIN)/bingo-v0.5.1
 $(BINGO): $(BINGO_DIR)/bingo.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/bingo-v0.4.0"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=bingo.mod -o=$(GOBIN)/bingo-v0.4.0 "github.com/bwplotka/bingo"
+	@echo "(re)installing $(GOBIN)/bingo-v0.5.1"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=bingo.mod -o=$(GOBIN)/bingo-v0.5.1 "github.com/bwplotka/bingo"
 
-BUF := $(GOBIN)/buf-v0.41.0
+BUF := $(GOBIN)/buf-v0.46.0
 $(BUF): $(BINGO_DIR)/buf.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/buf-v0.41.0"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=buf.mod -o=$(GOBIN)/buf-v0.41.0 "github.com/bufbuild/buf/cmd/buf"
+	@echo "(re)installing $(GOBIN)/buf-v0.46.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=buf.mod -o=$(GOBIN)/buf-v0.46.0 "github.com/bufbuild/buf/cmd/buf"
+
+GO_BINDATA := $(GOBIN)/go-bindata-v3.1.3
+$(GO_BINDATA): $(BINGO_DIR)/go-bindata.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/go-bindata-v3.1.3"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=go-bindata.mod -o=$(GOBIN)/go-bindata-v3.1.3 "github.com/go-bindata/go-bindata/v3/go-bindata"
 
 GOLANGCI_LINT := $(GOBIN)/golangci-lint-v1.39.0
 $(GOLANGCI_LINT): $(BINGO_DIR)/golangci-lint.mod
@@ -65,17 +71,17 @@ $(MOCKERY): $(BINGO_DIR)/mockery.mod
 	@echo "(re)installing $(GOBIN)/mockery-v2.7.4"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=mockery.mod -o=$(GOBIN)/mockery-v2.7.4 "github.com/vektra/mockery/v2"
 
-PROTOC_GEN_BUF_BREAKING := $(GOBIN)/protoc-gen-buf-breaking-v0.41.0
+PROTOC_GEN_BUF_BREAKING := $(GOBIN)/protoc-gen-buf-breaking-v0.46.0
 $(PROTOC_GEN_BUF_BREAKING): $(BINGO_DIR)/protoc-gen-buf-breaking.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/protoc-gen-buf-breaking-v0.41.0"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=protoc-gen-buf-breaking.mod -o=$(GOBIN)/protoc-gen-buf-breaking-v0.41.0 "github.com/bufbuild/buf/cmd/protoc-gen-buf-breaking"
+	@echo "(re)installing $(GOBIN)/protoc-gen-buf-breaking-v0.46.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=protoc-gen-buf-breaking.mod -o=$(GOBIN)/protoc-gen-buf-breaking-v0.46.0 "github.com/bufbuild/buf/cmd/protoc-gen-buf-breaking"
 
-PROTOC_GEN_BUF_LINT := $(GOBIN)/protoc-gen-buf-lint-v0.41.0
+PROTOC_GEN_BUF_LINT := $(GOBIN)/protoc-gen-buf-lint-v0.46.0
 $(PROTOC_GEN_BUF_LINT): $(BINGO_DIR)/protoc-gen-buf-lint.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/protoc-gen-buf-lint-v0.41.0"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=protoc-gen-buf-lint.mod -o=$(GOBIN)/protoc-gen-buf-lint-v0.41.0 "github.com/bufbuild/buf/cmd/protoc-gen-buf-lint"
+	@echo "(re)installing $(GOBIN)/protoc-gen-buf-lint-v0.46.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=protoc-gen-buf-lint.mod -o=$(GOBIN)/protoc-gen-buf-lint-v0.46.0 "github.com/bufbuild/buf/cmd/protoc-gen-buf-lint"
 
 PROTOC_GEN_GO_GRPC := $(GOBIN)/protoc-gen-go-grpc-v1.1.0
 $(PROTOC_GEN_GO_GRPC): $(BINGO_DIR)/protoc-gen-go-grpc.mod
@@ -88,4 +94,10 @@ $(PROTOC_GEN_GO): $(BINGO_DIR)/protoc-gen-go.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
 	@echo "(re)installing $(GOBIN)/protoc-gen-go-v1.26.0"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=protoc-gen-go.mod -o=$(GOBIN)/protoc-gen-go-v1.26.0 "google.golang.org/protobuf/cmd/protoc-gen-go"
+
+SQLC := $(GOBIN)/sqlc-v1.8.0
+$(SQLC): $(BINGO_DIR)/sqlc.mod
+	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
+	@echo "(re)installing $(GOBIN)/sqlc-v1.8.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=sqlc.mod -o=$(GOBIN)/sqlc-v1.8.0 "github.com/kyleconroy/sqlc/cmd/sqlc"
 

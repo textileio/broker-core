@@ -71,6 +71,11 @@ up:
 	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
 .PHONY: up
 
+up-patched:
+	./tests/buildx_patch.sh
+	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build -V
+.PHONY: up-patched
+
 down:
 	docker-compose -f docker-compose-dev.yml down
 .PHONY: down
@@ -96,23 +101,36 @@ clean-protos:
 # This does breaking change detection against our local git repository.
 .PHONY: buf-local
 buf-local: $(BUF)
-	$(BUF) check lint
-	# $(BUF) check breaking --against-input '.git#branch=main'
+	$(BUF) lint
+	# $(BUF) breaking --against-input '.git#branch=main'
 
 # https is what we run when testing in most CI providers.
 # This does breaking change detection against our remote HTTPS git repository.
 .PHONY: buf-https
 buf-https: $(BUF)
-	$(BUF) check lint
-	# $(BUF) check breaking --against-input "$(HTTPS_GIT)#branch=main"
+	$(BUF) lint
+	# $(BUF) breaking --against-input "$(HTTPS_GIT)#branch=main"
 
 # ssh is what we run when testing in CI providers that provide ssh public key authentication.
 # This does breaking change detection against our remote HTTPS ssh repository.
 # This is especially useful for private repositories.
 .PHONY: buf-ssh
 buf-ssh: $(BUF)
-	$(BUF) check lint
-	# $(BUF) check breaking --against-input "$(SSH_GIT)#branch=main"
+	$(BUF) lint
+	# $(BUF) breaking --against-input "$(SSH_GIT)#branch=main"
+
+define gen_sql_assets
+	for daemon in $(1); do \
+		cd cmd/$${daemon}d/store && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -; \
+	done
+endef
+
+sql-assets: $(GO_BINDATA) $(SQLC)
+	$(call gen_sql_assets,broker piecer dealer packer auth);
+.PHONY: sql-assets
+
+generate: protos sql-assets
+.PHONY: generate
 
 define docker_push_daemon_head
 	for daemon in $(1); do \

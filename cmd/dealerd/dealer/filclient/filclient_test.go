@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 )
 
 func TestExecuteAuctionDeal(t *testing.T) {
@@ -35,11 +35,13 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		Duration:   525600,
 	}
 	aud := store.AuctionDeal{
-		Miner:               "f01278",
-		PricePerGiBPerEpoch: 0,
+		StorageProviderID:   "f01278",
+		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            false,
 		FastRetrieval:       true,
+		AuctionID:           "auction-1",
+		BidID:               "bid-1",
 	}
 	propCid, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud)
 	require.NoError(t, err)
@@ -70,7 +72,7 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 	require.Equal(t, uint64(1279995), expiration)
 }
 
-func TestCheckStatusWithMiner(t *testing.T) {
+func TestCheckStatusWithStorageProvider(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 
@@ -80,7 +82,7 @@ func TestCheckStatusWithMiner(t *testing.T) {
 
 	proposalCid, err := cid.Decode("bafyreibru2chqj7wanixo6m5qnmamovvgby7672ws3yojzyttimu7fl72q")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithMiner(ctx, "f01278", proposalCid)
+	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f01278", proposalCid)
 	require.NoError(t, err)
 	fmt.Printf("%s\n", logging.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])

@@ -51,9 +51,18 @@ spec:
         - name: auctioneer
           image: textile/auctioneer
           imagePullPolicy: Always
+          env:
+            - name: AUCTIONEER_GPUBSUB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+            - name: AUCTIONEER_GPUBSUB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-api-key
           ports:
-            - name: api
-              containerPort: 5000
             - name: metrics
               containerPort: 9090
           volumeMounts:
@@ -61,23 +70,8 @@ spec:
               mountPath: /data/auctioneerd
           resources:
             requests:
-              memory: 4Gi
-              cpu: "2"
-            limits:
-              memory: 6Gi
-          readinessProbe:
-            tcpSocket:
-              port: api
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            failureThreshold: 3
-          livenessProbe:
-            tcpSocket:
-              port: api
-            initialDelaySeconds: 15
-            periodSeconds: 20
-            failureThreshold: 3
-
+              cpu: 250m
+              memory: 512Mi
       volumes:
         - name: configure-env
           configMap:

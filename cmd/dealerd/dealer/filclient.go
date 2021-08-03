@@ -5,7 +5,7 @@ import (
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/ipfs/go-cid"
-	"github.com/textileio/broker-core/cmd/dealerd/dealer/store"
+	"github.com/textileio/broker-core/cmd/dealerd/store"
 )
 
 // FilClient provides functionalities to create and monitor Filecoin deals.
@@ -14,8 +14,8 @@ type FilClient interface {
 	GetChainHeight(ctx context.Context) (uint64, error)
 	ResolveDealIDFromMessage(ctx context.Context, proposalCid cid.Cid, publishDealMessage cid.Cid) (int64, error)
 	CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, bool, error)
-	CheckDealStatusWithMiner(
+	CheckDealStatusWithStorageProvider(
 		ctx context.Context,
-		minerAddr string,
+		storageProviderID string,
 		propCid cid.Cid) (*storagemarket.ProviderDealState, error)
 }

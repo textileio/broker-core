@@ -31,7 +31,7 @@ func NewChainApiServiceClient(cc grpc.ClientConnInterface) ChainApiServiceClient
 
 func (c *chainApiServiceClient) HasDeposit(ctx context.Context, in *HasDepositRequest, opts ...grpc.CallOption) (*HasDepositResponse, error) {
 	out := new(HasDepositResponse)
-	err := c.cc.Invoke(ctx, "/chainapi.v1.ChainApiService/HasDeposit", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/broker.chainapi.v1.ChainApiService/HasDeposit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func _ChainApiService_HasDeposit_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/chainapi.v1.ChainApiService/HasDeposit",
+		FullMethod: "/broker.chainapi.v1.ChainApiService/HasDeposit",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ChainApiServiceServer).HasDeposit(ctx, req.(*HasDepositRequest))
@@ -88,7 +88,7 @@ func _ChainApiService_HasDeposit_Handler(srv interface{}, ctx context.Context, d
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ChainApiService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "chainapi.v1.ChainApiService",
+	ServiceName: "broker.chainapi.v1.ChainApiService",
 	HandlerType: (*ChainApiServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

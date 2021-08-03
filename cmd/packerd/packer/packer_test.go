@@ -3,30 +3,40 @@ package packer
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
 	ipfsfiles "github.com/ipfs/go-ipfs-files"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	ipld "github.com/ipfs/go-ipld-format"
+	unixfile "github.com/ipfs/go-unixfs/file"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/packerd/store"
+	pb "github.com/textileio/broker-core/gen/broker/v1"
+	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/broker-core/tests"
+
 	golog "github.com/textileio/go-log/v2"
+	"google.golang.org/protobuf/proto"
 )
 
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
-		"packer":       golog.LevelDebug,
-		"packer/store": golog.LevelDebug,
+		"packer": golog.LevelDebug,
+		"store":  golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
@@ -45,8 +55,11 @@ func TestPack(t *testing.T) {
 	ipfs, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	brokerMock := &brokerMock{}
-	packer := createPacker(t, ipfs, brokerMock)
+	packer, mb := createPacker(t, ipfs)
+
+	numBatchedCids, err := packer.pack(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, numBatchedCids)
 
 	// 2- Add 100 random files and get their cids.
 	numFiles := 100
@@ -54,25 +67,162 @@ func TestPack(t *testing.T) {
 
 	// 3- Signal ready to pack these cids to Packer
 	for i, dataCid := range dataCids {
-		err = packer.ReadyToPack(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
+		err = packer.ReadyToBatch(
+			ctx,
+			mbroker.OperationID(strconv.Itoa(i)),
+			[]mbroker.ReadyToBatchData{
+				{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)),
+					DataCid: dataCid,
+					Origin:  "OR",
+				}},
+		)
 		require.NoError(t, err)
 	}
+
+	// 4- Force pack and inspect what was signaled to the broker
+	numBatchedCids, err = packer.pack(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
+
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+
+	require.Len(t, msg.StorageRequestIds, numFiles)
+	require.Equal(t, numFiles, numBatchedCids)
+	require.Equal(t, "OR", msg.Origin)
+	require.NotEmpty(t, msg.BatchCid)
+	bcid, err := cid.Cast(msg.BatchCid)
+	require.NoError(t, err)
+	require.True(t, bcid.Defined())
+	require.NotEmpty(t, msg.Manifest)
+	dagManifest := getBatchManifestFromDAG(t, bcid, ipfs.Dag())
+	require.True(t, bytes.Equal(dagManifest, msg.Manifest))
+
+	// Check that the batch cid was pinned in ipfs.
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
+	require.NoError(t, err)
+	require.True(t, pinned)
+}
+
+func TestPackMultiple(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	// 1- Create a Packer and have a go-ipfs client too.
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	packer, mb := createPacker(t, ipfs)
+
+	// 2- Add 100 random files and get their cids.
+	numFiles := 100
+	dataCids := addRandomData(t, ipfs, numFiles)
+
+	// 3- Batch the 100 files in a single call
+	rtbs := make([]mbroker.ReadyToBatchData, len(dataCids))
+	for i, dataCid := range dataCids {
+		rtbs[i] = mbroker.ReadyToBatchData{
+			StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)),
+			DataCid:          dataCid,
+			Origin:           "OR",
+		}
+	}
+	err = packer.ReadyToBatch(ctx, "op-1", rtbs)
+	require.NoError(t, err)
 
 	// 4- Force pack and inspect what was signaled to the broker
 	numBatchedCids, err := packer.pack(ctx)
 	require.NoError(t, err)
 
-	require.Len(t, brokerMock.srids, numFiles)
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
+
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+
+	require.Len(t, msg.StorageRequestIds, numFiles)
 	require.Equal(t, numFiles, numBatchedCids)
-	require.True(t, brokerMock.batchCid.Defined())
+	require.NotEmpty(t, msg.BatchCid)
+	bcid, err := cid.Cast(msg.BatchCid)
+	require.NoError(t, err)
+	require.True(t, bcid.Defined())
+	require.NotEmpty(t, msg.Manifest)
+	dagManifest := getBatchManifestFromDAG(t, bcid, ipfs.Dag())
+	require.True(t, bytes.Equal(dagManifest, msg.Manifest))
 
 	// Check that the batch cid was pinned in ipfs.
-	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
 	require.NoError(t, err)
 	require.True(t, pinned)
 }
 
-func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
+func TestStats(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	// 1- Create a Packer and have a go-ipfs client too.
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	packer, _ := createPacker(t, ipfs)
+	_, err = packer.store.GetStats(ctx)
+	require.NoError(t, err)
+}
+
+func TestPackIdempotency(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	// 1- Create a Packer and have a go-ipfs client too.
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	ipfs, err := httpapi.NewApi(ma)
+	require.NoError(t, err)
+
+	packer, _ := createPacker(t, ipfs)
+
+	// 2- Add one file to go-ipfs.
+	dataCids := addRandomData(t, ipfs, 1)
+
+	// 3- Make first call.
+	err = packer.ReadyToBatch(
+		ctx,
+		mbroker.OperationID("op-1"),
+		[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID("br-1"), DataCid: dataCids[0]}},
+	)
+	require.NoError(t, err)
+
+	// 3- Make second call with the same operation id.
+	err = packer.ReadyToBatch(
+		ctx,
+		mbroker.OperationID("op-1"),
+		[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID("br-1"), DataCid: dataCids[0]}},
+	)
+	require.ErrorIs(t, err, store.ErrOperationIDExists)
+}
+
+func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 	ctx := context.Background()
@@ -85,16 +235,19 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	ipfs, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	brokerMock := &brokerMock{}
-	packer := createPacker(t, ipfs, brokerMock)
+	packer, mb := createPacker(t, ipfs)
 
 	// 2- Create a single file
 	dataCid := addRandomData(t, ipfs, 1)[0]
 
-	// 3- Simulate multiple BrokerRequests but with the same data
-	numRepeatedBrokerRequest := 100
-	for i := 0; i < numRepeatedBrokerRequest; i++ {
-		err = packer.ReadyToPack(ctx, broker.BrokerRequestID(strconv.Itoa(i)), dataCid)
+	// 3- Simulate multiple StorageRequests but with the same data
+	numRepeatedStorageRequest := 100
+	for i := 0; i < numRepeatedStorageRequest; i++ {
+		err = packer.ReadyToBatch(
+			ctx,
+			mbroker.OperationID(strconv.Itoa(1)),
+			[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)), DataCid: dataCid}},
+		)
 		require.NoError(t, err)
 	}
 
@@ -102,24 +255,36 @@ func TestMultipleBrokerRequestWithSameCid(t *testing.T) {
 	numCidsBatched, err := packer.pack(ctx)
 	require.NoError(t, err)
 
-	require.True(t, brokerMock.batchCid.Defined())
-	// We fullfiled numRepeatedBrokerRequest, not only 1!
-	require.Len(t, brokerMock.srids, numRepeatedBrokerRequest)
-	// Despite we fulfilled multiple broker request, the batch only has one cid!
+	require.Equal(t, mb.TotalPublished(), 1)
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+	bcid, err := cid.Cast(msg.BatchCid)
+	require.NoError(t, err)
+
+	require.True(t, bcid.Defined())
+	// We fullfiled numRepeatedStorageRequest, not only 1!
+	require.Len(t, msg.StorageRequestIds, numRepeatedStorageRequest)
+	// Despite we fulfilled multiple storage request, the batch only has one cid!
 	require.Equal(t, 1, numCidsBatched)
 
 	// Check that the batch cid was pinned in ipfs.
-	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(brokerMock.batchCid))
+	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
 	require.NoError(t, err)
 	require.True(t, pinned)
 }
 
-func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi, broker *brokerMock) *Packer {
-	ds := tests.NewTxMapDatastore()
-	packer, err := New(ds, ipfsClient, broker, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
+func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi) (*Packer, *fakemsgbroker.FakeMsgBroker) {
+	mb := fakemsgbroker.New()
+	postgresURL, err := tests.PostgresURL()
+	require.NoError(t, err)
+	packer, err := New(postgresURL, ipfsClient, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
 	require.NoError(t, err)
 
-	return packer
+	return packer, mb
 }
 
 func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
@@ -143,53 +308,6 @@ func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
 	return cids
 }
 
-type brokerMock struct {
-	batchCid           cid.Cid
-	srids              []broker.BrokerRequestID
-	allowMultipleCalls bool
-}
-
-func (bm *brokerMock) CreateStorageDeal(
-	ctx context.Context,
-	batchCid cid.Cid,
-	srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
-	if !bm.allowMultipleCalls && bm.batchCid.Defined() {
-		return "", fmt.Errorf("create storage deal called twice")
-	}
-	bm.batchCid = batchCid
-	bm.srids = srids
-
-	return broker.StorageDealID("DUKE"), nil
-}
-
-func (bm *brokerMock) StorageDealPrepared(context.Context, broker.StorageDealID, broker.DataPreparationResult) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealAuctioned(context.Context, broker.ClosedAuction) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealProposalAccepted(context.Context, broker.StorageDealID, string, cid.Cid) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) CreatePrepared(context.Context, cid.Cid, broker.PreparedCAR) (broker.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) Create(context.Context, cid.Cid) (broker.BrokerRequest, error) {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) StorageDealFinalizedDeal(context.Context, broker.FinalizedAuctionDeal) error {
-	panic("shouldn't be called")
-}
-
-func (bm *brokerMock) GetBrokerRequestInfo(context.Context, broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
-	panic("shouldn't be called")
-}
-
 func launchIPFSContainer(t *testing.T) *dockertest.Resource {
 	pool, err := dockertest.NewPool("")
 	require.NoError(t, err)
@@ -207,4 +325,21 @@ func launchIPFSContainer(t *testing.T) *dockertest.Resource {
 	})
 
 	return ipfsDocker
+}
+
+func getBatchManifestFromDAG(t *testing.T, payloadCid cid.Cid, dagService ipld.DAGService) []byte {
+	ctx := context.Background()
+	rootNd, err := dagService.Get(ctx, payloadCid)
+	require.NoError(t, err)
+	manifestLnk := rootNd.Links()[0]
+	manifestNd, err := dagService.Get(ctx, manifestLnk.Cid)
+	require.NoError(t, err)
+	manifestF, err := unixfile.NewUnixfsFile(context.Background(), dagService, manifestNd)
+	require.NoError(t, err)
+	manifest := manifestF.(files.File)
+
+	dagManifest, err := ioutil.ReadAll(manifest)
+	require.NoError(t, err)
+
+	return dagManifest
 }

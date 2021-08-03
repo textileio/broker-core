@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -13,33 +12,29 @@ import (
 	commP "github.com/filecoin-project/go-fil-commp-hashhash"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
-	format "github.com/ipfs/go-ipld-format"
-	iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/options"
-	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/piecerd/piecer/store"
-	pieceri "github.com/textileio/broker-core/piecer"
+	store "github.com/textileio/broker-core/cmd/piecerd/store"
+	"github.com/textileio/broker-core/ipfsutil"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
 )
 
 var log = logger.Logger("piecer")
 
-// Piecer provides a data-preparation pipeline for StorageDeals.
+// Piecer provides a data-preparation pipeline for Batchs.
 type Piecer struct {
-	broker   broker.Broker
-	ipfsApis []ipfsAPI
+	mb       mbroker.MsgBroker
+	ipfsApis []ipfsutil.IpfsAPI
 
 	store           *store.Store
 	daemonFrequency time.Duration
 	retryDelay      time.Duration
 	newRequest      chan struct{}
 
-	onceClose       sync.Once
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
@@ -53,21 +48,14 @@ type Piecer struct {
 	metricLastPrepared        metric.Int64ValueObserver
 }
 
-type ipfsAPI struct {
-	address multiaddr.Multiaddr
-	api     iface.CoreAPI
-}
-
-var _ pieceri.Piecer = (*Piecer)(nil)
-
 // New returns a new Piecer.
 func New(
-	ds txndswrap.TxnDatastore,
+	postgresURI string,
 	ipfsEndpoints []multiaddr.Multiaddr,
-	b broker.Broker,
+	mb mbroker.MsgBroker,
 	daemonFrequency time.Duration,
 	retryDelay time.Duration) (*Piecer, error) {
-	ipfsApis := make([]ipfsAPI, len(ipfsEndpoints))
+	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
 		if err != nil {
@@ -77,14 +65,18 @@ func New(
 		if err != nil {
 			return nil, fmt.Errorf("creating offline core api: %s", err)
 		}
-		ipfsApis[i] = ipfsAPI{address: endpoint, api: coreapi}
+		ipfsApis[i] = ipfsutil.IpfsAPI{Address: endpoint, API: coreapi}
 	}
 
+	s, err := store.New(postgresURI)
+	if err != nil {
+		return nil, fmt.Errorf("initializing store: %s", err)
+	}
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Piecer{
-		store:    store.New(txndswrap.Wrap(ds, "/store")),
+		store:    s,
 		ipfsApis: ipfsApis,
-		broker:   b,
+		mb:       mb,
 
 		daemonFrequency: daemonFrequency,
 		retryDelay:      retryDelay,
@@ -100,19 +92,19 @@ func New(
 	return p, nil
 }
 
-// ReadyToPrepare signals the Piecer that a new StorageDeal is ready to be prepared.
-// Piecer will call the broker async with the end result.
-func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, dataCid cid.Cid) error {
-	if id == "" {
-		return fmt.Errorf("storage deal id is empty")
+// ReadyToPrepare signals the Piecer that a new batch is ready to be prepared.
+func (p *Piecer) ReadyToPrepare(ctx context.Context, sdID broker.BatchID, dataCid cid.Cid) error {
+	if sdID == "" {
+		return fmt.Errorf("batch id is empty")
 	}
 	if !dataCid.Defined() {
 		return fmt.Errorf("data-cid is undefined")
 	}
 
-	if err := p.store.Create(id, dataCid); err != nil {
-		return fmt.Errorf("saving %s %s: %s", id, dataCid, err)
+	if err := p.store.CreateUnpreparedBatch(ctx, sdID, dataCid); err != nil {
+		return fmt.Errorf("creating unprepared-batch %s %s: %w", sdID, dataCid, err)
 	}
+	log.Debugf("saved unprepared-batch with batch %s and data-cid %s", sdID, dataCid)
 
 	select {
 	case p.newRequest <- struct{}{}:
@@ -125,10 +117,11 @@ func (p *Piecer) ReadyToPrepare(ctx context.Context, id broker.StorageDealID, da
 // Close closes the piecer.
 func (p *Piecer) Close() error {
 	log.Info("closing piecer...")
-	p.onceClose.Do(func() {
-		p.daemonCancelCtx()
-		<-p.daemonClosed
-	})
+	p.daemonCancelCtx()
+	<-p.daemonClosed
+	if err := p.store.Close(); err != nil {
+		return fmt.Errorf("closing store: %s", err)
+	}
 	return nil
 }
 
@@ -145,27 +138,26 @@ func (p *Piecer) daemon() {
 		case <-time.After(p.daemonFrequency):
 		}
 		for {
-			usd, ok, err := p.store.GetNext()
+			usd, ok, err := p.store.GetNextPending(p.daemonCtx)
 			if err != nil {
 				log.Errorf("get next unprepared batch: %s", err)
 				break
 			}
 			if !ok {
-				log.Debug("no remaning unprepared batches")
 				break
 			}
 
 			if err := p.prepare(p.daemonCtx, usd); err != nil {
-				log.Errorf("preparing: %s", err)
-				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
+				log.Errorf("preparing batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
+				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
 
-			if err := p.store.Delete(usd.ID); err != nil {
-				log.Errorf("deleting: %s", err)
-				if err := p.store.MoveToPending(usd.ID, p.retryDelay); err != nil {
+			if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, 0, store.StatusDone); err != nil {
+				log.Errorf("deleting batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
+				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
@@ -174,13 +166,13 @@ func (p *Piecer) daemon() {
 	}
 }
 
-func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) error {
+func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 	start := time.Now()
-	log.Debugf("preparing storage deal %s with data-cid %s", usd.StorageDealID, usd.DataCid)
+	log.Debugf("preparing batch %s with data-cid %s", usd.BatchID, usd.DataCid)
 
-	nodeGetter, err := p.getNodeGetterForCid(usd.DataCid)
-	if err != nil {
-		return fmt.Errorf("get node getter for cid %s: %s", usd.DataCid, err)
+	nodeGetter, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, usd.DataCid)
+	if !found {
+		return fmt.Errorf("node getter for data cid %s not found", usd.DataCid)
 	}
 
 	prCAR, pwCAR := io.Pipe()
@@ -234,12 +226,12 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 		return fmt.Errorf("write car err: %s, commP err: %s", errCarGen, errCommP)
 	}
 
-	log.Debugf("piece-size: %s, piece-cid: %s", humanize.IBytes(dpr.PieceSize), dpr.PieceCid)
 	duration := time.Since(start).Seconds()
-	log.Debugf("preparation of storage deal %s took %.2f seconds", usd.StorageDealID, duration)
+	log.Debugf("prepared of batch %s, data-cid %s, piece-size %s, piece-cid %s took %.2f seconds",
+		usd.BatchID, usd.DataCid, humanize.IBytes(dpr.PieceSize), dpr.PieceCid, duration)
 
-	if err := p.broker.StorageDealPrepared(ctx, usd.StorageDealID, dpr); err != nil {
-		return fmt.Errorf("signaling broker that storage deal is prepared: %s", err)
+	if err := mbroker.PublishMsgNewBatchPrepared(ctx, p.mb, usd.BatchID, dpr.PieceCid, dpr.PieceSize); err != nil {
+		return fmt.Errorf("publish message to message broker: %s", err)
 	}
 
 	p.metricNewPrepare.Add(ctx, 1)
@@ -248,35 +240,4 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedStorageDeal) e
 	p.statLastDurationSeconds = int64(duration)
 
 	return nil
-}
-
-func (p *Piecer) getNodeGetterForCid(c cid.Cid) (format.NodeGetter, error) {
-	var ng format.NodeGetter
-
-	rand.Shuffle(len(p.ipfsApis), func(i, j int) {
-		p.ipfsApis[i], p.ipfsApis[j] = p.ipfsApis[j], p.ipfsApis[i]
-	})
-
-	log.Debug("core-api lookup for cid")
-	for _, coreapi := range p.ipfsApis {
-		ctx, cls := context.WithTimeout(context.Background(), time.Second*5)
-		defer cls()
-		_, ok, err := coreapi.api.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
-		if err != nil {
-			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.address, err)
-			continue
-		}
-		if !ok {
-			continue
-		}
-		log.Debugf("found core-api for cid: %s", coreapi.address)
-		ng = coreapi.api.Dag()
-		break
-	}
-
-	if ng == nil {
-		return nil, fmt.Errorf("node getter for cid not found")
-	}
-
-	return ng, nil
 }

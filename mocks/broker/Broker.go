@@ -16,20 +16,20 @@ type Broker struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: ctx, dataCid
-func (_m *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerRequest, error) {
-	ret := _m.Called(ctx, dataCid)
+// Create provides a mock function with given fields: ctx, dataCid, origin
+func (_m *Broker) Create(ctx context.Context, dataCid cid.Cid, origin string) (broker.StorageRequest, error) {
+	ret := _m.Called(ctx, dataCid, origin)
 
-	var r0 broker.BrokerRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid) broker.BrokerRequest); ok {
-		r0 = rf(ctx, dataCid)
+	var r0 broker.StorageRequest
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, string) broker.StorageRequest); ok {
+		r0 = rf(ctx, dataCid, origin)
 	} else {
-		r0 = ret.Get(0).(broker.BrokerRequest)
+		r0 = ret.Get(0).(broker.StorageRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid) error); ok {
-		r1 = rf(ctx, dataCid)
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, string) error); ok {
+		r1 = rf(ctx, dataCid, origin)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -37,20 +37,20 @@ func (_m *Broker) Create(ctx context.Context, dataCid cid.Cid) (broker.BrokerReq
 	return r0, r1
 }
 
-// CreatePrepared provides a mock function with given fields: ctx, payloadCid, pc
-func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR) (broker.BrokerRequest, error) {
-	ret := _m.Called(ctx, payloadCid, pc)
+// CreatePrepared provides a mock function with given fields: ctx, payloadCid, pc, m
+func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR, m broker.BatchMetadata) (broker.StorageRequest, error) {
+	ret := _m.Called(ctx, payloadCid, pc, m)
 
-	var r0 broker.BrokerRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.PreparedCAR) broker.BrokerRequest); ok {
-		r0 = rf(ctx, payloadCid, pc)
+	var r0 broker.StorageRequest
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata) broker.StorageRequest); ok {
+		r0 = rf(ctx, payloadCid, pc, m)
 	} else {
-		r0 = ret.Get(0).(broker.BrokerRequest)
+		r0 = ret.Get(0).(broker.StorageRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.PreparedCAR) error); ok {
-		r1 = rf(ctx, payloadCid, pc)
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata) error); ok {
+		r1 = rf(ctx, payloadCid, pc, m)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -58,100 +58,23 @@ func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc bro
 	return r0, r1
 }
 
-// CreateStorageDeal provides a mock function with given fields: ctx, batchCid, srids
-func (_m *Broker) CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []broker.BrokerRequestID) (broker.StorageDealID, error) {
-	ret := _m.Called(ctx, batchCid, srids)
-
-	var r0 broker.StorageDealID
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, []broker.BrokerRequestID) broker.StorageDealID); ok {
-		r0 = rf(ctx, batchCid, srids)
-	} else {
-		r0 = ret.Get(0).(broker.StorageDealID)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, []broker.BrokerRequestID) error); ok {
-		r1 = rf(ctx, batchCid, srids)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetBrokerRequestInfo provides a mock function with given fields: ctx, ID
-func (_m *Broker) GetBrokerRequestInfo(ctx context.Context, ID broker.BrokerRequestID) (broker.BrokerRequestInfo, error) {
+// GetStorageRequestInfo provides a mock function with given fields: ctx, ID
+func (_m *Broker) GetStorageRequestInfo(ctx context.Context, ID broker.StorageRequestID) (broker.StorageRequestInfo, error) {
 	ret := _m.Called(ctx, ID)
 
-	var r0 broker.BrokerRequestInfo
-	if rf, ok := ret.Get(0).(func(context.Context, broker.BrokerRequestID) broker.BrokerRequestInfo); ok {
+	var r0 broker.StorageRequestInfo
+	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageRequestID) broker.StorageRequestInfo); ok {
 		r0 = rf(ctx, ID)
 	} else {
-		r0 = ret.Get(0).(broker.BrokerRequestInfo)
+		r0 = ret.Get(0).(broker.StorageRequestInfo)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, broker.BrokerRequestID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, broker.StorageRequestID) error); ok {
 		r1 = rf(ctx, ID)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
-}
-
-// StorageDealAuctioned provides a mock function with given fields: ctx, auction
-func (_m *Broker) StorageDealAuctioned(ctx context.Context, auction broker.ClosedAuction) error {
-	ret := _m.Called(ctx, auction)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.ClosedAuction) error); ok {
-		r0 = rf(ctx, auction)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// StorageDealFinalizedDeal provides a mock function with given fields: ctx, fad
-func (_m *Broker) StorageDealFinalizedDeal(ctx context.Context, fad broker.FinalizedAuctionDeal) error {
-	ret := _m.Called(ctx, fad)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.FinalizedAuctionDeal) error); ok {
-		r0 = rf(ctx, fad)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// StorageDealPrepared provides a mock function with given fields: ctx, id, pr
-func (_m *Broker) StorageDealPrepared(ctx context.Context, id broker.StorageDealID, pr broker.DataPreparationResult) error {
-	ret := _m.Called(ctx, id, pr)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, broker.DataPreparationResult) error); ok {
-		r0 = rf(ctx, id, pr)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// StorageDealProposalAccepted provides a mock function with given fields: ctx, sdID, miner, proposalCid
-func (_m *Broker) StorageDealProposalAccepted(ctx context.Context, sdID broker.StorageDealID, miner string, proposalCid cid.Cid) error {
-	ret := _m.Called(ctx, sdID, miner, proposalCid)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, broker.StorageDealID, string, cid.Cid) error); ok {
-		r0 = rf(ctx, sdID, miner, proposalCid)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }

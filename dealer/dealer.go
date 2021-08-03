@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-cid"
+	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -14,19 +15,22 @@ type Dealer interface {
 
 // AuctionDeals describes a set of deals for some prepared data.
 type AuctionDeals struct {
-	StorageDealID broker.StorageDealID
-	PayloadCid    cid.Cid
-	PieceCid      cid.Cid
-	PieceSize     uint64
-	Duration      uint64
-	Targets       []AuctionDealsTarget
+	ID         string
+	BatchID    broker.BatchID
+	PayloadCid cid.Cid
+	PieceCid   cid.Cid
+	PieceSize  uint64
+	Duration   uint64
+	Proposals  []Proposal
 }
 
-// AuctionDealsTarget describes a target miner for making deals.
-type AuctionDealsTarget struct {
-	Miner               string
+// Proposal describes information for deal making with a storage-provider.
+type Proposal struct {
+	StorageProviderID   string
 	PricePerGiBPerEpoch int64
 	StartEpoch          uint64
 	Verified            bool
 	FastRetrieval       bool
+	AuctionID           auction.ID
+	BidID               auction.BidID
 }

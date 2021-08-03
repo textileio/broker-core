@@ -3,33 +3,25 @@ package service
 import (
 	"context"
 	"errors"
-	"net"
+	"fmt"
 	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/bidbot/lib/common"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
-	"github.com/textileio/bidbot/lib/finalizer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/piecerd/piecer"
-	pb "github.com/textileio/broker-core/gen/broker/piecer/v1"
-	"github.com/textileio/broker-core/rpc"
+	"github.com/textileio/broker-core/cmd/piecerd/store"
+	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	golog "github.com/textileio/go-log/v2"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var log = golog.Logger("piecer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Listener net.Listener
-
+	PostgresURI    string
 	IpfsMultiaddrs []multiaddr.Multiaddr
-	Broker         broker.Broker
-	Datastore      txndswrap.TxnDatastore
 
 	DaemonFrequency time.Duration
 	RetryDelay      time.Duration
@@ -37,70 +29,79 @@ type Config struct {
 
 // Service is a gRPC service wrapper around a piecer.
 type Service struct {
-	pb.UnimplementedAPIServiceServer
-
-	server    *grpc.Server
+	mb        mbroker.MsgBroker
 	piecer    *piecer.Piecer
 	finalizer *finalizer.Finalizer
 }
 
-var _ pb.APIServiceServer = (*Service)(nil)
+var _ mbroker.NewBatchCreatedListener = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config) (*Service, error) {
+func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
+	if err := validateConfig(conf); err != nil {
+		return nil, fmt.Errorf("config is invalid: %s", err)
+	}
 	fin := finalizer.NewFinalizer()
 
-	lib, err := piecer.New(conf.Datastore, conf.IpfsMultiaddrs, conf.Broker, conf.DaemonFrequency, conf.RetryDelay)
+	lib, err := piecer.New(conf.PostgresURI, conf.IpfsMultiaddrs, mb, conf.DaemonFrequency, conf.RetryDelay)
 	if err != nil {
 		return nil, fin.Cleanupf("creating piecer: %v", err)
 	}
 	fin.Add(lib)
 
 	s := &Service{
-		server:    grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
+		mb:        mb,
 		piecer:    lib,
 		finalizer: fin,
 	}
 
-	go func() {
-		pb.RegisterAPIServiceServer(s.server, s)
-		if err := s.server.Serve(conf.Listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Errorf("server error: %v", err)
-		}
-	}()
+	if err := mbroker.RegisterHandlers(mb, s); err != nil {
+		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
+	}
 
 	return s, nil
 }
 
-// ReadyToPrepare indicates that a batch is ready to be prepared.
-func (s *Service) ReadyToPrepare(ctx context.Context, r *pb.ReadyToPrepareRequest) (*pb.ReadyToPrepareResponse, error) {
-	if r == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty request")
+// OnNewBatchCreated handles messages for new-batch-created topic.
+func (s *Service) OnNewBatchCreated(
+	ctx context.Context,
+	batchID broker.BatchID,
+	batchCid cid.Cid,
+	_ []broker.StorageRequestID,
+	_ string,
+	_ []byte) error {
+	err := s.piecer.ReadyToPrepare(ctx, batchID, batchCid)
+	if errors.Is(err, store.ErrBatchExists) {
+		log.Warnf("batch-id %s batch-cid %s already processed, acking", batchID, batchCid)
+		return nil
 	}
-	if r.StorageDealId == "" {
-		return nil, status.Error(codes.InvalidArgument, "storage deal id is empty")
-	}
-	dataCid, err := cid.Decode(r.DataCid)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "decoding data cid: %s", err)
-	}
-	if !dataCid.Defined() {
-		return nil, status.Error(codes.InvalidArgument, "data cid is undefined")
+		return fmt.Errorf("queuing data-cid to be prepared: %s", err)
 	}
 
-	if err := s.piecer.ReadyToPrepare(ctx, broker.StorageDealID(r.StorageDealId), dataCid); err != nil {
-		return nil, status.Errorf(codes.Internal, "queuing data-cid to be prepared: %s", err)
-	}
-
-	return &pb.ReadyToPrepareResponse{}, nil
+	return nil
 }
 
 // Close the service.
 func (s *Service) Close() error {
 	defer log.Info("service was shutdown")
 
-	log.Info("closing gRPC server...")
-	rpc.StopServer(s.server)
-
 	return s.finalizer.Cleanup(nil)
+}
+
+func validateConfig(conf Config) error {
+	if len(conf.IpfsMultiaddrs) == 0 {
+		return fmt.Errorf("ipfs multiaddr list is empty")
+	}
+	if conf.DaemonFrequency == 0 {
+		return fmt.Errorf("daemon frequency is zero")
+	}
+	if conf.RetryDelay == 0 {
+		return fmt.Errorf("retry delay is zero")
+	}
+	if conf.PostgresURI == "" {
+		return errors.New("postgres uri is empty")
+	}
+
+	return nil
 }

@@ -5,17 +5,24 @@ services:
       context: .
       dockerfile: ./cmd/authd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./authd"]
     environment:
       - AUTH_LOG_DEBUG=true
       - AUTH_LOG_JSON=false
       - AUTH_RPC_ADDR=:5000
       - AUTH_NEAR_ADDR=neard:5000
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=auth
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
       - neard
+      - postgres
     restart: unless-stopped
   neard:
     build:
@@ -44,7 +51,7 @@ services:
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - STORAGE_BROKER_ADDR=brokerd:5000
       - STORAGE_AUTH_ADDR=authd:5000
-      - STORAGE_SKIP_AUTH=false
+      - STORAGE_SKIP_AUTH=true
     ports:
       - "127.0.0.1:8888:8888"
     security_opt:
@@ -65,20 +72,18 @@ services:
     environment:
       - AUCTIONEER_LOG_DEBUG=true
       - AUCTIONEER_LOG_JSON=false
-      - AUCTIONEER_RPC_ADDR=:5000
       - AUCTIONEER_MONGO_URI=mongodb://mongo:27017
       - AUCTIONEER_MONGO_DBNAME=auctioneerd
       - AUCTIONEER_BROKER_ADDR=brokerd:5000
-      - AUCTIONEER_AUCTION_DURATION=10000000000
-      - AUCTIONEER_AUCTION_ATTEMPTS=10
+      - AUCTIONEER_AUCTION_DURATION=30000000000
       - AUCTIONEER_MDNS=true
       - AUCTIONEER_FAKE_MODE=true
+      - AUCTIONEER_MSGBROKER_TOPIC_PREFIX=test
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
-    depends_on:
-      - brokerd
     restart: unless-stopped
   bidbot:
     image: textile/bidbot:latest
@@ -114,94 +119,115 @@ services:
       context: .
       dockerfile: ./cmd/brokerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./brokerd"]
     environment:
       - BROKER_LOG_DEBUG=true
       - BROKER_LOG_JSON=false
       - BROKER_IPFS_API_MULTIADDR=/dns4/ipfs/tcp/5001
       - BROKER_RPC_ADDR=:5000
-      - BROKER_MONGO_URI=mongodb://mongo:27017
-      - BROKER_MONGO_DBNAME=brokerd
-      - BROKER_PACKER_ADDR=packerd:5000
-      - BROKER_PIECER_ADDR=piecerd:5000
-      - BROKER_AUCTIONEER_ADDR=auctioneerd:5000
-      - BROKER_DEALER_ADDR=dealerd:5000
       - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_REPLICATION=1
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
       - BROKER_CAR_EXPORT_URL=http://storaged:8888/car/
+      - BROKER_MSGBROKER_TOPIC_PREFIX=test
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=broker
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - packerd
-      - mongo
       - ipfs
+      - gpubsub
+      - postgres
     restart: unless-stopped
   packerd:
     build:
       context: .
       dockerfile: ./cmd/packerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./packerd"]
     environment:
       - PACKER_LOG_DEBUG=true
       - PACKER_LOG_JSON=false
-      - PACKER_RPC_ADDR=:5000
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
       - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
-      - PACKER_BROKER_ADDR=brokerd:5000
       - PACKER_BATCH_MIN_SIZE=100
       - PACKER_TARGET_SECTOR_SIZE=20000
+      - PACKER_DAEMON_FREQUENCY=3s
+      - PACKER_MSGBROKER_TOPIC_PREFIX=test
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=packer
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - mongo
       - ipfs
+      - postgres
+      - gpubsub
     restart: unless-stopped
   piecerd:
     build:
       context: .
       dockerfile: ./cmd/piecerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./piecerd"]
     environment:
       - PIECER_LOG_DEBUG=true
       - PIECER_LOG_JSON=false
-      - PIECER_RPC_ADDR=:5000
-      - PIECER_MONGO_URI=mongodb://mongo:27017
-      - PIECER_MONGO_DBNAME=piecerd
-      - PIECER_BROKER_ADDR=brokerd:5000
       - PIECER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
+      - PIECER_DAEMON_FREQUENCY=3s
+      - PIECER_MSGBROKER_TOPIC_PREFIX=test
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=piecer
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - mongo
       - ipfs
+      - postgres
+      - gpubsub
     restart: unless-stopped
   dealerd:
     build:
       context: .
       dockerfile: ./cmd/dealerd/Dockerfile
     platform: linux/amd64
+    entrypoint: ["./with-postgres.sh", "./dealerd"]
     environment:
       - DEALER_LOG_DEBUG=true
       - DEALER_LOG_JSON=false
-      - DEALER_RPC_ADDR=:5000
-      - DEALER_MONGO_URI=mongodb://mongo:27017
-      - DEALER_MONGO_DBNAME=dealerd
-      - DEALER_BROKER_ADDR=brokerd:5000
       - DEALER_MOCK=true
+      - DEALER_MSGBROKER_TOPIC_PREFIX=test
+      - PUBSUB_EMULATOR_HOST=gpubsub:8085
+      - DB_HOST=postgres:5432
+      - DB_PASSWORD=foo
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+      - DAEMON=dealer
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - brokerd
+      - postgres
+      - gpubsub
     restart: unless-stopped
   mongo:
     image: mongo:latest
@@ -217,6 +243,12 @@ services:
         /usr/bin/mongod --fork --logpath /var/log/mongod.log --bind_ip_all --replSet rs0
         mongo --eval 'rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host: "mongo:27017" }]})'
         tail -f /var/log/mongod.log
+  postgres:
+    image: postgres:latest
+    platform: linux/amd64
+    environment:
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
   ipfs:
     image: ipfs/go-ipfs:v0.8.0
     platform: linux/amd64
@@ -227,6 +259,12 @@ services:
       - "4001:4001/udp"
       - "127.0.0.1:5001:5001"
       - "127.0.0.1:8080:8080"
+  gpubsub:
+    image: textile/pubsub-emulator:latest
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:8085:8085"
+
 volumes:
   auctioneerd_data:
   bidbot_data:

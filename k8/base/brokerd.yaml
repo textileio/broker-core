@@ -53,6 +53,7 @@ spec:
       labels:
         app: broker-v1
     spec:
+      serviceAccountName: postgres-cloud-sql
       containers:
         - name: broker
           image: textile/broker
@@ -62,15 +63,37 @@ spec:
               containerPort: 5000
             - name: metrics
               containerPort: 9090
+          command: ["./with-postgres.sh", "./brokerd"]
+          env:
+            - name: DAEMON
+              value: "broker"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: postgres-password
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: broker-db-password
+            - name: BROKER_GPUBSUB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+            - name: BROKER_GPUBSUB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-api-key
           envFrom:
             - configMapRef:
                 name: configmap-broker
           resources:
             requests:
-              memory: 100Mi
-              cpu: "0.5"
-            limits:
-              memory: 1Gi
+              cpu: 250m
+              memory: 512Mi              
           readinessProbe:
             tcpSocket:
               port: api
@@ -83,4 +106,3 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
-

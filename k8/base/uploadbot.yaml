@@ -12,6 +12,11 @@ spec:
         app: uploadbot
     spec:
       restartPolicy: OnFailure
+      volumes:
+        - name: config-uploadbot
+          configMap:
+            name: uploadbot
+            defaultMode: 0755
       containers:
         - name: uploadbot
           image: "node:16-buster"
@@ -28,12 +33,14 @@ spec:
               value: "2"
             - name: SEED_PHRASE
               value: "height unusual narrow dream follow grow rebel panda because then equip basic"
+          volumeMounts:
+            - name: config-uploadbot
+              mountPath: bench.sh
+              subPath: bench.sh
           command:
             - /bin/bash
             - -c
             - |
               set -x
               npm install -g near-cli
-              wget -O bench.sh https://gist.githubusercontent.com/jsign/e1b7e72aa27c15958b28780e80bad67a/raw/72c33bf70329f1a04ba9da1a9a009094be5979e9/bench.sh
-              chmod 755 bench.sh
               ./bench.sh $ENDPOINT $MIN_SIZE $MAX_SIZE $COUNT $SLEEP

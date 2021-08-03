@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	_ "net/http/pprof"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/packerd/service"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -19,9 +19,7 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
 		{Name: "daemon-frequency", DefValue: "20s", Description: "Frequency of polling ready batches"},
@@ -29,6 +27,9 @@ func init() {
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -46,7 +47,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "postgres-uri")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -55,25 +56,31 @@ var rootCmd = &cobra.Command{
 		}
 
 		config := service.Config{
-			ListenAddr:       v.GetString("rpc-addr"),
+			PostgresURI:      v.GetString("postgres-uri"),
 			IpfsAPIMultiaddr: v.GetString("ipfs-multiaddr"),
-			BrokerAPIAddr:    v.GetString("broker-addr"),
-
-			MongoURI:    v.GetString("mongo-uri"),
-			MongoDBName: v.GetString("mongo-dbname"),
 
 			DaemonFrequency:        v.GetDuration("daemon-frequency"),
 			ExportMetricsFrequency: v.GetDuration("export-metrics-frequency"),
 
 			TargetSectorSize: v.GetInt64("target-sector-size"),
-			BatchMinSize:     v.GetSizeInBytes("batch-min-size"),
+			BatchMinSize:     int64(v.GetSizeInBytes("batch-min-size")),
 		}
-		serv, err := service.New(config)
+
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "packerd")
+		common.CheckErr(err)
+
+		serv, err := service.New(mb, config)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
+			}
+			if err := mb.Close(); err != nil {
+				log.Errorf("closing message broker: %s", err)
 			}
 		})
 	},

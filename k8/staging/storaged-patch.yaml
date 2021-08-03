@@ -8,8 +8,8 @@ spec:
       containers:
         - name: storage
           env:
-            - name: STORAGE_BEARER_TOKENS
+            - name: STORAGE_PINATA_JWT
               valueFrom:
                 secretKeyRef:
                   name: broker-secret
-                  key: storage-bearer-tokens
+                  key: storage-pinata-jwt

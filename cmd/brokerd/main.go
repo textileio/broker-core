@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	_ "net/http/pprof"
 
 	"github.com/spf13/cobra"
@@ -10,6 +9,7 @@ import (
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/service"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -22,18 +22,16 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-api-multiaddr", DefValue: "", Description: "IPFS API multiaddress for unpinning data"},
-		{Name: "piecer-addr", DefValue: "", Description: "Piecer API address"},
-		{Name: "packer-addr", DefValue: "", Description: "Packer API address"},
-		{Name: "auctioneer-addr", DefValue: "", Description: "Auctioneer API address"},
-		{Name: "dealer-addr", DefValue: "", Description: "Dealer API address"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
 		{Name: "deal-duration", DefValue: auction.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "car-export-url", DefValue: "", Description: "URL that generates CAR files for stored cids"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
@@ -53,7 +51,7 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := json.MarshalIndent(v.AllSettings(), "", "  ")
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "postgres-uri")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -64,14 +62,9 @@ var rootCmd = &cobra.Command{
 		serviceConfig := service.Config{
 			ListenAddr: v.GetString("rpc-addr"),
 
-			PiecerAddr:     v.GetString("piecer-addr"),
-			PackerAddr:     v.GetString("packer-addr"),
-			AuctioneerAddr: v.GetString("auctioneer-addr"),
-			DealerAddr:     v.GetString("dealer-addr"),
-			ReporterAddr:   v.GetString("reporter-addr"),
+			ReporterAddr: v.GetString("reporter-addr"),
 
-			MongoURI:    v.GetString("mongo-uri"),
-			MongoDBName: v.GetString("mongo-dbname"),
+			PostgresURI: v.GetString("postgres-uri"),
 
 			IPFSAPIMultiaddr: v.GetString("ipfs-api-multiaddr"),
 
@@ -83,7 +76,14 @@ var rootCmd = &cobra.Command{
 
 			AuctionMaxRetries: v.GetInt("auction-max-retries"),
 		}
-		serv, err := service.New(serviceConfig)
+
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "brokerd")
+		common.CheckErr(err)
+
+		serv, err := service.New(mb, serviceConfig)
 		common.CheckErr(err)
 
 		log.Info("listening to requests...")
@@ -91,6 +91,9 @@ var rootCmd = &cobra.Command{
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing http endpoint: %s", err)
+			}
+			if err := mb.Close(); err != nil {
+				log.Errorf("closing message broker: %s", err)
 			}
 		})
 	},

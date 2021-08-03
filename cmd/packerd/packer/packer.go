@@ -1,9 +1,9 @@
 package packer
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
@@ -11,11 +11,12 @@ import (
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/cmd/packerd/packer/store"
-	packeri "github.com/textileio/broker-core/packer"
+	"github.com/textileio/broker-core/cmd/packerd/store"
+	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/broker-core/storeutil"
 	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -24,21 +25,22 @@ var (
 )
 
 // Packer provides batching strategies to bundle multiple
-// BrokerRequest into a StorageDeal.
+// StorageRequest into a Batch.
 type Packer struct {
 	daemonFreq        time.Duration
 	exportMetricsFreq time.Duration
+	retryDelay        time.Duration
 
-	store  *store.Store
-	ipfs   *httpapi.HttpApi
-	broker broker.Broker
+	store *store.Store
+	ipfs  *httpapi.HttpApi
+	mb    mbroker.MsgBroker
 
-	onceClose       sync.Once
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
 
 	metricNewBatch          metric.Int64Counter
+	metricBatchSizeTotal    metric.Int64Counter
 	statLastBatch           time.Time
 	metricLastBatchCreated  metric.Int64ValueObserver
 	statLastBatchCount      int64
@@ -49,13 +51,11 @@ type Packer struct {
 	metricLastBatchDuration metric.Int64ValueObserver
 }
 
-var _ packeri.Packer = (*Packer)(nil)
-
 // New returns a new Packer.
 func New(
-	ds txndswrap.TxnDatastore,
+	postgresURI string,
 	ipfsClient *httpapi.HttpApi,
-	broker broker.Broker,
+	mb mbroker.MsgBroker,
 	opts ...Option) (*Packer, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
@@ -69,19 +69,20 @@ func New(
 	}
 
 	batchMaxSize := calcBatchLimit(cfg.sectorSize)
-	store, err := store.New(txndswrap.Wrap(ds, "/store"), batchMaxSize, cfg.batchMinSize)
+	store, err := store.New(postgresURI, batchMaxSize, cfg.batchMinSize)
 	if err != nil {
-		return nil, fmt.Errorf("initializing store: %s", err)
+		return nil, fmt.Errorf("init store: %s", err)
 	}
 
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
 		daemonFreq:        cfg.daemonFreq,
 		exportMetricsFreq: cfg.exportMetricsFreq,
+		retryDelay:        cfg.retryDelay,
 
-		store:  store,
-		ipfs:   ipfsClient,
-		broker: broker,
+		store: store,
+		ipfs:  ipfsClient,
+		mb:    mb,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
@@ -95,42 +96,59 @@ func New(
 	return p, nil
 }
 
-// ReadyToPack signals the packer that there's a new BrokerRequest that can be
-// considered. Packer will notify the broker async when the final StorageDeal
-// that contains this BrokerRequest gets created.
-func (p *Packer) ReadyToPack(ctx context.Context, id broker.BrokerRequestID, dataCid cid.Cid) error {
-	log.Debugf("received ready to pack: %s %s", id, dataCid)
-
-	node, err := p.ipfs.Dag().Get(ctx, dataCid)
+// ReadyToBatch includes a StorageRequest in an open batch.
+func (p *Packer) ReadyToBatch(
+	ctx context.Context,
+	opID mbroker.OperationID,
+	rtbds []mbroker.ReadyToBatchData) (err error) {
+	start := time.Now()
+	ctx, err = p.store.CtxWithTx(ctx)
 	if err != nil {
-		return fmt.Errorf("get node by cid: %s", err)
+		return fmt.Errorf("creating ctx with tx: %s", err)
 	}
-	stat, err := node.Stat()
-	if err != nil {
-		return fmt.Errorf("getting node stat: %s", err)
-	}
-	size := int64(stat.CumulativeSize)
+	defer func() {
+		err = storeutil.FinishTxForCtx(ctx, err)
+	}()
 
-	br := store.BatchableBrokerRequest{
-		ID:              "", // Will be set by `store`, explicit here to signal that wasn't missed.
-		BrokerRequestID: id,
-		DataCid:         dataCid,
-		Size:            size,
+	for _, rtbd := range rtbds {
+		srID := rtbd.StorageRequestID
+		dataCid := rtbd.DataCid
+		log.Debugf("received ready to pack storage-request %s, data-cid %s", srID, dataCid)
+
+		node, err := p.ipfs.Dag().Get(ctx, dataCid)
+		if err != nil {
+			return fmt.Errorf("get node for data-cid %s: %s", dataCid, err)
+		}
+		stat, err := node.Stat()
+		if err != nil {
+			return fmt.Errorf("get stat for data-cid %s: %s", dataCid, err)
+		}
+		size := int64(stat.CumulativeSize)
+
+		if err := p.store.AddStorageRequestToOpenBatch(
+			ctx,
+			string(opID),
+			srID,
+			dataCid,
+			size,
+			rtbd.Origin,
+		); err != nil {
+			return fmt.Errorf("add storage-request to open batch: %w", err)
+		}
 	}
-	if err := p.store.Enqueue(br); err != nil {
-		return fmt.Errorf("saving broker request: %s", err)
-	}
+	log.Debugf("packing %d storage-requests took %dms", len(rtbds), time.Since(start).Milliseconds())
 
 	return nil
 }
 
 // Close closes the packer.
 func (p *Packer) Close() error {
-	log.Info("closing packer...")
-	p.onceClose.Do(func() {
-		p.daemonCancelCtx()
-		<-p.daemonClosed
-	})
+	log.Info("closing daemon...")
+	p.daemonCancelCtx()
+	<-p.daemonClosed
+	if err := p.store.Close(); err != nil {
+		return fmt.Errorf("closing store: %s", err)
+	}
 	return nil
 }
 
@@ -139,7 +157,7 @@ func (p *Packer) daemon() {
 	for {
 		select {
 		case <-p.daemonCtx.Done():
-			log.Info("packer closed")
+			log.Info("daemon closed")
 			return
 		case <-time.After(p.daemonFreq):
 			for {
@@ -157,66 +175,77 @@ func (p *Packer) daemon() {
 }
 
 func (p *Packer) pack(ctx context.Context) (int, error) {
-	batch, bbrs, ok, err := p.store.GetNextReadyBatch()
+	batchID, batchSize, srs, origin, ok, err := p.store.GetNextReadyBatch(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("batching cids: %s", err)
+		return 0, fmt.Errorf("get next ready batch: %s", err)
 	}
 	if !ok {
-		log.Debugf("no batches ready to pack")
 		return 0, nil
 	}
+	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
 	start := time.Now()
-	batchCid, err := p.createDAGForBatch(ctx, bbrs)
+	batchCid, manifest, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
 
-	brids := make([]broker.BrokerRequestID, len(bbrs))
-	for i, bbr := range bbrs {
-		brids[i] = bbr.BrokerRequestID
-	}
-	sdID, err := p.broker.CreateStorageDeal(ctx, batchCid, brids)
-	if err != nil {
-		return 0, fmt.Errorf("creating storage deal: %s", err)
+	if err := p.store.MoveBatchToStatus(ctx, batchID, p.retryDelay, store.StatusDone); err != nil {
+		return 0, fmt.Errorf("moving batch %s to done: %s", batchID, err)
 	}
 
-	if err := p.store.DeleteBatch(batch.ID); err != nil {
-		return 0, fmt.Errorf("delete batch: %s", err)
+	srIDs := make([]broker.StorageRequestID, len(srs))
+	for i, sr := range srs {
+		srIDs[i] = sr.StorageRequestID
+	}
+	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batchID, batchCid, srIDs, origin, manifest); err != nil {
+		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
-	p.metricNewBatch.Add(ctx, 1)
+	label := attribute.String("origin", origin)
+	p.metricNewBatch.Add(ctx, 1, label)
+	p.metricBatchSizeTotal.Add(ctx, batchSize, label)
 	p.statLastBatch = time.Now()
-	p.statLastBatchCount = int64(len(bbrs))
-	p.statLastBatchSize = batch.Size
+	p.statLastBatchCount = int64(len(srIDs))
+	p.statLastBatchSize = batchSize
 	p.statLastBatchDuration = time.Since(start).Milliseconds()
 	log.Infof(
-		"storage deal created: {id: %s, cid: %s, numBrokerRequests: %d, size: %d}",
-		sdID, batchCid, len(bbrs), batch.Size)
+		"created batch-id: %s, batch-cid: %s, num-storage-requests: %d, batch-size: %d",
+		batchID, batchCid, len(srIDs), batchSize)
 
-	return len(bbrs), nil
+	return len(srIDs), nil
 }
 
-func (p *Packer) createDAGForBatch(ctx context.Context, bbrs []store.BatchableBrokerRequest) (cid.Cid, error) {
-	lst := make([]aggregator.AggregateDagEntry, len(bbrs))
-	for i, bbr := range bbrs {
+func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageRequest) (cid.Cid, []byte, error) {
+	lst := make([]aggregator.AggregateDagEntry, len(srs))
+	for i, sr := range srs {
+		dataCid, err := cid.Decode(sr.DataCid)
+		if err != nil {
+			return cid.Undef, nil, fmt.Errorf("decoding cid %s: %s", dataCid, err)
+		}
 		lst[i] = aggregator.AggregateDagEntry{
-			RootCid:                   bbr.DataCid,
-			UniqueBlockCumulativeSize: uint64(bbr.Size),
+			RootCid:                   dataCid,
+			UniqueBlockCumulativeSize: uint64(sr.Size),
 		}
 	}
 	start := time.Now()
-	root, err := aggregator.Aggregate(ctx, p.ipfs.Dag(), lst)
+	root, entries, err := aggregator.Aggregate(ctx, p.ipfs.Dag(), lst)
 	if err != nil {
-		return cid.Undef, fmt.Errorf("aggregating cids: %s", err)
+		return cid.Undef, nil, fmt.Errorf("aggregating cids: %s", err)
 	}
 	log.Debugf("aggregation took %dms", time.Since(start).Milliseconds())
 	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
-		return cid.Undef, fmt.Errorf("pinning batch root: %s", err)
+		return cid.Undef, nil, fmt.Errorf("pinning batch root: %s", err)
 	}
+
+	buf := bytes.NewBuffer(nil)
+	if err := aggregator.EncodeManifestJSON(entries, buf); err != nil {
+		return cid.Undef, nil, fmt.Errorf("encoding manifest json: %s", err)
+	}
+
 	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
 
-	return root, nil
+	return root, buf.Bytes(), nil
 }
 
 // calcBatchLimit does a worst-case estimation of the maximum size the batch DAG can have to fit

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	_ "net/http/pprof"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/dealerd/service"
+	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -19,10 +19,7 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
-		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
+		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{
 			Name:        "lotus-exported-wallet-address",
@@ -41,6 +38,9 @@ func init() {
 			Description: "Maximum price accepted for unverified deals",
 		},
 		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
+		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
+		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
+		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -65,7 +65,8 @@ var rootCmd = &cobra.Command{
 		common.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := marshalConfig(v)
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key",
+			"lotus-exported-wallet-address", "postgres-uri")
 		common.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
@@ -74,11 +75,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		config := service.Config{
-			ListenAddr:    v.GetString("rpc-addr"),
-			BrokerAPIAddr: v.GetString("broker-addr"),
-
-			MongoURI:    v.GetString("mongo-uri"),
-			MongoDBName: v.GetString("mongo-dbname"),
+			PostgresURI: v.GetString("postgres-uri"),
 
 			LotusGatewayURL:         v.GetString("lotus-gateway-url"),
 			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-address"),
@@ -89,12 +86,21 @@ var rootCmd = &cobra.Command{
 
 			Mock: v.GetBool("mock"),
 		}
-		serv, err := service.New(config)
+		projectID := v.GetString("gpubsub-project-id")
+		apiKey := v.GetString("gpubsub-api-key")
+		topicPrefix := v.GetString("msgbroker-topic-prefix")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "dealerd")
+		common.CheckErrf("creating google pubsub client: %s", err)
+
+		serv, err := service.New(mb, config)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
+			}
+			if err := mb.Close(); err != nil {
+				log.Errorf("closing message broker: %s", err)
 			}
 		})
 	},
@@ -102,12 +108,4 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	common.CheckErr(rootCmd.Execute())
-}
-
-func marshalConfig(v *viper.Viper) ([]byte, error) {
-	all := v.AllSettings()
-	if all["lotus-exported-wallet-address"].(string) != "" {
-		all["lotus-exported-wallet-address"] = "***"
-	}
-	return json.MarshalIndent(all, "", "  ")
 }

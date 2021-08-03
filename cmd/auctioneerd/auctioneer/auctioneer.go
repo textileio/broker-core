@@ -5,31 +5,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
-	golog "github.com/textileio/go-log/v2"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	pb "github.com/textileio/bidbot/gen/v1"
 	"github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
-	"github.com/textileio/bidbot/lib/finalizer"
-	"github.com/textileio/bidbot/lib/marketpeer"
-	"github.com/textileio/bidbot/lib/pubsub"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
+	mbroker "github.com/textileio/broker-core/msgbroker"
+	rpc "github.com/textileio/go-libp2p-pubsub-rpc"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
+	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
+	golog "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -39,7 +39,7 @@ var (
 	maxAuctionDuration = time.Minute * 10
 
 	// notifyTimeout is the max duration the auctioneer will wait for a response from bidders.
-	notifyTimeout = time.Second * 10
+	notifyTimeout = time.Second * 30
 
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
@@ -48,33 +48,25 @@ var (
 	ErrBidNotFound = errors.New("bid not found")
 
 	// ErrInsufficientBids indicates the auction failed due to insufficient bids.
-	ErrInsufficientBids = errors.New("auction failed; insufficient bids")
+	ErrInsufficientBids = errors.New("insufficient bids")
 )
 
 // AuctionConfig defines auction params.
 type AuctionConfig struct {
 	// Duration auctions will be held for.
 	Duration time.Duration
-
-	// Attempts that an auction will run before signaling to the broker that it failed.
-	// Auctions will continue to run under the following conditions:
-	// 1. While deal replication is greater than the number of winning bids.
-	// 2. While at least one owner of a winning bid is unreachable when notifying they won or delivery proposal cid.
-	// 3. While signaling the broker results in an error.
-	Attempts uint32
 }
 
 // Auctioneer handles deal auctions for a broker.
 type Auctioneer struct {
+	mb          mbroker.MsgBroker
 	queue       *q.Queue
 	started     bool
 	auctionConf AuctionConfig
 
-	peer     *marketpeer.Peer
+	peer     *rpcpeer.Peer
 	fc       filclient.FilClient
-	auctions *pubsub.Topic
-
-	broker broker.Broker
+	auctions *rpc.Topic
 
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
@@ -90,9 +82,9 @@ type Auctioneer struct {
 
 // New returns a new Auctioneer.
 func New(
-	peer *marketpeer.Peer,
+	peer *rpcpeer.Peer,
 	store txndswrap.TxnDatastore,
-	broker broker.Broker,
+	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
 	auctionConf AuctionConfig,
 ) (*Auctioneer, error) {
@@ -101,15 +93,15 @@ func New(
 	}
 
 	a := &Auctioneer{
+		mb:          mb,
 		peer:        peer,
 		fc:          fc,
-		broker:      broker,
 		auctionConf: auctionConf,
 		finalizer:   finalizer.NewFinalizer(),
 	}
 	a.initMetrics()
 
-	queue := q.NewQueue(store, a.processAuction, a.finalizeAuction, auctionConf.Attempts)
+	queue := q.NewQueue(store, a.processAuction, a.finalizeAuction)
 	a.finalizer.Add(queue)
 	a.queue = queue
 
@@ -121,9 +113,6 @@ func validateConfig(c AuctionConfig) error {
 		return fmt.Errorf("duration must be greater than zero")
 	} else if c.Duration > maxAuctionDuration {
 		return fmt.Errorf("duration must be less than or equal to %v", maxAuctionDuration)
-	}
-	if c.Attempts == 0 {
-		return fmt.Errorf("max attempts must be greater than zero")
 	}
 	return nil
 }
@@ -153,7 +142,7 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 	a.finalizer.Add(finalizer.NewContextCloser(cancel))
 
 	// Create the global auctions topic
-	auctions, err := a.peer.NewTopic(ctx, core.AuctionTopic, false)
+	auctions, err := a.peer.NewTopic(ctx, core.Topic, false)
 	if err != nil {
 		return fmt.Errorf("creating auctions topic: %v", err)
 	}
@@ -169,15 +158,14 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queued if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, error) {
+func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
 	auction.Status = broker.AuctionStatusUnspecified
 	auction.Duration = a.auctionConf.Duration
-	id, err := a.queue.CreateAuction(auction)
-	if err != nil {
-		return "", fmt.Errorf("creating auction: %v", err)
+	if err := a.queue.CreateAuction(auction); err != nil {
+		return fmt.Errorf("creating auction: %v", err)
 	}
 
-	log.Debugf("created auction %s", id)
+	log.Infof("created auction %s", auction.ID)
 
 	labels := []attribute.KeyValue{
 		attribute.Int("replication", int(auction.DealReplication)),
@@ -186,66 +174,56 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) (core.AuctionID, 
 	a.metricNewAuction.Add(context.Background(), 1, labels...)
 	a.statLastCreatedAuction = time.Now()
 
-	return id, nil
+	return nil
 }
 
 // GetAuction returns an auction by id.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
-func (a *Auctioneer) GetAuction(id core.AuctionID) (*auctioneer.Auction, error) {
-	auction, err := a.queue.GetAuction(id)
+func (a *Auctioneer) GetAuction(id core.ID) (*auctioneer.Auction, error) {
+	auc, err := a.queue.GetAuction(id)
 	if errors.Is(q.ErrAuctionNotFound, err) {
 		return nil, ErrAuctionNotFound
 	} else if err != nil {
 		return nil, fmt.Errorf("getting auction: %v", err)
 	}
-	return auction, nil
+	return auc, nil
 }
 
 // DeliverProposal delivers the proposal Cid for an accepted deal to the winning bidder.
+// This may be called multiple times by the broker in the event delivery fails.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
-func (a *Auctioneer) DeliverProposal(id core.AuctionID, bid core.BidID, pcid cid.Cid) error {
-	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid); errors.Is(q.ErrAuctionNotFound, err) {
+func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.BidID, pcid cid.Cid) error {
+	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid, func(wb auctioneer.WinningBid) error {
+		// Ugly way to retain the transaction in the queue while we try publishing to the biddera
+		return a.publishProposal(ctx, id, bid, wb.BidderID, pcid)
+	}); errors.Is(q.ErrAuctionNotFound, err) {
 		return ErrAuctionNotFound
 	} else if errors.Is(q.ErrBidNotFound, err) {
 		return ErrBidNotFound
 	} else if err != nil {
-		return fmt.Errorf("setting winning bid proposal cid: %v", err)
+		return fmt.Errorf("delivering proposal %s: %v", pcid, err)
 	}
+
+	log.Infof("delivered proposal %s for bid %s in auction %s", pcid, bid, id)
 	return nil
 }
 
 // processAuction handles the next auction in the queue.
-// Processing may involve the following tasks:
-// - Running the actual auction. When selecting winners, only the first bid from a bidbot will be considered.
-// - Notifying winners that they have won.
-// - Notifying winners of a proposal cid that was from an agreed upon deal.
+// An auction involves the following steps:
+// 1. Publish the auction to the deal feel.
+// 2. Wait for bids to come in from bidders.
+// 3. Close the auction after the configured duration has passed.
+// 4. Select winners, during which winners are notified. If this notification fails, the winner is
+//    removed from the winner pool and the next best bid is selected. This process is continued
+//    until the number of winners equals deal replication.
+//    The auction fails if there are not enough bids to complete this process.
 func (a *Auctioneer) processAuction(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	addBid func(bid core.Bid) (core.BidID, error),
-) (map[core.BidID]core.WinningBid, error) {
-	log.Debugf("auction %s started", auction.ID)
-
-	// No need to re-auction if we have enough bids; just notify winners.
-	// This case can happen if there was an error during winner selection on
-	// a prior attempt, or if an auction was re-queued after receiving
-	// a proposal Cid from the broker.
-	if len(auction.WinningBids) == int(auction.DealReplication) {
-		log.Debugf(
-			"auction %s completed (attempt=%d/%d); total bids: %d/%d",
-			auction.ID,
-			auction.Attempts,
-			a.auctionConf.Attempts,
-			len(auction.Bids),
-			auction.DealReplication,
-		)
-		winners, err := a.notifyWinners(ctx, auction, nil)
-		if err != nil {
-			return nil, fmt.Errorf("notifying winners: %v", err)
-		}
-		return winners, nil
-	}
+	addBid func(bid auctioneer.Bid) (core.BidID, error),
+) (map[core.BidID]auctioneer.WinningBid, error) {
+	log.Infof("auction %s started", auction.ID)
 
 	// Subscribe to bids topic
 	topic, err := a.peer.NewTopic(ctx, core.BidsTopic(auction.ID), true)
@@ -259,12 +237,12 @@ func (a *Auctioneer) processAuction(
 	}()
 	topic.SetEventHandler(a.eventHandler)
 
-	bids := make(map[core.BidID]core.Bid)
-	bidders := make(map[peer.ID]struct{})
-	var mu sync.Mutex
-	for _, b := range auction.WinningBids {
-		bidders[b.BidderID] = struct{}{}
-	}
+	var (
+		bids    = make(map[core.BidID]auctioneer.Bid)
+		bidders = make(map[peer.ID]struct{})
+		mu      sync.Mutex
+	)
+
 	bidsHandler := func(from peer.ID, _ string, msg []byte) ([]byte, error) {
 		if err := from.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid bidder: %v", err)
@@ -274,7 +252,7 @@ func (a *Auctioneer) processAuction(
 			return nil, fmt.Errorf("unmarshaling message: %v", err)
 		}
 
-		bid := core.Bid{
+		bid := auctioneer.Bid{
 			MinerAddr:        pbid.MinerAddr,
 			WalletAddrSig:    pbid.WalletAddrSig,
 			BidderID:         from,
@@ -294,7 +272,7 @@ func (a *Auctioneer) processAuction(
 		} else {
 			price = bid.AskPrice
 		}
-		log.Debugf("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
+		log.Infof("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
 		label := attribute.String("miner-addr", bid.MinerAddr)
 		a.metricNewBid.Add(ctx, 1, label)
 
@@ -340,35 +318,37 @@ func (a *Auctioneer) processAuction(
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message: %v", err)
 	}
-	if _, err := a.auctions.Publish(ctx, msg, pubsub.WithIgnoreResponse(true)); err != nil {
+	if _, err := a.auctions.Publish(ctx, msg, rpc.WithIgnoreResponse(true)); err != nil {
 		return nil, fmt.Errorf("publishing auction: %v", err)
 	}
 
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	<-actx.Done()
-	mu.Lock()
-	log.Debugf(
-		"auction %s completed (attempt=%d/%d); total bids: %d/%d",
+	topic.SetMessageHandler(nil)
+
+	log.Infof(
+		"auction %s ended; total bids: %d; num required: %d",
 		auction.ID,
-		auction.Attempts,
-		a.auctionConf.Attempts,
 		len(bids),
 		auction.DealReplication,
 	)
-	roundWinners, err := a.selectNewWinners(auction, bids)
-	mu.Unlock()
+
+	winners, err := a.selectWinners(ctx, auction, bids)
 	if err != nil {
-		return nil, fmt.Errorf("selecting new winners: %v", err)
+		log.Warnf("auction %s failed: %v", auction.ID, err)
+		return nil, fmt.Errorf("selecting winners: %v", err)
 	}
-	notifiedWinners, err := a.notifyWinners(ctx, auction, roundWinners)
-	if err != nil {
-		return nil, fmt.Errorf("notifying winners: %v", err)
+
+	var info []string
+	for id, wb := range winners {
+		info = append(info, fmt.Sprintf("bid: %s; bidder: %s", id, wb.BidderID))
 	}
-	return notifiedWinners, nil
+	log.Infof("auction %s succeeded; winning bids: [%s]", auction.ID, strings.Join(info, ", "))
+	return winners, nil
 }
 
-func (a *Auctioneer) validateBid(b *core.Bid) error {
+func (a *Auctioneer) validateBid(b *auctioneer.Bid) error {
 	if b.MinerAddr == "" {
 		return errors.New("miner address must not be empty")
 	}
@@ -402,7 +382,6 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 	labels := []attribute.KeyValue{
 		attribute.Int("replication", int(auction.DealReplication)),
 		attribute.Bool("verified", auction.DealVerified),
-		attribute.Int("attempts", int(auction.Attempts)),
 	}
 	switch auction.Status {
 	case broker.AuctionStatusFinalized:
@@ -416,8 +395,8 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 		return fmt.Errorf("invalid final status: %s", auction.Status)
 	}
 	a.metricNewFinalizedAuction.Add(ctx, 1, labels...)
-	if err := a.broker.StorageDealAuctioned(ctx, toClosedAuction(auction)); err != nil {
-		return fmt.Errorf("signaling broker: %v", err)
+	if err := mbroker.PublishMsgAuctionClosed(ctx, a.mb, toClosedAuction(auction)); err != nil {
+		return fmt.Errorf("publishing closed auction msg: %v", err)
 	}
 	return nil
 }
@@ -437,15 +416,15 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 			price = bid.AskPrice
 		}
 		wbids[wbid] = broker.WinningBid{
-			MinerAddr:     bid.MinerAddr,
-			Price:         price,
-			StartEpoch:    bid.StartEpoch,
-			FastRetrieval: bid.FastRetrieval,
+			StorageProviderID: bid.MinerAddr,
+			Price:             price,
+			StartEpoch:        bid.StartEpoch,
+			FastRetrieval:     bid.FastRetrieval,
 		}
 	}
 	return broker.ClosedAuction{
 		ID:              a.ID,
-		StorageDealID:   a.StorageDealID,
+		BatchID:         a.BatchID,
 		DealDuration:    a.DealDuration,
 		DealReplication: a.DealReplication,
 		DealVerified:    a.DealVerified,
@@ -457,18 +436,18 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 
 func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
-	if topic == core.AuctionTopic && string(msg) == "JOINED" {
+	if topic == core.Topic && string(msg) == "JOINED" {
 		a.peer.Host().ConnManager().Protect(from, "auctioneer:<bidder>")
 	}
 }
 
-func acceptBid(auction *auctioneer.Auction, bid *core.Bid) bool {
+func acceptBid(auction *auctioneer.Auction, bid *auctioneer.Bid) bool {
 	if auction.FilEpochDeadline > 0 && (bid.StartEpoch <= 0 || auction.FilEpochDeadline < bid.StartEpoch) {
 		log.Debugf("miner %s start epoch %d doesn't meet the deadline %d of auction %s",
 			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
 		return false
 	}
-	for _, addr := range auction.ExcludedMiners {
+	for _, addr := range auction.ExcludedStorageProviders {
 		if bid.MinerAddr == addr {
 			log.Debugf("miner %s is explicitly excluded from auction %s", bid.MinerAddr, auction.ID)
 			return false
@@ -479,10 +458,10 @@ func acceptBid(auction *auctioneer.Auction, bid *core.Bid) bool {
 
 type rankedBid struct {
 	ID  core.BidID
-	Bid core.Bid
+	Bid auctioneer.Bid
 }
 
-func heapifyBids(bids map[core.BidID]core.Bid, dealVerified bool) *BidHeap {
+func heapifyBids(bids map[core.BidID]auctioneer.Bid, dealVerified bool) *BidHeap {
 	h := &BidHeap{dealVerified: dealVerified}
 	heap.Init(h)
 	for id, b := range bids {
@@ -526,31 +505,36 @@ func (bh *BidHeap) Pop() (x interface{}) {
 	return x
 }
 
-func (a *Auctioneer) selectNewWinners(
+func (a *Auctioneer) selectWinners(
+	ctx context.Context,
 	auction auctioneer.Auction,
-	bids map[core.BidID]core.Bid,
-) (map[core.BidID]core.WinningBid, error) {
-	selectCount := int(auction.DealReplication) - len(auction.WinningBids)
-	if selectCount == 0 {
-		return nil, nil
-	}
+	bids map[core.BidID]auctioneer.Bid,
+) (map[core.BidID]auctioneer.WinningBid, error) {
 	if len(bids) == 0 {
 		return nil, ErrInsufficientBids
 	}
 
 	var (
-		bh      = heapifyBids(bids, auction.DealVerified)
-		winners = make(map[core.BidID]core.WinningBid)
+		bh          = heapifyBids(bids, auction.DealVerified)
+		winners     = make(map[core.BidID]auctioneer.WinningBid)
+		selectCount = int(auction.DealReplication)
+		i           = 0
 	)
 
 	// Select lowest bids until deal replication is met
-	for i := 0; i < selectCount; i++ {
+	for i < selectCount {
 		if bh.Len() == 0 {
 			break
 		}
 		b := heap.Pop(bh).(rankedBid)
-		winners[b.ID] = core.WinningBid{
+		winners[b.ID] = auctioneer.WinningBid{
 			BidderID: b.Bid.BidderID,
+		}
+
+		if err := a.publishWin(ctx, auction.ID, b.ID, b.Bid.BidderID); err != nil {
+			log.Warn(err) // error is annotated in publishWin
+		} else {
+			i++
 		}
 	}
 	if len(winners) < selectCount {
@@ -560,72 +544,7 @@ func (a *Auctioneer) selectNewWinners(
 	return winners, nil
 }
 
-type notifyResult struct {
-	id  core.BidID
-	wb  core.WinningBid
-	err error
-}
-
-func (a *Auctioneer) notifyWinners(
-	ctx context.Context,
-	auction auctioneer.Auction,
-	winners map[core.BidID]core.WinningBid,
-) (map[core.BidID]core.WinningBid, error) {
-	if winners == nil {
-		winners = make(map[core.BidID]core.WinningBid)
-	}
-
-	// Add non-acked winners from prior attempts
-	for id, wb := range auction.WinningBids {
-		if !wb.Acknowledged || (wb.ProposalCid.Defined() && !wb.ProposalCidAcknowledged) {
-			winners[id] = wb
-		}
-	}
-
-	// Bail if nothing to do
-	if len(winners) == 0 {
-		return nil, nil
-	}
-
-	var wg sync.WaitGroup
-	resCh := make(chan notifyResult, len(winners))
-	aid := auction.ID
-	for id, wb := range winners {
-		wg.Add(1)
-		go func(id core.BidID, wb core.WinningBid) {
-			defer wg.Done()
-			res := notifyResult{id: id, wb: wb}
-
-			if !wb.Acknowledged {
-				if err := a.publishWin(ctx, aid, id, wb.BidderID); err != nil {
-					res.err = fmt.Errorf("publishing win: %v", err)
-				} else {
-					res.wb.Acknowledged = true
-				}
-			} else if !wb.ProposalCidAcknowledged {
-				if err := a.publishProposal(ctx, aid, id, wb.BidderID, wb.ProposalCid); err != nil {
-					res.err = fmt.Errorf("publishing win: %v", err)
-				} else {
-					res.wb.ProposalCidAcknowledged = true
-				}
-			} else {
-				res.err = fmt.Errorf("nothing to do for winning bid %s", id)
-			}
-			resCh <- res
-		}(id, wb)
-	}
-	wg.Wait()
-	close(resCh)
-
-	merr := &multierror.Error{}
-	for r := range resCh {
-		merr = multierror.Append(merr, r.err)
-		winners[r.id] = r.wb
-	}
-	return winners, merr.ErrorOrNil()
-}
-
-func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core.BidID, bidder peer.ID) error {
+func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error {
 	topic, err := a.peer.NewTopic(ctx, core.WinsTopic(bidder), false)
 	if err != nil {
 		return fmt.Errorf("creating win topic: %v", err)
@@ -648,20 +567,20 @@ func (a *Auctioneer) publishWin(ctx context.Context, id core.AuctionID, bid core
 	defer cancel()
 	res, err := topic.Publish(tctx, msg)
 	if err != nil {
-		return fmt.Errorf("publishing win to %s: %v", bidder, err)
+		return fmt.Errorf("publishing win to %s in auction %s: %v", bidder, id, err)
 	}
 	r := <-res
-	if errors.Is(r.Err, pubsub.ErrResponseNotReceived) {
-		return fmt.Errorf("publishing win to %s: %v", bidder, r.Err)
+	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
+		return fmt.Errorf("publishing win to %s in auction %s: %v", bidder, id, r.Err)
 	} else if r.Err != nil {
-		return fmt.Errorf("publishing win; bidder %s returned error: %v", bidder, r.Err)
+		return fmt.Errorf("publishing win in auction %s; bidder %s returned error: %v", id, bidder, r.Err)
 	}
 	return nil
 }
 
 func (a *Auctioneer) publishProposal(
 	ctx context.Context,
-	id core.AuctionID,
+	id core.ID,
 	bid core.BidID,
 	bidder peer.ID,
 	pcid cid.Cid,
@@ -689,13 +608,13 @@ func (a *Auctioneer) publishProposal(
 	defer cancel()
 	res, err := topic.Publish(tctx, msg)
 	if err != nil {
-		return fmt.Errorf("publishing proposal to %s: %v", bidder, err)
+		return fmt.Errorf("publishing proposal to %s in auction %s: %v", bidder, id, err)
 	}
 	r := <-res
-	if errors.Is(r.Err, pubsub.ErrResponseNotReceived) {
-		return fmt.Errorf("publishing proposal to %s: %v", bidder, r.Err)
+	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
+		return fmt.Errorf("publishing proposal to %s in auction %s: %v", bidder, id, r.Err)
 	} else if r.Err != nil {
-		return fmt.Errorf("publishing proposal; bidder %s returned error: %v", bidder, r.Err)
+		return fmt.Errorf("publishing proposal in auction %s; bidder %s returned error: %v", id, bidder, r.Err)
 	}
 	return nil
 }

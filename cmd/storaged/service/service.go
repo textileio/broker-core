@@ -24,7 +24,6 @@ type Config struct {
 	SkipAuth              bool
 	IpfsMultiaddrs        []multiaddr.Multiaddr
 	PinataJWT             string
-	BearerTokens          []string
 	MaxUploadSize         uint
 }
 
@@ -58,7 +57,7 @@ func New(config Config) (*Service, error) {
 }
 
 func createStorage(config Config) (storage.Requester, error) {
-	auth, err := brokerauth.New(config.AuthAddr, config.BearerTokens)
+	auth, err := brokerauth.New(config.AuthAddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker auth: %s", err)
 	}

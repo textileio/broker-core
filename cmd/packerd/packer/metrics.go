@@ -9,6 +9,7 @@ import (
 
 func (fc *Packer) initMetrics() {
 	fc.metricNewBatch = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batches_total")
+	fc.metricBatchSizeTotal = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batch_sizes_total")
 	fc.metricLastBatchCreated = metrics.Meter.NewInt64ValueObserver(
 		metrics.Prefix+".last_batch_created_epoch",
 		fc.lastCreatedCb,

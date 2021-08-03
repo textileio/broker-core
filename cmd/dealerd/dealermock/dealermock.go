@@ -7,6 +7,7 @@ import (
 
 	"github.com/textileio/broker-core/broker"
 	dealeri "github.com/textileio/broker-core/dealer"
+	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 )
 
@@ -15,19 +16,19 @@ var log = logger.Logger("dealermock")
 // Dealer provides a mocked implementation of Dealer. It reports successful
 // deals to the broker after 1 sec.
 type Dealer struct {
-	broker broker.Broker
+	mb mbroker.MsgBroker
 }
 
 // New returns a new Dealer.
-func New(broker broker.Broker) *Dealer {
+func New(mb mbroker.MsgBroker) *Dealer {
 	return &Dealer{
-		broker: broker,
+		mb: mb,
 	}
 }
 
 // ReadyToCreateDeals registers deals to execute.
 func (d *Dealer) ReadyToCreateDeals(ctx context.Context, sdb dealeri.AuctionDeals) error {
-	log.Debugf("received ready to create deals %s", sdb.StorageDealID)
+	log.Debugf("received ready to create deals %s", sdb.BatchID)
 	go d.reportToBroker(sdb)
 	return nil
 }
@@ -35,13 +36,17 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, sdb dealeri.AuctionDeal
 func (d *Dealer) reportToBroker(sdb dealeri.AuctionDeals) {
 	time.Sleep(time.Second)
 
-	res := broker.FinalizedAuctionDeal{
-		StorageDealID:  sdb.StorageDealID,
-		DealID:         rand.Int63(),
-		DealExpiration: uint64(rand.Int63()),
-		Miner:          "f0001",
-	}
-	if err := d.broker.StorageDealFinalizedDeal(context.Background(), res); err != nil {
-		log.Errorf("reporting finalized deals to broker: %s", err)
+	for _, p := range sdb.Proposals {
+		fd := broker.FinalizedDeal{
+			BatchID:           sdb.BatchID,
+			DealID:            rand.Int63(),
+			DealExpiration:    uint64(rand.Int63()),
+			StorageProviderID: p.StorageProviderID,
+			AuctionID:         p.AuctionID,
+			BidID:             p.BidID,
+		}
+		if err := mbroker.PublishMsgFinalizedDeal(context.Background(), d.mb, fd); err != nil {
+			log.Errorf("publishing finalized-deal msg to msgbroker: %s", err)
+		}
 	}
 }

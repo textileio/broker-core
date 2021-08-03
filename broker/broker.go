@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-
 	"github.com/textileio/bidbot/lib/auction"
 )
 
@@ -16,16 +15,16 @@ const (
 
 // WinningBid contains details about a winning bid in a closed auction.
 type WinningBid struct {
-	MinerAddr     string
-	Price         int64
-	StartEpoch    uint64
-	FastRetrieval bool
+	StorageProviderID string
+	Price             int64
+	StartEpoch        uint64
+	FastRetrieval     bool
 }
 
 // ClosedAuction contains closed auction details auctioneer reports back to the broker.
 type ClosedAuction struct {
-	ID              auction.AuctionID
-	StorageDealID   StorageDealID
+	ID              auction.ID
+	BatchID         BatchID
 	DealDuration    uint64
 	DealReplication uint32
 	DealVerified    bool
@@ -68,48 +67,30 @@ func (as AuctionStatus) String() string {
 
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {
-	// Create creates a new BrokerRequest for a cid.
-	Create(ctx context.Context, dataCid cid.Cid) (BrokerRequest, error)
+	// Create creates a new StorageRequest for a cid.
+	Create(ctx context.Context, dataCid cid.Cid, origin string) (StorageRequest, error)
 
-	// CreatePrepared creates a new BrokerRequest for prepared data.
-	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR) (BrokerRequest, error)
+	// CreatePrepared creates a new StorageRequest for prepared data.
+	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR, m BatchMetadata) (StorageRequest, error)
 
-	// GetBrokerRequestInfo returns a broker request information by id.
-	GetBrokerRequestInfo(ctx context.Context, ID BrokerRequestID) (BrokerRequestInfo, error)
-
-	// CreateStorageDeal creates a new StorageDeal. It is called
-	// by the Packer after batching a set of BrokerRequest properly.
-	CreateStorageDeal(ctx context.Context, batchCid cid.Cid, srids []BrokerRequestID) (StorageDealID, error)
-
-	// StorageDealPrepared signals the broker that a StorageDeal was prepared and it's ready to auction.
-	StorageDealPrepared(ctx context.Context, id StorageDealID, pr DataPreparationResult) error
-
-	// StorageDealAuctioned signals to the broker that StorageDeal auction has completed.
-	StorageDealAuctioned(ctx context.Context, auction ClosedAuction) error
-
-	// StorageDealFinalizedDeal signals to the broker results about deal making.
-	StorageDealFinalizedDeal(ctx context.Context, fad FinalizedAuctionDeal) error
-
-	// StorageDealProposalAccepted signals the broker that a miner has accepted a deal proposal.
-	StorageDealProposalAccepted(ctx context.Context, sdID StorageDealID, miner string, proposalCid cid.Cid) error
+	// GetStorageRequestInfo returns a storage request information by id.
+	GetStorageRequestInfo(ctx context.Context, ID StorageRequestID) (StorageRequestInfo, error)
 }
 
-// StorageDeal is the underlying entity that gets into bidding and
+// Batch is the underlying entity that gets into bidding and
 // store data in the Filecoin network. It groups one or multiple
-// BrokerRequests.
-type StorageDeal struct {
-	ID                 StorageDealID
-	Status             StorageDealStatus
-	BrokerRequestIDs   []BrokerRequestID
+// StorageRequests.
+type Batch struct {
+	ID                 BatchID
+	Status             BatchStatus
 	RepFactor          int
 	DealDuration       int
 	Sources            auction.Sources
 	DisallowRebatching bool
-	AuctionRetries     int
 	FilEpochDeadline   uint64
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
 	Error              string
+	Origin             string
+	Tags               map[string]string
 
 	// Packer calculates this field after batching storage requests.
 	PayloadCid cid.Cid
@@ -117,69 +98,32 @@ type StorageDeal struct {
 	// Piecer calculates these fields after preparing the batched DAG.
 	PieceCid  cid.Cid
 	PieceSize uint64
-
-	// Dealer populates this field
-	Deals []MinerDeal
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
-// StorageDealID is the type of a StorageDeal identifier.
-type StorageDealID string
+// BatchID is the type of a batch identifier.
+type BatchID string
 
-// StorageDealStatus is the type of a broker status.
-type StorageDealStatus int
+// BatchStatus is the type of a broker status.
+type BatchStatus string
 
 const (
-	// StorageDealUnkown is an invalid status value. Defined for safety.
-	StorageDealUnkown StorageDealStatus = iota
-	// StorageDealPreparing indicates that the storage deal is being prepared.
-	StorageDealPreparing
-	// StorageDealAuctioning indicates that the storage deal is being auctioned.
-	StorageDealAuctioning
-	// StorageDealDealMaking indicates that the storage deal deals are being executed.
-	StorageDealDealMaking
-	// StorageDealSuccess indicates that the storage deal was successfully stored in Filecoin.
-	StorageDealSuccess
-	// StorageDealError indicates that the storage deal has errored.
-	StorageDealError
+	// BatchStatusUnkown is an invalid status value. Defined for safety.
+	BatchStatusUnkown BatchStatus = "unknown"
+	// BatchStatusPreparing indicates that the storage deal is being prepared.
+	BatchStatusPreparing BatchStatus = "preparing"
+	// BatchStatusAuctioning indicates that the storage deal is being auctioned.
+	BatchStatusAuctioning BatchStatus = "auctioning"
+	// BatchStatusDealMaking indicates that the storage deal deals are being executed.
+	BatchStatusDealMaking BatchStatus = "deal making"
+	// BatchStatusSuccess indicates that the storage deal was successfully stored in Filecoin.
+	BatchStatusSuccess BatchStatus = "success"
+	// BatchStatusError indicates that the storage deal has errored.
+	BatchStatusError BatchStatus = "error"
 )
 
-// String returns a string-encoded status.
-func (sds StorageDealStatus) String() string {
-	switch sds {
-	case StorageDealUnkown:
-		return "unknown"
-	case StorageDealPreparing:
-		return "preparing"
-	case StorageDealAuctioning:
-		return "auctioning"
-	case StorageDealDealMaking:
-		return "deal making"
-	case StorageDealSuccess:
-		return "success"
-	default:
-		return invalidStatus
-	}
-}
-
-// MinerDeal contains information about a miner deal resulted from
-// winned auctions:
-// If ErrCause is not empty, is a failed deal.
-// If ErrCause is empty, and DealID is zero then the deal is in progress.
-// IF ErrCause is empty, and DealID is not zero then is final.
-type MinerDeal struct {
-	StorageDealID StorageDealID
-	AuctionID     auction.AuctionID
-	BidID         auction.BidID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-
-	Miner          string
-	DealID         int64
-	DealExpiration uint64
-	ErrorCause     string
-}
-
-// DataPreparationResult is the result of preparing a StorageDeal.
+// DataPreparationResult is the result of preparing a batch.
 type DataPreparationResult struct {
 	PieceSize uint64
 	PieceCid  cid.Cid
@@ -196,11 +140,13 @@ func (dpr DataPreparationResult) Validate() error {
 	return nil
 }
 
-// FinalizedAuctionDeal contains information about a finalized deal.
-type FinalizedAuctionDeal struct {
-	StorageDealID  StorageDealID
-	Miner          string
-	DealID         int64
-	DealExpiration uint64
-	ErrorCause     string
+// FinalizedDeal contains information about a finalized deal.
+type FinalizedDeal struct {
+	BatchID           BatchID
+	StorageProviderID string
+	DealID            int64
+	DealExpiration    uint64
+	ErrorCause        string
+	AuctionID         auction.ID
+	BidID             auction.BidID
 }
