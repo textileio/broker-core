@@ -20,23 +20,25 @@ type Requester interface {
 }
 
 // Status is the status of a StorageRequest.
-type Status int
+type Status string
 
 const (
 	// StatusUnknown is the default value to an unitialized
 	// StorageRequest. This status must be considered invalid in any
 	// real StorageRequest instance.
-	StatusUnknown Status = iota
+	StatusUnknown Status = "Unknown"
 	// StatusBatching indicates that the storage request is being batched.
-	StatusBatching
+	StatusBatching Status = "Batching"
 	// StatusPreparing indicates that the batch containing the data is being prepared.
-	StatusPreparing
+	StatusPreparing Status = "Preparing"
 	// StatusAuctioning indicates that the batch containing the data is being auctioned.
-	StatusAuctioning
+	StatusAuctioning Status = "Auctioning"
 	// StatusDealMaking indicates that the data is in deal-making process.
-	StatusDealMaking
+	StatusDealMaking Status = "DealMaking"
 	// StatusSuccess indicates that the request was stored in Filecoin.
-	StatusSuccess
+	StatusSuccess Status = "Success"
+	// StatusError indicates that there is some error handling the request.
+	StatusError Status = "Error"
 )
 
 // Request is a request for storing data in a Broker.
