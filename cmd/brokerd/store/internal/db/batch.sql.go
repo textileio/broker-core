@@ -79,6 +79,25 @@ func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error 
 	return err
 }
 
+const createBatchManifest = `-- name: CreateBatchManifest :exec
+INSERT INTO batch_manifests(
+   batch_id,
+   manifest
+   ) VALUES (
+     $1,
+     $2)
+`
+
+type CreateBatchManifestParams struct {
+	BatchID  string `json:"batchID"`
+	Manifest []byte `json:"manifest"`
+}
+
+func (q *Queries) CreateBatchManifest(ctx context.Context, arg CreateBatchManifestParams) error {
+	_, err := q.exec(ctx, q.createBatchManifestStmt, createBatchManifest, arg.BatchID, arg.Manifest)
+	return err
+}
+
 const createBatchTag = `-- name: CreateBatchTag :exec
 INSERT INTO batch_tags (batch_id,key,value) VALUES ($1,$2,$3)
 `
@@ -120,6 +139,18 @@ func (q *Queries) GetBatch(ctx context.Context, id broker.BatchID) (Batch, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
+	return i, err
+}
+
+const getBatchManifest = `-- name: GetBatchManifest :one
+SELECT batch_id, manifest FROM batch_manifests
+WHERE batch_id=$1
+`
+
+func (q *Queries) GetBatchManifest(ctx context.Context, batchID string) (BatchManifest, error) {
+	row := q.queryRow(ctx, q.getBatchManifestStmt, getBatchManifest, batchID)
+	var i BatchManifest
+	err := row.Scan(&i.BatchID, &i.Manifest)
 	return i, err
 }
 

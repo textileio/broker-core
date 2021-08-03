@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -76,17 +77,21 @@ func TestCreateBatch(t *testing.T) {
 		Origin:     "ORIGIN-1",
 	}
 	brIDs := []broker.StorageRequestID{br1.ID, br2.ID}
-	err = s.CreateBatch(ctx, &ba, brIDs)
+	err = s.CreateBatch(ctx, &ba, brIDs, []byte("manifest-fake"))
 	require.NoError(t, err)
 
 	// 3- Get the created batch by id, and check that fields are coherent.
-	sd2, err := s.GetBatch(ctx, ba.ID)
+	ba2, err := s.GetBatch(ctx, ba.ID)
 	require.NoError(t, err)
-	assert.Equal(t, ba.ID, sd2.ID)
-	assert.Equal(t, ba.Status, sd2.Status)
-	assert.Equal(t, "ORIGIN-1", sd2.Origin)
-	assert.True(t, time.Since(sd2.CreatedAt) < 100*time.Millisecond, time.Since(sd2.CreatedAt))
-	assert.True(t, time.Since(sd2.UpdatedAt) < 100*time.Millisecond, time.Since(sd2.CreatedAt))
+	assert.Equal(t, ba.ID, ba2.ID)
+	assert.Equal(t, ba.Status, ba2.Status)
+	assert.Equal(t, "ORIGIN-1", ba2.Origin)
+	assert.True(t, time.Since(ba2.CreatedAt) < 100*time.Millisecond, time.Since(ba2.CreatedAt))
+	assert.True(t, time.Since(ba2.UpdatedAt) < 100*time.Millisecond, time.Since(ba2.CreatedAt))
+
+	manifest, err := s.GetBatchManifest(ctx, ba.ID)
+	require.NoError(t, err)
+	assert.True(t, bytes.Equal([]byte("manifest-fake"), manifest))
 
 	// 4- Check that both storage requests are associated to the batch.
 	brs, err := s.db.GetStorageRequests(ctx, batchIDToSQL(ba.ID))
@@ -105,6 +110,35 @@ func TestCreateBatch(t *testing.T) {
 	assert.Equal(t, broker.RequestPreparing, gbr2.Status)
 	assert.Equal(t, ba.ID, gbr2.BatchID)
 	assert.True(t, time.Since(gbr2.UpdatedAt) < 100*time.Millisecond, time.Since(gbr2.UpdatedAt))
+}
+
+func TestCreateBatchWithoutManifest(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	s := newStore(t)
+
+	// 1- Create two storage requests.
+	br1 := broker.StorageRequest{
+		ID:      "BR1",
+		DataCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
+		Status:  broker.RequestBatching,
+	}
+	err := s.CreateStorageRequest(ctx, br1)
+	require.NoError(t, err)
+
+	ba := broker.Batch{
+		ID:         "SD1",
+		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jB1"),
+		Status:     broker.BatchStatusPreparing,
+		Origin:     "ORIGIN-1",
+	}
+	brIDs := []broker.StorageRequestID{br1.ID}
+	err = s.CreateBatch(ctx, &ba, brIDs, nil)
+	require.NoError(t, err)
+
+	_, err = s.GetBatchManifest(ctx, ba.ID)
+	require.Equal(t, ErrNotFound, err)
 }
 
 func newStore(t *testing.T) *Store {

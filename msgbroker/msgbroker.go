@@ -64,7 +64,8 @@ type NewBatchCreatedListener interface {
 		broker.BatchID,
 		cid.Cid,
 		[]broker.StorageRequestID,
-		string) error
+		string,
+		[]byte) error
 }
 
 // NewBatchPreparedListener is a handler for new-batch-prepared topic.
@@ -157,8 +158,11 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.Origin == "" {
 				return errors.New("origin is empty")
 			}
+			if len(r.Manifest) == 0 {
+				return errors.New("manifest is empty")
+			}
 
-			if err := l.OnNewBatchCreated(ctx, sdID, batchCid, brids, r.Origin); err != nil {
+			if err := l.OnNewBatchCreated(ctx, sdID, batchCid, brids, r.Origin, r.Manifest); err != nil {
 				return fmt.Errorf("calling on-new-batch-created handler: %s", err)
 			}
 			return nil
@@ -553,7 +557,8 @@ func PublishMsgNewBatchCreated(
 	batchID broker.BatchID,
 	batchCid cid.Cid,
 	srIDs []broker.StorageRequestID,
-	origin string) error {
+	origin string,
+	manifest []byte) error {
 	if batchID == "" {
 		return errors.New("batch-id is empty")
 	}
@@ -562,6 +567,9 @@ func PublishMsgNewBatchCreated(
 	}
 	if origin == "" {
 		return errors.New("origin is empty")
+	}
+	if len(manifest) == 0 {
+		return errors.New("manifest is empty")
 	}
 	srStrIDs := make([]string, len(srIDs))
 	for i, srID := range srIDs {
@@ -575,6 +583,7 @@ func PublishMsgNewBatchCreated(
 		BatchCid:          batchCid.Bytes(),
 		StorageRequestIds: srStrIDs,
 		Origin:            origin,
+		Manifest:          manifest,
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {

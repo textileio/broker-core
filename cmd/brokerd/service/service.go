@@ -306,8 +306,9 @@ func (s *Service) OnNewBatchCreated(
 	id broker.BatchID,
 	batchCid cid.Cid,
 	brids []broker.StorageRequestID,
-	origin string) error {
-	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin); err != nil {
+	origin string,
+	manifest []byte) error {
+	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin, manifest); err != nil {
 		if errors.Is(err, store.ErrBatchExists) {
 			log.Warnf("batch ID %s already created, acking", id)
 			return nil

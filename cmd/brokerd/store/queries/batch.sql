@@ -30,6 +30,18 @@ INSERT INTO batches(
       $13,
       $14);
 
+-- name: CreateBatchManifest :exec
+INSERT INTO batch_manifests(
+   batch_id,
+   manifest
+   ) VALUES (
+     $1,
+     $2);
+
+-- name: GetBatchManifest :one
+SELECT * FROM batch_manifests
+WHERE batch_id=$1;
+
 -- name: GetBatch :one
 SELECT * FROM batches
 WHERE id = $1;
