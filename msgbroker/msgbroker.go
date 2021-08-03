@@ -48,10 +48,21 @@ const (
 	FinalizedDealTopic = "finalized-deal"
 	// DealProposalAcceptedTopic is the topic name for deal-proposal-accepted messages.
 	DealProposalAcceptedTopic = "deal-proposal-accepted"
+
 	// ReadyToAuctionTopic is the topic name for ready-to-auction messages.
 	ReadyToAuctionTopic = "ready-to-auction"
 	// AuctionClosedTopic is the topic name for auction-closed messages.
 	AuctionClosedTopic = "auction-closed"
+	// AuctionStartedTopic is the topic name for auction-started messages.
+	AuctionStartedTopic = "auction-started"
+	// AuctionBidReceivedTopic is the topic name for auction-bid-received messages.
+	AuctionBidReceivedTopic = "auction-bid-received"
+	// AuctionWinnerSelectedTopic is the topic name for auction-winner-selected messages.
+	AuctionWinnerSelectedTopic = "auction-winner-selected"
+	// AuctionWinnerAckedTopic is the topic name for auction-winner-acked messages.
+	AuctionWinnerAckedTopic = "auction-winner-acked"
+	// AuctionProposalCidDeliveredTopic is the topic name for auction-proposal-cid-delivered messages.
+	AuctionProposalCidDeliveredTopic = "auction-proposal-cid-delivered"
 )
 
 // OperationID is a unique identifier for messages.
