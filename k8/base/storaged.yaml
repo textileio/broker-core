@@ -70,7 +70,7 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 250Mi
+              memory: 512Mi
           readinessProbe:
             httpGet:
               port: api
