@@ -508,7 +508,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 	opID msgbroker.OperationID,
 	fad broker.FinalizedDeal) (err error) {
-	log.Debugf("finalized deal from auction (%s, %s), batch %s, deal-id %s, storage-provider %s",
+	log.Debugf("finalized deal from auction (%s, %s), batch %s, deal-id %d, storage-provider %s",
 		fad.AuctionID, fad.BidID, fad.BatchID, fad.DealID, fad.StorageProviderID)
 
 	ctx, err = b.store.CtxWithTx(ctx)
