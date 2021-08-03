@@ -441,69 +441,6 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
 }
 
-func TestBatchAuctionedInvalidAmountWinners(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	b, mb, _ := createBroker(t)
-	b.conf.dealReplication = 3
-
-	// 1- Create two storage requests and a corresponding batch, and
-	//    pass through prepared.
-	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c, "OR")
-	require.NoError(t, err)
-	c = createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c, "OR")
-	require.NoError(t, err)
-	brgCid := createCidFromString("Batch")
-	sdID, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil)
-	require.NoError(t, err)
-	dpr := broker.DataPreparationResult{
-		PieceSize: uint64(123456),
-		PieceCid:  createCidFromString("piececid1"),
-	}
-	err = b.NewBatchPrepared(ctx, sdID, dpr)
-	require.NoError(t, err)
-	// idempotent call
-	err = b.NewBatchPrepared(ctx, sdID, dpr)
-	require.NoError(t, err)
-
-	// 2- Call BatchAuctioned as if the auctioneer did.
-	winningBids := map[auction.BidID]broker.WinningBid{
-		auction.BidID("Bid1"): {
-			StorageProviderID: "f01111",
-			Price:             200,
-			StartEpoch:        300,
-			FastRetrieval:     true,
-		},
-		auction.BidID("Bid2"): {
-			StorageProviderID: "f02222",
-			Price:             1200,
-			StartEpoch:        1300,
-			FastRetrieval:     false,
-		},
-	}
-	a := broker.ClosedAuction{
-		ID:              auction.ID("AUCTION1"),
-		BatchID:         sdID,
-		DealDuration:    auction.MaxDealDuration,
-		DealReplication: 2,
-		DealVerified:    true,
-		Status:          broker.AuctionStatusFinalized,
-		WinningBids:     winningBids,
-	}
-	err = b.BatchAuctioned(ctx, "op-id", a)
-	require.Error(t, err)
-
-	require.Equal(t, 3, mb.TotalPublished())
-	// Check no re-auction was done. Only one message from `NewBatchPrepared` above.
-	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
-	// Check no deal making was done.
-	require.Equal(t, 0, mb.TotalPublishedTopic(mbroker.ReadyToCreateDealsTopic))
-	// Check that no-rebatching was done. The closed auction is completely invalid.
-	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToBatchTopic))
-}
-
 func TestBatchFailedAuction(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
