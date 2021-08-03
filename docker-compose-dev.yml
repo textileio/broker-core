@@ -136,7 +136,7 @@ services:
       - DB_PASSWORD=foo
       - POSTGRES_USER=dev_user
       - POSTGRES_PASSWORD=dev_password
-      - DAEMON=brokerd
+      - DAEMON=broker
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -166,7 +166,7 @@ services:
       - DB_PASSWORD=foo
       - POSTGRES_USER=dev_user
       - POSTGRES_PASSWORD=dev_password
-      - DAEMON=packerd
+      - DAEMON=packer
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
     security_opt:
       - "seccomp:unconfined"
@@ -194,7 +194,7 @@ services:
       - DB_PASSWORD=foo
       - POSTGRES_USER=dev_user
       - POSTGRES_PASSWORD=dev_password
-      - DAEMON=piecerd
+      - DAEMON=piecer
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -220,7 +220,7 @@ services:
       - DB_PASSWORD=foo
       - POSTGRES_USER=dev_user
       - POSTGRES_PASSWORD=dev_password
-      - DAEMON=dealerd
+      - DAEMON=dealer
     security_opt:
       - "seccomp:unconfined"
     cap_add:
