@@ -106,40 +106,22 @@ type Batch struct {
 type BatchID string
 
 // BatchStatus is the type of a broker status.
-type BatchStatus int
+type BatchStatus string
 
 const (
 	// BatchStatusUnkown is an invalid status value. Defined for safety.
-	BatchStatusUnkown BatchStatus = iota
+	BatchStatusUnkown BatchStatus = "unknown"
 	// BatchStatusPreparing indicates that the storage deal is being prepared.
-	BatchStatusPreparing
+	BatchStatusPreparing BatchStatus = "preparing"
 	// BatchStatusAuctioning indicates that the storage deal is being auctioned.
-	BatchStatusAuctioning
+	BatchStatusAuctioning BatchStatus = "auctioning"
 	// BatchStatusDealMaking indicates that the storage deal deals are being executed.
-	BatchStatusDealMaking
+	BatchStatusDealMaking BatchStatus = "deal making"
 	// BatchStatusSuccess indicates that the storage deal was successfully stored in Filecoin.
-	BatchStatusSuccess
+	BatchStatusSuccess BatchStatus = "success"
 	// BatchStatusError indicates that the storage deal has errored.
-	BatchStatusError
+	BatchStatusError BatchStatus = "error"
 )
-
-// String returns a string-encoded status.
-func (sds BatchStatus) String() string {
-	switch sds {
-	case BatchStatusUnkown:
-		return "unknown"
-	case BatchStatusPreparing:
-		return "preparing"
-	case BatchStatusAuctioning:
-		return "auctioning"
-	case BatchStatusDealMaking:
-		return "deal making"
-	case BatchStatusSuccess:
-		return "success"
-	default:
-		return invalidStatus
-	}
-}
 
 // DataPreparationResult is the result of preparing a batch.
 type DataPreparationResult struct {
