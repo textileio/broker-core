@@ -68,7 +68,7 @@ spec:
           resources:
             requests:
               cpu: 250m
-              memory: 250Mi
+              memory: 512Mi
           readinessProbe:
             tcpSocket:
               port: api
