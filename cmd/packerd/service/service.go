@@ -40,7 +40,7 @@ type Service struct {
 var _ mbroker.ReadyToBatchListener = (*Service)(nil)
 
 // New returns a new Service.
-func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
+func New(mb mbroker.MsgBroker, conf Config, packerOpts ...packer.Option) (*Service, error) {
 	if err := validateConfig(conf); err != nil {
 		return nil, fmt.Errorf("config is invalid: %s", err)
 	}
@@ -55,11 +55,11 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
-	opts := []packer.Option{
+	opts := append(packerOpts, []packer.Option{
 		packer.WithDaemonFrequency(conf.DaemonFrequency),
 		packer.WithSectorSize(conf.TargetSectorSize),
 		packer.WithBatchMinSize(conf.BatchMinSize),
-	}
+	}...)
 
 	lib, err := packer.New(conf.PostgresURI, pinnerClient, mb, opts...)
 	if err != nil {

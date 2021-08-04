@@ -11,6 +11,7 @@ import (
 )
 
 func TestStore(t *testing.T) {
+	t.SkipNow()
 	gcpb, err := New("textile-310716")
 	require.NoError(t, err)
 

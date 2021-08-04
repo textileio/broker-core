@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/broker-core/cmd/packerd/packer"
+	"github.com/textileio/broker-core/cmd/packerd/packer/gcpblob"
 	"github.com/textileio/broker-core/cmd/packerd/service"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
@@ -29,6 +31,7 @@ func init() {
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "gobject-project-id", DefValue: "", Description: "Google Object Storage project id"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
@@ -82,7 +85,15 @@ var rootCmd = &cobra.Command{
 		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "packerd")
 		common.CheckErr(err)
 
-		serv, err := service.New(mb, config)
+		projectID = v.GetString("gobject-project-id")
+		var packerOpts []packer.Option
+		if projectID != "" {
+			gblob, err := gcpblob.New(projectID)
+			common.CheckErr(err)
+			packerOpts = append(packerOpts, packer.WithCARUploader(gblob))
+		}
+
+		serv, err := service.New(mb, config, packerOpts...)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {

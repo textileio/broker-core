@@ -2,6 +2,7 @@ package gcpblob
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -23,6 +24,9 @@ type GCPBlob struct {
 
 // New returns a new GCP blob storage.
 func New(projectID string) (*GCPBlob, error) {
+	if projectID == "" {
+		return nil, errors.New("project id is empty")
+	}
 	ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
 	defer cls()
 	client, err := storage.NewClient(ctx)
