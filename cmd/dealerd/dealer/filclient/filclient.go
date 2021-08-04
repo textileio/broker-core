@@ -397,7 +397,7 @@ func (fc *FilClient) connectToStorageProvider(ctx context.Context, maddr address
 		log.Debugf("resolving multiaddresses for %s in DHT failed, querying the chain for available ones...", maddr)
 		// Try checking on-chain as a last resource.
 		for _, mma := range minfo.Multiaddrs {
-			ma, err := multiaddr.NewMultiaddrBytes(mma)
+			ma, err := multiaddr.NewMultiaddrBytes(mma) //nolint:typecheck
 			if err != nil {
 				return "", fmt.Errorf("storage-provider %s had invalid multiaddrs in their info: %w", maddr, err)
 			}
