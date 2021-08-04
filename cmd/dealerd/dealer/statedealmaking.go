@@ -41,7 +41,9 @@ func (d *Dealer) daemonDealMakerTick() error {
 			break
 		}
 
-		aud, ok, err := d.store.GetNextPending(context.Background(), store.StatusDealMaking)
+		ctx, cancel := context.WithTimeout(d.daemonCtx, time.Second*15)
+		defer cancel()
+		aud, ok, err := d.store.GetNextPending(ctx, store.StatusDealMaking)
 		if err != nil {
 			return fmt.Errorf("get pending auction deals: %s", err)
 		}
@@ -49,7 +51,9 @@ func (d *Dealer) daemonDealMakerTick() error {
 			break
 		}
 		rl.Exec(func() error {
-			if err := d.executePendingDealMaking(d.daemonCtx, aud); err != nil {
+			ctx, cancel := context.WithTimeout(d.daemonCtx, time.Second*30)
+			defer cancel()
+			if err := d.executePendingDealMaking(ctx, aud); err != nil {
 				log.Errorf("executing pending deal making: %s", err)
 				aud.ErrorCause = err.Error()
 				aud.ReadyAt = time.Unix(0, 0)
@@ -60,6 +64,7 @@ func (d *Dealer) daemonDealMakerTick() error {
 			// We're not interested in ratelim error inspection.
 			return nil
 		})
+		cancel()
 	}
 	rl.Wait()
 
