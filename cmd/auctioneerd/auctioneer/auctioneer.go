@@ -527,15 +527,14 @@ func (a *Auctioneer) selectWinners(
 			break
 		}
 		b := heap.Pop(bh).(rankedBid)
+		if err := a.publishWin(ctx, auction.ID, b.ID, b.Bid.BidderID); err != nil {
+			log.Warn(err) // error is annotated in publishWin
+			continue
+		}
 		winners[b.ID] = auctioneer.WinningBid{
 			BidderID: b.Bid.BidderID,
 		}
-
-		if err := a.publishWin(ctx, auction.ID, b.ID, b.Bid.BidderID); err != nil {
-			log.Warn(err) // error is annotated in publishWin
-		} else {
-			i++
-		}
+		i++
 	}
 	if len(winners) < selectCount {
 		return winners, ErrInsufficientBids

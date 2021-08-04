@@ -185,6 +185,11 @@ func TestClient_RunAuction(t *testing.T) {
 	}
 }
 
+func TestClient_RunAuction_UnhappyPath(t *testing.T) {
+	// TODO: cover the case of insufficient bids, unresponsive bidbot, etc
+	t.SkipNow()
+}
+
 func newClient(t *testing.T) *service.Service {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
