@@ -7,7 +7,7 @@ import (
 
 	ec "github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/bidbot/lib/common"
-	"github.com/textileio/broker-core/cmd/chainapis/ethd/contractclient"
+	"github.com/textileio/broker-core/cmd/chainapis/ethshared/contractclient"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"

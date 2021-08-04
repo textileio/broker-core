@@ -133,6 +133,17 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
+      - name: Build and push poly
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/chainapis/polyd/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/poly:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
       - name: Build and push packer
         uses: docker/build-push-action@v2
         with:

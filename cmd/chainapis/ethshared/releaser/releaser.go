@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/textileio/broker-core/cmd/chainapis/ethd/contractclient"
+	"github.com/textileio/broker-core/cmd/chainapis/ethshared/contractclient"
 	logging "github.com/textileio/go-log/v2"
 )
 

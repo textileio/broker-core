@@ -9,17 +9,18 @@ import (
 	et "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/textileio/broker-core/cmd/chainapis/ethshared/contractclient"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
-	"github.com/textileio/broker-core/cmd/chainapis/ethshared/contractclient"
 	"github.com/textileio/broker-core/cmd/chainapis/ethshared/releaser"
 	"github.com/textileio/broker-core/cmd/chainapis/ethshared/service"
 	logging "github.com/textileio/go-log/v2"
 )
 
 var (
-	daemonName = "ethd"
+	daemonName = "polyd"
 	log        = logging.Logger(daemonName)
 	v          = viper.New()
 )
@@ -28,24 +29,24 @@ var flags = []common.Flag{
 	{Name: "rpc-addr", DefValue: "", Description: "gRPC listen address"},
 	{
 		Name:        "endpoint-url",
-		DefValue:    "https://rinkeby.infura.io/v3/92f6902cf1214401ae5b08a1e117eb91",
-		Description: "The ETH enpoint URL to use",
+		DefValue:    "https://polygon-mumbai.infura.io/v3/92f6902cf1214401ae5b08a1e117eb91",
+		Description: "The Polygon enpoint URL to use",
 	},
 	{Name: "endpoint-timeout", DefValue: time.Second * 5, Description: "Timeout for initial connection to endpoint-url"},
 	{
 		Name:        "contract-address",
 		DefValue:    "0x8845A98EF6580d2a109f8FcfC10cc1d6007059fc",
-		Description: "The ETH address of the governance contract",
+		Description: "The Polygon address of the provider contract",
 	},
 	{
 		Name:        "client-address",
-		DefValue:    "0x580b226185312098376Bf88eea1A86c3bD39DC96",
-		Description: "The ETH address of the user of this client",
+		DefValue:    "", // TODO: Set a default with our actual address.
+		Description: "The Polygon address of the user of this client",
 	},
 	{
 		Name:        "client-private-key",
 		DefValue:    "",
-		Description: "The ETH private key string of the client account",
+		Description: "The Polygon private key string of the client account",
 	},
 	{Name: "release-deposits-freq", DefValue: time.Minute * 10, Description: "How often to call releaseDeposits"},
 	{
@@ -58,13 +59,13 @@ var flags = []common.Flag{
 }
 
 func init() {
-	common.ConfigureCLI(v, "ETH", flags, rootCmd.Flags())
+	common.ConfigureCLI(v, "POLY", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
 	Use:   daemonName,
-	Short: "ethd is provides an api to the ethereum blockchain",
-	Long:  `ethd is provides an api to the ethereum blockchain`,
+	Short: "polyd is provides an api to the Polygon blockchain",
+	Long:  `polyd is provides an api to the Polygon blockchain`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		common.ExpandEnvVars(v, v.AllSettings())
 		err := common.ConfigureLogging(v, nil)
