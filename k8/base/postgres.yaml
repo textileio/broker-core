@@ -1,4 +1,13 @@
 ---
+# in a new k8s cluster or namespace, it needs to be paired with Google Cloud's
+# service account. See
+# https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#authenticating_to
+# for details, but the command is as follows:
+#
+# gcloud iam service-accounts add-iam-policy-binding \
+#   --role roles/iam.workloadIdentityUser \
+#   --member "serviceAccount:textile-310716.svc.id.goog[<k8s-namespace>/postgres-cloud-sql]" \
+#   storage-broker-cloud-sql@textile-310716.iam.gserviceaccount.com
 apiVersion: v1
 kind: ServiceAccount
 metadata:
