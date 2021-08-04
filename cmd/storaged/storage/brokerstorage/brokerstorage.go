@@ -395,6 +395,8 @@ func storageRequestStatusToStorageRequestStatus(status broker.StorageRequestStat
 		return storage.StatusDealMaking, nil
 	case broker.RequestSuccess:
 		return storage.StatusSuccess, nil
+	case broker.RequestError:
+		return storage.StatusError, nil
 	default:
 		return storage.StatusUnknown, fmt.Errorf("unknown status: %s", status)
 	}
