@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	cloud.google.com/go/pubsub v1.12.1
+	cloud.google.com/go/storage v1.16.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/filecoin-project/go-address v0.0.5

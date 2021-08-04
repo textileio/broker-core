@@ -256,6 +256,9 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 			return cid.Undef, nil, fmt.Errorf("get node getter for cid: %s", err)
 		}
 		pr, pw := io.Pipe()
+		defer func() {
+			_ = pr.Close()
+		}()
 		go func() {
 			defer func() {
 				_ = pw.Close()
