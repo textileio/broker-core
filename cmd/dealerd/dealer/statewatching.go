@@ -35,7 +35,7 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 		return fmt.Errorf("create ratelim: %s", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(d.daemonCtx, time.Second*15)
 	defer cancel()
 	chainHeight, err := d.filclient.GetChainHeight(ctx)
 	if err != nil {
@@ -47,15 +47,21 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 			break
 		}
 
+		ctx, cancel := context.WithTimeout(d.daemonCtx, time.Second*15)
+		defer cancel()
 		aud, ok, err := d.store.GetNextPending(ctx, store.StatusConfirmation)
 		if err != nil {
+			cancel()
 			return fmt.Errorf("get waiting-confirmation deals: %s", err)
 		}
 		if !ok {
+			cancel()
 			break
 		}
 
 		rl.Exec(func() error {
+			ctx, cancel := context.WithTimeout(d.daemonCtx, time.Second*30)
+			defer cancel()
 			if err := d.executeWaitingConfirmation(ctx, aud, chainHeight); err != nil {
 				log.Errorf("executing waiting-confirmation: %s", err)
 			}

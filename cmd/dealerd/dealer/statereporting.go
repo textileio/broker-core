@@ -27,8 +27,9 @@ func (d *Dealer) daemonDealReporter() {
 }
 
 func (d *Dealer) daemonDealReporterTick() error {
-	ctx := context.Background()
 	for {
+		ctx, cancel := context.WithTimeout(d.daemonCtx, time.Second*15)
+		defer cancel()
 		aud, ok, err := d.store.GetNextPending(ctx, store.StatusReportFinalized)
 		if err != nil {
 			return fmt.Errorf("get successful deals: %s", err)
@@ -44,6 +45,7 @@ func (d *Dealer) daemonDealReporterTick() error {
 			}
 			return nil
 		}
+		cancel()
 	}
 
 	return nil
