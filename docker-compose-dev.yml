@@ -57,12 +57,12 @@ services:
   polyd:
     build:
       context: .
-      dockerfile: ./cmd/chainapis/ethd/Dockerfile
+      dockerfile: ./cmd/chainapis/polyd/Dockerfile
     platform: linux/amd64
     environment:
-      - ETH_LOG_DEBUG=true
-      - ETH_LOG_JSON=false
-      - ETH_RPC_ADDR=:5000
+      - POLY_LOG_DEBUG=true
+      - POLY_LOG_JSON=false
+      - POLY_RPC_ADDR=:5000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
