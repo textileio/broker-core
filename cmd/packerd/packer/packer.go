@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
@@ -11,8 +12,10 @@ import (
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
+	"github.com/ipld/go-car"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/store"
+	"github.com/textileio/broker-core/ipfsutil"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/storeutil"
 	logger "github.com/textileio/go-log/v2"
@@ -31,9 +34,9 @@ type Packer struct {
 	exportMetricsFreq time.Duration
 	retryDelay        time.Duration
 
-	store *store.Store
-	ipfs  *httpapi.HttpApi
-	mb    mbroker.MsgBroker
+	store  *store.Store
+	pinner *httpapi.HttpApi
+	mb     mbroker.MsgBroker
 
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
@@ -54,7 +57,7 @@ type Packer struct {
 // New returns a new Packer.
 func New(
 	postgresURI string,
-	ipfsClient *httpapi.HttpApi,
+	pinnerClient *httpapi.HttpApi,
 	mb mbroker.MsgBroker,
 	opts ...Option) (*Packer, error) {
 	cfg := defaultConfig
@@ -80,9 +83,9 @@ func New(
 		exportMetricsFreq: cfg.exportMetricsFreq,
 		retryDelay:        cfg.retryDelay,
 
-		store: store,
-		ipfs:  ipfsClient,
-		mb:    mb,
+		store:  store,
+		pinner: pinnerClient,
+		mb:     mb,
 
 		daemonCtx:       ctx,
 		daemonCancelCtx: cls,
@@ -115,7 +118,7 @@ func (p *Packer) ReadyToBatch(
 		dataCid := rtbd.DataCid
 		log.Debugf("received ready to pack storage-request %s, data-cid %s", srID, dataCid)
 
-		node, err := p.ipfs.Dag().Get(ctx, dataCid)
+		node, err := p.pinner.Dag().Get(ctx, dataCid)
 		if err != nil {
 			return fmt.Errorf("get node for data-cid %s: %s", dataCid, err)
 		}
@@ -229,23 +232,46 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 		}
 	}
 	start := time.Now()
-	root, entries, err := aggregator.Aggregate(ctx, p.ipfs.Dag(), lst)
+	root, entries, err := aggregator.Aggregate(ctx, p.pinner.Dag(), lst)
 	if err != nil {
 		return cid.Undef, nil, fmt.Errorf("aggregating cids: %s", err)
 	}
 	log.Debugf("aggregation took %dms", time.Since(start).Milliseconds())
-	if err := p.ipfs.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
+	if err := p.pinner.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
 		return cid.Undef, nil, fmt.Errorf("pinning batch root: %s", err)
 	}
 
-	buf := bytes.NewBuffer(nil)
-	if err := aggregator.EncodeManifestJSON(entries, buf); err != nil {
+	manifestJSON := bytes.NewBuffer(nil)
+	if err := aggregator.EncodeManifestJSON(entries, manifestJSON); err != nil {
 		return cid.Undef, nil, fmt.Errorf("encoding manifest json: %s", err)
 	}
 
 	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
 
-	return root, buf.Bytes(), nil
+	var carURL string
+	if p.carUploader != nil {
+		log.Debugf("uploading generating and uploading CAR file to external bucket")
+		ng, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, root)
+		if !found {
+			return cid.Undef, nil, fmt.Errorf("get node getter for cid: %s", err)
+		}
+		pr, pw := io.Pipe()
+		go func() {
+			defer func() {
+				_ = pw.Close()
+			}()
+
+			if err := car.WriteCar(ctx, ng, []cid.Cid{root}, pw); err != nil {
+				pw.CloseWithError(fmt.Errorf("generating car %s: %v", root, err))
+			}
+		}()
+		carURL, err = p.carUploader(ctx, pr)
+		if err != nil {
+			return cid.Undef, nil, fmt.Errorf("uploading car file: %s", err)
+		}
+	}
+
+	return root, manifestJSON.Bytes(), carURL, nil
 }
 
 // calcBatchLimit does a worst-case estimation of the maximum size the batch DAG can have to fit
