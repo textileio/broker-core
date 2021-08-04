@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/textileio/broker-core/chainapi"
-	"github.com/textileio/broker-core/cmd/neard/client"
+	"github.com/textileio/broker-core/cmd/chainapis/client"
 	"google.golang.org/grpc"
 )
 

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/authd/service"
-	"github.com/textileio/broker-core/cmd/neard/client"
+	"github.com/textileio/broker-core/cmd/chainapis/client"
 	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 )
