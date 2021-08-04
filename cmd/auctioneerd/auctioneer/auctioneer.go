@@ -318,12 +318,11 @@ func (a *Auctioneer) processAuction(
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message: %v", err)
 	}
-	if _, err := a.auctions.Publish(ctx, msg, rpc.WithIgnoreResponse(true)); err != nil {
-		return nil, fmt.Errorf("publishing auction: %v", err)
-	}
-
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
+	if _, err := a.auctions.Publish(actx, msg, rpc.WithIgnoreResponse(true)); err != nil {
+		return nil, fmt.Errorf("publishing auction: %v", err)
+	}
 	<-actx.Done()
 	topic.SetMessageHandler(nil)
 
