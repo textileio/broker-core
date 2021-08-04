@@ -3,6 +3,7 @@ package main
 import (
 	_ "net/http/pprof"
 
+	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
@@ -21,7 +22,8 @@ func init() {
 	flags := []common.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+		{Name: "pinner-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "daemon-frequency", DefValue: "20s", Description: "Frequency of polling ready batches"},
 		{Name: "export-metrics-frequency", DefValue: "5m", Description: "Frequency of metrics exporting"},
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
@@ -55,9 +57,17 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
+		ipfsMultiaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
+		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
+		for i, maStr := range ipfsMultiaddrsStr {
+			ma, err := multiaddr.NewMultiaddr(maStr)
+			common.CheckErrf("parsing multiaddress %s: %s", err)
+			ipfsMultiaddrs[i] = ma
+		}
+
 		config := service.Config{
-			PostgresURI:      v.GetString("postgres-uri"),
-			IpfsAPIMultiaddr: v.GetString("ipfs-multiaddr"),
+			PostgresURI:     v.GetString("postgres-uri"),
+			PinnerMultiaddr: v.GetString("pinner-multiaddr"),
 
 			DaemonFrequency:        v.GetDuration("daemon-frequency"),
 			ExportMetricsFrequency: v.GetDuration("export-metrics-frequency"),

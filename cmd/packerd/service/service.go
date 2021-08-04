@@ -22,7 +22,7 @@ var log = golog.Logger("packer/service")
 type Config struct {
 	PostgresURI string
 
-	IpfsAPIMultiaddr string
+	PinnerMultiaddr string
 
 	DaemonFrequency        time.Duration
 	ExportMetricsFrequency time.Duration
@@ -47,11 +47,11 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 
 	fin := finalizer.NewFinalizer()
 
-	ma, err := multiaddr.NewMultiaddr(conf.IpfsAPIMultiaddr)
+	ma, err := multiaddr.NewMultiaddr(conf.PinnerMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
 	}
-	ipfsClient, err := httpapi.NewApi(ma)
+	pinnerClient, err := httpapi.NewApi(ma)
 	if err != nil {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
@@ -61,7 +61,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}
 
-	lib, err := packer.New(conf.PostgresURI, ipfsClient, mb, opts...)
+	lib, err := packer.New(conf.PostgresURI, pinnerClient, mb, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
@@ -101,7 +101,7 @@ func (s *Service) Close() error {
 }
 
 func validateConfig(conf Config) error {
-	if conf.IpfsAPIMultiaddr == "" {
+	if conf.PinnerMultiaddr == "" {
 		return fmt.Errorf("ipfs api multiaddr is empty")
 	}
 	if conf.PostgresURI == "" {
