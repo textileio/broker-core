@@ -388,7 +388,7 @@ func (fc *FilClient) connectToStorageProvider(ctx context.Context, maddr address
 
 	addrInfo, err := fc.api.NetFindPeer(ctx, *minfo.PeerId)
 	if err != nil {
-		log.Warnf("net-find-peer api call failed: %s", err)
+		log.Warnf("net-find-peer %s api call failed: %s", *minfo.PeerId, err)
 		return "", fmt.Errorf("find peer by id: %s", err)
 	}
 
