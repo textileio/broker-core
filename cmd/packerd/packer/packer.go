@@ -212,7 +212,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
 	start := time.Now()
-	batchCid, manifest, carURL, err := p.createDAGForBatch(ctx, srs)
+	batchCid, manifest, extCARURL, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
@@ -233,7 +233,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		srIDs,
 		origin,
 		manifest,
-		carURL); err != nil {
+		extCARURL); err != nil {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 

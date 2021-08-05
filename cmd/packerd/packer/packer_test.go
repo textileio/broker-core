@@ -3,6 +3,7 @@ package packer
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"strconv"
@@ -93,11 +94,54 @@ func TestPack(t *testing.T) {
 	require.NotEmpty(t, msg.Manifest)
 	dagManifest := getBatchManifestFromDAG(t, bcid, ipfs.Dag())
 	require.True(t, bytes.Equal(dagManifest, msg.Manifest))
+	require.Empty(t, msg.ExternalCarUrl)
 
 	// Check that the batch cid was pinned in ipfs.
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
 	require.NoError(t, err)
 	require.True(t, pinned)
+}
+
+func TestPackWithCARUploader(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	fu := &fakeCARUploader{dummyURL: "http://fake.dev/car/jorge.car"}
+	packer, ipfs, mb := createPackerWithUploader(t, fu)
+
+	numBatchedCids, err := packer.pack(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, numBatchedCids)
+
+	numFiles := 100
+	dataCids := addRandomData(t, ipfs, numFiles)
+
+	for i, dataCid := range dataCids {
+		err = packer.ReadyToBatch(
+			ctx,
+			mbroker.OperationID(strconv.Itoa(i)),
+			[]mbroker.ReadyToBatchData{
+				{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)),
+					DataCid: dataCid,
+					Origin:  "OR",
+				}},
+		)
+		require.NoError(t, err)
+	}
+
+	numBatchedCids, err = packer.pack(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
+
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+
+	require.Equal(t, fu.dummyURL, msg.ExternalCarUrl)
 }
 
 func TestPackMultiple(t *testing.T) {
@@ -233,7 +277,11 @@ func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 	require.True(t, pinned)
 }
 
-func createPacker(t *testing.T) (*Packer, *httpclient.HttpClient *fakemsgbroker.FakeMsgBroker) {
+func createPacker(t *testing.T) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
+	return createPackerWithUploader(t, nil)
+}
+
+func createPackerWithUploader(t *testing.T, u CARUploader) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
 	mb := fakemsgbroker.New()
 	postgresURL, err := tests.PostgresURL()
 	require.NoError(t, err)
@@ -246,10 +294,14 @@ func createPacker(t *testing.T) (*Packer, *httpclient.HttpClient *fakemsgbroker.
 	pinnerClient, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	packer, err := New(postgresURL, pinnerClient, []multiaddr.Multiaddr{ma}, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
+	opts := []Option{WithDaemonFrequency(time.Hour), WithBatchMinSize(100 * 100)}
+	if u != nil {
+		opts = append(opts, WithCARUploader(u))
+	}
+	packer, err := New(postgresURL, pinnerClient, []multiaddr.Multiaddr{ma}, mb, opts...)
 	require.NoError(t, err)
 
-	return packer, ipfs, mb
+	return packer, pinnerClient, mb
 }
 
 func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
@@ -307,4 +359,12 @@ func getBatchManifestFromDAG(t *testing.T, payloadCid cid.Cid, dagService ipld.D
 	require.NoError(t, err)
 
 	return dagManifest
+}
+
+type fakeCARUploader struct {
+	dummyURL string
+}
+
+func (fu *fakeCARUploader) Store(_ context.Context, _ string, _ io.Reader) (string, error) {
+	return fu.dummyURL, nil
 }

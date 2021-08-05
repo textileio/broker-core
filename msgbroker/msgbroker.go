@@ -65,7 +65,8 @@ type NewBatchCreatedListener interface {
 		cid.Cid,
 		[]broker.StorageRequestID,
 		string,
-		[]byte) error
+		[]byte,
+		*url.URL) error
 }
 
 // NewBatchPreparedListener is a handler for new-batch-prepared topic.
@@ -136,24 +137,24 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.Id == "" {
 				return errors.New("batch id is empty")
 			}
-			sdID := broker.BatchID(r.Id)
+			baID := broker.BatchID(r.Id)
 
-			batchCid, err := cid.Cast(r.BatchCid)
+			baCid, err := cid.Cast(r.BatchCid)
 			if err != nil {
 				return fmt.Errorf("decoding batch cid: %s", err)
 			}
-			if !batchCid.Defined() {
+			if !baCid.Defined() {
 				return errors.New("data cid is undefined")
 			}
 			if len(r.StorageRequestIds) == 0 {
 				return errors.New("storage requests list is empty")
 			}
-			brids := make([]broker.StorageRequestID, len(r.StorageRequestIds))
+			srIDs := make([]broker.StorageRequestID, len(r.StorageRequestIds))
 			for i, id := range r.StorageRequestIds {
 				if id == "" {
 					return errors.New("storage request id can't be empty")
 				}
-				brids[i] = broker.StorageRequestID(id)
+				srIDs[i] = broker.StorageRequestID(id)
 			}
 			if r.Origin == "" {
 				return errors.New("origin is empty")
@@ -162,7 +163,15 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("manifest is empty")
 			}
 
-			if err := l.OnNewBatchCreated(ctx, sdID, batchCid, brids, r.Origin, r.Manifest); err != nil {
+			var carURL *url.URL
+			if r.ExternalCarUrl != "" {
+				carURL, err = url.ParseRequestURI(r.ExternalCarUrl)
+				if err != nil {
+					return fmt.Errorf("parsing car url %s: %s", r.ExternalCarUrl, err)
+				}
+			}
+
+			if err := l.OnNewBatchCreated(ctx, baID, baCid, srIDs, r.Origin, r.Manifest, carURL); err != nil {
 				return fmt.Errorf("calling on-new-batch-created handler: %s", err)
 			}
 			return nil
@@ -558,7 +567,8 @@ func PublishMsgNewBatchCreated(
 	batchCid cid.Cid,
 	srIDs []broker.StorageRequestID,
 	origin string,
-	manifest []byte) error {
+	manifest []byte,
+	extCARURL string) error {
 	if batchID == "" {
 		return errors.New("batch-id is empty")
 	}
@@ -578,12 +588,19 @@ func PublishMsgNewBatchCreated(
 		}
 		srStrIDs[i] = string(srID)
 	}
+	if extCARURL != "" {
+		if _, err := url.ParseRequestURI(extCARURL); err != nil {
+			return fmt.Errorf("car url %s is invalid: %s", extCARURL, err)
+		}
+	}
+
 	msg := &pb.NewBatchCreated{
 		Id:                string(batchID),
 		BatchCid:          batchCid.Bytes(),
 		StorageRequestIds: srStrIDs,
 		Origin:            origin,
 		Manifest:          manifest,
+		ExternalCarUrl:    extCARURL,
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {

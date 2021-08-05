@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -69,7 +70,8 @@ func (s *Service) OnNewBatchCreated(
 	batchCid cid.Cid,
 	_ []broker.StorageRequestID,
 	_ string,
-	_ []byte) error {
+	_ []byte,
+	_ *url.URL) error {
 	err := s.piecer.ReadyToPrepare(ctx, batchID, batchCid)
 	if errors.Is(err, store.ErrBatchExists) {
 		log.Warnf("batch-id %s batch-cid %s already processed, acking", batchID, batchCid)
