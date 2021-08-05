@@ -14,7 +14,7 @@ packages:
 
 overrides:
   - column: "auctions.id"
-    go_type: "github.com/textileio/bidbot/lib/auction.AuctionID"
+    go_type: "github.com/textileio/bidbot/lib/auction.ID"
   - column: "auctions.batch_id"
     go_type: "github.com/textileio/broker-core/broker.BatchID"
   - column: "bids.bidder_id"
