@@ -50,8 +50,19 @@ const (
 	DealProposalAcceptedTopic = "deal-proposal-accepted"
 	// ReadyToAuctionTopic is the topic name for ready-to-auction messages.
 	ReadyToAuctionTopic = "ready-to-auction"
+
 	// AuctionClosedTopic is the topic name for auction-closed messages.
 	AuctionClosedTopic = "auction-closed"
+	// AuctionStartedTopic is the topic name for auction-started messages.
+	AuctionStartedTopic = "auction-started"
+	// AuctionBidReceivedTopic is the topic name for auction-bid-received messages.
+	AuctionBidReceivedTopic = "auction-bid-received"
+	// AuctionWinnerSelectedTopic is the topic name for auction-winner-selected messages.
+	AuctionWinnerSelectedTopic = "auction-winner-selected"
+	// AuctionWinnerAckedTopic is the topic name for auction-winner-acked messages.
+	AuctionWinnerAckedTopic = "auction-winner-acked"
+	// AuctionProposalCidDeliveredTopic is the topic name for auction-proposal-cid-delivered messages.
+	AuctionProposalCidDeliveredTopic = "auction-proposal-cid-delivered"
 )
 
 // OperationID is a unique identifier for messages.
@@ -482,7 +493,12 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}
 	}
 
-	if l, ok := s.(AuctionClosedListener); ok {
+	if l, ok := s.(AuctionEventsListener); ok {
+		countRegistered++
+		if err := registerAuctionEventsListener(mb, l); err != nil {
+			return fmt.Errorf("registering handler for auction events: %s", err)
+		}
+	} else if l, ok := s.(AuctionClosedListener); ok {
 		countRegistered++
 		err := mb.RegisterTopicHandler(AuctionClosedTopic, func(ctx context.Context, data []byte) error {
 			r := &pb.AuctionClosed{}
@@ -539,15 +555,7 @@ func PublishMsgReadyToBatch(ctx context.Context, mb MsgBroker, dataCids []ReadyT
 			Origin:           dataCids[i].Origin,
 		}
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("marshaling ready-to-batch message: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, ReadyToBatchTopic, data); err != nil {
-		return fmt.Errorf("publishing ready-to-batch message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, ReadyToBatchTopic, msg)
 }
 
 // PublishMsgNewBatchCreated publishes a message to the new-batch-created topic.
@@ -585,15 +593,7 @@ func PublishMsgNewBatchCreated(
 		Origin:            origin,
 		Manifest:          manifest,
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("marshaling new-batch-created message: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, NewBatchCreatedTopic, data); err != nil {
-		return fmt.Errorf("publishing new-batch-created message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, NewBatchCreatedTopic, msg)
 }
 
 // PublishMsgNewBatchPrepared publishes a message to the new-batch-prepared topic.
@@ -617,15 +617,7 @@ func PublishMsgNewBatchPrepared(
 		PieceCid:  pieceCid.Bytes(),
 		PieceSize: pieceSize,
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("signaling broker that batch is prepared: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, NewBatchPreparedTopic, data); err != nil {
-		return fmt.Errorf("publishing new-prepared-batch message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, NewBatchPreparedTopic, msg)
 }
 
 // PublishMsgReadyToCreateDeals publishes a message to the ready-to-create-deals topic.
@@ -665,15 +657,7 @@ func PublishMsgReadyToCreateDeals(
 			BidId:               string(t.BidID),
 		}
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("mashaling ready-to-create-deals message: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, ReadyToCreateDealsTopic, data); err != nil {
-		return fmt.Errorf("publishing ready-to-create-deals message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, ReadyToCreateDealsTopic, msg)
 }
 
 // PublishMsgFinalizedDeal publishes a message to the finalized-deal topic.
@@ -688,15 +672,7 @@ func PublishMsgFinalizedDeal(ctx context.Context, mb MsgBroker, fd broker.Finali
 		AuctionId:         string(fd.AuctionID),
 		BidId:             string(fd.BidID),
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("mashaling finalized-deal message: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, FinalizedDealTopic, data); err != nil {
-		return fmt.Errorf("publishing finalized-deal message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, FinalizedDealTopic, msg)
 }
 
 // PublishMsgDealProposalAccepted publishes a message to the deal-proposal-accepted topic.
@@ -715,15 +691,7 @@ func PublishMsgDealProposalAccepted(
 		AuctionId:         string(auctionID),
 		BidId:             string(bidID),
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("mashaling deal-proposal-accepted message: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, DealProposalAcceptedTopic, data); err != nil {
-		return fmt.Errorf("publishing deal-proposal-accepted message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, DealProposalAcceptedTopic, msg)
 }
 
 // PublishMsgReadyToAuction publishes a message to the ready-to-auction topic.
@@ -750,15 +718,7 @@ func PublishMsgReadyToAuction(
 		FilEpochDeadline:         filEpochDeadline,
 		Sources:                  sourcesToPb(sources),
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("mashaling ready-to-auction message: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, ReadyToAuctionTopic, data); err != nil {
-		return fmt.Errorf("publishing ready-to-auction message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, ReadyToAuctionTopic, msg)
 }
 
 // PublishMsgAuctionClosed publishes a message to the auction-closed topic.
@@ -767,15 +727,7 @@ func PublishMsgAuctionClosed(ctx context.Context, mb MsgBroker, au broker.Closed
 	if err != nil {
 		return fmt.Errorf("converting to pb: %s", err)
 	}
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("mashaling auction-closed message: %s", err)
-	}
-	if err := mb.PublishMsg(ctx, AuctionClosedTopic, data); err != nil {
-		return fmt.Errorf("publishing auction-closed message: %s", err)
-	}
-
-	return nil
+	return marshalAndPublish(ctx, mb, AuctionClosedTopic, msg)
 }
 
 func sourcesToPb(sources auction.Sources) *pb.Sources {
@@ -956,4 +908,15 @@ func auctionWinningBidsFromPb(
 		}
 	}
 	return wbids, nil
+}
+
+func marshalAndPublish(ctx context.Context, mb MsgBroker, topic TopicName, m proto.Message) error {
+	data, err := proto.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("mashaling %s message: %s", topic, err)
+	}
+	if err := mb.PublishMsg(ctx, topic, data); err != nil {
+		return fmt.Errorf("publishing %s message: %s", topic, err)
+	}
+	return nil
 }

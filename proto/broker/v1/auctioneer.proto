@@ -1,0 +1,57 @@
+syntax = "proto3";
+package broker.v1;
+option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
+
+import "google/protobuf/timestamp.proto";
+
+message AuctionSummary {
+    string id = 1;
+    string batch_id = 2;
+    repeated string excluded_storage_providers = 3;
+    string status = 4;
+    google.protobuf.Timestamp started_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+    uint64 duration = 7;
+}
+
+message Bid {
+	string miner_addr = 1;
+	bytes wallet_addr_sig = 2;
+	string bidder_id = 3;
+	int64 ask_price = 4; // attoFIL per GiB per epoch
+	int64 verified_ask_price = 5; // attoFIL per GiB per epoch
+	uint64 start_epoch = 6;
+	bool fast_retrieval = 7;
+	google.protobuf.Timestamp received_at = 8;
+}
+
+message AuctionStarted {
+    google.protobuf.Timestamp ts = 1;
+    AuctionSummary auction = 2;
+}
+
+message AuctionBidReceived {
+    google.protobuf.Timestamp ts = 1;
+    AuctionSummary auction = 2;
+    Bid bid = 3;
+}
+
+message AuctionWinnerSelected {
+    google.protobuf.Timestamp ts = 1;
+    AuctionSummary auction = 2;
+    Bid bid = 3;
+}
+
+message AuctionWinnerAcked {
+    google.protobuf.Timestamp ts = 1;
+    AuctionSummary auction = 2;
+    Bid bid = 3;
+}
+
+message AuctionProposalCidDelivered {
+    google.protobuf.Timestamp ts = 1;
+    string auction_id = 2;
+    string bid_id = 3;
+    bytes proposal_cid = 4;
+    string error_cause = 5;
+}
