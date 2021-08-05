@@ -12,6 +12,8 @@ type config struct {
 
 	sectorSize   int64
 	batchMinSize int64
+
+	carUploader CARUploader
 }
 
 var defaultConfig = config{
@@ -33,6 +35,14 @@ func WithDaemonFrequency(frequency time.Duration) Option {
 			return fmt.Errorf("daemon frequency should be positive")
 		}
 		c.daemonFreq = frequency
+		return nil
+	}
+}
+
+// WithCARUploader configures a file uploader for CAR files.
+func WithCARUploader(uploader CARUploader) Option {
+	return func(c *config) error {
+		c.carUploader = uploader
 		return nil
 	}
 }

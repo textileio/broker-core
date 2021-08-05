@@ -23,6 +23,7 @@ type Config struct {
 	PostgresURI string
 
 	PinnerMultiaddr string
+	IpfsMaddrs      []multiaddr.Multiaddr
 
 	DaemonFrequency        time.Duration
 	ExportMetricsFrequency time.Duration
@@ -61,7 +62,7 @@ func New(mb mbroker.MsgBroker, conf Config, packerOpts ...packer.Option) (*Servi
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}...)
 
-	lib, err := packer.New(conf.PostgresURI, pinnerClient, mb, opts...)
+	lib, err := packer.New(conf.PostgresURI, pinnerClient, conf.IpfsMaddrs, mb, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}

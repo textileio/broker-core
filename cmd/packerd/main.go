@@ -60,17 +60,18 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		ipfsMultiaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
-		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
-		for i, maStr := range ipfsMultiaddrsStr {
+		ipfsMaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
+		ipfsMaddrs := make([]multiaddr.Multiaddr, len(ipfsMaddrsStr))
+		for i, maStr := range ipfsMaddrsStr {
 			ma, err := multiaddr.NewMultiaddr(maStr)
 			common.CheckErrf("parsing multiaddress %s: %s", err)
-			ipfsMultiaddrs[i] = ma
+			ipfsMaddrs[i] = ma
 		}
 
 		config := service.Config{
 			PostgresURI:     v.GetString("postgres-uri"),
 			PinnerMultiaddr: v.GetString("pinner-multiaddr"),
+			IpfsMaddrs:      ipfsMaddrs,
 
 			DaemonFrequency:        v.GetDuration("daemon-frequency"),
 			ExportMetricsFrequency: v.GetDuration("export-metrics-frequency"),

@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/store"
 	"github.com/textileio/broker-core/ipfsutil"
@@ -34,9 +35,11 @@ type Packer struct {
 	exportMetricsFreq time.Duration
 	retryDelay        time.Duration
 
-	store  *store.Store
-	pinner *httpapi.HttpApi
-	mb     mbroker.MsgBroker
+	ipfsApis    []ipfsutil.IpfsAPI
+	store       *store.Store
+	pinner      *httpapi.HttpApi
+	mb          mbroker.MsgBroker
+	carUploader CARUploader
 
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
@@ -54,10 +57,16 @@ type Packer struct {
 	metricLastBatchDuration metric.Int64ValueObserver
 }
 
+// CARUploader provides blob storage for CAR files.
+type CARUploader interface {
+	Store(context.Context, string, io.Reader) (string, error)
+}
+
 // New returns a new Packer.
 func New(
 	postgresURI string,
 	pinnerClient *httpapi.HttpApi,
+	ipfsEndpoints []multiaddr.Multiaddr,
 	mb mbroker.MsgBroker,
 	opts ...Option) (*Packer, error) {
 	cfg := defaultConfig
@@ -77,11 +86,26 @@ func New(
 		return nil, fmt.Errorf("init store: %s", err)
 	}
 
+	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
+	for i, endpoint := range ipfsEndpoints {
+		api, err := httpapi.NewApi(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("creating ipfs api: %s", err)
+		}
+		coreapi, err := api.WithOptions(options.Api.Offline(true))
+		if err != nil {
+			return nil, fmt.Errorf("creating offline core api: %s", err)
+		}
+		ipfsApis[i] = ipfsutil.IpfsAPI{Address: endpoint, API: coreapi}
+	}
+
 	ctx, cls := context.WithCancel(context.Background())
 	p := &Packer{
 		daemonFreq:        cfg.daemonFreq,
 		exportMetricsFreq: cfg.exportMetricsFreq,
 		retryDelay:        cfg.retryDelay,
+		carUploader:       cfg.carUploader,
+		ipfsApis:          ipfsApis,
 
 		store:  store,
 		pinner: pinnerClient,
@@ -188,7 +212,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
 	start := time.Now()
-	batchCid, manifest, err := p.createDAGForBatch(ctx, srs)
+	batchCid, manifest, carURL, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
@@ -201,7 +225,15 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	for i, sr := range srs {
 		srIDs[i] = sr.StorageRequestID
 	}
-	if err := mbroker.PublishMsgNewBatchCreated(ctx, p.mb, batchID, batchCid, srIDs, origin, manifest); err != nil {
+	if err := mbroker.PublishMsgNewBatchCreated(
+		ctx,
+		p.mb,
+		batchID,
+		batchCid,
+		srIDs,
+		origin,
+		manifest,
+		carURL); err != nil {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
@@ -219,12 +251,12 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	return len(srIDs), nil
 }
 
-func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageRequest) (cid.Cid, []byte, error) {
+func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageRequest) (cid.Cid, []byte, string, error) {
 	lst := make([]aggregator.AggregateDagEntry, len(srs))
 	for i, sr := range srs {
 		dataCid, err := cid.Decode(sr.DataCid)
 		if err != nil {
-			return cid.Undef, nil, fmt.Errorf("decoding cid %s: %s", dataCid, err)
+			return cid.Undef, nil, "", fmt.Errorf("decoding cid %s: %s", dataCid, err)
 		}
 		lst[i] = aggregator.AggregateDagEntry{
 			RootCid:                   dataCid,
@@ -234,16 +266,16 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 	start := time.Now()
 	root, entries, err := aggregator.Aggregate(ctx, p.pinner.Dag(), lst)
 	if err != nil {
-		return cid.Undef, nil, fmt.Errorf("aggregating cids: %s", err)
+		return cid.Undef, nil, "", fmt.Errorf("aggregating cids: %s", err)
 	}
 	log.Debugf("aggregation took %dms", time.Since(start).Milliseconds())
 	if err := p.pinner.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
-		return cid.Undef, nil, fmt.Errorf("pinning batch root: %s", err)
+		return cid.Undef, nil, "", fmt.Errorf("pinning batch root: %s", err)
 	}
 
 	manifestJSON := bytes.NewBuffer(nil)
 	if err := aggregator.EncodeManifestJSON(entries, manifestJSON); err != nil {
-		return cid.Undef, nil, fmt.Errorf("encoding manifest json: %s", err)
+		return cid.Undef, nil, "", fmt.Errorf("encoding manifest json: %s", err)
 	}
 
 	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
@@ -253,7 +285,7 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 		log.Debugf("uploading generating and uploading CAR file to external bucket")
 		ng, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, root)
 		if !found {
-			return cid.Undef, nil, fmt.Errorf("get node getter for cid: %s", err)
+			return cid.Undef, nil, "", fmt.Errorf("get node getter for cid: %s", err)
 		}
 		pr, pw := io.Pipe()
 		defer func() {
@@ -268,9 +300,9 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 				pw.CloseWithError(fmt.Errorf("generating car %s: %v", root, err))
 			}
 		}()
-		carURL, err = p.carUploader(ctx, pr)
+		carURL, err = p.carUploader.Store(ctx, root.String(), pr)
 		if err != nil {
-			return cid.Undef, nil, fmt.Errorf("uploading car file: %s", err)
+			return cid.Undef, nil, "", fmt.Errorf("uploading car file: %s", err)
 		}
 	}
 
