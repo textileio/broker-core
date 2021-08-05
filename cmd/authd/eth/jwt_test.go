@@ -140,14 +140,12 @@ func generateToken(valid bool) string {
 		}
 		token, _ := jwt.NewWithClaims(SigningMethod, claims).SignedString(sk)
 		return token
-	} else {
-		sk, _ := crypto.GenerateKey()
-		claims := &jwt.StandardClaims{
-			Id:      "foo",
-			Subject: "bar",
-		}
-		token, _ := jwt.NewWithClaims(SigningMethod, claims).SignedString(sk)
-		return token
-
 	}
+	sk, _ := crypto.GenerateKey()
+	claims := &jwt.StandardClaims{
+		Id:      "foo",
+		Subject: "bar",
+	}
+	token, _ := jwt.NewWithClaims(SigningMethod, claims).SignedString(sk)
+	return token
 }
