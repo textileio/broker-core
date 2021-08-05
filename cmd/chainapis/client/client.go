@@ -22,10 +22,11 @@ func New(cc *grpc.ClientConn) chainapi.ChainAPI {
 }
 
 // HasDeposit checks if an account has deposited funds for a broker.
-func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
+func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string, chainID string) (bool, error) {
 	req := &pb.HasDepositRequest{
 		BrokerId:  brokerID,
 		AccountId: accountID,
+		ChainId:   chainID,
 	}
 	res, err := c.c.HasDeposit(ctx, req)
 	if err != nil {

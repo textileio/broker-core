@@ -46,6 +46,8 @@ type Config struct {
 // Deps comprises the service dependencies.
 type Deps struct {
 	NearAPI chainapi.ChainAPI
+	EthAPI  chainapi.ChainAPI
+	PolyAPI chainapi.ChainAPI
 }
 
 var _ pb.AuthAPIServiceServer = (*Service)(nil)
@@ -92,9 +94,11 @@ type detectedInput struct {
 
 // ValidatedToken represents token data that has been validated.
 type ValidatedToken struct {
-	Sub string
-	Iss string
-	Aud string
+	Sub       string
+	Iss       string
+	Aud       string
+	Origin    string
+	Suborigin string
 }
 
 // AuthClaims defines standard claims for authentication.
@@ -119,6 +123,8 @@ func detectInput(token string) *detectedInput {
 
 // validateToken validates the JWT token.
 func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
+	origin := ""
+	suborigin := ""
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
 		header, ok := token.Header["jwk"]
 		if ok {
@@ -126,7 +132,13 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 				if val, ok := v.(string); !ok {
 					continue
 				} else if k == "x" {
-					dx, _ := base64.URLEncoding.DecodeString(val)
+					dx, err := base64.URLEncoding.DecodeString(val)
+					if err != nil {
+						return nil, fmt.Errorf("decoding x header value: %v", err)
+					}
+					// TODO: This will be handled by the kid header handling below once we update the near client.
+					origin = "near"
+					suborigin = "testnet"
 					return crypto.UnmarshalEd25519PublicKey(dx)
 				}
 			}
@@ -137,6 +149,12 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 			if val, ok = header.(string); !ok {
 				return nil, errors.New("invalid key info")
 			}
+			parts := strings.Split(val, ":")
+			if len(parts) != 3 {
+				return nil, errors.New("didn't find 3 parts when parsing header")
+			}
+			origin = parts[0]
+			suborigin = parts[1]
 			addrString := strings.Split(val, ":")[2]
 			addrBytes := eth.FromHex(addrString)
 			return eth.BytesToAddress(addrBytes), nil
@@ -159,9 +177,11 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	}
 
 	validatedToken := &ValidatedToken{
-		Sub: claims.Subject,
-		Iss: claims.Issuer,
-		Aud: claims.Audience,
+		Sub:       claims.Subject,
+		Iss:       claims.Issuer,
+		Aud:       claims.Audience,
+		Origin:    origin,
+		Suborigin: suborigin,
 	}
 	return validatedToken, err
 }
@@ -197,11 +217,12 @@ func validateDepositedFunds(
 	ctx context.Context,
 	brokerID string,
 	accountID string,
-	s chainapi.ChainAPI,
+	chainID string,
+	chainAPI chainapi.ChainAPI,
 ) (bool, error) {
-	hasDeposit, err := s.HasDeposit(ctx, brokerID, accountID)
+	hasDeposit, err := chainAPI.HasDeposit(ctx, brokerID, accountID, chainID)
 	if err != nil {
-		return false, fmt.Errorf("locked funds: %v", err)
+		return false, fmt.Errorf("checking for deposited funds: %v", err)
 	}
 	if !hasDeposit {
 		return false, errors.New("account doesn't have deposited funds")
@@ -240,15 +261,25 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 			return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", err)
 		}
 		// TODO: On NEAR, check that the account is indeed associated with the given public key
-		// Check for locked funds
-		fundsOk, err := validateDepositedFunds(ctx, token.Aud, token.Iss, s.Deps.NearAPI)
+		var chainAPI chainapi.ChainAPI
+		switch token.Origin {
+		case "near":
+			chainAPI = s.Deps.NearAPI
+		case "eth":
+			chainAPI = s.Deps.EthAPI
+		case "polygon":
+			chainAPI = s.Deps.PolyAPI
+		default:
+			return nil, fmt.Errorf("unknown origin %s", token.Origin)
+		}
+		fundsOk, err := validateDepositedFunds(ctx, token.Aud, token.Iss, token.Suborigin, chainAPI)
 		if !fundsOk || err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
 		}
 		log.Debugf("successful chain authentication: %s", token.Iss)
 		return &pb.AuthResponse{
 			Identity: token.Sub,
-			Origin:   "NEAR",
+			Origin:   fmt.Sprintf("%s-%s", token.Origin, token.Suborigin),
 		}, nil
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown token type")

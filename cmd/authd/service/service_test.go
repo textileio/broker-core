@@ -116,14 +116,16 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	// Funds ok
 	sub := "sub"
 	aud := "aud"
+	chainID := "id"
 	mockChain := &mocks.ChainAPI{}
 	mockChain.On(
 		"HasDeposit",
 		mock.Anything, // this is the ctx, can't use AnythingOfType because context.Context is an interface.
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
 	).Return(true, nil)
-	ok, err := validateDepositedFunds(context.Background(), aud, sub, mockChain)
+	ok, err := validateDepositedFunds(context.Background(), aud, sub, chainID, mockChain)
 	require.NoError(t, err)
 	require.True(t, ok)
 	mockChain.AssertExpectations(t)
@@ -135,8 +137,9 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 		mock.Anything, // this is the ctx, can't use AnythingOfType because context.Context is an interface.
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
 	).Return(false, nil)
-	ok, err = validateDepositedFunds(context.Background(), aud, sub, mockChain)
+	ok, err = validateDepositedFunds(context.Background(), aud, sub, chainID, mockChain)
 	require.Error(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
@@ -166,6 +169,7 @@ func newChainAPIClientMock() *mocks.ChainAPI {
 	mockChain.On(
 		"HasDeposit",
 		mock.Anything, // this is the ctx, can't use AnythingOfType because context.Context is an interface.
+		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 	).Return(true, nil)
