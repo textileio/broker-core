@@ -2,12 +2,17 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"net"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
+	jwt "github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
+	ethjwt "github.com/textileio/broker-core/cmd/authd/eth"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	mocks "github.com/textileio/broker-core/mocks/chainapi"
 	"github.com/textileio/broker-core/tests"
@@ -18,111 +23,74 @@ import (
 
 const bufSize = 1024 * 1024
 
+var privateKey *ecdsa.PrivateKey
+var token string
+var kid string
+
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
 		"auth/service": golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
-}
+	var err error
+	privateKey, err = crypto.GenerateKey()
+	if err != nil {
+		panic(err)
+	}
 
-// TOKEN is the JWT token for testing.
-var TOKEN = "eyJhbGciOiJFZERTQVNoYTI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1" +
-	"AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IjZURnVRRzFGTHZ4UGxPdGFVbllFQlRlU3ha" +
-	"a09GZ3VSSGZwNlN1Q1ZDbG89IiwidXNlIjoic2lnIn19.eyJhdWQiOiJhYXJvbmJyb2" +
-	"tlciIsImlzcyI6ImNhcnNvbmZhcm1lci50ZXN0bmV0Iiwic3ViIjoiZGlkOmtleTp6N" +
-	"k1rdjlZa25rMzZlUzhwY1pkZjgyWXhIcnBpWmJZZDFFYlNld0R2WEM3amhRRDciLCJu" +
-	"YmYiOjE2MjAwODY2NDMsImlhdCI6MTYyMDA4NjY0MywiZXhwIjozNjAwMDAwMDE2MjA" +
-	"wODY2NjB9.XcGW8z7HEVy6gZl2ZP0yGPyetlcXal8d86_YKvIor8vFQWYS9zSu4vxYm" +
-	"KutmsVkVu2gsopkdF3hsw0_qjCLDQ=="
+	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
+	kid = "eth:1337:" + addr.Hex()
 
-// The unecoded TOKEN:
-//
-// Header:
-// {
-//     "alg": "EdDSASha256",
-//     "typ": "JWT",
-//     "jwk": {
-//         "kty": "OKP",
-//         "crv": "Ed25519",
-//         "x": "6TFuQG1FLvxPlOtaUnYEBTeSxZkOFguRHfp6SuCVClo=",
-//         "use": "sig"
-//     }
-// }
-// Payload:
-// {
-//     "aud": "aaronbroker",
-//     "iss": "carsonfarmer.testnet",
-//     "sub": "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7",
-//     "nbf": 1620086643,
-//     "iat": 1620086643,
-//     "exp": 360000001620086660
-// }
-
-func TestService_validateKeyDID(t *testing.T) {
-	// Valid sub, valid x
-	sub := "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4"
-	x := "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM="
-	ok, err := validateKeyDID(sub, x)
-	require.NoError(t, err)
-	require.True(t, ok)
-
-	// Valid sub, invalid x
-	sub = "did:key:z6MkmabiunAzWE4ZqoX4AmPxgWEvn9Q4vrTM8bjX43hBiCX4"
-	x = "INVALID_X"
-	ok, err = validateKeyDID(sub, x)
-	require.Error(t, err)
-	require.False(t, ok)
-
-	// Invalid sub, valid x
-	sub = "INVALID_SUB"
-	x = "aeMfwYNaIFeslhQdotW8QBuc3Mqy-hAVpOu4cNewGWM="
-	ok, err = validateKeyDID(sub, x)
-	require.Error(t, err)
-	require.False(t, ok)
-
-	// Invalid sub, Invalid x
-	sub = "INVALID_SUB"
-	x = "INVALID_X"
-	ok, err = validateKeyDID(sub, x)
-	require.Error(t, err)
-	require.False(t, ok)
+	now := time.Now()
+	claims := &jwt.StandardClaims{
+		Issuer:    kid,
+		Subject:   kid,
+		Audience:  "provider",
+		NotBefore: now.Unix(),
+		IssuedAt:  now.Unix(),
+		ExpiresAt: now.Add(time.Hour).Unix(),
+	}
+	t := &jwt.Token{
+		Header: map[string]interface{}{
+			"typ": "JWT",
+			"alg": ethjwt.SigningMethod.Alg(),
+			"kid": kid,
+		},
+		Claims: claims,
+		Method: ethjwt.SigningMethod,
+	}
+	token, err = t.SignedString(privateKey)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func TestService_validateToken(t *testing.T) {
 	// Valid token
-	token := TOKEN
 	output, err := validateToken(token)
 	require.NoError(t, err)
-	require.Equal(t, output.Iss, "carsonfarmer.testnet")
-	require.Equal(t, output.Sub, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
-	require.Equal(t, output.X, "6TFuQG1FLvxPlOtaUnYEBTeSxZkOFguRHfp6SuCVClo=")
-	require.Equal(t, output.Aud, "aaronbroker")
+	require.Equal(t, output.Iss, kid)
+	require.Equal(t, output.Sub, kid)
+	require.Equal(t, output.Aud, "provider")
 
 	// Invalid token
-	token = "INVALID_TOKEN"
-	output, err = validateToken(token)
+	invalidToken := "INVALID_TOKEN"
+	output, err = validateToken(invalidToken)
 	require.Error(t, err)
 	require.Nil(t, output)
 }
 func TestService_detectInput(t *testing.T) {
 	// Valid token
-	token := TOKEN
 	input := detectInput(token)
 	require.Equal(t, token, input.token)
 	require.Equal(t, chainToken, input.tokenType)
 
 	// Raw token
-	token = "RAW_TOKEN"
-	input = detectInput(token)
-	require.Equal(t, token, input.token)
+	invalidToken := "RAW_TOKEN"
+	input = detectInput(invalidToken)
+	require.Equal(t, invalidToken, input.token)
 	require.Equal(t, rawToken, input.tokenType)
-
-	// Valid token with no height
-	token = TOKEN
-	input = detectInput(token)
-	require.Equal(t, token, input.token)
-	require.Equal(t, chainToken, input.tokenType)
 }
 
 func TestService_RawAuthToken(t *testing.T) {
@@ -177,10 +145,10 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 func TestClient_NEARToken(t *testing.T) {
 	s := newService(t)
 	c := newClient(t, s.Config.Listener.(*bufconn.Listener))
-	req := &pb.AuthRequest{Token: TOKEN}
+	req := &pb.AuthRequest{Token: token}
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, res.Identity, "did:key:z6Mkv9Yknk36eS8pcZdf82YxHrpiZbYd1EbSewDvXC7jhQD7")
+	require.Equal(t, res.Identity, kid)
 	require.Equal(t, res.Origin, "NEAR")
 }
 
