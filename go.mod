@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	cloud.google.com/go/pubsub v1.12.1
+	github.com/99designs/gqlgen v0.13.0 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/filecoin-project/go-address v0.0.5
@@ -55,6 +56,8 @@ require (
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
 	github.com/textileio/jwt-go-eddsa v0.2.1
+	github.com/vektah/gqlparser v1.2.0 // indirect
+	github.com/vektah/gqlparser/v2 v2.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/metric v0.21.0
