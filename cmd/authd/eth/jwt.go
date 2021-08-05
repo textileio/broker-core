@@ -11,8 +11,7 @@ import (
 )
 
 // SigningMethodEth implements the ETH signing method.
-// Expects *crypto.Ed25519PrivateKey for signing and *crypto.Ed25519PublicKey
-// for validation.
+// Expects *ecdsa.PrivateKey for signing and common.Address for validation.
 type SigningMethodEth struct {
 	Name string
 }
@@ -20,15 +19,14 @@ type SigningMethodEth struct {
 // SigningMethod is a specific instance for Ed25519.
 var SigningMethod *SigningMethodEth
 
-// https://github.com/ethereum/go-ethereum/blob/55599ee95d4151a2502465e0afc7c47bd1acba77/internal/ethapi/api.go#L404
-// signHash is a helper function that calculates a hash for the given message that can be
+// PrefixedHash is a helper function that calculates a hash for the given message that can be
 // safely used to calculate a signature from.
 //
 // The hash is calculated as
 //   keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
 //
 // This gives context to the signed message and prevents signing of transactions.
-func signHash(data []byte) []byte {
+func PrefixedHash(data []byte) []byte {
 	msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
 	return crypto.Keccak256([]byte(msg))
 }
@@ -67,7 +65,7 @@ func (m *SigningMethodEth) Verify(signingString, signature string, address inter
 	}
 
 	msg := []byte(signingString)
-	sigPublicKeyECDSA, err := crypto.SigToPub(signHash(msg), sig)
+	sigPublicKeyECDSA, err := crypto.SigToPub(PrefixedHash(msg), sig)
 	if err != nil {
 		return err
 	}
@@ -92,7 +90,7 @@ func (m *SigningMethodEth) Sign(signingString string, privateKey interface{}) (s
 		return "", jwt.ErrInvalidKey
 	}
 
-	sigBytes, err := crypto.Sign(signHash([]byte(signingString)), privateKeyPointer)
+	sigBytes, err := crypto.Sign(PrefixedHash([]byte(signingString)), privateKeyPointer)
 
 	if err != nil {
 		return "", err
