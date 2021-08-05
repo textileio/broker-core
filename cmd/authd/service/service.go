@@ -119,7 +119,6 @@ func detectInput(token string) *detectedInput {
 
 // validateToken validates the JWT token.
 func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
-
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
 		header, ok := token.Header["jwk"]
 		if ok {
@@ -134,13 +133,13 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		}
 		header, ok = token.Header["kid"]
 		if ok {
-			if val, ok := header.(string); !ok {
+			var val string
+			if val, ok = header.(string); !ok {
 				return nil, errors.New("invalid key info")
-			} else {
-				addrString := strings.Split(val, ":")[2]
-				addrBytes := eth.FromHex(addrString)
-				return eth.BytesToAddress(addrBytes), nil
 			}
+			addrString := strings.Split(val, ":")[2]
+			addrBytes := eth.FromHex(addrString)
+			return eth.BytesToAddress(addrBytes), nil
 		}
 		return nil, errors.New("invalid key info")
 	})
