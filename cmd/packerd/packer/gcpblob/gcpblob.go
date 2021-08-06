@@ -45,6 +45,7 @@ func New(projectID string) (*GCPBlob, error) {
 func (b *GCPBlob) Store(ctx context.Context, name string, r io.Reader) (string, error) {
 	_, err := b.bucket.Objects(ctx, &storage.Query{Prefix: name}).Next()
 	if err != iterator.Done {
+		log.Debugf("deleting existing %s", name)
 		err := b.bucket.Object(name).Delete(ctx)
 		if err != nil {
 			log.Warnf("deleting file %s", err)

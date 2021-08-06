@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
-	"github.com/ipfs/interface-go-ipfs-core/path"
+	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/ipld/go-car"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/broker"
@@ -206,6 +206,8 @@ func (p *Packer) daemon() {
 }
 
 func (p *Packer) pack(ctx context.Context) (int, error) {
+	ctx, cls := context.WithTimeout(ctx, time.Hour)
+	defer cls()
 	batchID, batchSize, srs, origin, ok, err := p.store.GetNextReadyBatch(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("get next ready batch: %s", err)
@@ -273,15 +275,15 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 		return cid.Undef, nil, "", fmt.Errorf("aggregating cids: %s", err)
 	}
 	log.Debugf("aggregation took %dms", time.Since(start).Milliseconds())
-	if err := p.pinner.Pin().Add(ctx, path.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
-		return cid.Undef, nil, "", fmt.Errorf("pinning batch root: %s", err)
+
+	if err := p.pinBatchDAG(ctx, root); err != nil {
+		return cid.Undef, nil, "", fmt.Errorf("pinning batch dag: %s", err)
 	}
 
 	manifestJSON := bytes.NewBuffer(nil)
 	if err := aggregator.EncodeManifestJSON(entries, manifestJSON); err != nil {
 		return cid.Undef, nil, "", fmt.Errorf("encoding manifest json: %s", err)
 	}
-
 	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
 
 	carURL, err := p.getCARURL(ctx, root)
@@ -292,8 +294,29 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 	return root, manifestJSON.Bytes(), carURL, nil
 }
 
+func (p *Packer) pinBatchDAG(ctx context.Context, root cid.Cid) error {
+	log.Debugf("pinning %s", root)
+	if err := p.pinner.Pin().Add(ctx, ipfspath.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
+		return fmt.Errorf("pinning batch root: %s", err)
+	}
+	for {
+		log.Debugf("confirming dag %s is pinned", root)
+		ok, err := ipfsutil.IsPinned(ctx, p.ipfsApis, root)
+		if err != nil || !ok {
+			log.Debugf("dag %s isn't confirmed to be pinned (err: %s, ok: %v)", root, err, ok)
+			time.Sleep(time.Second * 10)
+			continue
+		}
+		break
+	}
+	log.Debugf("dag %s pinning confirmed", root)
+
+	return nil
+}
+
 func (p *Packer) getCARURL(ctx context.Context, root cid.Cid) (string, error) {
 	if p.carUploader != nil {
+		start := time.Now()
 		log.Debugf("uploading generating and uploading CAR file to external bucket")
 		ng, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, root)
 		if !found {
@@ -318,7 +341,7 @@ func (p *Packer) getCARURL(ctx context.Context, root cid.Cid) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("uploading car file: %s", err)
 		}
-		log.Debugf("car generated in external url %s", carURL)
+		log.Debugf("car generated in external url %s in %.2f seconds", carURL, time.Since(start).Seconds())
 
 		return carURL, nil
 	}
