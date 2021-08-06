@@ -24,7 +24,7 @@ func init() {
 	flags := []common.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-		{Name: "pinner-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+		{Name: "pinner-multiaddr", DefValue: "", Description: "IPFS cluster pinner multiaddr"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "daemon-frequency", DefValue: "20s", Description: "Frequency of polling ready batches"},
 		{Name: "export-metrics-frequency", DefValue: "5m", Description: "Frequency of metrics exporting"},
