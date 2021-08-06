@@ -44,18 +44,22 @@ func New(projectID string) (*GCPBlob, error) {
 // Store stores a file and returns a public URL.
 func (b *GCPBlob) Store(ctx context.Context, name string, r io.Reader) (string, error) {
 	_, err := b.bucket.Objects(ctx, &storage.Query{Prefix: name}).Next()
-	if err == iterator.Done {
-		log.Debugf("creating %s in the bucket", name)
-		w := b.client.Bucket("textile-cars").Object(name).NewWriter(ctx)
-		if _, err := io.Copy(w, r); err != nil {
-			return "", fmt.Errorf("uploading data: %s", err)
+	if err != iterator.Done {
+		err := b.bucket.Object(name).Delete(ctx)
+		if err != nil {
+			log.Warnf("deleting file %s", err)
 		}
-		if err := w.Close(); err != nil {
-			return "", fmt.Errorf("closing uploader: %s", err)
-		}
-	} else {
-		log.Warnf("object with name %s already exist in the bucket", name)
 	}
+
+	log.Debugf("creating %s in the bucket", name)
+	w := b.bucket.Object(name).NewWriter(ctx)
+	if _, err := io.Copy(w, r); err != nil {
+		return "", fmt.Errorf("uploading data: %s", err)
+	}
+	if err := w.Close(); err != nil {
+		return "", fmt.Errorf("closing uploader: %s", err)
+	}
+
 	return "http://storage.googleapis.com/textile-cars/" + name, nil
 }
 

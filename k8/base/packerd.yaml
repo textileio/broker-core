@@ -73,6 +73,12 @@ spec:
                 secretKeyRef:
                   name: broker-secret
                   key: packer-db-password
+            - name: PACKER_GOBJECT_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+
             - name: PACKER_GPUBSUB_PROJECT_ID
               valueFrom:
                 secretKeyRef:

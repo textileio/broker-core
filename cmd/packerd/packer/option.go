@@ -2,6 +2,7 @@ package packer
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -13,7 +14,8 @@ type config struct {
 	sectorSize   int64
 	batchMinSize int64
 
-	carUploader CARUploader
+	carUploader  CARUploader
+	carExportURL *url.URL
 }
 
 var defaultConfig = config{
@@ -59,6 +61,18 @@ func WithSectorSize(sectorSize int64) Option {
 	}
 }
 
+// WithCARExportURL configures the frequency of exporting the pin count metric.
+func WithCARExportURL(rawURL string) Option {
+	return func(c *config) error {
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return fmt.Errorf("parsing url: %s", err)
+		}
+		c.carExportURL = u
+		return nil
+	}
+}
+
 // WithBatchMinSize configures the minimum batch size that can be considered
 // for preparation.
 func WithBatchMinSize(minSize int64) Option {
@@ -92,4 +106,17 @@ func WithRetryDelay(delay time.Duration) Option {
 		c.retryDelay = delay
 		return nil
 	}
+}
+
+func (c *config) validate() error {
+	if c.batchMinSize <= 0 {
+		return fmt.Errorf("batch min size should be positive")
+	}
+	if c.sectorSize <= 0 {
+		return fmt.Errorf("sector size should be positive")
+	}
+	if c.carUploader == nil && c.carExportURL == nil {
+		return fmt.Errorf("at least one car export configuration must be set")
+	}
+	return nil
 }

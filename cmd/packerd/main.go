@@ -35,6 +35,7 @@ func init() {
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+		{Name: "car-export-url", DefValue: "", Description: "URL that generates CAR files for stored cids"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -78,6 +79,7 @@ var rootCmd = &cobra.Command{
 
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     int64(v.GetSizeInBytes("batch-min-size")),
+			CARExportURL:     v.GetString("car-export-url"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")

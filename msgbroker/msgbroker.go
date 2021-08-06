@@ -162,13 +162,12 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if len(r.Manifest) == 0 {
 				return errors.New("manifest is empty")
 			}
-
-			var carURL *url.URL
-			if r.ExternalCarUrl != "" {
-				carURL, err = url.ParseRequestURI(r.ExternalCarUrl)
-				if err != nil {
-					return fmt.Errorf("parsing car url %s: %s", r.ExternalCarUrl, err)
-				}
+			if r.CarUrl == "" {
+				return errors.New("car url is empty")
+			}
+			carURL, err := url.ParseRequestURI(r.CarUrl)
+			if err != nil {
+				return fmt.Errorf("parsing car url %s: %s", r.CarUrl, err)
 			}
 
 			if err := l.OnNewBatchCreated(ctx, baID, baCid, srIDs, r.Origin, r.Manifest, carURL); err != nil {
@@ -568,7 +567,7 @@ func PublishMsgNewBatchCreated(
 	srIDs []broker.StorageRequestID,
 	origin string,
 	manifest []byte,
-	extCARURL string) error {
+	carURL string) error {
 	if batchID == "" {
 		return errors.New("batch-id is empty")
 	}
@@ -588,10 +587,11 @@ func PublishMsgNewBatchCreated(
 		}
 		srStrIDs[i] = string(srID)
 	}
-	if extCARURL != "" {
-		if _, err := url.ParseRequestURI(extCARURL); err != nil {
-			return fmt.Errorf("car url %s is invalid: %s", extCARURL, err)
-		}
+	if carURL == "" {
+		return errors.New("car url is empty")
+	}
+	if _, err := url.ParseRequestURI(carURL); err != nil {
+		return fmt.Errorf("car url %s is invalid: %s", carURL, err)
 	}
 
 	msg := &pb.NewBatchCreated{
@@ -600,7 +600,7 @@ func PublishMsgNewBatchCreated(
 		StorageRequestIds: srStrIDs,
 		Origin:            origin,
 		Manifest:          manifest,
-		ExternalCarUrl:    extCARURL,
+		CarUrl:            carURL,
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {

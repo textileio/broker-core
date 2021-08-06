@@ -129,7 +129,6 @@ services:
       - BROKER_DEAL_REPLICATION=1
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
-      - BROKER_CAR_EXPORT_URL=http://storaged:8888/car/
       - BROKER_MSGBROKER_TOPIC_PREFIX=test
       - PUBSUB_EMULATOR_HOST=gpubsub:8085
       - DB_HOST=postgres:5432
@@ -162,6 +161,7 @@ services:
       - PACKER_TARGET_SECTOR_SIZE=20000
       - PACKER_DAEMON_FREQUENCY=3s
       - PACKER_MSGBROKER_TOPIC_PREFIX=test
+      - PACKER_CAR_EXPORT_URL=http://storaged:8888/car/
       - DB_HOST=postgres:5432
       - DB_PASSWORD=foo
       - POSTGRES_USER=dev_user

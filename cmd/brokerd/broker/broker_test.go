@@ -139,6 +139,7 @@ func TestCreateBatchDefaultEndpoint(t *testing.T) {
 	// 2- Create a batch with both storage requests.
 	brgCid := createCidFromString("Batch")
 	manifest := []byte("fake-manifest")
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
 	sd, err := b.CreateNewBatch(
 		ctx,
 		"SD1",
@@ -146,14 +147,14 @@ func TestCreateBatchDefaultEndpoint(t *testing.T) {
 		[]broker.StorageRequestID{br1.ID},
 		"OR",
 		manifest,
-		nil)
+		carURL)
 	require.NoError(t, err)
 
 	// Since no external CAR URL was provided, check that the default
 	// one is still generated.
 	sd2, err := b.GetBatch(ctx, sd)
 	require.NoError(t, err)
-	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), sd2.Sources.CARURL.URL.String())
+	require.Equal(t, carURL.String(), sd2.Sources.CARURL.URL.String())
 }
 
 func TestCreatePrepared(t *testing.T) {
@@ -269,6 +270,7 @@ func TestCreateBatchFail(t *testing.T) {
 		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("Batch")
+		carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
 		_, err := b.CreateNewBatch(
 			ctx,
 			"SD1",
@@ -276,7 +278,7 @@ func TestCreateBatchFail(t *testing.T) {
 			[]broker.StorageRequestID{broker.StorageRequestID("invented")},
 			"DUKEORIGIN",
 			nil,
-			nil)
+			carURL)
 		require.ErrorIs(t, err, store.ErrBatchContainsUnknownStorageRequest)
 	})
 }
@@ -294,7 +296,8 @@ func TestBatchPrepared(t *testing.T) {
 	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, nil)
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 
 	// 2- Call BatchPrepared as if the piecer did.
@@ -354,7 +357,8 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, nil)
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -489,7 +493,8 @@ func TestBatchFailedAuction(t *testing.T) {
 	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, nil)
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -566,7 +571,8 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	br2, err := b.Create(ctx, c2, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, nil)
+	carURL, _ := url.ParseRequestURI("http://fakeurl.dev/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -689,7 +695,6 @@ func createBroker(t *testing.T) (
 		chainAPI,
 		nil,
 		fmb,
-		WithCARExportURL("http://duke.web3/car/"),
 	)
 	require.NoError(t, err)
 

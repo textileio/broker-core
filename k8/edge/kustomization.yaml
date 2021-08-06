@@ -59,3 +59,20 @@ patchesStrategicMerge:
 - packerd-patch.yaml
 - authd-patch.yaml
 - neard-patch.yaml
+images:
+- name: textile/auctioneer
+  newTag: sha-86c66dc
+- name: textile/auth
+  newTag: sha-86c66dc
+- name: textile/broker
+  newTag: jsign
+- name: textile/dealer
+  newTag: sha-86c66dc
+- name: textile/near
+  newTag: sha-86c66dc
+- name: textile/packer
+  newTag: jsign
+- name: textile/piecer
+  newTag: sha-86c66dc
+- name: textile/storage
+  newTag: sha-86c66dc

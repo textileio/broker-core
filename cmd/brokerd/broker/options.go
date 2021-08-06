@@ -2,8 +2,6 @@ package broker
 
 import (
 	"errors"
-	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/textileio/bidbot/lib/auction"
@@ -30,8 +28,6 @@ type config struct {
 	unpinnerFrequency       time.Duration
 	unpinnerRetryDelay      time.Duration
 	exportPinCountFrequency time.Duration
-
-	carExportURL *url.URL
 
 	auctionMaxRetries int
 }
@@ -102,18 +98,6 @@ func WithExportPinCountFrequency(freq time.Duration) Option {
 	}
 }
 
-// WithCARExportURL configures the frequency of exporting the pin count metric.
-func WithCARExportURL(rawURL string) Option {
-	return func(c *config) error {
-		u, err := url.Parse(rawURL)
-		if err != nil {
-			return fmt.Errorf("parsing url: %s", err)
-		}
-		c.carExportURL = u
-		return nil
-	}
-}
-
 // WithAuctionMaxRetries indicates the maximum number of auctions that can be created
 // for a batch.
 func WithAuctionMaxRetries(max int) Option {
@@ -124,11 +108,4 @@ func WithAuctionMaxRetries(max int) Option {
 		c.auctionMaxRetries = max
 		return nil
 	}
-}
-
-func (c config) validate() error {
-	if c.carExportURL == nil {
-		return errors.New("the CAR exporting URL can't be empty")
-	}
-	return nil
 }

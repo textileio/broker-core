@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"time"
 
 	aggregator "github.com/filecoin-project/go-dagaggregator-unixfs"
@@ -35,11 +36,13 @@ type Packer struct {
 	exportMetricsFreq time.Duration
 	retryDelay        time.Duration
 
-	ipfsApis    []ipfsutil.IpfsAPI
-	store       *store.Store
-	pinner      *httpapi.HttpApi
-	mb          mbroker.MsgBroker
-	carUploader CARUploader
+	ipfsApis []ipfsutil.IpfsAPI
+	store    *store.Store
+	pinner   *httpapi.HttpApi
+	mb       mbroker.MsgBroker
+
+	carUploader  CARUploader
+	carExportURL *url.URL
 
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
@@ -76,8 +79,8 @@ func New(
 		}
 	}
 
-	if cfg.batchMinSize <= 0 {
-		return nil, fmt.Errorf("batch min size should be positive")
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %s", err)
 	}
 
 	batchMaxSize := calcBatchLimit(cfg.sectorSize)
@@ -105,6 +108,7 @@ func New(
 		exportMetricsFreq: cfg.exportMetricsFreq,
 		retryDelay:        cfg.retryDelay,
 		carUploader:       cfg.carUploader,
+		carExportURL:      cfg.carExportURL,
 		ipfsApis:          ipfsApis,
 
 		store:  store,
@@ -212,7 +216,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
 	start := time.Now()
-	batchCid, manifest, extCARURL, err := p.createDAGForBatch(ctx, srs)
+	batchCid, manifest, carURL, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
 		return 0, fmt.Errorf("creating dag for batch: %s", err)
 	}
@@ -233,7 +237,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		srIDs,
 		origin,
 		manifest,
-		extCARURL); err != nil {
+		carURL); err != nil {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
@@ -280,12 +284,20 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 
 	log.Debugf("aggregation+pinning took %dms", time.Since(start).Milliseconds())
 
-	var carURL string
+	carURL, err := p.getCARURL(ctx, root)
+	if err != nil {
+		return cid.Undef, nil, "", fmt.Errorf("get car url: %s", err)
+	}
+
+	return root, manifestJSON.Bytes(), carURL, nil
+}
+
+func (p *Packer) getCARURL(ctx context.Context, root cid.Cid) (string, error) {
 	if p.carUploader != nil {
 		log.Debugf("uploading generating and uploading CAR file to external bucket")
 		ng, found := ipfsutil.GetNodeGetterForCid(p.ipfsApis, root)
 		if !found {
-			return cid.Undef, nil, "", fmt.Errorf("get node getter for cid: %s", err)
+			return "", fmt.Errorf("get node getter for cid %s not found", root)
 		}
 		pr, pw := io.Pipe()
 		defer func() {
@@ -297,16 +309,28 @@ func (p *Packer) createDAGForBatch(ctx context.Context, srs []store.StorageReque
 			}()
 
 			if err := car.WriteCar(ctx, ng, []cid.Cid{root}, pw); err != nil {
-				pw.CloseWithError(fmt.Errorf("generating car %s: %v", root, err))
+				err = fmt.Errorf("generating car %s: %v", root, err)
+				log.Errorf("writing car file to car uploader: %s", err)
+				_ = pw.CloseWithError(err)
 			}
 		}()
-		carURL, err = p.carUploader.Store(ctx, root.String(), pr)
+		carURL, err := p.carUploader.Store(ctx, root.String(), pr)
 		if err != nil {
-			return cid.Undef, nil, "", fmt.Errorf("uploading car file: %s", err)
+			return "", fmt.Errorf("uploading car file: %s", err)
 		}
+		log.Debugf("car generated in external url %s", carURL)
+
+		return carURL, nil
 	}
 
-	return root, manifestJSON.Bytes(), carURL, nil
+	cidURL, err := url.Parse(root.String())
+	if err != nil {
+		return "", fmt.Errorf("creating cid url fragment: %s", err)
+	}
+	carURL := p.carExportURL.ResolveReference(cidURL).String()
+	log.Debugf("car generated in dynamic endpoint url %s", carURL)
+
+	return carURL, nil
 }
 
 // calcBatchLimit does a worst-case estimation of the maximum size the batch DAG can have to fit

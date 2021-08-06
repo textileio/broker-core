@@ -94,7 +94,7 @@ func TestPack(t *testing.T) {
 	require.NotEmpty(t, msg.Manifest)
 	dagManifest := getBatchManifestFromDAG(t, bcid, ipfs.Dag())
 	require.True(t, bytes.Equal(dagManifest, msg.Manifest))
-	require.Empty(t, msg.ExternalCarUrl)
+	require.Equal(t, "http://duke.web3/car/"+bcid.String(), msg.CarUrl)
 
 	// Check that the batch cid was pinned in ipfs.
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
@@ -131,6 +131,7 @@ func TestPackWithCARUploader(t *testing.T) {
 
 	numBatchedCids, err = packer.pack(ctx)
 	require.NoError(t, err)
+	require.Equal(t, numFiles, numBatchedCids)
 
 	require.Equal(t, 1, mb.TotalPublished())
 	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
@@ -141,7 +142,7 @@ func TestPackWithCARUploader(t *testing.T) {
 	err = proto.Unmarshal(msgb, msg)
 	require.NoError(t, err)
 
-	require.Equal(t, fu.dummyURL, msg.ExternalCarUrl)
+	require.Equal(t, fu.dummyURL, msg.CarUrl)
 }
 
 func TestPackMultiple(t *testing.T) {
@@ -294,7 +295,10 @@ func createPackerWithUploader(t *testing.T, u CARUploader) (*Packer, *httpapi.Ht
 	pinnerClient, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	opts := []Option{WithDaemonFrequency(time.Hour), WithBatchMinSize(100 * 100)}
+	opts := []Option{
+		WithDaemonFrequency(time.Hour),
+		WithBatchMinSize(100 * 100),
+		WithCARExportURL("http://duke.web3/car/")}
 	if u != nil {
 		opts = append(opts, WithCARUploader(u))
 	}

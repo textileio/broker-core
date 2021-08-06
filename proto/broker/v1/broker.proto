@@ -124,7 +124,7 @@ message NewBatchCreated {
   repeated string storage_request_ids = 3;
   string origin = 4;
   bytes manifest = 5;
-  string external_car_url = 6;
+  string car_url = 6;
 }
 
 

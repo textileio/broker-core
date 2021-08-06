@@ -30,6 +30,7 @@ type Config struct {
 
 	TargetSectorSize int64
 	BatchMinSize     int64
+	CARExportURL     string
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -59,6 +60,7 @@ func New(mb mbroker.MsgBroker, conf Config, packerOpts ...packer.Option) (*Servi
 	opts := append(packerOpts, []packer.Option{
 		packer.WithDaemonFrequency(conf.DaemonFrequency),
 		packer.WithSectorSize(conf.TargetSectorSize),
+		packer.WithCARExportURL(conf.CARExportURL),
 		packer.WithBatchMinSize(conf.BatchMinSize),
 	}...)
 
@@ -96,6 +98,7 @@ func (s *Service) OnReadyToBatch(ctx context.Context, opID mbroker.OperationID, 
 
 // Close the service.
 func (s *Service) Close() error {
+	log.Info("closing service")
 	defer log.Info("service was shutdown")
 
 	return s.finalizer.Cleanup(nil)

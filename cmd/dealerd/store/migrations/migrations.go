@@ -136,7 +136,7 @@ func _002_market_statusDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(436), modTime: time.Unix(1628105644, 0)}
+	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -156,7 +156,7 @@ func _002_market_statusUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(436), modTime: time.Unix(1628107075, 0)}
+	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
