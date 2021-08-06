@@ -85,9 +85,6 @@ func New(
 			return nil, fmt.Errorf("applying config: %s", err)
 		}
 	}
-	if err := conf.validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %s", err)
-	}
 
 	ctx, cls := context.WithCancel(context.Background())
 	b := &Broker{
@@ -289,7 +286,8 @@ func (b *Broker) CreateNewBatch(
 	batchCid cid.Cid,
 	brIDs []broker.StorageRequestID,
 	origin string,
-	manifest []byte) (broker.BatchID, error) {
+	manifest []byte,
+	carURL *url.URL) (broker.BatchID, error) {
 	if !batchCid.Defined() {
 		return "", ErrInvalidCid
 	}
@@ -302,10 +300,6 @@ func (b *Broker) CreateNewBatch(
 		}
 	}
 
-	cidURL, err := url.Parse(batchCid.String())
-	if err != nil {
-		return "", fmt.Errorf("creating cid url fragment: %s", err)
-	}
 	ba := broker.Batch{
 		ID:                 batchID,
 		PayloadCid:         batchCid,
@@ -317,7 +311,7 @@ func (b *Broker) CreateNewBatch(
 		FilEpochDeadline:   0,
 		Sources: auction.Sources{
 			CARURL: &auction.CARURL{
-				URL: *b.conf.carExportURL.ResolveReference(cidURL),
+				URL: *carURL,
 			},
 		},
 	}

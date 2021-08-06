@@ -51,7 +51,7 @@ spec:
       labels:
         app: packer-v1
     spec:
-      serviceAccountName: postgres-cloud-sql
+      serviceAccountName: cloudsql-objectstorage
       containers:
         - name: packer
           image: textile/packer
@@ -73,6 +73,12 @@ spec:
                 secretKeyRef:
                   name: broker-secret
                   key: packer-db-password
+            - name: PACKER_GOBJECT_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+
             - name: PACKER_GPUBSUB_PROJECT_ID
               valueFrom:
                 secretKeyRef:

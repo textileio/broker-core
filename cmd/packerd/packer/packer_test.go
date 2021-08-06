@@ -3,6 +3,7 @@ package packer
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"strconv"
@@ -46,26 +47,17 @@ func TestPack(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ipfsDocker := launchIPFSContainer(t)
-	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
-
-	// 1- Create a Packer and have a go-ipfs client too.
-	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
-	require.NoError(t, err)
-	ipfs, err := httpapi.NewApi(ma)
-	require.NoError(t, err)
-
-	packer, mb := createPacker(t, ipfs)
+	packer, ipfs, mb := createPacker(t)
 
 	numBatchedCids, err := packer.pack(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 0, numBatchedCids)
 
-	// 2- Add 100 random files and get their cids.
+	// 1- Add 100 random files and get their cids.
 	numFiles := 100
 	dataCids := addRandomData(t, ipfs, numFiles)
 
-	// 3- Signal ready to pack these cids to Packer
+	// 2- Signal ready to pack these cids to Packer
 	for i, dataCid := range dataCids {
 		err = packer.ReadyToBatch(
 			ctx,
@@ -79,7 +71,7 @@ func TestPack(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// 4- Force pack and inspect what was signaled to the broker
+	// 3- Force pack and inspect what was signaled to the broker
 	numBatchedCids, err = packer.pack(ctx)
 	require.NoError(t, err)
 
@@ -102,6 +94,7 @@ func TestPack(t *testing.T) {
 	require.NotEmpty(t, msg.Manifest)
 	dagManifest := getBatchManifestFromDAG(t, bcid, ipfs.Dag())
 	require.True(t, bytes.Equal(dagManifest, msg.Manifest))
+	require.Equal(t, "http://duke.web3/car/"+bcid.String(), msg.CarUrl)
 
 	// Check that the batch cid was pinned in ipfs.
 	_, pinned, err := ipfs.Pin().IsPinned(ctx, path.IpfsPath(bcid))
@@ -109,26 +102,60 @@ func TestPack(t *testing.T) {
 	require.True(t, pinned)
 }
 
+func TestPackWithCARUploader(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	fu := &fakeCARUploader{dummyURL: "http://fake.dev/car/jorge.car"}
+	packer, ipfs, mb := createPackerWithUploader(t, fu)
+
+	numBatchedCids, err := packer.pack(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, numBatchedCids)
+
+	numFiles := 100
+	dataCids := addRandomData(t, ipfs, numFiles)
+
+	for i, dataCid := range dataCids {
+		err = packer.ReadyToBatch(
+			ctx,
+			mbroker.OperationID(strconv.Itoa(i)),
+			[]mbroker.ReadyToBatchData{
+				{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)),
+					DataCid: dataCid,
+					Origin:  "OR",
+				}},
+		)
+		require.NoError(t, err)
+	}
+
+	numBatchedCids, err = packer.pack(ctx)
+	require.NoError(t, err)
+	require.Equal(t, numFiles, numBatchedCids)
+
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.NewBatchCreatedTopic))
+
+	msgb, err := mb.GetMsg(mbroker.NewBatchCreatedTopic, 0)
+	require.NoError(t, err)
+	msg := &pb.NewBatchCreated{}
+	err = proto.Unmarshal(msgb, msg)
+	require.NoError(t, err)
+
+	require.Equal(t, fu.dummyURL, msg.CarUrl)
+}
+
 func TestPackMultiple(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ipfsDocker := launchIPFSContainer(t)
-	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+	packer, ipfs, mb := createPacker(t)
 
-	// 1- Create a Packer and have a go-ipfs client too.
-	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
-	require.NoError(t, err)
-	ipfs, err := httpapi.NewApi(ma)
-	require.NoError(t, err)
-
-	packer, mb := createPacker(t, ipfs)
-
-	// 2- Add 100 random files and get their cids.
+	// 1- Add 100 random files and get their cids.
 	numFiles := 100
 	dataCids := addRandomData(t, ipfs, numFiles)
 
-	// 3- Batch the 100 files in a single call
+	// 2- Batch the 100 files in a single call
 	rtbs := make([]mbroker.ReadyToBatchData, len(dataCids))
 	for i, dataCid := range dataCids {
 		rtbs[i] = mbroker.ReadyToBatchData{
@@ -137,10 +164,10 @@ func TestPackMultiple(t *testing.T) {
 			Origin:           "OR",
 		}
 	}
-	err = packer.ReadyToBatch(ctx, "op-1", rtbs)
+	err := packer.ReadyToBatch(ctx, "op-1", rtbs)
 	require.NoError(t, err)
 
-	// 4- Force pack and inspect what was signaled to the broker
+	// 3- Force pack and inspect what was signaled to the broker
 	numBatchedCids, err := packer.pack(ctx)
 	require.NoError(t, err)
 
@@ -173,17 +200,8 @@ func TestStats(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ipfsDocker := launchIPFSContainer(t)
-	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
-
-	// 1- Create a Packer and have a go-ipfs client too.
-	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
-	require.NoError(t, err)
-	ipfs, err := httpapi.NewApi(ma)
-	require.NoError(t, err)
-
-	packer, _ := createPacker(t, ipfs)
-	_, err = packer.store.GetStats(ctx)
+	packer, _, _ := createPacker(t)
+	_, err := packer.store.GetStats(ctx)
 	require.NoError(t, err)
 }
 
@@ -191,22 +209,13 @@ func TestPackIdempotency(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ipfsDocker := launchIPFSContainer(t)
-	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+	packer, ipfs, _ := createPacker(t)
 
-	// 1- Create a Packer and have a go-ipfs client too.
-	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
-	require.NoError(t, err)
-	ipfs, err := httpapi.NewApi(ma)
-	require.NoError(t, err)
-
-	packer, _ := createPacker(t, ipfs)
-
-	// 2- Add one file to go-ipfs.
+	// 1- Add one file to go-ipfs.
 	dataCids := addRandomData(t, ipfs, 1)
 
-	// 3- Make first call.
-	err = packer.ReadyToBatch(
+	// 2- Make first call.
+	err := packer.ReadyToBatch(
 		ctx,
 		mbroker.OperationID("op-1"),
 		[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID("br-1"), DataCid: dataCids[0]}},
@@ -227,15 +236,7 @@ func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 	t.SkipNow()
 	ctx := context.Background()
 
-	ipfsDocker := launchIPFSContainer(t)
-	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
-
-	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
-	require.NoError(t, err)
-	ipfs, err := httpapi.NewApi(ma)
-	require.NoError(t, err)
-
-	packer, mb := createPacker(t, ipfs)
+	packer, ipfs, mb := createPacker(t)
 
 	// 2- Create a single file
 	dataCid := addRandomData(t, ipfs, 1)[0]
@@ -243,7 +244,7 @@ func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 	// 3- Simulate multiple StorageRequests but with the same data
 	numRepeatedStorageRequest := 100
 	for i := 0; i < numRepeatedStorageRequest; i++ {
-		err = packer.ReadyToBatch(
+		err := packer.ReadyToBatch(
 			ctx,
 			mbroker.OperationID(strconv.Itoa(1)),
 			[]mbroker.ReadyToBatchData{{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)), DataCid: dataCid}},
@@ -277,14 +278,34 @@ func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 	require.True(t, pinned)
 }
 
-func createPacker(t *testing.T, ipfsClient *httpapi.HttpApi) (*Packer, *fakemsgbroker.FakeMsgBroker) {
+func createPacker(t *testing.T) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
+	return createPackerWithUploader(t, nil)
+}
+
+func createPackerWithUploader(t *testing.T, u CARUploader) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
 	mb := fakemsgbroker.New()
 	postgresURL, err := tests.PostgresURL()
 	require.NoError(t, err)
-	packer, err := New(postgresURL, ipfsClient, mb, WithDaemonFrequency(time.Hour), WithBatchMinSize(100*100))
+
+	ipfsDocker := launchIPFSContainer(t)
+	ipfsAPIMultiaddr := "/ip4/127.0.0.1/tcp/" + ipfsDocker.GetPort("5001/tcp")
+
+	ma, err := multiaddr.NewMultiaddr(ipfsAPIMultiaddr)
+	require.NoError(t, err)
+	pinnerClient, err := httpapi.NewApi(ma)
 	require.NoError(t, err)
 
-	return packer, mb
+	opts := []Option{
+		WithDaemonFrequency(time.Hour),
+		WithBatchMinSize(100 * 100),
+		WithCARExportURL("http://duke.web3/car/")}
+	if u != nil {
+		opts = append(opts, WithCARUploader(u))
+	}
+	packer, err := New(postgresURL, pinnerClient, []multiaddr.Multiaddr{ma}, mb, opts...)
+	require.NoError(t, err)
+
+	return packer, pinnerClient, mb
 }
 
 func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
@@ -342,4 +363,12 @@ func getBatchManifestFromDAG(t *testing.T, payloadCid cid.Cid, dagService ipld.D
 	require.NoError(t, err)
 
 	return dagManifest
+}
+
+type fakeCARUploader struct {
+	dummyURL string
+}
+
+func (fu *fakeCARUploader) Store(_ context.Context, _ string, _ io.Reader) (string, error) {
+	return fu.dummyURL, nil
 }

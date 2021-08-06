@@ -3,9 +3,12 @@ package main
 import (
 	_ "net/http/pprof"
 
+	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/broker-core/cmd/packerd/packer"
+	"github.com/textileio/broker-core/cmd/packerd/packer/gcpblob"
 	"github.com/textileio/broker-core/cmd/packerd/service"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
@@ -21,15 +24,18 @@ func init() {
 	flags := []common.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
-		{Name: "ipfs-multiaddr", DefValue: "", Description: "IPFS multiaddress"},
+		{Name: "pinner-multiaddr", DefValue: "", Description: "IPFS cluster pinner multiaddr"},
+		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "daemon-frequency", DefValue: "20s", Description: "Frequency of polling ready batches"},
 		{Name: "export-metrics-frequency", DefValue: "5m", Description: "Frequency of metrics exporting"},
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
+		{Name: "gobject-project-id", DefValue: "", Description: "Google Object Storage project id"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+		{Name: "car-export-url", DefValue: "", Description: "URL that generates CAR files for stored cids"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -55,18 +61,36 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
+		ipfsMaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
+		ipfsMaddrs := make([]multiaddr.Multiaddr, len(ipfsMaddrsStr))
+		for i, maStr := range ipfsMaddrsStr {
+			ma, err := multiaddr.NewMultiaddr(maStr)
+			common.CheckErrf("parsing multiaddress %s: %s", err)
+			ipfsMaddrs[i] = ma
+		}
+
+		projectID := v.GetString("gobject-project-id")
+		var carUploader packer.CARUploader
+		if projectID != "" {
+			carUploader, err = gcpblob.New(projectID)
+			common.CheckErr(err)
+		}
+
 		config := service.Config{
-			PostgresURI:      v.GetString("postgres-uri"),
-			IpfsAPIMultiaddr: v.GetString("ipfs-multiaddr"),
+			PostgresURI:     v.GetString("postgres-uri"),
+			PinnerMultiaddr: v.GetString("pinner-multiaddr"),
+			IpfsMaddrs:      ipfsMaddrs,
 
 			DaemonFrequency:        v.GetDuration("daemon-frequency"),
 			ExportMetricsFrequency: v.GetDuration("export-metrics-frequency"),
 
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     int64(v.GetSizeInBytes("batch-min-size")),
+			CARExportURL:     v.GetString("car-export-url"),
+			CARUploader:      carUploader,
 		}
 
-		projectID := v.GetString("gpubsub-project-id")
+		projectID = v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
 		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "packerd")

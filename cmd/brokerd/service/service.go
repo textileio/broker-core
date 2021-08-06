@@ -45,8 +45,6 @@ type Config struct {
 	DealReplication uint32
 	VerifiedDeals   bool
 
-	CARExportURL string
-
 	AuctionMaxRetries int
 }
 
@@ -99,7 +97,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		brokeri.WithDealDuration(config.DealDuration),
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
-		brokeri.WithCARExportURL(config.CARExportURL),
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
 	)
 	if err != nil {
@@ -307,8 +304,9 @@ func (s *Service) OnNewBatchCreated(
 	batchCid cid.Cid,
 	brids []broker.StorageRequestID,
 	origin string,
-	manifest []byte) error {
-	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin, manifest); err != nil {
+	manifest []byte,
+	carURL *url.URL) error {
+	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin, manifest, carURL); err != nil {
 		if errors.Is(err, store.ErrBatchExists) {
 			log.Warnf("batch ID %s already created, acking", id)
 			return nil
