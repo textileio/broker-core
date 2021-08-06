@@ -125,38 +125,6 @@ func TestCreateBatch(t *testing.T) {
 	require.Equal(t, "OR", sd2.Origin)
 }
 
-func TestCreateBatchDefaultEndpoint(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	b, _, _ := createBroker(t)
-
-	// 1- Create a storage requests.
-	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c, "OR")
-	require.NoError(t, err)
-	require.Equal(t, broker.RequestBatching, br1.Status)
-
-	// 2- Create a batch with both storage requests.
-	brgCid := createCidFromString("Batch")
-	manifest := []byte("fake-manifest")
-	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
-	sd, err := b.CreateNewBatch(
-		ctx,
-		"SD1",
-		brgCid,
-		[]broker.StorageRequestID{br1.ID},
-		"OR",
-		manifest,
-		carURL)
-	require.NoError(t, err)
-
-	// Since no external CAR URL was provided, check that the default
-	// one is still generated.
-	sd2, err := b.GetBatch(ctx, sd)
-	require.NoError(t, err)
-	require.Equal(t, carURL.String(), sd2.Sources.CARURL.URL.String())
-}
-
 func TestCreatePrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
