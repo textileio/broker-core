@@ -299,6 +299,9 @@ func (p *Packer) pinBatchDAG(ctx context.Context, root cid.Cid) error {
 	if err := p.pinner.Pin().Add(ctx, ipfspath.IpfsPath(root), options.Pin.Recursive(true)); err != nil {
 		return fmt.Errorf("pinning batch root: %s", err)
 	}
+	// When using ipfs-cluster, the pinning API pins the DAG async.
+	// We want to confirm the DAG is pinned in some underlying go-ipfs node before moving on as
+	// to avoid noise while getting the corresponding go-ipfs node when trying to use the data.
 	for {
 		log.Debugf("confirming dag %s is pinned", root)
 		ok, err := ipfsutil.IsPinned(ctx, p.ipfsApis, root)

@@ -64,6 +64,10 @@ func WithSectorSize(sectorSize int64) Option {
 // WithCARExportURL configures the frequency of exporting the pin count metric.
 func WithCARExportURL(rawURL string) Option {
 	return func(c *config) error {
+		if rawURL == "" {
+			c.carExportURL = nil
+			return nil
+		}
 		u, err := url.Parse(rawURL)
 		if err != nil {
 			return fmt.Errorf("parsing url: %s", err)

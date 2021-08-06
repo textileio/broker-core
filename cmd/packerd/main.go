@@ -69,6 +69,13 @@ var rootCmd = &cobra.Command{
 			ipfsMaddrs[i] = ma
 		}
 
+		projectID := v.GetString("gobject-project-id")
+		var carUploader packer.CARUploader
+		if projectID != "" {
+			carUploader, err = gcpblob.New(projectID)
+			common.CheckErr(err)
+		}
+
 		config := service.Config{
 			PostgresURI:     v.GetString("postgres-uri"),
 			PinnerMultiaddr: v.GetString("pinner-multiaddr"),
@@ -80,23 +87,16 @@ var rootCmd = &cobra.Command{
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     int64(v.GetSizeInBytes("batch-min-size")),
 			CARExportURL:     v.GetString("car-export-url"),
+			CARUploader:      carUploader,
 		}
 
-		projectID := v.GetString("gpubsub-project-id")
+		projectID = v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
 		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "packerd")
 		common.CheckErr(err)
 
-		projectID = v.GetString("gobject-project-id")
-		var packerOpts []packer.Option
-		if projectID != "" {
-			gblob, err := gcpblob.New(projectID)
-			common.CheckErr(err)
-			packerOpts = append(packerOpts, packer.WithCARUploader(gblob))
-		}
-
-		serv, err := service.New(mb, config, packerOpts...)
+		serv, err := service.New(mb, config)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {

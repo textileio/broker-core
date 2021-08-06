@@ -61,7 +61,7 @@ func (b *GCPBlob) Store(ctx context.Context, name string, r io.Reader) (string, 
 		return "", fmt.Errorf("closing uploader: %s", err)
 	}
 
-	return "http://storage.googleapis.com/textile-cars/" + name, nil
+	return "https://storage.googleapis.com/textile-cars/" + name, nil
 }
 
 // Close closes the service.

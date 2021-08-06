@@ -30,6 +30,7 @@ type Config struct {
 
 	TargetSectorSize int64
 	BatchMinSize     int64
+	CARUploader      packer.CARUploader
 	CARExportURL     string
 }
 
@@ -42,7 +43,7 @@ type Service struct {
 var _ mbroker.ReadyToBatchListener = (*Service)(nil)
 
 // New returns a new Service.
-func New(mb mbroker.MsgBroker, conf Config, packerOpts ...packer.Option) (*Service, error) {
+func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	if err := validateConfig(conf); err != nil {
 		return nil, fmt.Errorf("config is invalid: %s", err)
 	}
@@ -57,12 +58,13 @@ func New(mb mbroker.MsgBroker, conf Config, packerOpts ...packer.Option) (*Servi
 	if err != nil {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
-	opts := append(packerOpts, []packer.Option{
+	opts := []packer.Option{
 		packer.WithDaemonFrequency(conf.DaemonFrequency),
 		packer.WithSectorSize(conf.TargetSectorSize),
 		packer.WithCARExportURL(conf.CARExportURL),
 		packer.WithBatchMinSize(conf.BatchMinSize),
-	}...)
+		packer.WithCARUploader(conf.CARUploader),
+	}
 
 	lib, err := packer.New(conf.PostgresURI, pinnerClient, conf.IpfsMaddrs, mb, opts...)
 	if err != nil {
