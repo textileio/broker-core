@@ -26,6 +26,7 @@ type Config struct {
 
 	DaemonFrequency time.Duration
 	RetryDelay      time.Duration
+	PadToSize       uint64
 }
 
 // Service is a gRPC service wrapper around a piecer.
@@ -44,7 +45,13 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	}
 	fin := finalizer.NewFinalizer()
 
-	lib, err := piecer.New(conf.PostgresURI, conf.IpfsMultiaddrs, mb, conf.DaemonFrequency, conf.RetryDelay)
+	lib, err := piecer.New(
+		conf.PostgresURI,
+		conf.IpfsMultiaddrs,
+		mb,
+		conf.DaemonFrequency,
+		conf.RetryDelay,
+		conf.PadToSize)
 	if err != nil {
 		return nil, fin.Cleanupf("creating piecer: %v", err)
 	}

@@ -56,6 +56,37 @@ func TestE2E(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestVirtualPadding(t *testing.T) {
+	t.Parallel()
+	p, mb, ipfs := newClientWithPadding(t, 64<<10)
+
+	dataCid := addRandomData(t, ipfs)
+	sdID := broker.BatchID("SD1")
+	err := p.ReadyToPrepare(context.Background(), sdID, dataCid)
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 1)
+
+	// Assert the prepared batch msg was published to the topic.
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(msgbroker.NewBatchPreparedTopic))
+	data, err := mb.GetMsg(msgbroker.NewBatchPreparedTopic, 0)
+	require.NoError(t, err)
+	nbc := &pb.NewBatchPrepared{}
+	err = proto.Unmarshal(data, nbc)
+	require.NoError(t, err)
+
+	require.Equal(t, string(sdID), nbc.Id)
+	pieceCid, err := cid.Cast(nbc.PieceCid)
+	require.NoError(t, err)
+	require.Equal(t, "baga6ea4seaqanldgxtddjpceoskqhd6y5qehsitn5pi4c5no4fgrqjd6mkkfkoq", pieceCid.String())
+	require.Equal(t, uint64(64<<10), nbc.PieceSize)
+
+	_, ok, err := p.store.GetNextPending(context.Background())
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
 func TestIdempotency(t *testing.T) {
 	t.Parallel()
 	p, _, ipfs := newClient(t)
@@ -93,6 +124,10 @@ func TestE2EFail(t *testing.T) {
 }
 
 func newClient(t *testing.T) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.HttpApi) {
+	return newClientWithPadding(t, 0)
+}
+
+func newClientWithPadding(t *testing.T, padToSize uint64) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.HttpApi) {
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
 		require.NoError(t, fin.Cleanup(nil))
@@ -110,7 +145,7 @@ func newClient(t *testing.T) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.Ht
 
 	mb := fakemsgbroker.New()
 
-	p, err := New(u, []multiaddr.Multiaddr{ma}, mb, time.Hour, time.Millisecond)
+	p, err := New(u, []multiaddr.Multiaddr{ma}, mb, time.Hour, time.Millisecond, padToSize)
 	require.NoError(t, err)
 	fin.Add(p)
 
