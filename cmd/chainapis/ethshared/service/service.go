@@ -17,21 +17,26 @@ import (
 )
 
 var (
-	log = logging.Logger("ethd-service")
+	log *logging.ZapEventLogger
 )
 
 // Service implements the chainservice for NEAR.
 type Service struct {
 	chainapi.UnimplementedChainApiServiceServer
-	cc     *contractclient.BridgeProvider
-	server *grpc.Server
+	contractClients map[string]*contractclient.BridgeProvider
+	server          *grpc.Server
 }
 
 // NewService creates a new Service.
-func NewService(listener net.Listener, cc *contractclient.BridgeProvider) (*Service, error) {
+func NewService(
+	listener net.Listener,
+	daemonName string,
+	contractClients map[string]*contractclient.BridgeProvider,
+) (*Service, error) {
+	log = logging.Logger(daemonName)
 	s := &Service{
-		cc:     cc,
-		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
+		contractClients: contractClients,
+		server:          grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 	}
 	go func() {
 		log.Infof("Starting service in here %v...", listener.Addr().String())
@@ -49,7 +54,11 @@ func (s *Service) HasDeposit(
 	ctx context.Context,
 	req *chainapi.HasDepositRequest,
 ) (*chainapi.HasDepositResponse, error) {
-	res, err := s.cc.HasDeposit(nil, ec.HexToAddress(req.AccountId))
+	contractClient, ok := s.contractClients[req.ChainId]
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "unsupported chain id: %s", req.ChainId)
+	}
+	res, err := contractClient.HasDeposit(nil, ec.HexToAddress(req.AccountId))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "calling has deposit: %v", err)
 	}

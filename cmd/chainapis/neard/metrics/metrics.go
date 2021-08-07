@@ -9,12 +9,13 @@ import (
 	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient"
 	logging "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 )
 
 var (
-	log = logging.Logger("neard/metrics")
+	log = logging.Logger("neard-metrics")
 )
 
 const prefix = "neard"
@@ -23,13 +24,14 @@ var meter = metric.Must(global.Meter(prefix))
 
 // Metrics creates metrics about the NEAR smart contract and API node.
 type Metrics struct {
-	cc *contractclient.Client
-	nc *nearclient.Client
+	cc      *contractclient.Client
+	nc      *nearclient.Client
+	chainID string
 }
 
 // New creates a new Metrics.
-func New(cc *contractclient.Client, nc *nearclient.Client) *Metrics {
-	m := &Metrics{cc: cc, nc: nc}
+func New(cc *contractclient.Client, nc *nearclient.Client, chainID string) *Metrics {
+	m := &Metrics{cc: cc, nc: nc, chainID: chainID}
 	m.initMetrics()
 	return m
 }
@@ -111,7 +113,7 @@ func (m *Metrics) initMetrics() {
 			obs = append(obs, latestBlockHeight.Observation(int64(nodeStatus.SyncInfo.LatestBlockHeight)))
 		}
 
-		result.Observe(nil, obs...)
+		result.Observe([]attribute.KeyValue{{Key: "chainId", Value: attribute.StringValue(m.chainID)}}, obs...)
 	})
 	providerCount = batchObs.NewInt64ValueObserver(prefix + ".provider_count")
 	depositsCount = batchObs.NewInt64ValueObserver(prefix + ".deposits_count")

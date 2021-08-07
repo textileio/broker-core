@@ -22,14 +22,14 @@ var (
 // Service implements the chainservice for NEAR.
 type Service struct {
 	chainapi.UnimplementedChainApiServiceServer
-	cc     *contractclient.Client
+	ccs    map[string]*contractclient.Client
 	server *grpc.Server
 }
 
 // NewService creates a new Service.
-func NewService(listener net.Listener, cc *contractclient.Client) (*Service, error) {
+func NewService(listener net.Listener, ccs map[string]*contractclient.Client) (*Service, error) {
 	s := &Service{
-		cc:     cc,
+		ccs:    ccs,
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 	}
 	go func() {
@@ -48,7 +48,11 @@ func (s *Service) HasDeposit(
 	ctx context.Context,
 	req *chainapi.HasDepositRequest,
 ) (*chainapi.HasDepositResponse, error) {
-	res, err := s.cc.HasDeposit(ctx, req.BrokerId, req.AccountId)
+	cc, ok := s.ccs[req.ChainId]
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "unsupported chain id: %s", req.ChainId)
+	}
+	res, err := cc.HasDeposit(ctx, req.BrokerId, req.AccountId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "calling has deposit: %v", err)
 	}
