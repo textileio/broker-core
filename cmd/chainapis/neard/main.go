@@ -27,7 +27,7 @@ var (
 )
 
 var flags = []common.Flag{
-	{Name: "config-path", DefValue: "", Description: "Path to the config file"},
+	{Name: "config-path", DefValue: "./neard.yaml", Description: "Path to the config file"},
 	{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 	{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 	{Name: "log-json", DefValue: false, Description: "Enable structured logging"},

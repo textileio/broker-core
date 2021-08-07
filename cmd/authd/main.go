@@ -22,7 +22,7 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "near-addr", DefValue: "", Description: "NEAR chain API address"},
 		{Name: "eth-addr", DefValue: "", Description: "Ethereum chain API address"},
 		{Name: "poly-addr", DefValue: "", Description: "Polygon chain API address"},
@@ -70,7 +70,7 @@ var rootCmd = &cobra.Command{
 		}
 		polyAPIClient := client.New(polyAPIClientConn)
 
-		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
+		listener, err := net.Listen("tcp", v.GetString("listen-addr"))
 		if err != nil {
 			log.Fatalf("creating listener connection: %v", err)
 		}

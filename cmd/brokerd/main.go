@@ -21,7 +21,7 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-api-multiaddr", DefValue: "", Description: "IPFS API multiaddress for unpinning data"},
 		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
@@ -59,7 +59,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			ListenAddr: v.GetString("rpc-addr"),
+			ListenAddr: v.GetString("listen-addr"),
 
 			ReporterAddr: v.GetString("reporter-addr"),
 

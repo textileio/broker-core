@@ -9,7 +9,7 @@ services:
     environment:
       - AUTH_LOG_DEBUG=true
       - AUTH_LOG_JSON=false
-      - AUTH_RPC_ADDR=:5000
+      - AUTH_LISTEN_ADDR=:5000
       - AUTH_NEAR_ADDR=neard:5000
       - AUTH_ETH_ADDR=ethd:5000
       - AUTH_POLY_ADDR=polyd:5000
@@ -34,7 +34,7 @@ services:
     environment:
       - NEAR_LOG_DEBUG=true
       - NEAR_LOG_JSON=false
-      - NEAR_RPC_ADDR=:5000
+      - NEAR_LISTEN_ADDR=:5000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -48,7 +48,7 @@ services:
     environment:
       - ETH_LOG_DEBUG=true
       - ETH_LOG_JSON=false
-      - ETH_RPC_ADDR=:5000
+      - ETH_LISTEN_ADDR=:5000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -62,7 +62,7 @@ services:
     environment:
       - POLY_LOG_DEBUG=true
       - POLY_LOG_JSON=false
-      - POLY_RPC_ADDR=:5000
+      - POLY_LISTEN_ADDR=:5000
     security_opt:
       - "seccomp:unconfined"
     cap_add:
@@ -154,7 +154,7 @@ services:
       - BROKER_LOG_DEBUG=true
       - BROKER_LOG_JSON=false
       - BROKER_IPFS_API_MULTIADDR=/dns4/ipfs/tcp/5001
-      - BROKER_RPC_ADDR=:5000
+      - BROKER_LISTEN_ADDR=:5000
       - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_REPLICATION=1
       - BROKER_DEAL_DURATION=1051200

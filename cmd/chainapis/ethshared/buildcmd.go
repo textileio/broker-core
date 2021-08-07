@@ -24,18 +24,18 @@ var (
 	cv  = viper.New()
 )
 
-var flags = []common.Flag{
-	{Name: "config-path", DefValue: "", Description: "Path to the config file"},
-	{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
-	{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
-	{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
-}
-
 // BuildRootCmd builds the root command for the provided parameters.
 func BuildRootCmd(daemonName, envPrefix, chainName string) *cobra.Command {
 	log = logging.Logger(daemonName)
 
 	rootCmd := buildRootCommand(daemonName, chainName)
+
+	flags := []common.Flag{
+		{Name: "config-path", DefValue: fmt.Sprintf("./%s.yaml", daemonName), Description: "Path to the config file"},
+		{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
+		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
+	}
 
 	common.ConfigureCLI(v, envPrefix, flags, rootCmd.Flags())
 
