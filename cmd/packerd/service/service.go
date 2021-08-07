@@ -22,13 +22,16 @@ var log = golog.Logger("packer/service")
 type Config struct {
 	PostgresURI string
 
-	IpfsAPIMultiaddr string
+	PinnerMultiaddr string
+	IpfsMaddrs      []multiaddr.Multiaddr
 
 	DaemonFrequency        time.Duration
 	ExportMetricsFrequency time.Duration
 
 	TargetSectorSize int64
 	BatchMinSize     int64
+	CARUploader      packer.CARUploader
+	CARExportURL     string
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -47,21 +50,23 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 
 	fin := finalizer.NewFinalizer()
 
-	ma, err := multiaddr.NewMultiaddr(conf.IpfsAPIMultiaddr)
+	ma, err := multiaddr.NewMultiaddr(conf.PinnerMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
 	}
-	ipfsClient, err := httpapi.NewApi(ma)
+	pinnerClient, err := httpapi.NewApi(ma)
 	if err != nil {
 		return nil, fmt.Errorf("creating ipfs client: %s", err)
 	}
 	opts := []packer.Option{
 		packer.WithDaemonFrequency(conf.DaemonFrequency),
 		packer.WithSectorSize(conf.TargetSectorSize),
+		packer.WithCARExportURL(conf.CARExportURL),
 		packer.WithBatchMinSize(conf.BatchMinSize),
+		packer.WithCARUploader(conf.CARUploader),
 	}
 
-	lib, err := packer.New(conf.PostgresURI, ipfsClient, mb, opts...)
+	lib, err := packer.New(conf.PostgresURI, pinnerClient, conf.IpfsMaddrs, mb, opts...)
 	if err != nil {
 		return nil, fin.Cleanupf("creating packer: %v", err)
 	}
@@ -95,13 +100,14 @@ func (s *Service) OnReadyToBatch(ctx context.Context, opID mbroker.OperationID, 
 
 // Close the service.
 func (s *Service) Close() error {
+	log.Info("closing service")
 	defer log.Info("service was shutdown")
 
 	return s.finalizer.Cleanup(nil)
 }
 
 func validateConfig(conf Config) error {
-	if conf.IpfsAPIMultiaddr == "" {
+	if conf.PinnerMultiaddr == "" {
 		return fmt.Errorf("ipfs api multiaddr is empty")
 	}
 	if conf.PostgresURI == "" {

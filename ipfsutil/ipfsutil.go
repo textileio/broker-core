@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	iface "github.com/ipfs/interface-go-ipfs-core"
+	"github.com/ipfs/interface-go-ipfs-core/options"
 	ipfspath "github.com/ipfs/interface-go-ipfs-core/path"
 	"github.com/multiformats/go-multiaddr"
 	logger "github.com/textileio/go-log/v2"
@@ -33,7 +34,7 @@ func GetNodeGetterForCid(ipfsApis []IpfsAPI, c cid.Cid) (ng format.NodeGetter, f
 	for _, coreapi := range ipfsApis {
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
 		defer cls()
-		_, ok, err := coreapi.API.Pin().IsPinned(ctx, ipfspath.IpfsPath(c))
+		_, ok, err := coreapi.API.Pin().IsPinned(ctx, ipfspath.IpfsPath(c), options.Pin.IsPinned.Recursive())
 		if err != nil {
 			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.Address, err)
 			continue
@@ -67,4 +68,23 @@ func GetNodeGetterForCid(ipfsApis []IpfsAPI, c cid.Cid) (ng format.NodeGetter, f
 	}
 
 	return ng, true
+}
+
+// IsPinned returns if a cid is pinned in one of the provided go-ipfs nodes.
+func IsPinned(ctx context.Context, ipfsApis []IpfsAPI, c cid.Cid) (bool, error) {
+	for _, coreapi := range ipfsApis {
+		ctx, cls := context.WithTimeout(ctx, time.Second*15)
+		defer cls()
+		_, ok, err := coreapi.API.Pin().IsPinned(ctx, ipfspath.IpfsPath(c), options.Pin.IsPinned.Recursive())
+		if err != nil {
+			log.Errorf("checking if %s is pinned in %s: %s", c, coreapi.Address, err)
+			continue
+		}
+		if !ok {
+			continue
+		}
+		log.Debugf("found core-api for cid: %s", coreapi.Address)
+		return true, nil
+	}
+	return false, nil
 }
