@@ -88,6 +88,6 @@ spec:
                 name: configmap-piecer
           resources:
             requests:
-              cpu: "2"
-              memory: 2Gi 
+              cpu: 250m
+              memory: 512Mi
 
