@@ -188,7 +188,7 @@ func (d *Dealer) tryResolvingDealID(
 	}
 	pds, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid)
 	if err != nil {
-		log.Errorf("checking deal status with storage-provider: %s", err)
+		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0, true
 	}
 	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[pds.State])
