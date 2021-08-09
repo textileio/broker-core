@@ -145,14 +145,15 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 	mockChain.AssertExpectations(t)
 }
 
-func TestClient_NEARToken(t *testing.T) {
+// TODO: Test different types of tokens, not just eth-1337.
+func TestClient_Token(t *testing.T) {
 	s := newService(t)
 	c := newClient(t, s.Config.Listener.(*bufconn.Listener))
 	req := &pb.AuthRequest{Token: token}
 	res, err := c.Auth(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, res.Identity, kid)
-	require.Equal(t, res.Origin, "NEAR")
+	require.Equal(t, res.Origin, "eth-1337")
 }
 
 func newClient(t *testing.T, listener *bufconn.Listener) pb.AuthAPIServiceClient {
@@ -184,7 +185,7 @@ func newService(t *testing.T) *Service {
 		Listener:    listener,
 		PostgresURI: u,
 	}
-	deps := Deps{NearAPI: newChainAPIClientMock()}
+	deps := Deps{NearAPI: newChainAPIClientMock(), EthAPI: newChainAPIClientMock(), PolyAPI: newChainAPIClientMock()}
 	serv, err := New(config, deps)
 	require.NoError(t, err)
 	return serv
