@@ -224,7 +224,7 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 			return
 		}
 
-		if p.padToSize > 0 {
+		if ps < p.padToSize {
 			log.Debugf("padding commP from %d to %d", ps, p.padToSize)
 			rawCommP, err = commP.PadCommP(rawCommP, ps, p.padToSize)
 			if err != nil {
