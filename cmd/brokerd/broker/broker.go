@@ -151,7 +151,7 @@ func (b *Broker) CreatePrepared(
 	ctx context.Context,
 	payloadCid cid.Cid,
 	pc broker.PreparedCAR,
-	meta broker.BatchMetadata) (br broker.StorageRequest, err error) {
+	meta broker.BatchMetadata) (sr broker.StorageRequest, err error) {
 	log.Debugf("creating prepared car storage request")
 	if !payloadCid.Defined() {
 		return broker.StorageRequest{}, ErrInvalidCid
@@ -165,7 +165,7 @@ func (b *Broker) CreatePrepared(
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("generating id: %s", err)
 	}
-	br = broker.StorageRequest{
+	sr = broker.StorageRequest{
 		ID:        broker.StorageRequestID(srID),
 		DataCid:   payloadCid,
 		Status:    broker.RequestAuctioning,
@@ -217,15 +217,15 @@ func (b *Broker) CreatePrepared(
 	}()
 
 	log.Debugf("creating prepared storage-request")
-	if err = b.store.CreateStorageRequest(ctx, br); err != nil {
+	if err = b.store.CreateStorageRequest(ctx, sr); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("saving storage request in store: %s", err)
 	}
 
 	log.Debugf("creating prepared batch payload-cid %s, batch %s", payloadCid, batchID)
-	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{br.ID}, nil); err != nil {
+	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{sr.ID}, nil); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("creating batch: %w", err)
 	}
-	br.BatchID = ba.ID
+	sr.BatchID = ba.ID
 
 	auctionEpochDeadline, err := timeToFilEpoch(auctionDeadline)
 	if err != nil {
@@ -253,14 +253,14 @@ func (b *Broker) CreatePrepared(
 	}
 	log.Debugf("created prepared auction %s for batch %s", auctionID, batchID)
 
-	return br, nil
+	return sr, nil
 }
 
 // GetStorageRequestInfo gets a StorageRequest by id. If doesn't exist, it returns ErrNotFound.
 func (b *Broker) GetStorageRequestInfo(
 	ctx context.Context,
-	brID broker.StorageRequestID) (broker.StorageRequestInfo, error) {
-	br, err := b.store.GetStorageRequest(ctx, brID)
+	srID broker.StorageRequestID) (broker.StorageRequestInfo, error) {
+	sr, err := b.store.GetStorageRequest(ctx, srID)
 	if err == store.ErrNotFound {
 		return broker.StorageRequestInfo{}, ErrNotFound
 	}
@@ -268,12 +268,12 @@ func (b *Broker) GetStorageRequestInfo(
 		return broker.StorageRequestInfo{}, fmt.Errorf("get storage-request from store: %s", err)
 	}
 
-	bri := broker.StorageRequestInfo{
-		StorageRequest: br,
+	sri := broker.StorageRequestInfo{
+		StorageRequest: sr,
 	}
 
-	if br.BatchID != "" {
-		deals, err := b.store.GetDeals(ctx, br.BatchID)
+	if sr.BatchID != "" {
+		deals, err := b.store.GetDeals(ctx, sr.BatchID)
 		if err != nil {
 			return broker.StorageRequestInfo{}, fmt.Errorf("get deals: %s", err)
 		}
@@ -286,12 +286,12 @@ func (b *Broker) GetStorageRequestInfo(
 				DealID:            deal.DealID,
 				Expiration:        deal.DealExpiration,
 			}
-			bri.Deals = append(bri.Deals, di)
+			sri.Deals = append(sri.Deals, di)
 		}
 	}
-	log.Debugf("get storage-request info with id %s, batch %s", brID, br.BatchID)
+	log.Debugf("get storage-request info with id %s, batch %s", srID, sr.BatchID)
 
-	return bri, nil
+	return sri, nil
 }
 
 // CreateNewBatch creates a Batch that contains multiple StorageRequest.
