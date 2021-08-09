@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 	"sync"
@@ -179,8 +180,8 @@ func (b *Broker) CreatePrepared(
 
 	auctionDeadline := time.Now().Add(b.conf.auctionDuration)
 	if pc.Deadline.Before(auctionDeadline) {
-		return broker.StorageRequest{}, fmt.Errorf("the batch deadline is too tight, current duration is %.0f hours: %w",
-			b.conf.auctionDuration.Hours(), errTooEarlyDeadline)
+		return broker.StorageRequest{}, fmt.Errorf("the batch deadline is too tight, current duration is ~%d hours: %w",
+			int(math.Ceil(b.conf.auctionDuration.Hours())), errTooEarlyDeadline)
 	}
 
 	batchEpochDeadline, err := timeToFilEpoch(pc.Deadline)
