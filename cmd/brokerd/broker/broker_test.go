@@ -207,7 +207,7 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, string(sd.ID), rda.BatchId)
 	require.Equal(t, pc.RepFactor, int(rda.DealReplication))
 	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-	require.Equal(t, uint64(expectedAuctionDuration), rda.FilEpochDeadline)
+	require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
 	require.NotNil(t, rda.Sources.CarUrl)
 	require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 	require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
@@ -218,7 +218,8 @@ func TestCreateTooEarlyDeadline(t *testing.T) {
 	ctx := context.Background()
 	b, _, _ := createBroker(t)
 
-	deadline := time.Now().Add(time.Minute) // Default auction duration is 3 days, so this deadline should fail to be accepted.
+	// Default auction duration is 3 days, so this deadline should fail to be accepted.
+	deadline := time.Now().Add(time.Minute)
 	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 	carURLStr := "https://duke.dog/car/" + payloadCid.String()
 	carURL, _ := url.Parse(carURLStr)
@@ -775,7 +776,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		require.Equal(t, string(ba.ID), rda.BatchId)
 		require.Equal(t, ba.RepFactor, int(rda.DealReplication))
 		require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-		require.Equal(t, uint64(expectedAuctionDuration), rda.FilEpochDeadline)
+		require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
 		require.NotNil(t, rda.Sources.CarUrl)
 		require.Equal(t, ba.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 		require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
