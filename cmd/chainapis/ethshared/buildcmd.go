@@ -2,6 +2,7 @@ package ethshared
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -25,10 +26,10 @@ var (
 )
 
 // BuildRootCmd builds the root command for the provided parameters.
-func BuildRootCmd(daemonName, envPrefix, chainName string) *cobra.Command {
+func BuildRootCmd(daemonName, envPrefix, blockchainName string) *cobra.Command {
 	log = logging.Logger(daemonName)
 
-	rootCmd := buildRootCommand(daemonName, chainName)
+	rootCmd := buildRootCommand(daemonName, blockchainName)
 
 	flags := []common.Flag{
 		{Name: "config-path", DefValue: fmt.Sprintf("./%s.yaml", daemonName), Description: "Path to the config file"},
@@ -46,11 +47,11 @@ func BuildRootCmd(daemonName, envPrefix, chainName string) *cobra.Command {
 	return rootCmd
 }
 
-func buildRootCommand(daemonName, chainName string) *cobra.Command {
+func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 	return &cobra.Command{
 		Use:   daemonName,
-		Short: fmt.Sprintf("%s provides an api to the %s blockchain", daemonName, chainName),
-		Long:  fmt.Sprintf("%s provides an api to the %s blockchain", daemonName, chainName),
+		Short: fmt.Sprintf("%s provides an api to the %s blockchain", daemonName, blockchainName),
+		Long:  fmt.Sprintf("%s provides an api to the %s blockchain", daemonName, blockchainName),
 		PersistentPreRun: func(c *cobra.Command, args []string) {
 			common.ExpandEnvVars(v, v.AllSettings())
 			err := common.ConfigureLogging(v, nil)
@@ -73,8 +74,8 @@ func buildRootCommand(daemonName, chainName string) *cobra.Command {
 			ethClients := []*ethclient.Client{}
 			contractClients := make(map[string]*contractclient.BridgeProvider)
 			releasers := []*releaser.Releaser{}
-			for key := range chainApisMap {
-				sub := cv.Sub(fmt.Sprintf("chain-apis.%s", key))
+			for chainID := range chainApisMap {
+				sub := cv.Sub(fmt.Sprintf("chain-apis.%s", chainID))
 				endpoint := sub.GetString("endpoint")
 				timeout := sub.GetDuration("timeout")
 				contractAddress := sub.GetString("contract-addr")
@@ -101,9 +102,18 @@ func buildRootCommand(daemonName, chainName string) *cobra.Command {
 					return types.SignTx(t, signer, privateKey)
 				}
 
+				releaser, err := releaser.New(contractClient, chainID, clientAddr, signer, releaseDepositsFreq, timeout)
+				common.CheckErrf("creating releaser: %v", err)
+
 				ethClients = append(ethClients, ethClient)
-				contractClients[key] = contractClient
-				releasers = append(releasers, releaser.New(contractClient, clientAddr, signer, releaseDepositsFreq, timeout))
+				contractClients[chainID] = contractClient
+				releasers = append(releasers, releaser)
+			}
+
+			_ = releasers
+
+			if len(contractClients) == 0 {
+				common.CheckErr(errors.New("no contract clients resolved"))
 			}
 
 			log.Info("Starting service...")
@@ -116,11 +126,6 @@ func buildRootCommand(daemonName, chainName string) *cobra.Command {
 			common.HandleInterrupt(func() {
 				for _, c := range ethClients {
 					c.Close()
-				}
-				for _, r := range releasers {
-					if err := r.Close(); err != nil {
-						log.Errorf("closing releaser: %v", err)
-					}
 				}
 				log.Info("Gracefully stopping... (press Ctrl+C again to force)")
 				if err := service.Close(); err != nil {

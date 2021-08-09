@@ -2,6 +2,8 @@ package releaser
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
@@ -9,7 +11,7 @@ import (
 )
 
 var (
-	log = logging.Logger("neard/releaser")
+	log *logging.ZapEventLogger
 )
 
 // Releaser manages calling releaseDeposits on the contract.
@@ -21,7 +23,19 @@ type Releaser struct {
 }
 
 // New creates a new Releaser.
-func New(cc *contractclient.Client, freq, timeout time.Duration) *Releaser {
+func New(cc *contractclient.Client, chainID string, freq, timeout time.Duration) (*Releaser, error) {
+	if chainID == "" {
+		return nil, errors.New("no chain id provided")
+	}
+	if freq <= 0 {
+		return nil, fmt.Errorf("invalid freq: %v", freq)
+	}
+	if timeout <= 0 {
+		return nil, fmt.Errorf("invalid timeout: %v", timeout)
+	}
+
+	log = logging.Logger(fmt.Sprintf("neard-releaser-%s", chainID))
+
 	r := &Releaser{
 		cc:      cc,
 		t:       time.NewTicker(freq),
@@ -29,7 +43,7 @@ func New(cc *contractclient.Client, freq, timeout time.Duration) *Releaser {
 		close:   make(chan struct{}),
 	}
 	r.start()
-	return r
+	return r, nil
 }
 
 func (r *Releaser) start() {
@@ -66,10 +80,4 @@ func (r *Releaser) start() {
 			}
 		}
 	}()
-}
-
-// Close shuts down the Releaser.
-func (r *Releaser) Close() error {
-	close(r.close)
-	return nil
 }

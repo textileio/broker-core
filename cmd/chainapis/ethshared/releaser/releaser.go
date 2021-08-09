@@ -2,6 +2,8 @@ package releaser
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -11,7 +13,7 @@ import (
 )
 
 var (
-	log = logging.Logger("neard-releaser")
+	log *logging.ZapEventLogger
 )
 
 // Releaser manages calling releaseDeposits on the contract.
@@ -27,10 +29,26 @@ type Releaser struct {
 // New creates a new Releaser.
 func New(
 	cc *contractclient.BridgeProvider,
+	chainID string,
 	clientAddr common.Address,
 	signer bind.SignerFn,
 	freq, timeout time.Duration,
-) *Releaser {
+) (*Releaser, error) {
+	if chainID == "" {
+		return nil, errors.New("no chain id provided")
+	}
+	if signer == nil {
+		return nil, errors.New("no signer provided")
+	}
+	if freq <= 0 {
+		return nil, fmt.Errorf("invalid freq: %v", freq)
+	}
+	if timeout <= 0 {
+		return nil, fmt.Errorf("invalid timeout: %v", timeout)
+	}
+
+	log = logging.Logger(fmt.Sprintf("ethd-releaser-%s", chainID))
+
 	r := &Releaser{
 		cc:         cc,
 		clientAddr: clientAddr,
@@ -40,7 +58,7 @@ func New(
 		close:      make(chan struct{}),
 	}
 	r.start()
-	return r
+	return r, nil
 }
 
 func (r *Releaser) start() {
@@ -68,10 +86,4 @@ func (r *Releaser) start() {
 			}
 		}
 	}()
-}
-
-// Close shuts down the Releaser.
-func (r *Releaser) Close() error {
-	close(r.close)
-	return nil
 }

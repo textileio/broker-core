@@ -46,18 +46,11 @@ func (m *SigningMethodEth) Alg() string {
 // Verify implements the Verify method from SigningMethod.
 // For this signing method, must be a common.Address.
 func (m *SigningMethodEth) Verify(signingString, signature string, address interface{}) error {
-	var err error
-
 	// Decode the signature
-	var sig []byte
-	if sig, err = jwt.DecodeSegment(signature); err != nil {
-		return err
+	sig, err := jwt.DecodeSegment(signature)
+	if err != nil {
+		return fmt.Errorf("decoding signature: %v", err)
 	}
-
-	// if sig[64] != 27 && sig[64] != 28 {
-	// 	return jwt.ErrSignatureInvalid
-	// }
-	// sig[64] -= 27
 
 	expectedAddr, ok := address.(common.Address)
 	if !ok {
@@ -67,7 +60,7 @@ func (m *SigningMethodEth) Verify(signingString, signature string, address inter
 	msg := []byte(signingString)
 	sigPublicKeyECDSA, err := crypto.SigToPub(PrefixedHash(msg), sig)
 	if err != nil {
-		return err
+		return fmt.Errorf("converting sig to pub key: %v", err)
 	}
 	recoveredAddr := crypto.PubkeyToAddress(*sigPublicKeyECDSA)
 
@@ -82,18 +75,16 @@ func (m *SigningMethodEth) Verify(signingString, signature string, address inter
 // Sign implements the Sign method from SigningMethod.
 // For this signing method, must be a *ecdsa.PrivateKey structure.
 func (m *SigningMethodEth) Sign(signingString string, privateKey interface{}) (string, error) {
-	// // validate type of key
-	var privateKeyPointer *ecdsa.PrivateKey
-	var ok bool
-	privateKeyPointer, ok = privateKey.(*ecdsa.PrivateKey)
+	// validate type of key
+	privateKeyPointer, ok := privateKey.(*ecdsa.PrivateKey)
 	if !ok {
 		return "", jwt.ErrInvalidKey
 	}
 
 	sigBytes, err := crypto.Sign(PrefixedHash([]byte(signingString)), privateKeyPointer)
-
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("signing: %v", err)
 	}
+
 	return jwt.EncodeSegment(sigBytes), nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -102,16 +103,24 @@ var rootCmd = &cobra.Command{
 			contractClient, err := contractclient.NewClient(nearClient, contractAddress, clientAddress)
 			common.CheckErrf("creating contract client: %v", err)
 
+			releaser, err := releaser.New(contractClient, chainID, releaseDepositsFreq, timeout)
+			common.CheckErrf("creating releaser: %v", err)
+
 			m := metrics.New(contractClient, nearClient, chainID)
 
 			rpcClients = append(rpcClients, rpcClient)
 			contractClients[chainID] = contractClient
-			releasers = append(releasers, releaser.New(contractClient, releaseDepositsFreq, timeout))
+			releasers = append(releasers, releaser)
 			ms = append(ms, m)
+		}
+
+		if len(contractClients) == 0 {
+			common.CheckErr(errors.New("no contract clients resolved"))
 		}
 
 		// Keep the linter happy
 		_ = ms
+		_ = releasers
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)
@@ -123,11 +132,6 @@ var rootCmd = &cobra.Command{
 		common.HandleInterrupt(func() {
 			for _, rpcClient := range rpcClients {
 				rpcClient.Close()
-			}
-			for _, r := range releasers {
-				if err := r.Close(); err != nil {
-					log.Errorf("closing releaser: %v", err)
-				}
 			}
 			log.Info("Gracefully stopping... (press Ctrl+C again to force)")
 			if err := service.Close(); err != nil {
