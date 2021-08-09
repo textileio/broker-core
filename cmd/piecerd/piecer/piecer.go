@@ -23,6 +23,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const maxPaddingSize = 32 << 30
+
 var log = logger.Logger("piecer")
 
 // Piecer provides a data-preparation pipeline for Batchs.
@@ -58,8 +60,12 @@ func New(
 	retryDelay time.Duration,
 	padToSize uint64) (*Piecer, error) {
 	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
-	if padToSize < 0 || padToSize&(padToSize-1) != 0 {
+	if padToSize&(padToSize-1) != 0 {
 		return nil, fmt.Errorf("pad to size %d must be a positive power of two", padToSize)
+	}
+
+	if padToSize > maxPaddingSize {
+		return nil, fmt.Errorf("pad to size can't be greater than 32GiB")
 	}
 
 	for i, endpoint := range ipfsEndpoints {
