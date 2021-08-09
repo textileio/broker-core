@@ -40,7 +40,8 @@ var (
 	// which basically means the function being called with the same data again.
 	ErrOperationIDExists = errors.New("operation-id already exists")
 
-	errTooEarlyDeadline = errors.New("too early deadline")
+	errTooEarlyDeadline        = errors.New("too early deadline")
+	msgAuctionDeadlineExceeded = "auction deadline exceeded"
 
 	log = logger.Logger("broker")
 )
@@ -176,7 +177,6 @@ func (b *Broker) CreatePrepared(
 		pc.RepFactor = int(b.conf.dealReplication)
 	}
 
-	// TODO(jsign): test.
 	auctionDeadline := time.Now().Add(b.conf.auctionDuration)
 	if pc.Deadline.Before(auctionDeadline) {
 		return broker.StorageRequest{}, fmt.Errorf("the batch deadline is too tight, current duration is %.0f hours: %w",
@@ -224,6 +224,7 @@ func (b *Broker) CreatePrepared(
 	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{br.ID}, nil); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("creating batch: %w", err)
 	}
+	br.BatchID = ba.ID
 
 	auctionEpochDeadline, err := timeToFilEpoch(auctionDeadline)
 	if err != nil {
@@ -551,22 +552,34 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		}
 		log.Infof("creating new auction for failed deal with storage-provider %s", fad.StorageProviderID)
 
-		auctionDeadline := time.Now().Add(b.conf.auctionDuration)
-		auctionEpochDeadline, err := timeToFilEpoch(auctionDeadline)
-		if err != nil {
-			return fmt.Errorf("calculating auction epoch deadline: %s", err)
-		}
-		// TODO(jsign): test, both branches.
-		if ba.FilEpochDeadline > 0 && ba.FilEpochDeadline < auctionEpochDeadline {
-			errCause := fmt.Sprintf("batch %s can't be rebatched since re-auction deadline %d can't fit deadline  %d",
-				ba.ID, auctionEpochDeadline, ba.FilEpochDeadline)
-			log.Warn(errCause)
-			_, err := b.store.BatchError(ctx, ba.ID, errCause, false)
+		// If the Batch has a specific deadline, check if the re-auction can be run
+		// considering the broker auction duration. If doesn't fit before the known deadline
+		// we can't reauction and we fail the batch.
+		//
+		// If the batch doesn't have a specified deadline (==0), we can re-auction without deadline
+		// constraint.
+		var auctionDeadlineEpoch uint64
+		if ba.FilEpochDeadline > 0 {
+			auctionDeadline := time.Now().Add(b.conf.auctionDuration)
+			auctionDeadlineEpoch, err = timeToFilEpoch(auctionDeadline)
 			if err != nil {
-				return fmt.Errorf("moving batch to error status: %s", err)
+				return fmt.Errorf("calculating auction epoch deadline: %s", err)
 			}
-			return nil
+
+			// Would the auction finish after the batch specified deadline?
+			if ba.FilEpochDeadline < auctionDeadlineEpoch {
+				errCause := fmt.Sprintf(
+					"re-auction deadline %d is greater than batch deadline  %d: "+msgAuctionDeadlineExceeded,
+					auctionDeadlineEpoch, ba.FilEpochDeadline)
+				log.Warn(errCause)
+				_, err := b.store.BatchError(ctx, ba.ID, errCause, false)
+				if err != nil {
+					return fmt.Errorf("moving batch to error status: %s", err)
+				}
+				return nil
+			}
 		}
+
 		auctionID, err := b.newID()
 		if err != nil {
 			return fmt.Errorf("generating auction id: %s", err)
@@ -582,7 +595,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 			1,
 			b.conf.verifiedDeals,
 			excludedStorageProviders,
-			ba.FilEpochDeadline,
+			auctionDeadlineEpoch,
 			ba.Sources,
 		); err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
