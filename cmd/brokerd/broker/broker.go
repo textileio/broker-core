@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	filecoinGenesisUnixEpoch = 1598306400
+	filecoinGenesisUnixEpoch   = 1598306400
+	msgAuctionDeadlineExceeded = "auction deadline exceeded"
 )
 
 var (
@@ -41,8 +42,7 @@ var (
 	// which basically means the function being called with the same data again.
 	ErrOperationIDExists = errors.New("operation-id already exists")
 
-	errTooEarlyDeadline        = errors.New("too early deadline")
-	msgAuctionDeadlineExceeded = "auction deadline exceeded"
+	errTooEarlyDeadline = errors.New("too early deadline")
 
 	log = logger.Logger("broker")
 )
