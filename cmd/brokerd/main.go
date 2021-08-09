@@ -28,6 +28,7 @@ func init() {
 		{Name: "deal-duration", DefValue: auction.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
+		{Name: "auction-duration", DefValue: "72h", Description: "Auction duration for creating auctions in batches with defined deadlines"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
@@ -72,6 +73,7 @@ var rootCmd = &cobra.Command{
 			VerifiedDeals:   v.GetBool("verified-deals"),
 
 			AuctionMaxRetries: v.GetInt("auction-max-retries"),
+			AuctionDuration:   v.GetDuration("auction-duration"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")

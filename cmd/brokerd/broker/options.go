@@ -18,6 +18,7 @@ var defaultConfig = config{
 	exportPinCountFrequency: time.Minute * 30,
 
 	auctionMaxRetries: 5,
+	auctionDuration:   3 * 24 * time.Hour,
 }
 
 type config struct {
@@ -30,6 +31,7 @@ type config struct {
 	exportPinCountFrequency time.Duration
 
 	auctionMaxRetries int
+	auctionDuration   time.Duration
 }
 
 // Option provides configuration for Broker.
@@ -106,6 +108,20 @@ func WithAuctionMaxRetries(max int) Option {
 			return errors.New("auction max number of retries should be positive")
 		}
 		c.auctionMaxRetries = max
+		return nil
+	}
+}
+
+// WithAuctionDuration indicates the auction duration to be used in
+// every auction (includes re-auctioning). If a new auction has to be created
+// that can't fit into the Batch specified deadline, then it won't be created
+// and the Batch would be consider un-auctionable and thus fail.
+func WithAuctionDuration(duration time.Duration) Option {
+	return func(c *config) error {
+		if duration == 0 {
+			return errors.New("auction duration must be positive")
+		}
+		c.auctionDuration = duration
 		return nil
 	}
 }

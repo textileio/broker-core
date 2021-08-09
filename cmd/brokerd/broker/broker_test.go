@@ -131,7 +131,7 @@ func TestCreatePrepared(t *testing.T) {
 	b, mb, _ := createBroker(t)
 
 	// 1- Create some prepared data setup.
-	deadline, _ := time.Parse(time.RFC3339, "2021-06-18T12:51:00+00:00")
+	deadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
 	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 	carURLStr := "https://duke.dog/car/" + payloadCid.String()
 	carURL, _ := url.Parse(carURLStr)
@@ -152,6 +152,7 @@ func TestCreatePrepared(t *testing.T) {
 			},
 		},
 	}
+	expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
 	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta)
 	require.NoError(t, err)
 
@@ -181,7 +182,7 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
 	require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
 	require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
-	require.Equal(t, uint64(857142), sd.FilEpochDeadline)
+	require.Equal(t, uint64(83471280), sd.FilEpochDeadline)
 	require.Equal(t, payloadCid, sd.PayloadCid)
 	require.Equal(t, pc.PieceCid, sd.PieceCid)
 	require.Equal(t, pc.PieceSize, sd.PieceSize)
@@ -206,10 +207,40 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, string(sd.ID), rda.BatchId)
 	require.Equal(t, pc.RepFactor, int(rda.DealReplication))
 	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-	require.Equal(t, uint64(857142), rda.FilEpochDeadline)
+	require.Equal(t, uint64(expectedAuctionDuration), rda.FilEpochDeadline)
 	require.NotNil(t, rda.Sources.CarUrl)
 	require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 	require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
+}
+
+func TestCreateTooEarlyDeadline(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	b, _, _ := createBroker(t)
+
+	deadline := time.Now().Add(time.Minute) // Default auction duration is 3 days, so this deadline should fail to be accepted.
+	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+	carURLStr := "https://duke.dog/car/" + payloadCid.String()
+	carURL, _ := url.Parse(carURLStr)
+	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	require.NoError(t, err)
+	pc := broker.PreparedCAR{
+		PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize: 1024,
+		RepFactor: 3,
+		Deadline:  deadline,
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
+				URL: *carURL,
+			},
+			CARIPFS: &auction.CARIPFS{
+				Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+				Multiaddrs: []multiaddr.Multiaddr{maddr},
+			},
+		},
+	}
+	_, err = b.CreatePrepared(ctx, payloadCid, pc, meta)
+	require.ErrorIs(t, err, errTooEarlyDeadline)
 }
 
 func TestCreateBatchFail(t *testing.T) {
