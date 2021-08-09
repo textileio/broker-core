@@ -1,13 +1,3 @@
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: broker-pdb
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: broker
----
 apiVersion: v1
 kind: Service
 metadata:

@@ -53,6 +53,14 @@ secretGenerator:
   type: Opaque
 
 patchesStrategicMerge:
+- auctioneer-pdb.yaml
+- authd-pdb.yaml
+- brokerd-pdb.yaml
+- dealerd-pdb.yaml
+- neard-pdb.yaml
+- packerd-pdb.yaml
+- piecer-pdb.yaml
+- storaged-pdb.yaml
 - ipfs-cluster-setup-confmap-patch.yaml
 - ipfs-cluster-volumeclaim-patch.yaml
 - ipfs-cluster-statefulset-patch.yaml
