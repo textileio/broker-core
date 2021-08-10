@@ -660,7 +660,6 @@ func createBroker(t *testing.T) (
 	fmb := fakemsgbroker.New()
 	b, err := New(
 		u,
-		chainAPI,
 		nil,
 		fmb,
 	)
