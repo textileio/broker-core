@@ -52,6 +52,11 @@ func (m *SigningMethodEth) Verify(signingString, signature string, address inter
 		return fmt.Errorf("decoding signature: %v", err)
 	}
 
+	if sig[64] != 27 && sig[64] != 28 {
+		return fmt.Errorf("sig[64] is not 27 or 28")
+	}
+	sig[64] -= 27
+
 	expectedAddr, ok := address.(common.Address)
 	if !ok {
 		return jwt.ErrInvalidKeyType
