@@ -114,7 +114,6 @@ func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 				contractClients[chainID] = contractClient
 				releasers = append(releasers, releaser)
 			}
-
 			_ = releasers
 
 			if len(contractClients) == 0 {
