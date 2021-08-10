@@ -41,8 +41,6 @@ var (
 	// which basically means the function being called with the same data again.
 	ErrOperationIDExists = errors.New("operation-id already exists")
 
-	errTooEarlyDeadline = errors.New("too early deadline")
-
 	log = logger.Logger("broker")
 )
 
