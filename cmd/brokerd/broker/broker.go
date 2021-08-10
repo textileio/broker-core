@@ -18,7 +18,6 @@ import (
 
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
-	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/msgbroker"
@@ -47,7 +46,6 @@ var (
 // the Filecoin network.
 type Broker struct {
 	store      *store.Store
-	chainAPI   chainapi.ChainAPI
 	ipfsClient *httpapi.HttpApi
 	mb         msgbroker.MsgBroker
 
@@ -69,7 +67,6 @@ type Broker struct {
 // New creates a Broker backed by the provided `ds`.
 func New(
 	postgresURI string,
-	chainAPI chainapi.ChainAPI,
 	ipfsClient *httpapi.HttpApi,
 	mb msgbroker.MsgBroker,
 	opts ...Option,
@@ -89,7 +86,6 @@ func New(
 	ctx, cls := context.WithCancel(context.Background())
 	b := &Broker{
 		store:      s,
-		chainAPI:   chainAPI,
 		ipfsClient: ipfsClient,
 		mb:         mb,
 

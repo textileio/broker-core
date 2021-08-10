@@ -16,7 +16,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
-	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
@@ -34,8 +33,6 @@ var (
 // Config provides configuration to the broker service.
 type Config struct {
 	ListenAddr string
-
-	ReporterAddr string
 
 	PostgresURI string
 
@@ -75,11 +72,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	reporter, err := chainapii.New(config.ReporterAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating reporter implementation: %s", err)
-	}
-
 	ma, err := multiaddr.NewMultiaddr(config.IPFSAPIMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
@@ -91,7 +83,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 
 	broker, err := brokeri.New(
 		config.PostgresURI,
-		reporter,
 		ipfsClient,
 		mb,
 		brokeri.WithDealDuration(config.DealDuration),
@@ -372,9 +363,6 @@ func (s *Service) Close() error {
 func validateConfig(conf Config) error {
 	if conf.ListenAddr == "" {
 		return errors.New("service listen addr is empty")
-	}
-	if conf.ReporterAddr == "" {
-		return errors.New("reporter api addr is empty")
 	}
 	if conf.PostgresURI == "" {
 		return errors.New("postgres uri is empty")

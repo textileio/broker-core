@@ -1,73 +1,5 @@
 version: "3"
 services:
-  authd:
-    build:
-      context: .
-      dockerfile: ./cmd/authd/Dockerfile
-    platform: linux/amd64
-    entrypoint: ["./with-postgres.sh", "./authd"]
-    environment:
-      - AUTH_LOG_DEBUG=true
-      - AUTH_LOG_JSON=false
-      - AUTH_LISTEN_ADDR=:5000
-      - AUTH_NEAR_ADDR=neard:5000
-      - AUTH_ETH_ADDR=ethd:5000
-      - AUTH_POLY_ADDR=polyd:5000
-      - DB_HOST=postgres:5432
-      - DB_PASSWORD=foo
-      - POSTGRES_USER=dev_user
-      - POSTGRES_PASSWORD=dev_password
-      - DAEMON=auth
-    security_opt:
-      - "seccomp:unconfined"
-    cap_add:
-      - SYS_PTRACE
-    depends_on:
-      - neard
-      - postgres
-    restart: unless-stopped
-  neard:
-    build:
-      context: .
-      dockerfile: ./cmd/chainapis/neard/Dockerfile
-    platform: linux/amd64
-    environment:
-      - NEAR_LOG_DEBUG=true
-      - NEAR_LOG_JSON=false
-      - NEAR_LISTEN_ADDR=:5000
-    security_opt:
-      - "seccomp:unconfined"
-    cap_add:
-      - SYS_PTRACE
-    restart: unless-stopped
-  ethd:
-    build:
-      context: .
-      dockerfile: ./cmd/chainapis/ethd/Dockerfile
-    platform: linux/amd64
-    environment:
-      - ETH_LOG_DEBUG=true
-      - ETH_LOG_JSON=false
-      - ETH_LISTEN_ADDR=:5000
-    security_opt:
-      - "seccomp:unconfined"
-    cap_add:
-      - SYS_PTRACE
-    restart: unless-stopped
-  polyd:
-    build:
-      context: .
-      dockerfile: ./cmd/chainapis/polyd/Dockerfile
-    platform: linux/amd64
-    environment:
-      - POLY_LOG_DEBUG=true
-      - POLY_LOG_JSON=false
-      - POLY_LISTEN_ADDR=:5000
-    security_opt:
-      - "seccomp:unconfined"
-    cap_add:
-      - SYS_PTRACE
-    restart: unless-stopped
   storaged:
     build:
       context: .
@@ -80,7 +12,6 @@ services:
       - STORAGE_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
       - STORAGE_UPLOADER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
       - STORAGE_BROKER_ADDR=brokerd:5000
-      - STORAGE_AUTH_ADDR=authd:5000
       - STORAGE_SKIP_AUTH=true
     ports:
       - "127.0.0.1:8888:8888"
@@ -90,7 +21,6 @@ services:
       - SYS_PTRACE
     depends_on:
       - brokerd
-      - authd
     restart: unless-stopped
   auctioneerd:
     build:
@@ -155,7 +85,6 @@ services:
       - BROKER_LOG_JSON=false
       - BROKER_IPFS_API_MULTIADDR=/dns4/ipfs/tcp/5001
       - BROKER_LISTEN_ADDR=:5000
-      - BROKER_REPORTER_ADDR=neard:5000
       - BROKER_DEAL_REPLICATION=1
       - BROKER_DEAL_DURATION=1051200
       - BROKER_VERIFIED_DEALS=true
@@ -186,7 +115,8 @@ services:
       - PACKER_LOG_JSON=false
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
-      - PACKER_IPFS_MULTIADDR=/dns4/ipfs/tcp/5001
+      - PACKER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
+      - PACKER_PINNER_MULTIADDR=/dns4/ipfs/tcp/5001
       - PACKER_BATCH_MIN_SIZE=100
       - PACKER_TARGET_SECTOR_SIZE=20000
       - PACKER_DAEMON_FREQUENCY=3s

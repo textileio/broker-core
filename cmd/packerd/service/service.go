@@ -108,7 +108,7 @@ func (s *Service) Close() error {
 
 func validateConfig(conf Config) error {
 	if conf.PinnerMultiaddr == "" {
-		return fmt.Errorf("ipfs api multiaddr is empty")
+		return fmt.Errorf("ipfs pinner multiaddr is empty")
 	}
 	if conf.PostgresURI == "" {
 		return fmt.Errorf("postgres uri is empty")
