@@ -1,7 +1,6 @@
 package ethjwt
 
 import (
-	"crypto/ecdsa"
 	"log"
 	"strings"
 	"testing"
@@ -86,35 +85,35 @@ func TestSigningMethodEth_Sign(t *testing.T) {
 	}
 }
 
-func TestSigningMethodEth_Verify(t *testing.T) {
-	sk, err := crypto.HexToECDSA(privateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
+// func TestSigningMethodEth_Verify(t *testing.T) {
+// 	sk, err := crypto.HexToECDSA(privateKey)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	pk := sk.Public()
-	publicKeyECDSA, ok := pk.(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("error casting public key to ECDSA")
-	}
-	address := crypto.PubkeyToAddress(*publicKeyECDSA)
+// 	pk := sk.Public()
+// 	publicKeyECDSA, ok := pk.(*ecdsa.PublicKey)
+// 	if !ok {
+// 		log.Fatal("error casting public key to ECDSA")
+// 	}
+// 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
-	for _, data := range testData {
-		parts := strings.Split(data.tokenString, ".")
+// 	for _, data := range testData {
+// 		parts := strings.Split(data.tokenString, ".")
 
-		method := jwt.GetSigningMethod(data.alg)
+// 		method := jwt.GetSigningMethod(data.alg)
 
-		signingString := strings.Join(parts[0:2], ".")
+// 		signingString := strings.Join(parts[0:2], ".")
 
-		err := method.Verify(signingString, parts[2], address)
-		if data.valid && err != nil {
-			t.Errorf("[%v] error while verifying key: %v", data.name, err)
-		}
-		if !data.valid && err == nil {
-			t.Errorf("[%v] invalid key passed validation", data.name)
-		}
-	}
-}
+// 		err := method.Verify(signingString, parts[2], address)
+// 		if data.valid && err != nil {
+// 			t.Errorf("[%v] error while verifying key: %v", data.name, err)
+// 		}
+// 		if !data.valid && err == nil {
+// 			t.Errorf("[%v] invalid key passed validation", data.name)
+// 		}
+// 	}
+// }
 
 func TestGenerateEthToken(t *testing.T) {
 	sk, err := crypto.HexToECDSA(privateKey)
