@@ -73,7 +73,6 @@ func init() {
 // 	require.Equal(t, output.Iss, kid)
 // 	require.Equal(t, output.Sub, kid)
 // 	require.Equal(t, output.Aud, "provider")
-
 // 	// Invalid token
 // 	invalidToken := "INVALID_TOKEN"
 // 	output, err = validateToken(invalidToken)
