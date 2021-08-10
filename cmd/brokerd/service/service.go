@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -46,6 +47,7 @@ type Config struct {
 	VerifiedDeals   bool
 
 	AuctionMaxRetries int
+	AuctionDuration   time.Duration
 }
 
 // Service provides an implementation of the broker API.
@@ -98,6 +100,7 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
+		brokeri.WithAuctionDuration(config.AuctionDuration),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
