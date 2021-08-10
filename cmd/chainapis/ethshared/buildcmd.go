@@ -103,8 +103,8 @@ func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 					if !ok {
 						return nil, fmt.Errorf("parsing chain id %s to big int", chainID)
 					}
-					signer := types.NewEIP155Signer(chain)
-					return types.SignTx(t, signer, privateKey)
+					s := types.NewEIP155Signer(chain)
+					return types.SignTx(t, s, privateKey)
 				}
 
 				releaser, err := releaser.New(contractClient, chainID, clientAddr, signer, releaseDepositsFreq, timeout)

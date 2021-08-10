@@ -14,10 +14,6 @@ import (
 	"go.opentelemetry.io/otel/metric/global"
 )
 
-var (
-	log *logging.ZapEventLogger
-)
-
 const prefix = "neard"
 
 var meter = metric.Must(global.Meter(prefix))
@@ -26,12 +22,20 @@ var meter = metric.Must(global.Meter(prefix))
 type Metrics struct {
 	cc      *contractclient.Client
 	chainID string
+
+	log *logging.ZapEventLogger
 }
 
 // New creates a new Metrics.
 func New(cc *contractclient.Client, chainID string) *Metrics {
-	log = logging.Logger(fmt.Sprintf("neard-metrics-%s", chainID))
-	m := &Metrics{cc: cc, chainID: chainID}
+	m := &Metrics{
+		cc:      cc,
+		chainID: chainID,
+		log:     logging.Logger(fmt.Sprintf("neard-metrics-%s", chainID)),
+	}
+
+	_ = logging.SetLogLevel(fmt.Sprintf("neard-metrics-%s", chainID), "INFO")
+
 	m.initMetrics()
 	return m
 }
@@ -53,7 +57,7 @@ func (m *Metrics) initMetrics() {
 		// Contract state metrics.
 		state, err := m.cc.GetState(ctx)
 		if err != nil {
-			log.Errorf("getting contract state: %v", err)
+			m.log.Errorf("getting contract state: %v", err)
 		} else {
 			// Calc sum of deposits.
 			sumDeposits := big.NewFloat(0)
@@ -73,12 +77,12 @@ func (m *Metrics) initMetrics() {
 		// Account info metrics.
 		acc, err := m.cc.GetAccount(ctx)
 		if err != nil {
-			log.Errorf("getting account info: %v", err)
+			m.log.Errorf("getting account info: %v", err)
 		} else {
 			// Parse account balance.
 			bal, ok := (&big.Float{}).SetString(acc.Amount)
 			if !ok {
-				log.Errorf("unable to parse account balance: %s", acc.Amount)
+				m.log.Errorf("unable to parse account balance: %s", acc.Amount)
 			} else {
 				bal.Mul(bal, big.NewFloat(math.Pow(10, -24)))
 				balF, _ := bal.Float64()
@@ -88,7 +92,7 @@ func (m *Metrics) initMetrics() {
 			// Parse account locked balance.
 			lockedBal, ok := (&big.Float{}).SetString(acc.Locked)
 			if !ok {
-				log.Errorf("unable to parse locked account balance: %s", acc.Locked)
+				m.log.Errorf("unable to parse locked account balance: %s", acc.Locked)
 			} else {
 				lockedBal.Mul(lockedBal, big.NewFloat(math.Pow(10, -24)))
 				lockedBalF, _ := lockedBal.Float64()
@@ -101,12 +105,12 @@ func (m *Metrics) initMetrics() {
 		// Node status metrics.
 		nodeStatus, err := m.cc.NearClient.NodeStatus(ctx)
 		if err != nil {
-			log.Errorf("getting node status: %v", err)
+			m.log.Errorf("getting node status: %v", err)
 		} else {
 			// Parse latest block time
 			latestBlockTime, err := time.Parse(time.RFC3339Nano, nodeStatus.SyncInfo.LatestBlockTime)
 			if err != nil {
-				log.Errorf("parsing latest block time: %v", err)
+				m.log.Errorf("parsing latest block time: %v", err)
 			} else {
 				obs = append(obs, latestBlocktime.Observation(latestBlockTime.Unix()))
 			}

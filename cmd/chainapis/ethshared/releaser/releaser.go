@@ -12,10 +12,6 @@ import (
 	logging "github.com/textileio/go-log/v2"
 )
 
-var (
-	log *logging.ZapEventLogger
-)
-
 // Releaser manages calling releaseDeposits on the contract.
 type Releaser struct {
 	cc         *contractclient.BridgeProvider
@@ -24,6 +20,8 @@ type Releaser struct {
 	t          *time.Ticker
 	timeout    time.Duration
 	close      chan struct{}
+
+	log *logging.ZapEventLogger
 }
 
 // New creates a new Releaser.
@@ -47,8 +45,6 @@ func New(
 		return nil, fmt.Errorf("invalid timeout: %v", timeout)
 	}
 
-	log = logging.Logger(fmt.Sprintf("ethd-releaser-%s", chainID))
-
 	r := &Releaser{
 		cc:         cc,
 		clientAddr: clientAddr,
@@ -56,7 +52,11 @@ func New(
 		t:          time.NewTicker(freq),
 		timeout:    timeout,
 		close:      make(chan struct{}),
+		log:        logging.Logger(fmt.Sprintf("ethd-releaser-%s", chainID)),
 	}
+
+	_ = logging.SetLogLevel(fmt.Sprintf("ethd-releaser-%s", chainID), "INFO")
+
 	r.start()
 	return r, nil
 }
@@ -69,14 +69,14 @@ func (r *Releaser) start() {
 				needsRelease := true
 				// TODO: Lookup in the Graph state if we need to release.
 				if needsRelease {
-					log.Info("calling release deposits")
+					r.log.Info("calling release deposits")
 					ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 					if _, err := r.cc.ReleaseDeposits(&bind.TransactOpts{
 						Context: ctx,
 						From:    r.clientAddr,
 						Signer:  r.signer,
 					}); err != nil {
-						log.Errorf("calling release deposits: %v", err)
+						r.log.Errorf("calling release deposits: %v", err)
 					}
 					cancel()
 				}
