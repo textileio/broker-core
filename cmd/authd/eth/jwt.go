@@ -52,6 +52,8 @@ func (m *SigningMethodEth) Verify(signingString, signature string, address inter
 		return fmt.Errorf("decoding signature: %v", err)
 	}
 
+	// https://stackoverflow.com/questions/49085737/geth-ecrecover-invalid-signature-recovery-id
+	// https://gist.github.com/dcb9/385631846097e1f59e3cba3b1d42f3ed#file-eth_sign_verify-go
 	if sig[64] != 27 && sig[64] != 28 {
 		return fmt.Errorf("sig[64] is not 27 or 28")
 	}

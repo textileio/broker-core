@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -123,6 +124,23 @@ func detectInput(token string) *detectedInput {
 
 // validateToken validates the JWT token.
 func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
+	parts := strings.Split(jwtBase64URL, ".")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("token contains an invalid number of segments")
+	}
+	t := &jwt.Token{Raw: jwtBase64URL}
+	// parse Header
+	var headerBytes []byte
+	headerBytes, err := jwt.DecodeSegment(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("decoding segment")
+	}
+	if err := json.Unmarshal(headerBytes, &t.Header); err != nil {
+		return nil, fmt.Errorf("unmarshaling header bytes: %v", err)
+	}
+
+	log.Infof("token headers: %v", t.Header)
+
 	origin := ""
 	suborigin := ""
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -272,10 +290,14 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		default:
 			return nil, fmt.Errorf("unknown origin %s", token.Origin)
 		}
-		accountID := token.Iss
+		accountID := ""
 		issuerParts := strings.Split(token.Iss, ":")
-		if len(issuerParts) == 3 {
+		if len(issuerParts) == 1 {
+			accountID = issuerParts[0]
+		} else if len(issuerParts) == 3 {
 			accountID = issuerParts[2]
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid issuer: %s", token.Iss)
 		}
 		fundsOk, err := validateDepositedFunds(ctx, token.Aud, accountID, token.Suborigin, chainAPI)
 		if !fundsOk || err != nil {
