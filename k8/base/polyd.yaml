@@ -1,22 +1,22 @@
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
-  name: auth-pdb
+  name: poly-pdb
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: auth
+      app: poly
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: auth
+  name: poly
   labels:
-    app: auth
+     app: poly
 spec:
   selector:
-    app: auth-v1
+    app: poly-v1
   ports:
     - port: 5000
       name: api
@@ -27,59 +27,51 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: auth
+  name: poly
   labels:
-    app: auth
+    app: poly
 spec:
   endpoints:
     - port: metrics
   selector:
     matchLabels:
-      app: auth
+      app: poly
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-01
+  name: poly-01
   labels:
-    app: auth
+    app: poly
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: auth-v1
+      app: poly-v1
   template:
     metadata:
       labels:
-        app: auth-v1
+        app: poly-v1
     spec:
-      serviceAccountName: postgres-cloud-sql
       containers:
-        - name: auth
-          image: textile/auth
+        - name: poly
+          image: textile/poly
           imagePullPolicy: Always
           ports:
             - name: api
               containerPort: 5000
             - name: metrics
               containerPort: 9090
-          command: ["./with-postgres.sh", "./authd"]
-          env:
-            - name: DAEMON
-              value: "auth"
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: broker-secret
-                  key: postgres-password
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: broker-secret
-                  key: auth-db-password
           envFrom:
             - configMapRef:
-                name: configmap-auth
+                name: configmap-poly
+          env:
+            - name: POLY_CONFIG_PATH
+              value: "/app/config.yaml"
+          volumeMounts:
+          - name: secret
+            mountPath: "/app/config.yaml"
+            subPath: "poly-config"
           resources:
             requests:
               cpu: 250m
@@ -96,3 +88,7 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
+      volumes:
+      - name: secret
+        secret:
+          secretName: broker-secret

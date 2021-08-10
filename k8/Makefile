@@ -11,6 +11,8 @@ deploy: $(KUSTOMIZE)
 		textile/broker:sha-$(HEAD_SHORT) \
 		textile/dealer:sha-$(HEAD_SHORT) \
 		textile/near:sha-$(HEAD_SHORT) \
+		textile/eth:sha-$(HEAD_SHORT) \
+		textile/poly:sha-$(HEAD_SHORT) \
 		textile/packer:sha-$(HEAD_SHORT) \
 		textile/piecer:sha-$(HEAD_SHORT) \
 		textile/storage:sha-$(HEAD_SHORT)

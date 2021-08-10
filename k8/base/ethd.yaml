@@ -1,22 +1,22 @@
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
-  name: auth-pdb
+  name: eth-pdb
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: auth
+      app: eth
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: auth
+  name: eth
   labels:
-    app: auth
+     app: eth
 spec:
   selector:
-    app: auth-v1
+    app: eth-v1
   ports:
     - port: 5000
       name: api
@@ -27,59 +27,51 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: auth
+  name: eth
   labels:
-    app: auth
+    app: eth
 spec:
   endpoints:
     - port: metrics
   selector:
     matchLabels:
-      app: auth
+      app: eth
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-01
+  name: eth-01
   labels:
-    app: auth
+    app: eth
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: auth-v1
+      app: eth-v1
   template:
     metadata:
       labels:
-        app: auth-v1
+        app: eth-v1
     spec:
-      serviceAccountName: postgres-cloud-sql
       containers:
-        - name: auth
-          image: textile/auth
+        - name: eth
+          image: textile/eth
           imagePullPolicy: Always
           ports:
             - name: api
               containerPort: 5000
             - name: metrics
               containerPort: 9090
-          command: ["./with-postgres.sh", "./authd"]
-          env:
-            - name: DAEMON
-              value: "auth"
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: broker-secret
-                  key: postgres-password
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: broker-secret
-                  key: auth-db-password
           envFrom:
             - configMapRef:
-                name: configmap-auth
+                name: configmap-eth
+          env:
+            - name: ETH_CONFIG_PATH
+              value: "/app/config.yaml"
+          volumeMounts:
+          - name: secret
+            mountPath: "/app/config.yaml"
+            subPath: "eth-config"
           resources:
             requests:
               cpu: 250m
@@ -96,3 +88,8 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
+      volumes:
+      - name: secret
+        secret:
+          secretName: broker-secret
+
