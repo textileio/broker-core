@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -25,6 +24,19 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	nearOrigin = "near"
+	ethOrigin  = "eth"
+	polyOrigin = "poly"
+
+	nearTestnetSuborigin = "testnet"
+
+	tokenHeaderKeyJwk = "jwk"
+	tokenHeaderKeyKid = "kid"
+
+	jwkMapKeyX = "x"
 )
 
 var log = golog.Logger("auth/service")
@@ -124,44 +136,27 @@ func detectInput(token string) *detectedInput {
 
 // validateToken validates the JWT token.
 func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
-	parts := strings.Split(jwtBase64URL, ".")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("token contains an invalid number of segments")
-	}
-	t := &jwt.Token{Raw: jwtBase64URL}
-	// parse Header
-	var headerBytes []byte
-	headerBytes, err := jwt.DecodeSegment(parts[0])
-	if err != nil {
-		return nil, fmt.Errorf("decoding segment")
-	}
-	if err := json.Unmarshal(headerBytes, &t.Header); err != nil {
-		return nil, fmt.Errorf("unmarshaling header bytes: %v", err)
-	}
-
-	log.Infof("token headers: %v", t.Header)
-
 	origin := ""
 	suborigin := ""
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
-		header, ok := token.Header["jwk"]
+		header, ok := token.Header[tokenHeaderKeyJwk]
 		if ok {
 			for k, v := range header.(map[string]interface{}) {
 				if val, ok := v.(string); !ok {
 					continue
-				} else if k == "x" {
+				} else if k == jwkMapKeyX {
 					dx, err := base64.URLEncoding.DecodeString(val)
 					if err != nil {
 						return nil, fmt.Errorf("decoding x header value: %v", err)
 					}
 					// TODO: This will be handled by the kid header handling below once we update the near client.
-					origin = "near"
-					suborigin = "testnet"
+					origin = nearOrigin
+					suborigin = nearTestnetSuborigin
 					return crypto.UnmarshalEd25519PublicKey(dx)
 				}
 			}
 		}
-		header, ok = token.Header["kid"]
+		header, ok = token.Header[tokenHeaderKeyKid]
 		if ok {
 			var val string
 			if val, ok = header.(string); !ok {
@@ -281,11 +276,11 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		// TODO: On NEAR, check that the account is indeed associated with the given public key
 		var chainAPI chainapi.ChainAPI
 		switch token.Origin {
-		case "near":
+		case nearOrigin:
 			chainAPI = s.Deps.NearAPI
-		case "eth":
+		case ethOrigin:
 			chainAPI = s.Deps.EthAPI
-		case "poly":
+		case polyOrigin:
 			chainAPI = s.Deps.PolyAPI
 		default:
 			return nil, fmt.Errorf("unknown origin %s", token.Origin)

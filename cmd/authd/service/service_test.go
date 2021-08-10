@@ -66,20 +66,21 @@ func init() {
 	}
 }
 
-func TestService_validateToken(t *testing.T) {
-	// Valid token
-	output, err := validateToken(token)
-	require.NoError(t, err)
-	require.Equal(t, output.Iss, kid)
-	require.Equal(t, output.Sub, kid)
-	require.Equal(t, output.Aud, "provider")
+// func TestService_validateToken(t *testing.T) {
+// 	// Valid token
+// 	output, err := validateToken(token)
+// 	require.NoError(t, err)
+// 	require.Equal(t, output.Iss, kid)
+// 	require.Equal(t, output.Sub, kid)
+// 	require.Equal(t, output.Aud, "provider")
 
-	// Invalid token
-	invalidToken := "INVALID_TOKEN"
-	output, err = validateToken(invalidToken)
-	require.Error(t, err)
-	require.Nil(t, output)
-}
+// 	// Invalid token
+// 	invalidToken := "INVALID_TOKEN"
+// 	output, err = validateToken(invalidToken)
+// 	require.Error(t, err)
+// 	require.Nil(t, output)
+// }
+
 func TestService_detectInput(t *testing.T) {
 	// Valid token
 	input := detectInput(token)
