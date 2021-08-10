@@ -10,16 +10,14 @@ import (
 	logging "github.com/textileio/go-log/v2"
 )
 
-var (
-	log *logging.ZapEventLogger
-)
-
 // Releaser manages calling releaseDeposits on the contract.
 type Releaser struct {
 	cc      *contractclient.Client
 	t       *time.Ticker
 	timeout time.Duration
 	close   chan struct{}
+
+	log *logging.ZapEventLogger
 }
 
 // New creates a new Releaser.
@@ -34,14 +32,16 @@ func New(cc *contractclient.Client, chainID string, freq, timeout time.Duration)
 		return nil, fmt.Errorf("invalid timeout: %v", timeout)
 	}
 
-	log = logging.Logger(fmt.Sprintf("neard-releaser-%s", chainID))
-
 	r := &Releaser{
 		cc:      cc,
 		t:       time.NewTicker(freq),
 		timeout: timeout,
 		close:   make(chan struct{}),
+		log:     logging.Logger(fmt.Sprintf("neard-releaser-%s", chainID)),
 	}
+
+	_ = logging.SetLogLevel(fmt.Sprintf("neard-releaser-%s", chainID), "INFO")
+
 	r.start()
 	return r, nil
 }
@@ -51,10 +51,11 @@ func (r *Releaser) start() {
 		for {
 			select {
 			case <-r.t.C:
+				r.log.Info("checking state for expired deposits")
 				ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 				state, err := r.cc.GetState(ctx)
 				if err != nil {
-					log.Errorf("calling get state: %v", err)
+					r.log.Errorf("calling get state: %v", err)
 					cancel()
 					continue
 				}
@@ -67,10 +68,10 @@ func (r *Releaser) start() {
 					}
 				}
 				if needsRelease {
-					log.Info("calling release deposits")
+					r.log.Info("calling release deposits")
 					ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 					if err := r.cc.ReleaseDeposits(ctx); err != nil {
-						log.Errorf("calling release deposits: %v", err)
+						r.log.Errorf("calling release deposits: %v", err)
 					}
 					cancel()
 				}
