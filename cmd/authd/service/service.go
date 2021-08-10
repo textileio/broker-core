@@ -272,7 +272,12 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		default:
 			return nil, fmt.Errorf("unknown origin %s", token.Origin)
 		}
-		fundsOk, err := validateDepositedFunds(ctx, token.Aud, token.Iss, token.Suborigin, chainAPI)
+		accountID := token.Iss
+		issuerParts := strings.Split(token.Iss, ":")
+		if len(issuerParts) == 3 {
+			accountID = issuerParts[2]
+		}
+		fundsOk, err := validateDepositedFunds(ctx, token.Aud, accountID, token.Suborigin, chainAPI)
 		if !fundsOk || err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
 		}
