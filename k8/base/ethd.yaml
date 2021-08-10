@@ -1,0 +1,95 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: eth-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: eth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eth
+  labels:
+     app: eth
+spec:
+  selector:
+    app: eth-v1
+  ports:
+    - port: 5000
+      name: api
+    - port: 9090
+      name: metrics
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: eth
+  labels:
+    app: eth
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: eth
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eth-01
+  labels:
+    app: eth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eth-v1
+  template:
+    metadata:
+      labels:
+        app: eth-v1
+    spec:
+      containers:
+        - name: eth
+          image: textile/eth
+          imagePullPolicy: Always
+          ports:
+            - name: api
+              containerPort: 5000
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: configmap-eth
+          env:
+            - name: ETH_CONFIG_PATH
+              value: "/app/config.yaml"
+          volumeMounts:
+          - name: secret
+            mountPath: "/app/config.yaml"
+            subPath: "eth-config"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+      volumes:
+      - name: secret
+        secret:
+          secretName: broker-secret
+

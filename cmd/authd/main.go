@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/authd/service"
-	"github.com/textileio/broker-core/cmd/neard/client"
+	"github.com/textileio/broker-core/cmd/chainapis/client"
 	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 )
@@ -22,8 +22,10 @@ var (
 func init() {
 	flags := []common.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "near-addr", DefValue: "", Description: "NEAR chain API address"},
+		{Name: "eth-addr", DefValue: "", Description: "Ethereum chain API address"},
+		{Name: "poly-addr", DefValue: "", Description: "Polygon chain API address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -50,13 +52,25 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		chainAPIClientConn, err := grpc.Dial(v.GetString("near-addr"), grpc.WithInsecure())
+		nearAPIClientConn, err := grpc.Dial(v.GetString("near-addr"), grpc.WithInsecure())
 		if err != nil {
 			log.Fatalf("creating near api connection: %v", err)
 		}
-		nearAPIClient := client.New(chainAPIClientConn)
+		nearAPIClient := client.New(nearAPIClientConn)
 
-		listener, err := net.Listen("tcp", v.GetString("rpc-addr"))
+		ethAPIClientConn, err := grpc.Dial(v.GetString("eth-addr"), grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("creating eth api connection: %v", err)
+		}
+		ethAPIClient := client.New(ethAPIClientConn)
+
+		polyAPIClientConn, err := grpc.Dial(v.GetString("poly-addr"), grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("creating poly api connection: %v", err)
+		}
+		polyAPIClient := client.New(polyAPIClientConn)
+
+		listener, err := net.Listen("tcp", v.GetString("listen-addr"))
 		if err != nil {
 			log.Fatalf("creating listener connection: %v", err)
 		}
@@ -64,13 +78,23 @@ var rootCmd = &cobra.Command{
 			Listener:    listener,
 			PostgresURI: v.GetString("postgres-uri"),
 		}
-		deps := service.Deps{NearAPI: nearAPIClient}
+		deps := service.Deps{
+			NearAPI: nearAPIClient,
+			EthAPI:  ethAPIClient,
+			PolyAPI: polyAPIClient,
+		}
 		serv, err := service.New(config, deps)
 		common.CheckErr(err)
 
 		common.HandleInterrupt(func() {
-			if err := chainAPIClientConn.Close(); err != nil {
-				log.Errorf("closing chain api client conn: %v", err)
+			if err := nearAPIClientConn.Close(); err != nil {
+				log.Errorf("closing near chain api client conn: %v", err)
+			}
+			if err := ethAPIClientConn.Close(); err != nil {
+				log.Errorf("closing eth chain api client conn: %v", err)
+			}
+			if err := polyAPIClientConn.Close(); err != nil {
+				log.Errorf("closing poly chain api client conn: %v", err)
 			}
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)

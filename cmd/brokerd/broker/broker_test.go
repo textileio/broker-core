@@ -796,7 +796,6 @@ func createBroker(t *testing.T) (
 	fmb := fakemsgbroker.New()
 	b, err := New(
 		u,
-		chainAPI,
 		nil,
 		fmb,
 	)
@@ -815,7 +814,7 @@ type dumbChainAPI struct {
 
 var _ chainapi.ChainAPI = (*dumbChainAPI)(nil)
 
-func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
+func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID, chainID string) (bool, error) {
 	return true, nil
 }
 

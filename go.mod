@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.13.0
 	cloud.google.com/go/storage v1.16.0
 	github.com/dustin/go-humanize v1.0.0
-	github.com/ethereum/go-ethereum v1.10.4
+	github.com/ethereum/go-ethereum v1.10.6
 	github.com/filecoin-project/go-address v0.0.6
 	github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0
@@ -42,9 +42,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.15
-	github.com/multiformats/go-varint v0.0.6
 	github.com/near/borsh-go v0.3.0
-	github.com/ockam-network/did v0.1.3
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/spf13/cobra v1.2.1

@@ -29,8 +29,16 @@ build-authd: $(GOVVV)
 .PHONY: build-authd
 
 build-neard: $(GOVVV)
-	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/neard
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/chainapis/neard
 .PHONY: build-neard
+
+build-ethd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/chainapis/ethd
+.PHONY: build-ethd
+
+build-polyd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/chainapis/polyd
+.PHONY: build-polyd
 
 build-auctioneerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/auctioneerd
@@ -140,5 +148,5 @@ define docker_push_daemon_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneer auth broker dealer near packer piecer storage);
+	$(call docker_push_daemon_head,auctioneer auth broker dealer chainapis/near chainapis/eth chainapis/poly packer piecer storage);
 .PHONY: docker-push-head
