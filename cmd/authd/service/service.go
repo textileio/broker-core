@@ -267,7 +267,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 			chainAPI = s.Deps.NearAPI
 		case "eth":
 			chainAPI = s.Deps.EthAPI
-		case "polygon":
+		case "poly":
 			chainAPI = s.Deps.PolyAPI
 		default:
 			return nil, fmt.Errorf("unknown origin %s", token.Origin)

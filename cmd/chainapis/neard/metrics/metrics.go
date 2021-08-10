@@ -2,12 +2,12 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"math/big"
 	"time"
 
 	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient"
 	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	log = logging.Logger("neard-metrics")
+	log *logging.ZapEventLogger
 )
 
 const prefix = "neard"
@@ -25,13 +25,13 @@ var meter = metric.Must(global.Meter(prefix))
 // Metrics creates metrics about the NEAR smart contract and API node.
 type Metrics struct {
 	cc      *contractclient.Client
-	nc      *nearclient.Client
 	chainID string
 }
 
 // New creates a new Metrics.
-func New(cc *contractclient.Client, nc *nearclient.Client, chainID string) *Metrics {
-	m := &Metrics{cc: cc, nc: nc, chainID: chainID}
+func New(cc *contractclient.Client, chainID string) *Metrics {
+	log = logging.Logger(fmt.Sprintf("neard-metrics-%s", chainID))
+	m := &Metrics{cc: cc, chainID: chainID}
 	m.initMetrics()
 	return m
 }
@@ -99,7 +99,7 @@ func (m *Metrics) initMetrics() {
 		}
 
 		// Node status metrics.
-		nodeStatus, err := m.nc.NodeStatus(ctx)
+		nodeStatus, err := m.cc.NearClient.NodeStatus(ctx)
 		if err != nil {
 			log.Errorf("getting node status: %v", err)
 		} else {

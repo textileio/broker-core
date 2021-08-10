@@ -106,7 +106,7 @@ var rootCmd = &cobra.Command{
 			releaser, err := releaser.New(contractClient, chainID, releaseDepositsFreq, timeout)
 			common.CheckErrf("creating releaser: %v", err)
 
-			m := metrics.New(contractClient, nearClient, chainID)
+			m := metrics.New(contractClient, chainID)
 
 			rpcClients = append(rpcClients, rpcClient)
 			contractClients[chainID] = contractClient

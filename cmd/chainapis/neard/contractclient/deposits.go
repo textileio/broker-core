@@ -68,7 +68,7 @@ type DepositInfo struct {
 
 // HasDeposit calls the contract hasLocked function.
 func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
-	res, err := c.nc.CallFunction(
+	res, err := c.NearClient.CallFunction(
 		ctx,
 		c.contractAccountID,
 		"hasDeposit",
@@ -94,7 +94,7 @@ func (c *Client) AddDeposit(ctx context.Context, brokerID string) (*DepositInfo,
 	if !ok {
 		return nil, fmt.Errorf("creating depoist amount")
 	}
-	res, err := c.nc.Account(c.clientAccountID).FunctionCall(
+	res, err := c.NearClient.Account(c.clientAccountID).FunctionCall(
 		ctx,
 		c.contractAccountID,
 		"addDeposit",
@@ -122,7 +122,7 @@ func (c *Client) AddDeposit(ctx context.Context, brokerID string) (*DepositInfo,
 
 // ReleaseDeposits unlocks all funds from expired sessions in the contract.
 func (c *Client) ReleaseDeposits(ctx context.Context) error {
-	_, err := c.nc.Account(c.clientAccountID).FunctionCall(ctx, c.contractAccountID, "releaseDeposits")
+	_, err := c.NearClient.Account(c.clientAccountID).FunctionCall(ctx, c.contractAccountID, "releaseDeposits")
 	if err != nil {
 		return fmt.Errorf("calling rpc unlock funds: %v", err)
 	}

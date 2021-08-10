@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"net"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -98,7 +99,11 @@ func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 				common.CheckErrf("parsing private key: %v", err)
 
 				signer := func(a ethcommon.Address, t *types.Transaction) (*types.Transaction, error) {
-					signer := types.HomesteadSigner{}
+					chain, ok := (&big.Int{}).SetString(chainID, 10)
+					if !ok {
+						return nil, fmt.Errorf("parsing chain id %s to big int", chainID)
+					}
+					signer := types.NewEIP155Signer(chain)
 					return types.SignTx(t, signer, privateKey)
 				}
 
