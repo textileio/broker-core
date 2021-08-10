@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"math"
 	"net/url"
 	"strings"
 	"sync"
@@ -41,8 +40,6 @@ var (
 	// ErrOperationIDExists indicates that the opeation already exists,
 	// which basically means the function being called with the same data again.
 	ErrOperationIDExists = errors.New("operation-id already exists")
-
-	errTooEarlyDeadline = errors.New("too early deadline")
 
 	log = logger.Logger("broker")
 )
@@ -180,8 +177,8 @@ func (b *Broker) CreatePrepared(
 
 	auctionDeadline := time.Now().Add(b.conf.auctionDuration)
 	if pc.Deadline.Before(auctionDeadline) {
-		return broker.StorageRequest{}, fmt.Errorf("the batch deadline is too tight, current duration is ~%d hours: %w",
-			int(math.Ceil(b.conf.auctionDuration.Hours())), errTooEarlyDeadline)
+		log.Warnf("storage-request tighter than default auction duration %s", sr.ID)
+		auctionDeadline = pc.Deadline
 	}
 
 	batchEpochDeadline, err := timeToFilEpoch(pc.Deadline)
