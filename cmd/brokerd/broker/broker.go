@@ -41,6 +41,8 @@ var (
 	// which basically means the function being called with the same data again.
 	ErrOperationIDExists = errors.New("operation-id already exists")
 
+	errTooEarlyDeadline = errors.New("too early deadline")
+
 	log = logger.Logger("broker")
 )
 
@@ -175,6 +177,12 @@ func (b *Broker) CreatePrepared(
 		pc.RepFactor = int(b.conf.dealReplication)
 	}
 
+	auctionDeadline := time.Now().Add(b.conf.auctionDuration)
+	if pc.Deadline.Before(auctionDeadline) {
+		log.Warnf("storage-request tighter than default auction duration %s", sr.ID)
+		auctionDeadline = pc.Deadline
+	}
+
 	batchEpochDeadline, err := timeToFilEpoch(pc.Deadline)
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating batch epoch deadline: %s", err)
@@ -218,7 +226,6 @@ func (b *Broker) CreatePrepared(
 	}
 	sr.BatchID = ba.ID
 
-	auctionDeadline := time.Now().Add(b.conf.auctionDuration)
 	auctionEpochDeadline, err := timeToFilEpoch(auctionDeadline)
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating auction epoch deadline: %s", err)
