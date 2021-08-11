@@ -48,23 +48,42 @@ func (q *Queries) CreateOpenBatch(ctx context.Context, arg CreateOpenBatchParams
 	return err
 }
 
-const doneBatchStats = `-- name: DoneBatchStats :one
-SELECT COUNT(*) as batches_count,
-       (COALESCE(sum(total_size),0))::bigint as batches_bytes
+const doneBatchStats = `-- name: DoneBatchStats :many
+SELECT origin,
+       COUNT(*) as batches_count,
+       (COALESCE(sum(total_size),0))::bigint as bytes
 FROM batches
 where status='done'
+group by origin
 `
 
 type DoneBatchStatsRow struct {
-	BatchesCount int64 `json:"batchesCount"`
-	BatchesBytes int64 `json:"batchesBytes"`
+	Origin       string `json:"origin"`
+	BatchesCount int64  `json:"batchesCount"`
+	Bytes        int64  `json:"bytes"`
 }
 
-func (q *Queries) DoneBatchStats(ctx context.Context) (DoneBatchStatsRow, error) {
-	row := q.queryRow(ctx, q.doneBatchStatsStmt, doneBatchStats)
-	var i DoneBatchStatsRow
-	err := row.Scan(&i.BatchesCount, &i.BatchesBytes)
-	return i, err
+func (q *Queries) DoneBatchStats(ctx context.Context) ([]DoneBatchStatsRow, error) {
+	rows, err := q.query(ctx, q.doneBatchStatsStmt, doneBatchStats)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DoneBatchStatsRow
+	for rows.Next() {
+		var i DoneBatchStatsRow
+		if err := rows.Scan(&i.Origin, &i.BatchesCount, &i.Bytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const findOpenBatchWithSpace = `-- name: FindOpenBatchWithSpace :one
@@ -177,26 +196,50 @@ func (q *Queries) MoveBatchToStatus(ctx context.Context, arg MoveBatchToStatusPa
 	return result.RowsAffected()
 }
 
-const openBatchStats = `-- name: OpenBatchStats :one
-SELECT count(*) as batches_cid_count,
-       (COALESCE(sum(sr.size),0))::bigint as batches_bytes,
+const openBatchStats = `-- name: OpenBatchStats :many
+SELECT b.origin, 
+       count(*) as cid_count,
+       (COALESCE(sum(sr.size),0))::bigint as bytes,
        count(DISTINCT sr.batch_id) batches_count
 FROM storage_requests sr
 JOIN batches b ON b.batch_id=sr.batch_id
 WHERE b.status='open'
+group by b.origin
 `
 
 type OpenBatchStatsRow struct {
-	BatchesCidCount int64 `json:"batchesCidCount"`
-	BatchesBytes    int64 `json:"batchesBytes"`
-	BatchesCount    int64 `json:"batchesCount"`
+	Origin       string `json:"origin"`
+	CidCount     int64  `json:"cidCount"`
+	Bytes        int64  `json:"bytes"`
+	BatchesCount int64  `json:"batchesCount"`
 }
 
-func (q *Queries) OpenBatchStats(ctx context.Context) (OpenBatchStatsRow, error) {
-	row := q.queryRow(ctx, q.openBatchStatsStmt, openBatchStats)
-	var i OpenBatchStatsRow
-	err := row.Scan(&i.BatchesCidCount, &i.BatchesBytes, &i.BatchesCount)
-	return i, err
+func (q *Queries) OpenBatchStats(ctx context.Context) ([]OpenBatchStatsRow, error) {
+	rows, err := q.query(ctx, q.openBatchStatsStmt, openBatchStats)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OpenBatchStatsRow
+	for rows.Next() {
+		var i OpenBatchStatsRow
+		if err := rows.Scan(
+			&i.Origin,
+			&i.CidCount,
+			&i.Bytes,
+			&i.BatchesCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateBatchSize = `-- name: UpdateBatchSize :exec
