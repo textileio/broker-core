@@ -8,6 +8,16 @@ resources:
 - cert.yaml
 - ipfs-cluster-service.yaml
 - mongo-cluster-rolebinding.yaml
+- auctioneer-pdb.yaml
+- auth-pdb.yaml
+- broker-pdb.yaml
+- dealer-pdb.yaml
+- eth-pdb.yaml
+- near-pdb.yaml
+- packer-pdb.yaml
+- piecer-pdb.yaml
+- poly-pdb.yaml
+- storage-pdb.yaml
 
 configMapGenerator:
 - files:
@@ -53,16 +63,6 @@ secretGenerator:
   type: Opaque
 
 patchesStrategicMerge:
-- auctioneer-pdb.yaml
-- auth-pdb.yaml
-- broker-pdb.yaml
-- dealer-pdb.yaml
-- eth-pdb.yaml
-- near-pdb.yaml
-- packer-pdb.yaml
-- piecer-pdb.yaml
-- poly-pdb.yaml
-- storage-pdb.yaml
 - ipfs-cluster-setup-confmap-patch.yaml
 - ipfs-cluster-volumeclaim-patch.yaml
 - ipfs-cluster-statefulset-patch.yaml
