@@ -11,4 +11,14 @@ metadata:
   name: ipfs-cluster
 spec:
   replicas: 2
-
+  template:
+    spec:
+      containers:
+        - name: ipfs
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: "500m"
+            limits:
+              memory: 1Gi
+              cpu: "500m"
