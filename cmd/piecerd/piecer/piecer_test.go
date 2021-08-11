@@ -92,7 +92,7 @@ func TestVirtualPadding(t *testing.T) {
 	//
 	// Not entirely surprising that should match since we use the same library for
 	// the calculation, and is the only existing library that can do this kind of padding.
-	// But at least we know *explicitely* that the deterministic-random data that's generated
+	// But at least we know *explicitly* that the deterministic-random data that's generated
 	// in this test matches the expected value.
 	require.Equal(t, "baga6ea4seaqanldgxtddjpceoskqhd6y5qehsitn5pi4c5no4fgrqjd6mkkfkoq", pieceCid.String())
 	require.Equal(t, uint64(64<<10), nbc.PieceSize)
