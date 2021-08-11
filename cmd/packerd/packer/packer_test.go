@@ -201,7 +201,7 @@ func TestStats(t *testing.T) {
 	ctx := context.Background()
 
 	packer, _, _ := createPacker(t)
-	_, err := packer.store.GetStats(ctx)
+	_, _, err := packer.store.GetStats(ctx)
 	require.NoError(t, err)
 }
 

@@ -251,35 +251,53 @@ func (s *Store) GetNextReadyBatch(
 	return
 }
 
-// Stats provides stats for metrics.
-type Stats struct {
-	OpenBatchesCidCount int64
-	OpenBatchesBytes    int64
-	OpenBatchesCount    int64
+// DoneBatchStats provides information for a done batch.
+type DoneBatchStats struct {
+	Origin string
+	Count  int64
+	Bytes  int64
+}
 
-	DoneBatchesCount int64
-	DoneBatchesBytes int64
+// OpenBatchStats provides information for an open batch.
+type OpenBatchStats struct {
+	Origin   string
+	CidCount int64
+	Bytes    int64
+	Count    int64
 }
 
 // GetStats return stats about batches.
-func (s *Store) GetStats(ctx context.Context) (Stats, error) {
-	pendStats, err := s.db.OpenBatchStats(ctx)
+func (s *Store) GetStats(ctx context.Context) ([]OpenBatchStats, []DoneBatchStats, error) {
+	openStats, err := s.db.OpenBatchStats(ctx)
 	if err != nil {
-		return Stats{}, fmt.Errorf("open batch stats stats: %s", err)
+		return nil, nil, fmt.Errorf("open batch stats stats: %s", err)
 	}
 
 	doneStats, err := s.db.DoneBatchStats(ctx)
 	if err != nil {
-		return Stats{}, fmt.Errorf("done batch stats: %s", err)
+		return nil, nil, fmt.Errorf("done batch stats: %s", err)
 	}
 
-	return Stats{
-		OpenBatchesCidCount: pendStats.BatchesCidCount,
-		OpenBatchesBytes:    pendStats.BatchesBytes,
-		OpenBatchesCount:    pendStats.BatchesCount,
-		DoneBatchesCount:    doneStats.BatchesCount,
-		DoneBatchesBytes:    doneStats.BatchesBytes,
-	}, nil
+	retOpenBatches := make([]OpenBatchStats, len(openStats))
+	for i, stat := range openStats {
+		retOpenBatches[i] = OpenBatchStats{
+			Origin:   stat.Origin,
+			CidCount: stat.CidCount,
+			Count:    stat.BatchesCount,
+			Bytes:    stat.Bytes,
+		}
+	}
+
+	retDoneBatches := make([]DoneBatchStats, len(doneStats))
+	for i, stat := range openStats {
+		retDoneBatches[i] = DoneBatchStats{
+			Origin: stat.Origin,
+			Count:  stat.BatchesCount,
+			Bytes:  stat.Bytes,
+		}
+	}
+
+	return retOpenBatches, retDoneBatches, nil
 }
 
 // Close closes the store.

@@ -19,24 +19,32 @@ func (p *Packer) daemonExportMetrics() {
 		mDoneBatchesCount    metric.Int64ValueObserver
 		mDoneBatchesBytes    metric.Int64ValueObserver
 
-		lock      sync.Mutex
-		lastStats *store.Stats
+		lock                 sync.Mutex
+		lastOpenBatchesStats []store.OpenBatchStats
+		lastDoneBatchesStats []store.DoneBatchStats
 	)
 
 	batchObs := metrics.Meter.NewBatchObserver(func(ctx context.Context, result metric.BatchObserverResult) {
 		lock.Lock()
 		defer lock.Unlock()
-		if lastStats == nil {
+		if lastOpenBatchesStats == nil || lastDoneBatchesStats == nil {
 			return
 		}
-		result.Observe(
-			[]attribute.KeyValue{},
-			mOpenBatchesCidCount.Observation(lastStats.OpenBatchesCidCount),
-			mOpenBatchesBytes.Observation(lastStats.OpenBatchesBytes),
-			mOpenBatchesCount.Observation(lastStats.OpenBatchesCount),
-			mDoneBatchesCount.Observation(lastStats.DoneBatchesCount),
-			mDoneBatchesBytes.Observation(lastStats.DoneBatchesBytes),
-		)
+		for _, stat := range lastOpenBatchesStats {
+			result.Observe(
+				[]attribute.KeyValue{attribute.Key("origin").String(stat.Origin)},
+				mOpenBatchesCidCount.Observation(stat.CidCount),
+				mOpenBatchesBytes.Observation(stat.Bytes),
+				mOpenBatchesCount.Observation(stat.Count),
+			)
+		}
+		for _, stat := range lastDoneBatchesStats {
+			result.Observe(
+				[]attribute.KeyValue{attribute.Key("origin").String(stat.Origin)},
+				mDoneBatchesCount.Observation(stat.Count),
+				mDoneBatchesBytes.Observation(stat.Bytes),
+			)
+		}
 	})
 	mOpenBatchesCidCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_cid_count")
 	mOpenBatchesBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_bytes")
@@ -47,7 +55,7 @@ func (p *Packer) daemonExportMetrics() {
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		start := time.Now()
-		stats, err := p.store.GetStats(ctx)
+		openStats, doneStats, err := p.store.GetStats(ctx)
 		if err != nil {
 			cancel()
 			log.Errorf("get metrics stats: %s", err)
@@ -58,7 +66,8 @@ func (p *Packer) daemonExportMetrics() {
 		log.Debugf("metrics stats took %dms", time.Since(start).Milliseconds())
 
 		lock.Lock()
-		lastStats = &stats
+		lastOpenBatchesStats = openStats
+		lastDoneBatchesStats = doneStats
 		lock.Unlock()
 
 		<-time.After(p.exportMetricsFreq)

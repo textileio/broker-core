@@ -38,16 +38,20 @@ RETURNING batch_id, total_size, origin;
 -- name: GetStorageRequestsFromBatch :many
 SELECT * FROM storage_requests where batch_id=$1;
 
--- name: OpenBatchStats :one
-SELECT count(*) as batches_cid_count,
-       (COALESCE(sum(sr.size),0))::bigint as batches_bytes,
+-- name: OpenBatchStats :many
+SELECT b.origin, 
+       count(*) as cid_count,
+       (COALESCE(sum(sr.size),0))::bigint as bytes,
        count(DISTINCT sr.batch_id) batches_count
 FROM storage_requests sr
 JOIN batches b ON b.batch_id=sr.batch_id
-WHERE b.status='open';
+WHERE b.status='open'
+group by b.origin;
 
--- name: DoneBatchStats :one
-SELECT COUNT(*) as batches_count,
-       (COALESCE(sum(total_size),0))::bigint as batches_bytes
+-- name: DoneBatchStats :many
+SELECT origin,
+       COUNT(*) as batches_count,
+       (COALESCE(sum(total_size),0))::bigint as bytes
 FROM batches
-where status='done';
+where status='done'
+group by origin;
