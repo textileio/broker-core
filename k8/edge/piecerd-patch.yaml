@@ -12,6 +12,6 @@ spec:
           command:
             - "/cloud_sql_proxy"
             - "-instances=textile-310716:us-west1:broker-edge=tcp:5432"
-              
+         
 
 
