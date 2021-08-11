@@ -79,6 +79,21 @@ func TestVirtualPadding(t *testing.T) {
 	require.Equal(t, string(sdID), nbc.Id)
 	pieceCid, err := cid.Cast(nbc.PieceCid)
 	require.NoError(t, err)
+	// This padded commP was verified with filecoin-project/go-fil-commp-hashhash CLI tool
+	// too by exporting dataCid DAG (foo.car):
+	// $ cat foo.car | go run main.go -t 65536
+	// 2021/08/11 09:24:52 Reading from STDIN...
+	// 2021/08/11 09:24:52 Finished:
+	// CommP:    06ac66bcc634bc447495038fd8ec0879226debd1c175aee14d18247e6294553a
+	// CommPCid: baga6ea4seaqanldgxtddjpceoskqhd6y5qehsitn5pi4c5no4fgrqjd6mkkfkoq
+	// Raw bytes:             10097 bytes
+	// Unpadded piece:        65024 bytes
+	// Padded piece:          65536 bytes
+	//
+	// Not entirely surprising that should match since we use the same library for
+	// the calculation, and is the only existing library that can do this kind of padding.
+	// But at least we know *explicitely* that the deterministic-random data that's generated
+	// in this test matches the expected value.
 	require.Equal(t, "baga6ea4seaqanldgxtddjpceoskqhd6y5qehsitn5pi4c5no4fgrqjd6mkkfkoq", pieceCid.String())
 	require.Equal(t, uint64(64<<10), nbc.PieceSize)
 
