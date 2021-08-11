@@ -6,7 +6,7 @@ spec:
   template:
     spec:
       containers:
-        - name: authd
+        - name: auth
           resources:
             requests:
               cpu:    500m
