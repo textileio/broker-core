@@ -18,12 +18,14 @@ var (
 	log = logging.Logger("service")
 )
 
+// Service collects data from other daemons and runs the API server.
 type Service struct {
 	store *store.Store
 }
 
 var _ msgbroker.AuctionEventsListener = (*Service)(nil)
 
+// New creates the service.
 func New(mb msgbroker.MsgBroker, httpAddr string, postgresURI string) (*Service, error) {
 	s, err := store.New(postgresURI)
 	if err != nil {
@@ -33,12 +35,12 @@ func New(mb msgbroker.MsgBroker, httpAddr string, postgresURI string) (*Service,
 	if err := msgbroker.RegisterHandlers(mb, service); err != nil {
 		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
 	}
+
 	httpServer := &http.Server{
 		Addr:              httpAddr,
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           http.NewServeMux(),
 	}
-
 	log.Info("running HTTP API...")
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -49,20 +51,25 @@ func New(mb msgbroker.MsgBroker, httpAddr string, postgresURI string) (*Service,
 	return service, nil
 }
 
+// OnAuctionStarted .
 func (s *Service) OnAuctionStarted(ctx context.Context, t time.Time, a *pb.AuctionSummary) {
 	if err := s.store.CreateOrUpdateAuction(ctx, a); err != nil {
 		log.Error(err)
 	}
 }
+
+// OnAuctionBidReceived .
 func (s *Service) OnAuctionBidReceived(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
 	err := s.store.CreateOrUpdateAuction(ctx, a)
 	if err == nil {
-		err = s.store.CreateBid(ctx, a.Id, b)
+		err = s.store.CreateOrUpdateBid(ctx, a.Id, b)
 	}
 	if err != nil {
 		log.Error(err)
 	}
 }
+
+// OnAuctionWinnerSelected .
 func (s *Service) OnAuctionWinnerSelected(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
 	err := s.store.CreateOrUpdateAuction(ctx, a)
 	if err == nil {
@@ -72,6 +79,8 @@ func (s *Service) OnAuctionWinnerSelected(ctx context.Context, t time.Time, a *p
 		log.Error(err)
 	}
 }
+
+// OnAuctionWinnerAcked .
 func (s *Service) OnAuctionWinnerAcked(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
 	err := s.store.CreateOrUpdateAuction(ctx, a)
 	if err == nil {
@@ -82,12 +91,15 @@ func (s *Service) OnAuctionWinnerAcked(ctx context.Context, t time.Time, a *pb.A
 	}
 }
 
-func (s *Service) OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time, auctionID, bidID, proposalCid, errorCause string) {
+// OnAuctionProposalCidDelivered .
+func (s *Service) OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time,
+	auctionID, bidID, proposalCid, errorCause string) {
 	if err := s.store.ProposalDelivered(ctx, ts, auctionID, bidID, proposalCid, errorCause); err != nil {
 		log.Error(err)
 	}
 }
 
+// OnAuctionClosed .
 func (s *Service) OnAuctionClosed(ctx context.Context, opID msgbroker.OperationID, ca broker.ClosedAuction) error {
 	if err := s.store.AuctionClosed(ctx, ca, time.Now()); err != nil {
 		log.Error(err)

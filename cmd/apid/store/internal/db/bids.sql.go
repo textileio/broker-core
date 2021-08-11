@@ -25,7 +25,7 @@ func (q *Queries) AcknowledgedBid(ctx context.Context, arg AcknowledgedBidParams
 	return err
 }
 
-const createBid = `-- name: CreateBid :exec
+const createOrUpdateBid = `-- name: CreateOrUpdateBid :exec
 INSERT INTO bids (
     auction_id,
     storage_provider_id,
@@ -46,9 +46,17 @@ INSERT INTO bids (
       $7,
       $8,
       $9)
+  ON CONFLICT (auction_id, bidder_id) DO UPDATE SET
+    storage_provider_id = $2,
+    wallet_addr_sig = $3,
+    ask_price = $5,
+    verified_ask_price = $6,
+    start_epoch = $7,
+    fast_retrieval = $8,
+    received_at = $9
 `
 
-type CreateBidParams struct {
+type CreateOrUpdateBidParams struct {
 	AuctionID         string    `json:"auctionID"`
 	StorageProviderID string    `json:"storageProviderID"`
 	WalletAddrSig     []byte    `json:"walletAddrSig"`
@@ -60,8 +68,8 @@ type CreateBidParams struct {
 	ReceivedAt        time.Time `json:"receivedAt"`
 }
 
-func (q *Queries) CreateBid(ctx context.Context, arg CreateBidParams) error {
-	_, err := q.exec(ctx, q.createBidStmt, createBid,
+func (q *Queries) CreateOrUpdateBid(ctx context.Context, arg CreateOrUpdateBidParams) error {
+	_, err := q.exec(ctx, q.createOrUpdateBidStmt, createOrUpdateBid,
 		arg.AuctionID,
 		arg.StorageProviderID,
 		arg.WalletAddrSig,

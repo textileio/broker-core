@@ -12,18 +12,24 @@ import (
 )
 
 const closeAuction = `-- name: CloseAuction :exec
-UPDATE auctions set status = $2, closed_at = $3
+UPDATE auctions set status = $2, closed_at = $3, error_cause = $4
 WHERE id = $1
 `
 
 type CloseAuctionParams struct {
-	ID       string        `json:"id"`
-	Status   AuctionStatus `json:"status"`
-	ClosedAt sql.NullTime  `json:"closedAt"`
+	ID         string        `json:"id"`
+	Status     AuctionStatus `json:"status"`
+	ClosedAt   sql.NullTime  `json:"closedAt"`
+	ErrorCause string        `json:"errorCause"`
 }
 
 func (q *Queries) CloseAuction(ctx context.Context, arg CloseAuctionParams) error {
-	_, err := q.exec(ctx, q.closeAuctionStmt, closeAuction, arg.ID, arg.Status, arg.ClosedAt)
+	_, err := q.exec(ctx, q.closeAuctionStmt, closeAuction,
+		arg.ID,
+		arg.Status,
+		arg.ClosedAt,
+		arg.ErrorCause,
+	)
 	return err
 }
 
@@ -32,7 +38,7 @@ INSERT INTO auctions (
     id,
     batch_id,
     deal_verified,
-    excluded_miners,
+    excluded_storage_providers,
     status,
     started_at,
     updated_at,
@@ -51,7 +57,7 @@ INSERT INTO auctions (
   ON CONFLICT (id) DO UPDATE SET
   batch_id = $2,
   deal_verified = $3,
-  excluded_miners = $4,
+  excluded_storage_providers = $4,
   status = $5,
   started_at = $6,
   updated_at = $7,
@@ -60,15 +66,15 @@ INSERT INTO auctions (
 `
 
 type CreateOrUpdateAuctionParams struct {
-	ID             string        `json:"id"`
-	BatchID        string        `json:"batchID"`
-	DealVerified   bool          `json:"dealVerified"`
-	ExcludedMiners []string      `json:"excludedMiners"`
-	Status         AuctionStatus `json:"status"`
-	StartedAt      time.Time     `json:"startedAt"`
-	UpdatedAt      time.Time     `json:"updatedAt"`
-	Duration       int64         `json:"duration"`
-	ErrorCause     string        `json:"errorCause"`
+	ID                       string        `json:"id"`
+	BatchID                  string        `json:"batchID"`
+	DealVerified             bool          `json:"dealVerified"`
+	ExcludedStorageProviders []string      `json:"excludedStorageProviders"`
+	Status                   AuctionStatus `json:"status"`
+	StartedAt                time.Time     `json:"startedAt"`
+	UpdatedAt                time.Time     `json:"updatedAt"`
+	Duration                 int64         `json:"duration"`
+	ErrorCause               string        `json:"errorCause"`
 }
 
 func (q *Queries) CreateOrUpdateAuction(ctx context.Context, arg CreateOrUpdateAuctionParams) error {
@@ -76,7 +82,7 @@ func (q *Queries) CreateOrUpdateAuction(ctx context.Context, arg CreateOrUpdateA
 		arg.ID,
 		arg.BatchID,
 		arg.DealVerified,
-		pq.Array(arg.ExcludedMiners),
+		pq.Array(arg.ExcludedStorageProviders),
 		arg.Status,
 		arg.StartedAt,
 		arg.UpdatedAt,
@@ -87,7 +93,7 @@ func (q *Queries) CreateOrUpdateAuction(ctx context.Context, arg CreateOrUpdateA
 }
 
 const getAuction = `-- name: GetAuction :one
-SELECT id, batch_id, deal_verified, excluded_miners, status, started_at, updated_at, closed_at, duration, error_cause FROM auctions WHERE id = $1
+SELECT id, batch_id, deal_verified, excluded_storage_providers, status, started_at, updated_at, closed_at, duration, error_cause FROM auctions WHERE id = $1
 `
 
 func (q *Queries) GetAuction(ctx context.Context, id string) (Auction, error) {
@@ -97,7 +103,7 @@ func (q *Queries) GetAuction(ctx context.Context, id string) (Auction, error) {
 		&i.ID,
 		&i.BatchID,
 		&i.DealVerified,
-		pq.Array(&i.ExcludedMiners),
+		pq.Array(&i.ExcludedStorageProviders),
 		&i.Status,
 		&i.StartedAt,
 		&i.UpdatedAt,

@@ -197,7 +197,8 @@ func TestClient_RunAuction(t *testing.T) {
 		msgbroker.AuctionProposalCidDeliveredTopic: 2,
 		msgbroker.AuctionClosedTopic:               1,
 	} {
-		assert.True(t, mb.TotalPublishedTopic(topic) >= n, fmt.Sprintf("should have received at least %d %s events", n, topic))
+		assert.True(t, mb.TotalPublishedTopic(topic) >= n,
+			fmt.Sprintf("should have received at least %d %s events", n, topic))
 	}
 }
 

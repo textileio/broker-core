@@ -1,4 +1,4 @@
--- name: CreateBid :exec
+-- name: CreateOrUpdateBid :exec
 INSERT INTO bids (
     auction_id,
     storage_provider_id,
@@ -18,7 +18,15 @@ INSERT INTO bids (
       $6,
       $7,
       $8,
-      $9);
+      $9)
+  ON CONFLICT (auction_id, bidder_id) DO UPDATE SET
+    storage_provider_id = $2,
+    wallet_addr_sig = $3,
+    ask_price = $5,
+    verified_ask_price = $6,
+    start_epoch = $7,
+    fast_retrieval = $8,
+    received_at = $9;
 
 -- name: WonBid :exec
 UPDATE bids SET won_at = $3

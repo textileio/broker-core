@@ -35,34 +35,37 @@ func New(postgresURI string) (*Store, error) {
 	return &Store{conn: conn, db: db.New(conn)}, nil
 }
 
+// CreateOrUpdateAuction .
 func (s *Store) CreateOrUpdateAuction(ctx context.Context, a *pb.AuctionSummary) (err error) {
 	return s.db.CreateOrUpdateAuction(ctx, db.CreateOrUpdateAuctionParams{
-		a.Id,
-		a.BatchId,
-		a.DealVerified,
-		a.ExcludedStorageProviders,
-		db.AuctionStatus(a.Status),
-		a.StartedAt.AsTime(),
-		a.UpdatedAt.AsTime(),
-		int64(a.Duration),
-		"", //a.ErrorCause,
+		ID:                       a.Id,
+		BatchID:                  a.BatchId,
+		DealVerified:             a.DealVerified,
+		ExcludedStorageProviders: a.ExcludedStorageProviders,
+		Status:                   db.AuctionStatus(a.Status),
+		StartedAt:                a.StartedAt.AsTime(),
+		UpdatedAt:                a.UpdatedAt.AsTime(),
+		Duration:                 int64(a.Duration),
+		ErrorCause:               "",
 	})
 }
 
-func (s *Store) CreateBid(ctx context.Context, auctionID string, b *auctioneer.Bid) (err error) {
-	return s.db.CreateBid(ctx, db.CreateBidParams{
-		auctionID,
-		b.MinerAddr,
-		b.WalletAddrSig,
-		b.BidderID.String(),
-		b.AskPrice,
-		b.VerifiedAskPrice,
-		int64(b.StartEpoch),
-		b.FastRetrieval,
-		b.ReceivedAt,
+// CreateOrUpdateBid .
+func (s *Store) CreateOrUpdateBid(ctx context.Context, auctionID string, b *auctioneer.Bid) (err error) {
+	return s.db.CreateOrUpdateBid(ctx, db.CreateOrUpdateBidParams{
+		AuctionID:         auctionID,
+		StorageProviderID: b.MinerAddr,
+		WalletAddrSig:     b.WalletAddrSig,
+		BidderID:          b.BidderID.String(),
+		AskPrice:          b.AskPrice,
+		VerifiedAskPrice:  b.VerifiedAskPrice,
+		StartEpoch:        int64(b.StartEpoch),
+		FastRetrieval:     b.FastRetrieval,
+		ReceivedAt:        b.ReceivedAt,
 	})
 }
 
+// WonBid .
 func (s *Store) WonBid(ctx context.Context, auctionID string, b *auctioneer.Bid, t time.Time) (err error) {
 	return s.db.WonBid(ctx, db.WonBidParams{
 		AuctionID: auctionID,
@@ -71,6 +74,7 @@ func (s *Store) WonBid(ctx context.Context, auctionID string, b *auctioneer.Bid,
 	})
 }
 
+// AckedBid .
 func (s *Store) AckedBid(ctx context.Context, auctionID string, b *auctioneer.Bid, t time.Time) (err error) {
 	return s.db.AcknowledgedBid(ctx, db.AcknowledgedBidParams{
 		AuctionID:      auctionID,
@@ -79,6 +83,7 @@ func (s *Store) AckedBid(ctx context.Context, auctionID string, b *auctioneer.Bi
 	})
 }
 
+// ProposalDelivered .
 func (s *Store) ProposalDelivered(ctx context.Context, ts time.Time, auctionID,
 	bidID, proposalCid, errorCause string) (err error) {
 	return s.db.ProposalDelivered(ctx, db.ProposalDeliveredParams{
@@ -89,10 +94,12 @@ func (s *Store) ProposalDelivered(ctx context.Context, ts time.Time, auctionID,
 	})
 }
 
+// AuctionClosed .
 func (s *Store) AuctionClosed(ctx context.Context, ca broker.ClosedAuction, ts time.Time) error {
 	return s.db.CloseAuction(ctx, db.CloseAuctionParams{
-		ID:       string(ca.ID),
-		Status:   db.AuctionStatus(ca.Status.String()),
-		ClosedAt: sql.NullTime{Time: ts, Valid: true},
+		ID:         string(ca.ID),
+		Status:     db.AuctionStatus(ca.Status.String()),
+		ClosedAt:   sql.NullTime{Time: ts, Valid: true},
+		ErrorCause: ca.ErrorCause,
 	})
 }

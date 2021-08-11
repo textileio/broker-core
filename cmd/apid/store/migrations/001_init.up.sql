@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS auctions (
     id TEXT PRIMARY KEY,
     batch_id TEXT NOT NULL,
     deal_verified BOOLEAN NOT NULL,
-    excluded_miners TEXT[],
+    excluded_storage_providers TEXT[],
     status auction_status NOT NULL,
     started_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,

@@ -28,11 +28,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.closeAuctionStmt, err = db.PrepareContext(ctx, closeAuction); err != nil {
 		return nil, fmt.Errorf("error preparing query CloseAuction: %w", err)
 	}
-	if q.createBidStmt, err = db.PrepareContext(ctx, createBid); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateBid: %w", err)
-	}
 	if q.createOrUpdateAuctionStmt, err = db.PrepareContext(ctx, createOrUpdateAuction); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateOrUpdateAuction: %w", err)
+	}
+	if q.createOrUpdateBidStmt, err = db.PrepareContext(ctx, createOrUpdateBid); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateOrUpdateBid: %w", err)
 	}
 	if q.getAuctionStmt, err = db.PrepareContext(ctx, getAuction); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAuction: %w", err)
@@ -61,14 +61,14 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing closeAuctionStmt: %w", cerr)
 		}
 	}
-	if q.createBidStmt != nil {
-		if cerr := q.createBidStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createBidStmt: %w", cerr)
-		}
-	}
 	if q.createOrUpdateAuctionStmt != nil {
 		if cerr := q.createOrUpdateAuctionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createOrUpdateAuctionStmt: %w", cerr)
+		}
+	}
+	if q.createOrUpdateBidStmt != nil {
+		if cerr := q.createOrUpdateBidStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createOrUpdateBidStmt: %w", cerr)
 		}
 	}
 	if q.getAuctionStmt != nil {
@@ -132,8 +132,8 @@ type Queries struct {
 	tx                        *sql.Tx
 	acknowledgedBidStmt       *sql.Stmt
 	closeAuctionStmt          *sql.Stmt
-	createBidStmt             *sql.Stmt
 	createOrUpdateAuctionStmt *sql.Stmt
+	createOrUpdateBidStmt     *sql.Stmt
 	getAuctionStmt            *sql.Stmt
 	getBidStmt                *sql.Stmt
 	proposalDeliveredStmt     *sql.Stmt
@@ -146,8 +146,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                        tx,
 		acknowledgedBidStmt:       q.acknowledgedBidStmt,
 		closeAuctionStmt:          q.closeAuctionStmt,
-		createBidStmt:             q.createBidStmt,
 		createOrUpdateAuctionStmt: q.createOrUpdateAuctionStmt,
+		createOrUpdateBidStmt:     q.createOrUpdateBidStmt,
 		getAuctionStmt:            q.getAuctionStmt,
 		getBidStmt:                q.getBidStmt,
 		proposalDeliveredStmt:     q.proposalDeliveredStmt,

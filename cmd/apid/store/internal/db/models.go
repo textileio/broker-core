@@ -30,16 +30,16 @@ func (e *AuctionStatus) Scan(src interface{}) error {
 }
 
 type Auction struct {
-	ID             string        `json:"id"`
-	BatchID        string        `json:"batchID"`
-	DealVerified   bool          `json:"dealVerified"`
-	ExcludedMiners []string      `json:"excludedMiners"`
-	Status         AuctionStatus `json:"status"`
-	StartedAt      time.Time     `json:"startedAt"`
-	UpdatedAt      time.Time     `json:"updatedAt"`
-	ClosedAt       sql.NullTime  `json:"closedAt"`
-	Duration       int64         `json:"duration"`
-	ErrorCause     string        `json:"errorCause"`
+	ID                       string        `json:"id"`
+	BatchID                  string        `json:"batchID"`
+	DealVerified             bool          `json:"dealVerified"`
+	ExcludedStorageProviders []string      `json:"excludedStorageProviders"`
+	Status                   AuctionStatus `json:"status"`
+	StartedAt                time.Time     `json:"startedAt"`
+	UpdatedAt                time.Time     `json:"updatedAt"`
+	ClosedAt                 sql.NullTime  `json:"closedAt"`
+	Duration                 int64         `json:"duration"`
+	ErrorCause               string        `json:"errorCause"`
 }
 
 type Bid struct {

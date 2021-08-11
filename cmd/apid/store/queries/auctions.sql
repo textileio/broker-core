@@ -3,7 +3,7 @@ INSERT INTO auctions (
     id,
     batch_id,
     deal_verified,
-    excluded_miners,
+    excluded_storage_providers,
     status,
     started_at,
     updated_at,
@@ -22,7 +22,7 @@ INSERT INTO auctions (
   ON CONFLICT (id) DO UPDATE SET
   batch_id = $2,
   deal_verified = $3,
-  excluded_miners = $4,
+  excluded_storage_providers = $4,
   status = $5,
   started_at = $6,
   updated_at = $7,
@@ -31,7 +31,7 @@ INSERT INTO auctions (
 
 
 -- name: CloseAuction :exec
-UPDATE auctions set status = $2, closed_at = $3
+UPDATE auctions set status = $2, closed_at = $3, error_cause = $4
 WHERE id = $1;
 
 -- name: GetAuction :one
