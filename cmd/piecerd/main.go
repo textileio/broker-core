@@ -29,7 +29,7 @@ func init() {
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
 		{Name: "pad-to-size", DefValue: uint64(0),
-			Description: "If value isn't zero, it pads smaller pieces to the defined size."},
+			Description: "If value isn't zero, it pads smaller pieces to the defined size. It must be a power of two."},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
