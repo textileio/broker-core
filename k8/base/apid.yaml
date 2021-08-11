@@ -1,13 +1,3 @@
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: api-pdb
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: api
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -18,24 +8,24 @@ spec:
   selector:
     app: api-v1
   ports:
-    - port: 5000
+    - port: 8889
       name: api
     - port: 9090
       name: metrics
   type: ClusterIP
-# ---
-# apiVersion: monitoring.coreos.com/v1
-# kind: ServiceMonitor
-# metadata:
-#   name: api
-#   labels:
-#     app: api
-# spec:
-#   endpoints:
-#     - port: metrics
-#   selector:
-#     matchLabels:
-#       app: api
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: api
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -60,7 +50,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - name: api
-              containerPort: 5000
+              containerPort: 8889
             - name: metrics
               containerPort: 9090
           command: ["./with-postgres.sh", "./apid"]
@@ -77,6 +67,16 @@ spec:
                 secretKeyRef:
                   name: broker-secret
                   key: api-db-password
+            - name: API_GPUBSUB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-project-id
+            - name: API_GPUBSUB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: gpubsub-api-key
           envFrom:
             - configMapRef:
                 name: configmap-api

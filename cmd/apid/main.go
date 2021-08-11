@@ -23,6 +23,7 @@ func init() {
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+		{Name: "http-addr", DefValue: ":8889", Description: "HTTP API listen address"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -51,7 +52,7 @@ var rootCmd = &cobra.Command{
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "brokerd")
+		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "apid")
 		common.CheckErr(err)
 
 		_, err = service.New(mb, v.GetString("http-addr"), v.GetString("postgres-uri"))

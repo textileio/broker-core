@@ -73,6 +73,9 @@ func (s *Service) OnAuctionBidReceived(ctx context.Context, t time.Time, a *pb.A
 func (s *Service) OnAuctionWinnerSelected(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
 	err := s.store.CreateOrUpdateAuction(ctx, a)
 	if err == nil {
+		err = s.store.CreateOrUpdateBid(ctx, a.Id, b)
+	}
+	if err == nil {
 		err = s.store.WonBid(ctx, a.Id, b, t)
 	}
 	if err != nil {
@@ -83,6 +86,9 @@ func (s *Service) OnAuctionWinnerSelected(ctx context.Context, t time.Time, a *p
 // OnAuctionWinnerAcked .
 func (s *Service) OnAuctionWinnerAcked(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
 	err := s.store.CreateOrUpdateAuction(ctx, a)
+	if err == nil {
+		err = s.store.CreateOrUpdateBid(ctx, a.Id, b)
+	}
 	if err == nil {
 		err = s.store.AckedBid(ctx, a.Id, b, t)
 	}

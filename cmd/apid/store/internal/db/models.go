@@ -57,14 +57,3 @@ type Bid struct {
 	ProposalCidDeliveredAt sql.NullTime   `json:"proposalCidDeliveredAt"`
 	ProposalCid            sql.NullString `json:"proposalCid"`
 }
-
-type CarIpfsSource struct {
-	AuctionID  string   `json:"auctionID"`
-	Cid        string   `json:"cid"`
-	Multiaddrs []string `json:"multiaddrs"`
-}
-
-type CarUrlSource struct {
-	AuctionID string `json:"auctionID"`
-	UrlString string `json:"urlString"`
-}

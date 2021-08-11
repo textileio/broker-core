@@ -30,16 +30,3 @@ CREATE TABLE IF NOT EXISTS bids (
     CONSTRAINT pk_auction_id_bidder_id PRIMARY KEY(auction_id, bidder_id),
     CONSTRAINT fk_auction_id FOREIGN KEY(auction_id) REFERENCES auctions(id)
 );
-
-CREATE TABLE IF NOT EXISTS car_url_sources (
-    auction_id TEXT PRIMARY KEY,
-    url_string TEXT NOT NULL,
-    CONSTRAINT fk_auction_id FOREIGN KEY(auction_id) REFERENCES auctions(id)
-);
-
-CREATE TABLE IF NOT EXISTS car_ipfs_sources (
-    auction_id TEXT PRIMARY KEY,
-    cid TEXT NOT NULL,
-    multiaddrs TEXT[],
-    CONSTRAINT fk_auction_id FOREIGN KEY(auction_id) REFERENCES auctions(id)
-);
