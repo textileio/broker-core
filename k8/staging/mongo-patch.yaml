@@ -14,8 +14,16 @@ spec:
         environment: staging
     spec:
       containers:
+        - name: mongo
+          resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
         - name: mongo-sidecar
           image: morphy/k8s-mongo-sidecar:0.5.1
+          requests:
+            cpu: 500m
+            memory: 512Mi
           env:
             - name: KUBERNETES_POD_LABELS
               value: "role=mongo,environment=staging"
