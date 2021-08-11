@@ -6,10 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
-
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/broker-core/broker"
 )
 
 type AuctionStatus string
@@ -34,35 +30,32 @@ func (e *AuctionStatus) Scan(src interface{}) error {
 }
 
 type Auction struct {
-	ID                                 auction.ID     `json:"id"`
-	BatchID                            broker.BatchID `json:"batchID"`
-	PayloadCid                         string         `json:"payloadCid"`
-	DealSize                           int64          `json:"dealSize"`
-	DealDuration                       int64          `json:"dealDuration"`
-	DealReplication                    int32          `json:"dealReplication"`
-	DealVerified                       bool           `json:"dealVerified"`
-	FilEpochDeadline                   int64          `json:"filEpochDeadline"`
-	ExcludedMiners                     []string       `json:"excludedMiners"`
-	Status                             AuctionStatus  `json:"status"`
-	StartedAt                          time.Time      `json:"startedAt"`
-	UpdatedAt                          time.Time      `json:"updatedAt"`
-	Duration                           int64          `json:"duration"`
-	Attempts                           int32          `json:"attempts"`
-	ErrorCause                         sql.NullString `json:"errorCause"`
-	BrokerAlreadyNotifiedClosedAuction bool           `json:"brokerAlreadyNotifiedClosedAuction"`
+	ID             string        `json:"id"`
+	BatchID        string        `json:"batchID"`
+	DealVerified   bool          `json:"dealVerified"`
+	ExcludedMiners []string      `json:"excludedMiners"`
+	Status         AuctionStatus `json:"status"`
+	StartedAt      time.Time     `json:"startedAt"`
+	UpdatedAt      time.Time     `json:"updatedAt"`
+	ClosedAt       sql.NullTime  `json:"closedAt"`
+	Duration       int64         `json:"duration"`
+	ErrorCause     string        `json:"errorCause"`
 }
 
 type Bid struct {
-	ID               string        `json:"id"`
-	AuctionID        string        `json:"auctionID"`
-	MinerAddr        string        `json:"minerAddr"`
-	WalletAddrSig    []byte        `json:"walletAddrSig"`
-	BidderID         peer.ID       `json:"bidderID"`
-	AskPrice         int64         `json:"askPrice"`
-	VerifiedAskPrice sql.NullInt64 `json:"verifiedAskPrice"`
-	StartEpoch       int64         `json:"startEpoch"`
-	FastRetrieval    bool          `json:"fastRetrieval"`
-	ReceivedAt       time.Time     `json:"receivedAt"`
+	AuctionID              string         `json:"auctionID"`
+	StorageProviderID      string         `json:"storageProviderID"`
+	WalletAddrSig          []byte         `json:"walletAddrSig"`
+	BidderID               string         `json:"bidderID"`
+	AskPrice               int64          `json:"askPrice"`
+	VerifiedAskPrice       int64          `json:"verifiedAskPrice"`
+	StartEpoch             int64          `json:"startEpoch"`
+	FastRetrieval          bool           `json:"fastRetrieval"`
+	ReceivedAt             time.Time      `json:"receivedAt"`
+	WonAt                  sql.NullTime   `json:"wonAt"`
+	AcknowledgedAt         sql.NullTime   `json:"acknowledgedAt"`
+	ProposalCidDeliveredAt sql.NullTime   `json:"proposalCidDeliveredAt"`
+	ProposalCid            sql.NullString `json:"proposalCid"`
 }
 
 type CarIpfsSource struct {
@@ -74,13 +67,4 @@ type CarIpfsSource struct {
 type CarUrlSource struct {
 	AuctionID string `json:"auctionID"`
 	UrlString string `json:"urlString"`
-}
-
-type WinningBid struct {
-	BidID                   string  `json:"bidID"`
-	AuctionID               string  `json:"auctionID"`
-	BidderID                peer.ID `json:"bidderID"`
-	Acknowledged            bool    `json:"acknowledged"`
-	ProposalCid             string  `json:"proposalCid"`
-	ProposalCidAcknowledged bool    `json:"proposalCidAcknowledged"`
 }

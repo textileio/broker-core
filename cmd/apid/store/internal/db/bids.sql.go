@@ -5,19 +5,91 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
-const getBid = `-- name: GetBid :one
-SELECT id, auction_id, miner_addr, wallet_addr_sig, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at FROM bids WHERE id = $1
+const acknowledgedBid = `-- name: AcknowledgedBid :exec
+UPDATE bids SET acknowledged_at = $3
+WHERE auction_id = $1 and bidder_id = $2
 `
 
-func (q *Queries) GetBid(ctx context.Context, id string) (Bid, error) {
-	row := q.queryRow(ctx, q.getBidStmt, getBid, id)
+type AcknowledgedBidParams struct {
+	AuctionID      string       `json:"auctionID"`
+	BidderID       string       `json:"bidderID"`
+	AcknowledgedAt sql.NullTime `json:"acknowledgedAt"`
+}
+
+func (q *Queries) AcknowledgedBid(ctx context.Context, arg AcknowledgedBidParams) error {
+	_, err := q.exec(ctx, q.acknowledgedBidStmt, acknowledgedBid, arg.AuctionID, arg.BidderID, arg.AcknowledgedAt)
+	return err
+}
+
+const createBid = `-- name: CreateBid :exec
+INSERT INTO bids (
+    auction_id,
+    storage_provider_id,
+    wallet_addr_sig,
+    bidder_id,
+    ask_price,
+    verified_ask_price,
+    start_epoch,
+    fast_retrieval,
+    received_at
+    ) VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      $7,
+      $8,
+      $9)
+`
+
+type CreateBidParams struct {
+	AuctionID         string    `json:"auctionID"`
+	StorageProviderID string    `json:"storageProviderID"`
+	WalletAddrSig     []byte    `json:"walletAddrSig"`
+	BidderID          string    `json:"bidderID"`
+	AskPrice          int64     `json:"askPrice"`
+	VerifiedAskPrice  int64     `json:"verifiedAskPrice"`
+	StartEpoch        int64     `json:"startEpoch"`
+	FastRetrieval     bool      `json:"fastRetrieval"`
+	ReceivedAt        time.Time `json:"receivedAt"`
+}
+
+func (q *Queries) CreateBid(ctx context.Context, arg CreateBidParams) error {
+	_, err := q.exec(ctx, q.createBidStmt, createBid,
+		arg.AuctionID,
+		arg.StorageProviderID,
+		arg.WalletAddrSig,
+		arg.BidderID,
+		arg.AskPrice,
+		arg.VerifiedAskPrice,
+		arg.StartEpoch,
+		arg.FastRetrieval,
+		arg.ReceivedAt,
+	)
+	return err
+}
+
+const getBid = `-- name: GetBid :one
+SELECT auction_id, storage_provider_id, wallet_addr_sig, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, acknowledged_at, proposal_cid_delivered_at, proposal_cid FROM bids WHERE auction_id = $1 and bidder_id = $2
+`
+
+type GetBidParams struct {
+	AuctionID string `json:"auctionID"`
+	BidderID  string `json:"bidderID"`
+}
+
+func (q *Queries) GetBid(ctx context.Context, arg GetBidParams) (Bid, error) {
+	row := q.queryRow(ctx, q.getBidStmt, getBid, arg.AuctionID, arg.BidderID)
 	var i Bid
 	err := row.Scan(
-		&i.ID,
 		&i.AuctionID,
-		&i.MinerAddr,
+		&i.StorageProviderID,
 		&i.WalletAddrSig,
 		&i.BidderID,
 		&i.AskPrice,
@@ -25,6 +97,48 @@ func (q *Queries) GetBid(ctx context.Context, id string) (Bid, error) {
 		&i.StartEpoch,
 		&i.FastRetrieval,
 		&i.ReceivedAt,
+		&i.WonAt,
+		&i.AcknowledgedAt,
+		&i.ProposalCidDeliveredAt,
+		&i.ProposalCid,
 	)
 	return i, err
+}
+
+const proposalDelivered = `-- name: ProposalDelivered :exec
+UPDATE bids SET proposal_cid = $3, proposal_cid_delivered_at = $4
+WHERE auction_id = $1 and bidder_id = $2
+`
+
+type ProposalDeliveredParams struct {
+	AuctionID              string         `json:"auctionID"`
+	BidderID               string         `json:"bidderID"`
+	ProposalCid            sql.NullString `json:"proposalCid"`
+	ProposalCidDeliveredAt sql.NullTime   `json:"proposalCidDeliveredAt"`
+}
+
+func (q *Queries) ProposalDelivered(ctx context.Context, arg ProposalDeliveredParams) error {
+	_, err := q.exec(ctx, q.proposalDeliveredStmt, proposalDelivered,
+		arg.AuctionID,
+		arg.BidderID,
+		arg.ProposalCid,
+		arg.ProposalCidDeliveredAt,
+	)
+	return err
+}
+
+const wonBid = `-- name: WonBid :exec
+UPDATE bids SET won_at = $3
+WHERE auction_id = $1 and bidder_id = $2
+`
+
+type WonBidParams struct {
+	AuctionID string       `json:"auctionID"`
+	BidderID  string       `json:"bidderID"`
+	WonAt     sql.NullTime `json:"wonAt"`
+}
+
+func (q *Queries) WonBid(ctx context.Context, arg WonBidParams) error {
+	_, err := q.exec(ctx, q.wonBidStmt, wonBid, arg.AuctionID, arg.BidderID, arg.WonAt)
+	return err
 }

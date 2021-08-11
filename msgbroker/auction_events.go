@@ -16,13 +16,15 @@ import (
 )
 
 // AuctionEventsListener is a handler for auction events related topics.
+// Note that the methods do not return error, since the caller can do nothing
+// if something happens on the consuming side.
 type AuctionEventsListener interface {
-	OnAuctionStarted(context.Context, time.Time, *pb.AuctionSummary) error
-	OnAuctionBidReceived(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid) error
-	OnAuctionWinnerSelected(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid) error
-	OnAuctionWinnerAcked(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid) error
-	OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time, auctionID auction.ID,
-		bidID auction.BidID, proposalCid cid.Cid, errorCause string) error
+	OnAuctionStarted(context.Context, time.Time, *pb.AuctionSummary)
+	OnAuctionBidReceived(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid)
+	OnAuctionWinnerSelected(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid)
+	OnAuctionWinnerAcked(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid)
+	OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time, auctionID,
+		bidID, proposalCid, errorCause string)
 	AuctionClosedListener
 }
 
@@ -94,9 +96,7 @@ func onAuctionStartedTopic(l AuctionEventsListener) TopicHandler {
 		if err := proto.Unmarshal(data, r); err != nil {
 			return fmt.Errorf("unmarshal new batch created: %s", err)
 		}
-		if err := l.OnAuctionStarted(ctx, r.Ts.AsTime(), r.Auction); err != nil {
-			return fmt.Errorf("calling auction-closed handler: %s", err)
-		}
+		l.OnAuctionStarted(ctx, r.Ts.AsTime(), r.Auction)
 		return nil
 	}
 }
@@ -111,9 +111,7 @@ func onAuctionBidReceivedTopic(l AuctionEventsListener) TopicHandler {
 		if err != nil {
 			return fmt.Errorf("converting bid from pb: %v", err)
 		}
-		if err := l.OnAuctionBidReceived(ctx, r.Ts.AsTime(), r.Auction, bid); err != nil {
-			return fmt.Errorf("calling auction-closed handler: %s", err)
-		}
+		l.OnAuctionBidReceived(ctx, r.Ts.AsTime(), r.Auction, bid)
 		return nil
 	}
 }
@@ -128,9 +126,7 @@ func onAuctionWinnerSelectedTopic(l AuctionEventsListener) TopicHandler {
 		if err != nil {
 			return fmt.Errorf("converting bid from pb: %v", err)
 		}
-		if err := l.OnAuctionWinnerSelected(ctx, r.Ts.AsTime(), r.Auction, bid); err != nil {
-			return fmt.Errorf("calling auction-closed handler: %s", err)
-		}
+		l.OnAuctionWinnerSelected(ctx, r.Ts.AsTime(), r.Auction, bid)
 		return nil
 	}
 }
@@ -145,9 +141,7 @@ func onAuctionWinnerAckedTopic(l AuctionEventsListener) TopicHandler {
 		if err != nil {
 			return fmt.Errorf("converting bid from pb: %v", err)
 		}
-		if err := l.OnAuctionWinnerAcked(ctx, r.Ts.AsTime(), r.Auction, bid); err != nil {
-			return fmt.Errorf("calling auction-closed handler: %s", err)
-		}
+		l.OnAuctionWinnerAcked(ctx, r.Ts.AsTime(), r.Auction, bid)
 		return nil
 	}
 }
@@ -162,15 +156,13 @@ func onAuctionProposalCidDeliveredTopic(l AuctionEventsListener) TopicHandler {
 		if err != nil {
 			return errors.New("proposal cid invalid")
 		}
-		if err := l.OnAuctionProposalCidDelivered(ctx,
+		l.OnAuctionProposalCidDelivered(ctx,
 			r.Ts.AsTime(),
-			auction.ID(r.AuctionId),
-			auction.BidID(r.BidId),
-			proposalCid,
+			r.AuctionId,
+			r.BidId,
+			proposalCid.String(),
 			r.ErrorCause,
-		); err != nil {
-			return fmt.Errorf("calling auction-closed handler: %s", err)
-		}
+		)
 		return nil
 	}
 }
@@ -180,6 +172,7 @@ func AuctionToPbSummary(a *auctioneer.Auction) *pb.AuctionSummary {
 	return &pb.AuctionSummary{
 		Id:                       string(a.ID),
 		BatchId:                  string(a.BatchID),
+		DealVerified:             a.DealVerified,
 		ExcludedStorageProviders: a.ExcludedStorageProviders,
 		Status:                   a.Status.String(),
 		StartedAt:                timestamppb.New(a.StartedAt),
@@ -194,7 +187,7 @@ func bidFromPb(pbid *pb.Bid) (*auctioneer.Bid, error) {
 		return nil, fmt.Errorf("invalid bidder ID: %v", err)
 	}
 	return &auctioneer.Bid{
-		MinerAddr:        pbid.MinerAddr,
+		MinerAddr:        pbid.StorageProviderId,
 		WalletAddrSig:    pbid.WalletAddrSig,
 		BidderID:         bidderID,
 		AskPrice:         pbid.AskPrice,
@@ -207,13 +200,13 @@ func bidFromPb(pbid *pb.Bid) (*auctioneer.Bid, error) {
 
 func bidToPb(bid *auctioneer.Bid) *pb.Bid {
 	return &pb.Bid{
-		MinerAddr:        bid.MinerAddr,
-		WalletAddrSig:    bid.WalletAddrSig,
-		BidderId:         peer.Encode(bid.BidderID),
-		AskPrice:         bid.AskPrice,
-		VerifiedAskPrice: bid.VerifiedAskPrice,
-		StartEpoch:       bid.StartEpoch,
-		FastRetrieval:    bid.FastRetrieval,
-		ReceivedAt:       timestamppb.New(bid.ReceivedAt),
+		StorageProviderId: bid.MinerAddr,
+		WalletAddrSig:     bid.WalletAddrSig,
+		BidderId:          peer.Encode(bid.BidderID),
+		AskPrice:          bid.AskPrice,
+		VerifiedAskPrice:  bid.VerifiedAskPrice,
+		StartEpoch:        bid.StartEpoch,
+		FastRetrieval:     bid.FastRetrieval,
+		ReceivedAt:        timestamppb.New(bid.ReceivedAt),
 	}
 }

@@ -22,17 +22,73 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.acknowledgedBidStmt, err = db.PrepareContext(ctx, acknowledgedBid); err != nil {
+		return nil, fmt.Errorf("error preparing query AcknowledgedBid: %w", err)
+	}
+	if q.closeAuctionStmt, err = db.PrepareContext(ctx, closeAuction); err != nil {
+		return nil, fmt.Errorf("error preparing query CloseAuction: %w", err)
+	}
+	if q.createBidStmt, err = db.PrepareContext(ctx, createBid); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBid: %w", err)
+	}
+	if q.createOrUpdateAuctionStmt, err = db.PrepareContext(ctx, createOrUpdateAuction); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateOrUpdateAuction: %w", err)
+	}
+	if q.getAuctionStmt, err = db.PrepareContext(ctx, getAuction); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAuction: %w", err)
+	}
 	if q.getBidStmt, err = db.PrepareContext(ctx, getBid); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBid: %w", err)
+	}
+	if q.proposalDeliveredStmt, err = db.PrepareContext(ctx, proposalDelivered); err != nil {
+		return nil, fmt.Errorf("error preparing query ProposalDelivered: %w", err)
+	}
+	if q.wonBidStmt, err = db.PrepareContext(ctx, wonBid); err != nil {
+		return nil, fmt.Errorf("error preparing query WonBid: %w", err)
 	}
 	return &q, nil
 }
 
 func (q *Queries) Close() error {
 	var err error
+	if q.acknowledgedBidStmt != nil {
+		if cerr := q.acknowledgedBidStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing acknowledgedBidStmt: %w", cerr)
+		}
+	}
+	if q.closeAuctionStmt != nil {
+		if cerr := q.closeAuctionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing closeAuctionStmt: %w", cerr)
+		}
+	}
+	if q.createBidStmt != nil {
+		if cerr := q.createBidStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBidStmt: %w", cerr)
+		}
+	}
+	if q.createOrUpdateAuctionStmt != nil {
+		if cerr := q.createOrUpdateAuctionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createOrUpdateAuctionStmt: %w", cerr)
+		}
+	}
+	if q.getAuctionStmt != nil {
+		if cerr := q.getAuctionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAuctionStmt: %w", cerr)
+		}
+	}
 	if q.getBidStmt != nil {
 		if cerr := q.getBidStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getBidStmt: %w", cerr)
+		}
+	}
+	if q.proposalDeliveredStmt != nil {
+		if cerr := q.proposalDeliveredStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing proposalDeliveredStmt: %w", cerr)
+		}
+	}
+	if q.wonBidStmt != nil {
+		if cerr := q.wonBidStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing wonBidStmt: %w", cerr)
 		}
 	}
 	return err
@@ -72,15 +128,29 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db         DBTX
-	tx         *sql.Tx
-	getBidStmt *sql.Stmt
+	db                        DBTX
+	tx                        *sql.Tx
+	acknowledgedBidStmt       *sql.Stmt
+	closeAuctionStmt          *sql.Stmt
+	createBidStmt             *sql.Stmt
+	createOrUpdateAuctionStmt *sql.Stmt
+	getAuctionStmt            *sql.Stmt
+	getBidStmt                *sql.Stmt
+	proposalDeliveredStmt     *sql.Stmt
+	wonBidStmt                *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:         tx,
-		tx:         tx,
-		getBidStmt: q.getBidStmt,
+		db:                        tx,
+		tx:                        tx,
+		acknowledgedBidStmt:       q.acknowledgedBidStmt,
+		closeAuctionStmt:          q.closeAuctionStmt,
+		createBidStmt:             q.createBidStmt,
+		createOrUpdateAuctionStmt: q.createOrUpdateAuctionStmt,
+		getAuctionStmt:            q.getAuctionStmt,
+		getBidStmt:                q.getBidStmt,
+		proposalDeliveredStmt:     q.proposalDeliveredStmt,
+		wonBidStmt:                q.wonBidStmt,
 	}
 }

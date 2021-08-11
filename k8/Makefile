@@ -6,6 +6,7 @@ HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
 
 deploy: $(KUSTOMIZE)
 	cd ${DEPLOYMENT} && $(KUSTOMIZE) edit set image \
+		textile/api:sha-$(HEAD_SHORT) \
 		textile/auctioneer:sha-$(HEAD_SHORT) \
 		textile/auth:sha-$(HEAD_SHORT) \
 		textile/broker:sha-$(HEAD_SHORT) \
