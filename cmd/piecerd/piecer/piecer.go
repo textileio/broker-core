@@ -61,7 +61,7 @@ func New(
 	padToSize uint64) (*Piecer, error) {
 	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
 	if padToSize&(padToSize-1) != 0 {
-		return nil, fmt.Errorf("pad to size %d must be a positive power of two", padToSize)
+		return nil, fmt.Errorf("pad to size %d must be a power of two", padToSize)
 	}
 
 	if padToSize > maxPaddingSize {
