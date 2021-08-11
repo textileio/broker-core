@@ -2,8 +2,6 @@ package broker
 
 import (
 	"errors"
-	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/textileio/bidbot/lib/auction"
@@ -20,6 +18,7 @@ var defaultConfig = config{
 	exportPinCountFrequency: time.Minute * 30,
 
 	auctionMaxRetries: 5,
+	auctionDuration:   3 * 24 * time.Hour,
 }
 
 type config struct {
@@ -31,9 +30,8 @@ type config struct {
 	unpinnerRetryDelay      time.Duration
 	exportPinCountFrequency time.Duration
 
-	carExportURL *url.URL
-
 	auctionMaxRetries int
+	auctionDuration   time.Duration
 }
 
 // Option provides configuration for Broker.
@@ -102,18 +100,6 @@ func WithExportPinCountFrequency(freq time.Duration) Option {
 	}
 }
 
-// WithCARExportURL configures the frequency of exporting the pin count metric.
-func WithCARExportURL(rawURL string) Option {
-	return func(c *config) error {
-		u, err := url.Parse(rawURL)
-		if err != nil {
-			return fmt.Errorf("parsing url: %s", err)
-		}
-		c.carExportURL = u
-		return nil
-	}
-}
-
 // WithAuctionMaxRetries indicates the maximum number of auctions that can be created
 // for a batch.
 func WithAuctionMaxRetries(max int) Option {
@@ -126,9 +112,16 @@ func WithAuctionMaxRetries(max int) Option {
 	}
 }
 
-func (c config) validate() error {
-	if c.carExportURL == nil {
-		return errors.New("the CAR exporting URL can't be empty")
+// WithAuctionDuration indicates the auction duration to be used in
+// every auction (includes re-auctioning). If a new auction has to be created
+// that can't fit into the Batch specified deadline, then it won't be created
+// and the Batch would be consider un-auctionable and thus fail.
+func WithAuctionDuration(duration time.Duration) Option {
+	return func(c *config) error {
+		if duration == 0 {
+			return errors.New("auction duration must be positive")
+		}
+		c.auctionDuration = duration
+		return nil
 	}
-	return nil
 }

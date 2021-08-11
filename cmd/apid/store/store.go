@@ -51,7 +51,6 @@ func (s *Store) CreateOrUpdateAuction(ctx context.Context, a *pb.AuctionSummary)
 
 func (s *Store) CreateBid(ctx context.Context, auctionID string, b *auctioneer.Bid) (err error) {
 	return s.db.CreateBid(ctx, db.CreateBidParams{
-		"", // b.Id,
 		auctionID,
 		b.MinerAddr,
 		b.WalletAddrSig,

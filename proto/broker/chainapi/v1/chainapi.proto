@@ -5,6 +5,7 @@ option go_package = "github.com/textileio/broker-core/gen/broker/chainapi/v1;cha
 message HasDepositRequest {
   string broker_id = 1;
   string account_id = 2;
+  string chain_id = 3;
 }
 
 message HasDepositResponse {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
@@ -16,7 +17,6 @@ import (
 	"github.com/textileio/broker-core/broker"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
-	chainapii "github.com/textileio/broker-core/cmd/brokerd/chainapi"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
@@ -35,8 +35,6 @@ var (
 type Config struct {
 	ListenAddr string
 
-	ReporterAddr string
-
 	PostgresURI string
 
 	IPFSAPIMultiaddr string
@@ -45,9 +43,8 @@ type Config struct {
 	DealReplication uint32
 	VerifiedDeals   bool
 
-	CARExportURL string
-
 	AuctionMaxRetries int
+	AuctionDuration   time.Duration
 }
 
 // Service provides an implementation of the broker API.
@@ -77,11 +74,6 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
 
-	reporter, err := chainapii.New(config.ReporterAddr)
-	if err != nil {
-		return nil, fmt.Errorf("creating reporter implementation: %s", err)
-	}
-
 	ma, err := multiaddr.NewMultiaddr(config.IPFSAPIMultiaddr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing ipfs client multiaddr: %s", err)
@@ -93,14 +85,13 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 
 	broker, err := brokeri.New(
 		config.PostgresURI,
-		reporter,
 		ipfsClient,
 		mb,
 		brokeri.WithDealDuration(config.DealDuration),
 		brokeri.WithDealReplication(config.DealReplication),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
-		brokeri.WithCARExportURL(config.CARExportURL),
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
+		brokeri.WithAuctionDuration(config.AuctionDuration),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
@@ -307,8 +298,9 @@ func (s *Service) OnNewBatchCreated(
 	batchCid cid.Cid,
 	brids []broker.StorageRequestID,
 	origin string,
-	manifest []byte) error {
-	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin, manifest); err != nil {
+	manifest []byte,
+	carURL *url.URL) error {
+	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin, manifest, carURL); err != nil {
 		if errors.Is(err, store.ErrBatchExists) {
 			log.Warnf("batch ID %s already created, acking", id)
 			return nil
@@ -374,9 +366,6 @@ func (s *Service) Close() error {
 func validateConfig(conf Config) error {
 	if conf.ListenAddr == "" {
 		return errors.New("service listen addr is empty")
-	}
-	if conf.ReporterAddr == "" {
-		return errors.New("reporter api addr is empty")
 	}
 	if conf.PostgresURI == "" {
 		return errors.New("postgres uri is empty")

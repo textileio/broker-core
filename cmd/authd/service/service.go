@@ -8,11 +8,9 @@ import (
 	"net"
 	"strings"
 
+	eth "github.com/ethereum/go-ethereum/common"
 	jwt "github.com/golang-jwt/jwt"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	mbase "github.com/multiformats/go-multibase"
-	varint "github.com/multiformats/go-varint"
-	"github.com/ockam-network/did"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/authd/store"
@@ -20,11 +18,25 @@ import (
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
 
-	// This import runs the init, which registers the algo with jwt-go.
+	// These imports run init functions, which register each algo with jwt-go.
+	_ "github.com/textileio/broker-core/cmd/authd/eth"
 	_ "github.com/textileio/jwt-go-eddsa"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	nearOrigin = "near"
+	ethOrigin  = "eth"
+	polyOrigin = "poly"
+
+	nearTestnetSuborigin = "testnet"
+
+	tokenHeaderKeyJwk = "jwk"
+	tokenHeaderKeyKid = "kid"
+
+	jwkMapKeyX = "x"
 )
 
 var log = golog.Logger("auth/service")
@@ -47,6 +59,8 @@ type Config struct {
 // Deps comprises the service dependencies.
 type Deps struct {
 	NearAPI chainapi.ChainAPI
+	EthAPI  chainapi.ChainAPI
+	PolyAPI chainapi.ChainAPI
 }
 
 var _ pb.AuthAPIServiceServer = (*Service)(nil)
@@ -93,10 +107,11 @@ type detectedInput struct {
 
 // ValidatedToken represents token data that has been validated.
 type ValidatedToken struct {
-	X   string
-	Sub string
-	Iss string
-	Aud string
+	Sub       string
+	Iss       string
+	Aud       string
+	Origin    string
+	Suborigin string
 }
 
 // AuthClaims defines standard claims for authentication.
@@ -121,20 +136,43 @@ func detectInput(token string) *detectedInput {
 
 // validateToken validates the JWT token.
 func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
-	jwkMap := map[string]string{}
+	origin := ""
+	suborigin := ""
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
-		jwk := token.Header["jwk"]
-		for k, v := range jwk.(map[string]interface{}) {
-			if val, ok := v.(string); !ok {
-				continue
-			} else {
-				jwkMap[k] = val
+		header, ok := token.Header[tokenHeaderKeyJwk]
+		if ok {
+			for k, v := range header.(map[string]interface{}) {
+				if val, ok := v.(string); !ok {
+					continue
+				} else if k == jwkMapKeyX {
+					dx, err := base64.URLEncoding.DecodeString(val)
+					if err != nil {
+						return nil, fmt.Errorf("decoding x header value: %v", err)
+					}
+					// TODO: This will be handled by the kid header handling below once we update the near client.
+					origin = nearOrigin
+					suborigin = nearTestnetSuborigin
+					return crypto.UnmarshalEd25519PublicKey(dx)
+				}
 			}
 		}
-		x := jwkMap["x"]
-		dx, _ := base64.URLEncoding.DecodeString(x)
-		pkey, err := crypto.UnmarshalEd25519PublicKey(dx)
-		return pkey, err
+		header, ok = token.Header[tokenHeaderKeyKid]
+		if ok {
+			var val string
+			if val, ok = header.(string); !ok {
+				return nil, errors.New("invalid key info")
+			}
+			parts := strings.Split(val, ":")
+			if len(parts) != 3 {
+				return nil, errors.New("didn't find 3 parts when parsing header")
+			}
+			origin = parts[0]
+			suborigin = parts[1]
+			addrString := strings.Split(val, ":")[2]
+			addrBytes := eth.FromHex(addrString)
+			return eth.BytesToAddress(addrBytes), nil
+		}
+		return nil, errors.New("invalid key info")
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse JWT: %v", err)
@@ -152,50 +190,52 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	}
 
 	validatedToken := &ValidatedToken{
-		X:   jwkMap["x"],
-		Sub: claims.Subject,
-		Iss: claims.Issuer,
-		Aud: claims.Audience,
+		Sub:       claims.Subject,
+		Iss:       claims.Issuer,
+		Aud:       claims.Audience,
+		Origin:    origin,
+		Suborigin: suborigin,
 	}
 	return validatedToken, err
 }
 
-// validateKeyDID validates the key DID.
-// See the spec: https://w3c-ccg.github.io/did-method-key/
-func validateKeyDID(sub string, x string) (bool, error) {
-	subDID, err := did.Parse(sub)
-	if err != nil {
-		return false, fmt.Errorf("parsing DID: %v", err)
-	}
-	_, bytes, err := mbase.Decode(subDID.ID)
-	if err != nil {
-		return false, fmt.Errorf("decoding DID: %v", err)
-	}
-	// Checks that the first two bytes are multicodec prefix values (according to spec)
-	_, n, err := varint.FromUvarint(bytes)
-	if err != nil {
-		return false, fmt.Errorf("DID multiformat: %v", err)
-	}
-	if n != 2 {
-		return false, errors.New("key DID format")
-	}
-	dx, _ := base64.URLEncoding.DecodeString(x)
-	if string(dx) != string(bytes[2:]) {
-		return false, errors.New("key DID does not match the public key")
-	}
-	return true, nil
-}
+// // validateKeyDID validates the key DID.
+// // See the spec: https://w3c-ccg.github.io/did-method-key/
+// func validateKeyDID(sub string, x string) (bool, error) {
+// 	subDID, err := did.Parse(sub)
+// 	if err != nil {
+// 		return false, fmt.Errorf("parsing DID: %v", err)
+// 	}
+// 	_, bytes, err := mbase.Decode(subDID.ID)
+// 	if err != nil {
+// 		return false, fmt.Errorf("decoding DID: %v", err)
+// 	}
+// 	// Checks that the first two bytes are multicodec prefix values (according to spec)
+// 	_, n, err := varint.FromUvarint(bytes)
+// 	if err != nil {
+// 		return false, fmt.Errorf("DID multiformat: %v", err)
+// 	}
+// 	if n != 2 {
+// 		return false, errors.New("key DID format")
+// 	}
+// 	dx, _ := base64.URLEncoding.DecodeString(x)
+// 	if string(dx) != string(bytes[2:]) {
+// 		return false, errors.New("key DID does not match the public key")
+// 	}
+// 	return true, nil
+// }
 
 // validateDepositedFunds validates that the user has locked funds on chain.
 func validateDepositedFunds(
 	ctx context.Context,
 	brokerID string,
 	accountID string,
-	s chainapi.ChainAPI,
+	chainID string,
+	chainAPI chainapi.ChainAPI,
 ) (bool, error) {
-	hasDeposit, err := s.HasDeposit(ctx, brokerID, accountID)
+	hasDeposit, err := chainAPI.HasDeposit(ctx, brokerID, accountID, chainID)
 	if err != nil {
-		return false, fmt.Errorf("locked funds: %v", err)
+		return false, fmt.Errorf("checking for deposited funds: %v", err)
 	}
 	if !hasDeposit {
 		return false, errors.New("account doesn't have deposited funds")
@@ -233,20 +273,35 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", err)
 		}
-		// Validate the key DID.
-		keyOk, err := validateKeyDID(token.Sub, token.X)
-		if !keyOk || err != nil {
-			return nil, status.Errorf(codes.Unauthenticated, "invalid Key DID: %v", err)
+		// TODO: On NEAR, check that the account is indeed associated with the given public key
+		var chainAPI chainapi.ChainAPI
+		switch token.Origin {
+		case nearOrigin:
+			chainAPI = s.Deps.NearAPI
+		case ethOrigin:
+			chainAPI = s.Deps.EthAPI
+		case polyOrigin:
+			chainAPI = s.Deps.PolyAPI
+		default:
+			return nil, fmt.Errorf("unknown origin %s", token.Origin)
 		}
-		// Check for locked funds
-		fundsOk, err := validateDepositedFunds(ctx, token.Aud, token.Iss, s.Deps.NearAPI)
+		accountID := ""
+		issuerParts := strings.Split(token.Iss, ":")
+		if len(issuerParts) == 1 {
+			accountID = issuerParts[0]
+		} else if len(issuerParts) == 3 {
+			accountID = issuerParts[2]
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid issuer: %s", token.Iss)
+		}
+		fundsOk, err := validateDepositedFunds(ctx, token.Aud, accountID, token.Suborigin, chainAPI)
 		if !fundsOk || err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
 		}
 		log.Debugf("successful chain authentication: %s", token.Iss)
 		return &pb.AuthResponse{
 			Identity: token.Sub,
-			Origin:   "NEAR",
+			Origin:   fmt.Sprintf("%s-%s", token.Origin, token.Suborigin),
 		}, nil
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown token type")

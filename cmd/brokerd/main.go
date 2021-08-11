@@ -21,19 +21,19 @@ var (
 
 func init() {
 	flags := []common.Flag{
-		{Name: "rpc-addr", DefValue: ":5000", Description: "gRPC listen address"},
+		{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-api-multiaddr", DefValue: "", Description: "IPFS API multiaddress for unpinning data"},
-		{Name: "reporter-addr", DefValue: "", Description: "Reporter API address"},
 		{Name: "deal-duration", DefValue: auction.MaxDealDuration, Description: "Deal duration in Filecoin epochs"},
 		{Name: "deal-replication", DefValue: broker.MinDealReplication, Description: "Deal replication factor"},
 		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
+		{Name: "auction-duration", DefValue: "72h",
+			Description: "Auction duration for creating auctions in batches with defined deadlines"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
-		{Name: "car-export-url", DefValue: "", Description: "URL that generates CAR files for stored cids"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
@@ -60,9 +60,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		serviceConfig := service.Config{
-			ListenAddr: v.GetString("rpc-addr"),
-
-			ReporterAddr: v.GetString("reporter-addr"),
+			ListenAddr: v.GetString("listen-addr"),
 
 			PostgresURI: v.GetString("postgres-uri"),
 
@@ -72,9 +70,8 @@ var rootCmd = &cobra.Command{
 			DealReplication: v.GetUint32("deal-replication"),
 			VerifiedDeals:   v.GetBool("verified-deals"),
 
-			CARExportURL: v.GetString("car-export-url"),
-
 			AuctionMaxRetries: v.GetInt("auction-max-retries"),
+			AuctionDuration:   v.GetDuration("auction-duration"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")

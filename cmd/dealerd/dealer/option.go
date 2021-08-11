@@ -28,10 +28,10 @@ var defaultConfig = config{
 	dealMakingMaxRetries: 50,
 	dealMakingRetryDelay: time.Second * 20,
 
-	dealWatchingFreq:                    time.Second * 20,
+	dealWatchingFreq:                    time.Second * 30,
 	dealWatchingRateLim:                 20,
 	dealWatchingResolveDealIDRetryDelay: time.Second * 30,
-	dealWatchingCheckChainRetryDelay:    time.Minute,
+	dealWatchingCheckChainRetryDelay:    time.Minute * 5,
 
 	dealReportingFreq:       time.Second * 10,
 	dealReportingRetryDelay: time.Second * 15,

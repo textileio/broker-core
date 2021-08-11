@@ -27,6 +27,12 @@ configMapGenerator:
   - configNear.env
   name: configmap-near
 - envs:
+  - configEth.env
+  name: configmap-eth
+- envs:
+  - configPoly.env
+  name: configmap-poly
+- envs:
   - configPacker.env
   name: configmap-packer
 - envs:

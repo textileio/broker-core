@@ -11,6 +11,8 @@ resources:
 - mongo.yaml
 - postgres.yaml
 - neard.yaml
+- ethd.yaml
+- polyd.yaml
 - packerd.yaml
 - storaged.yaml
 - piecer.yaml

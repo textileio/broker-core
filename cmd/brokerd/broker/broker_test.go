@@ -69,54 +69,56 @@ func TestCreateBatch(t *testing.T) {
 
 	// 1- Create two storage requests.
 	c := createCidFromString("StorageRequest1")
-	br1, err := b.Create(ctx, c, "OR")
+	sr1, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestBatching, br1.Status)
+	require.Equal(t, broker.RequestBatching, sr1.Status)
 
 	c = createCidFromString("StorageRequest2")
-	br2, err := b.Create(ctx, c, "OR")
+	sr2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
-	require.Equal(t, broker.RequestBatching, br1.Status)
+	require.Equal(t, broker.RequestBatching, sr1.Status)
 
 	// 2- Create a batch with both storage requests.
 	brgCid := createCidFromString("Batch")
 	manifest := []byte("fake-manifest")
-	sd, err := b.CreateNewBatch(
+	carURL, _ := url.ParseRequestURI("http://fakeurl.dev/jorge.car")
+	batchID, err := b.CreateNewBatch(
 		ctx,
 		"SD1",
 		brgCid,
-		[]broker.StorageRequestID{br1.ID, br2.ID},
+		[]broker.StorageRequestID{sr1.ID, sr2.ID},
 		"OR",
-		manifest)
+		manifest,
+		carURL)
 	require.NoError(t, err)
-	_, err = b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", manifest)
+	_, err = b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{sr1.ID, sr2.ID}, "OR", manifest, carURL)
 	require.ErrorIs(t, err, store.ErrBatchExists)
 
 	// Check that all storage request:
 	// 1- Moved to StatusPreparing
 	// 2- Are linked to the batch they are now part of.
-	bri1, err := b.GetStorageRequestInfo(ctx, br1.ID)
+	bri1, err := b.GetStorageRequestInfo(ctx, sr1.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestPreparing, bri1.StorageRequest.Status)
-	require.Equal(t, sd, bri1.StorageRequest.BatchID)
-	bri2, err := b.GetStorageRequestInfo(ctx, br2.ID)
+	require.Equal(t, batchID, bri1.StorageRequest.BatchID)
+	bri2, err := b.GetStorageRequestInfo(ctx, sr2.ID)
 	require.NoError(t, err)
 	require.Equal(t, broker.RequestPreparing, bri2.StorageRequest.Status)
-	require.Equal(t, sd, bri2.StorageRequest.BatchID)
+	require.Equal(t, batchID, bri2.StorageRequest.BatchID)
 
 	// Check that the batch was persisted correctly.
-	sd2, err := b.GetBatch(ctx, sd)
+	sd2, err := b.GetBatch(ctx, batchID)
 	require.NoError(t, err)
-	require.Equal(t, sd, sd2.ID)
+	require.Equal(t, batchID, sd2.ID)
 	require.True(t, sd2.PayloadCid.Defined())
 	require.Equal(t, broker.BatchStatusPreparing, sd2.Status)
-	brs, err := b.store.GetStorageRequestIDs(ctx, sd)
+	brs, err := b.store.GetStorageRequestIDs(ctx, batchID)
 	require.NoError(t, err)
 	require.Len(t, brs, 2)
 	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
 	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
 	require.NotNil(t, sd2.Sources.CARURL)
-	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), sd2.Sources.CARURL.URL.String())
+	require.Equal(t, carURL.String(), sd2.Sources.CARURL.URL.String())
 	require.Nil(t, sd2.Sources.CARIPFS)
 	require.Zero(t, sd2.FilEpochDeadline)
 	require.False(t, sd2.DisallowRebatching)
@@ -129,7 +131,7 @@ func TestCreatePrepared(t *testing.T) {
 	b, mb, _ := createBroker(t)
 
 	// 1- Create some prepared data setup.
-	deadline, _ := time.Parse(time.RFC3339, "2021-06-18T12:51:00+00:00")
+	deadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
 	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 	carURLStr := "https://duke.dog/car/" + payloadCid.String()
 	carURL, _ := url.Parse(carURLStr)
@@ -150,6 +152,7 @@ func TestCreatePrepared(t *testing.T) {
 			},
 		},
 	}
+	expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
 	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta)
 	require.NoError(t, err)
 
@@ -179,7 +182,8 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
 	require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
 	require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
-	require.Equal(t, uint64(857142), sd.FilEpochDeadline)
+	deadlineEpoch, _ := timeToFilEpoch(deadline)
+	require.Equal(t, deadlineEpoch, sd.FilEpochDeadline)
 	require.Equal(t, payloadCid, sd.PayloadCid)
 	require.Equal(t, pc.PieceCid, sd.PieceCid)
 	require.Equal(t, pc.PieceSize, sd.PieceSize)
@@ -204,7 +208,7 @@ func TestCreatePrepared(t *testing.T) {
 	require.Equal(t, string(sd.ID), rda.BatchId)
 	require.Equal(t, pc.RepFactor, int(rda.DealReplication))
 	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-	require.Equal(t, uint64(857142), rda.FilEpochDeadline)
+	require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
 	require.NotNil(t, rda.Sources.CarUrl)
 	require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 	require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
@@ -217,7 +221,7 @@ func TestCreateBatchFail(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
-		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, nil, "DUKEORIGIN", nil)
+		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, nil, "DUKEORIGIN", nil, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
@@ -226,7 +230,7 @@ func TestCreateBatchFail(t *testing.T) {
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
 		brgCid := createCidFromString("Batch")
-		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, nil, "DUKEORIGIN", nil)
+		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, nil, "DUKEORIGIN", nil, nil)
 		require.Equal(t, ErrEmptyGroup, err)
 	})
 
@@ -236,13 +240,15 @@ func TestCreateBatchFail(t *testing.T) {
 		b, _, _ := createBroker(t)
 
 		brgCid := createCidFromString("Batch")
+		carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
 		_, err := b.CreateNewBatch(
 			ctx,
 			"SD1",
 			brgCid,
 			[]broker.StorageRequestID{broker.StorageRequestID("invented")},
 			"DUKEORIGIN",
-			nil)
+			nil,
+			carURL)
 		require.ErrorIs(t, err, store.ErrBatchContainsUnknownStorageRequest)
 	})
 }
@@ -260,7 +266,8 @@ func TestBatchPrepared(t *testing.T) {
 	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil)
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 
 	// 2- Call BatchPrepared as if the piecer did.
@@ -320,7 +327,8 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil)
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -455,7 +463,8 @@ func TestBatchFailedAuction(t *testing.T) {
 	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil)
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -520,7 +529,7 @@ func TestBatchFailedAuction(t *testing.T) {
 func TestBatchFinalizedDeals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, _, chainAPI := createBroker(t)
+	b, mb, chainAPI := createBroker(t)
 	b.conf.dealReplication = 2
 
 	// 1- Create two storage requests and a corresponding batch, and
@@ -532,7 +541,8 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	br2, err := b.Create(ctx, c2, "OR")
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil)
+	carURL, _ := url.ParseRequestURI("http://fakeurl.dev/" + brgCid.String())
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -639,6 +649,140 @@ func TestBatchFinalizedDeals(t *testing.T) {
 		require.Equal(t, bri.Deals[1].DealID, fad2.DealID)
 		require.Equal(t, bri.Deals[1].Expiration, fad2.DealExpiration)
 	}
+
+	// 8- Check that only 1 ReadyToAuction msg was fired by `NewBatchPrepared`, and no extra
+	//    ones from re-auctioning which shouldn't happen in this happy path.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+}
+
+func TestBatchFailedFinalizedDeal(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// brokerSetup is a function that creates a storage request,
+	// includes it in a batch, runs an auction, and close it.
+	// It leaves the broker prepared to receive finalized deals messages to be processed.
+	brokerSetup := func(t *testing.T, b *Broker, batchDeadline time.Time) (broker.StorageRequest, broker.ClosedAuction) {
+		payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+		carURLStr := "https://duke.dog/car/" + payloadCid.String()
+		carURL, _ := url.Parse(carURLStr)
+		maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+		require.NoError(t, err)
+		pc := broker.PreparedCAR{
+			PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+			PieceSize: 1024,
+			RepFactor: 1,
+			Deadline:  batchDeadline,
+			Sources: auction.Sources{
+				CARURL: &auction.CARURL{
+					URL: *carURL,
+				},
+				CARIPFS: &auction.CARIPFS{
+					Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+					Multiaddrs: []multiaddr.Multiaddr{maddr},
+				},
+			},
+		}
+		br, err := b.CreatePrepared(ctx, payloadCid, pc, meta)
+		require.NoError(t, err)
+
+		winningBids := map[auction.BidID]broker.WinningBid{
+			auction.BidID("Bid1"): {
+				StorageProviderID: "f0011",
+				Price:             200,
+				StartEpoch:        300,
+				FastRetrieval:     true,
+			},
+		}
+
+		auction := broker.ClosedAuction{
+			ID:              auction.ID("AUCTION1"),
+			BatchID:         br.BatchID,
+			DealDuration:    auction.MaxDealDuration,
+			DealReplication: 2,
+			Status:          broker.AuctionStatusFinalized,
+			WinningBids:     winningBids,
+		}
+		err = b.BatchAuctioned(ctx, "op-id", auction)
+		require.NoError(t, err)
+
+		return br, auction
+	}
+
+	t.Run("with-enough-deadline-time", func(t *testing.T) {
+		b, mb, _ := createBroker(t)
+
+		sr, auction := brokerSetup(t, b, time.Now().Add(time.Hour*24*100)) // 100 days.
+		fad1 := broker.FinalizedDeal{
+			BatchID:           auction.BatchID,
+			StorageProviderID: "f0011",
+			ErrorCause:        "the miner is buggy",
+		}
+		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
+		require.NoError(t, err)
+		expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
+
+		// Verify that the batch and storage request is still in deal-making,
+		// since a re-auctioning should be fired.
+		ba, err := b.GetBatch(ctx, sr.BatchID)
+		require.NoError(t, err)
+		require.Equal(t, broker.BatchStatusDealMaking, ba.Status)
+		mbr1, err := b.GetStorageRequestInfo(ctx, sr.ID)
+		require.NoError(t, err)
+		require.Equal(t, broker.RequestDealMaking, mbr1.StorageRequest.Status)
+
+		// Check that two ReadyToAuction messages were generated:
+		// 1. The one from `NewBatchPrepared`.
+		// 2. The re-auction one.
+		require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+		data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 1)
+		require.NoError(t, err)
+		rda := &pb.ReadyToAuction{}
+		err = proto.Unmarshal(data, rda)
+		require.NoError(t, err)
+		require.Equal(t, b.conf.dealDuration, rda.DealDuration)
+		require.Equal(t, ba.PayloadCid.Bytes(), rda.PayloadCid)
+		require.Equal(t, ba.PieceSize, rda.DealSize)
+		require.Equal(t, string(ba.ID), rda.BatchId)
+		require.Equal(t, ba.RepFactor, int(rda.DealReplication))
+		require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
+		require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
+		require.NotNil(t, rda.Sources.CarUrl)
+		require.Equal(t, ba.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
+		require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
+	})
+
+	t.Run("without-enough-deadline-time", func(t *testing.T) {
+		b, mb, _ := createBroker(t)
+
+		sr, auction := brokerSetup(t, b, time.Now().Add(time.Hour*24*4)) // 4 days.
+		fad1 := broker.FinalizedDeal{
+			BatchID:           auction.BatchID,
+			StorageProviderID: "f0011",
+			ErrorCause:        "the miner is buggy",
+		}
+
+		// We set some absurd duration for re-auctionings, so we can know that it should fail
+		// since 100 days is much bigger than 4 days.
+		b.conf.auctionDuration = time.Hour * 24 * 100
+
+		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
+		require.NoError(t, err)
+
+		// Verify that the batch and storage request both errored.
+		ba, err := b.GetBatch(ctx, sr.BatchID)
+		require.NoError(t, err)
+		require.Equal(t, broker.BatchStatusError, ba.Status)
+		require.Contains(t, ba.Error, msgAuctionDeadlineExceeded)
+
+		mbr1, err := b.GetStorageRequestInfo(ctx, sr.ID)
+		require.NoError(t, err)
+		require.Equal(t, broker.RequestError, mbr1.StorageRequest.Status)
+
+		// Check that only the original ReadyToAuction messages was generated.
+		// No re-auctions since we didn't have enough time.
+		require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	})
 }
 
 func createBroker(t *testing.T) (
@@ -652,10 +796,8 @@ func createBroker(t *testing.T) (
 	fmb := fakemsgbroker.New()
 	b, err := New(
 		u,
-		chainAPI,
 		nil,
 		fmb,
-		WithCARExportURL("http://duke.web3/car/"),
 	)
 	require.NoError(t, err)
 
@@ -672,7 +814,7 @@ type dumbChainAPI struct {
 
 var _ chainapi.ChainAPI = (*dumbChainAPI)(nil)
 
-func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID string) (bool, error) {
+func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID, chainID string) (bool, error) {
 	return true, nil
 }
 

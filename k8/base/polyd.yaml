@@ -1,0 +1,94 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: poly-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: poly
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: poly
+  labels:
+     app: poly
+spec:
+  selector:
+    app: poly-v1
+  ports:
+    - port: 5000
+      name: api
+    - port: 9090
+      name: metrics
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: poly
+  labels:
+    app: poly
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: poly
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poly-01
+  labels:
+    app: poly
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: poly-v1
+  template:
+    metadata:
+      labels:
+        app: poly-v1
+    spec:
+      containers:
+        - name: poly
+          image: textile/poly
+          imagePullPolicy: Always
+          ports:
+            - name: api
+              containerPort: 5000
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: configmap-poly
+          env:
+            - name: POLY_CONFIG_PATH
+              value: "/app/config.yaml"
+          volumeMounts:
+          - name: secret
+            mountPath: "/app/config.yaml"
+            subPath: "poly-config"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+      volumes:
+      - name: secret
+        secret:
+          secretName: broker-secret

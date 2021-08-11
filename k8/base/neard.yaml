@@ -65,6 +65,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: configmap-near
+          env:
+            - name: NEAR_CONFIG_PATH
+              value: "/app/config.yaml"
+          volumeMounts:
+          - name: secret
+            mountPath: "/app/config.yaml"
+            subPath: "near-config"
           resources:
             requests:
               cpu: 250m
@@ -81,4 +88,8 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
+      volumes:
+      - name: secret
+        secret:
+          secretName: broker-secret
 
