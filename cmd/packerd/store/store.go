@@ -289,7 +289,7 @@ func (s *Store) GetStats(ctx context.Context) ([]OpenBatchStats, []DoneBatchStat
 	}
 
 	retDoneBatches := make([]DoneBatchStats, len(doneStats))
-	for i, stat := range openStats {
+	for i, stat := range doneStats {
 		retDoneBatches[i] = DoneBatchStats{
 			Origin: stat.Origin,
 			Count:  stat.BatchesCount,
