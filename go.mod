@@ -21,7 +21,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.3.0
 	github.com/ipfs/go-cid v0.0.7
-	github.com/ipfs/go-datastore v0.4.5
+	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0
@@ -30,7 +30,7 @@ require (
 	github.com/ipfs/go-unixfs v0.2.6
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/ipld/go-car v0.1.1-0.20201119040415-11b6074b6d4d
-	github.com/jackc/pgconn v1.9.0
+	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.12.0
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.2.0

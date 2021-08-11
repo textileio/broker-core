@@ -115,8 +115,8 @@ services:
       - PACKER_LOG_JSON=false
       - PACKER_MONGO_URI=mongodb://mongo:27017
       - PACKER_MONGO_DBNAME=packerd
-      - PACKER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
       - PACKER_PINNER_MULTIADDR=/dns4/ipfs/tcp/5001
+      - PACKER_IPFS_MULTIADDRS=/dns4/ipfs/tcp/5001
       - PACKER_BATCH_MIN_SIZE=100
       - PACKER_TARGET_SECTOR_SIZE=20000
       - PACKER_DAEMON_FREQUENCY=3s
