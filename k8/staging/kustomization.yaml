@@ -54,13 +54,15 @@ secretGenerator:
 
 patchesStrategicMerge:
 - auctioneer-pdb.yaml
-- authd-pdb.yaml
-- brokerd-pdb.yaml
-- dealerd-pdb.yaml
-- neard-pdb.yaml
-- packerd-pdb.yaml
+- auth-pdb.yaml
+- broker-pdb.yaml
+- dealer-pdb.yaml
+- eth-pdb.yaml
+- near-pdb.yaml
+- packer-pdb.yaml
 - piecer-pdb.yaml
-- storaged-pdb.yaml
+- poly-pdb.yaml
+- storage-pdb.yaml
 - ipfs-cluster-setup-confmap-patch.yaml
 - ipfs-cluster-volumeclaim-patch.yaml
 - ipfs-cluster-statefulset-patch.yaml
