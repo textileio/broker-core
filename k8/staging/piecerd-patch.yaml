@@ -6,6 +6,11 @@ spec:
   template:
     spec:
       containers:
+        - name: piecer
+          resources:
+            requests:
+              cpu: 2
+              memory: 2Gi
         - name: cloud-sql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.17
           command:
@@ -13,7 +18,7 @@ spec:
             - "-instances=textile-310716:us-west1:broker-staging=tcp:5432"
           resources:
             requests:
-              memory: "500Mi"
-              cpu:    "0.5"
+              cpu: 500m
+              memory: 512Mi
 
 

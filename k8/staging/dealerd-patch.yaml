@@ -13,9 +13,13 @@ spec:
             - "-instances=textile-310716:us-west1:broker-staging=tcp:5432"
           resources:
             requests:
-              memory: "500Mi"
-              cpu:    "0.5"
+              cpu: 500m
+              memory: 512Mi
         - name: dealer
+          resources:
+            requests:
+              cpu:    500m
+              memory: 1Gi
           env:
             - name: DEALER_LOTUS_EXPORTED_WALLET_ADDRESS
               valueFrom:

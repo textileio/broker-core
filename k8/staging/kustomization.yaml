@@ -8,6 +8,16 @@ resources:
 - cert.yaml
 - ipfs-cluster-service.yaml
 - mongo-cluster-rolebinding.yaml
+- auctioneer-pdb.yaml
+- auth-pdb.yaml
+- broker-pdb.yaml
+- dealer-pdb.yaml
+- eth-pdb.yaml
+- near-pdb.yaml
+- packer-pdb.yaml
+- piecer-pdb.yaml
+- poly-pdb.yaml
+- storage-pdb.yaml
 
 configMapGenerator:
 - files:

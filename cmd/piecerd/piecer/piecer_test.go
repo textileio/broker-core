@@ -56,6 +56,52 @@ func TestE2E(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestVirtualPadding(t *testing.T) {
+	t.Parallel()
+	p, mb, ipfs := newClientWithPadding(t, 64<<10)
+
+	dataCid := addRandomData(t, ipfs)
+	sdID := broker.BatchID("SD1")
+	err := p.ReadyToPrepare(context.Background(), sdID, dataCid)
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 1)
+
+	// Assert the prepared batch msg was published to the topic.
+	require.Equal(t, 1, mb.TotalPublished())
+	require.Equal(t, 1, mb.TotalPublishedTopic(msgbroker.NewBatchPreparedTopic))
+	data, err := mb.GetMsg(msgbroker.NewBatchPreparedTopic, 0)
+	require.NoError(t, err)
+	nbc := &pb.NewBatchPrepared{}
+	err = proto.Unmarshal(data, nbc)
+	require.NoError(t, err)
+
+	require.Equal(t, string(sdID), nbc.Id)
+	pieceCid, err := cid.Cast(nbc.PieceCid)
+	require.NoError(t, err)
+	// This padded commP was verified with filecoin-project/go-fil-commp-hashhash CLI tool
+	// too by exporting dataCid DAG (foo.car):
+	// $ cat foo.car | go run main.go -t 65536
+	// 2021/08/11 09:24:52 Reading from STDIN...
+	// 2021/08/11 09:24:52 Finished:
+	// CommP:    06ac66bcc634bc447495038fd8ec0879226debd1c175aee14d18247e6294553a
+	// CommPCid: baga6ea4seaqanldgxtddjpceoskqhd6y5qehsitn5pi4c5no4fgrqjd6mkkfkoq
+	// Raw bytes:             10097 bytes
+	// Unpadded piece:        65024 bytes
+	// Padded piece:          65536 bytes
+	//
+	// Not entirely surprising that should match since we use the same library for
+	// the calculation, and is the only existing library that can do this kind of padding.
+	// But at least we know *explicitly* that the deterministic-random data that's generated
+	// in this test matches the expected value.
+	require.Equal(t, "baga6ea4seaqanldgxtddjpceoskqhd6y5qehsitn5pi4c5no4fgrqjd6mkkfkoq", pieceCid.String())
+	require.Equal(t, uint64(64<<10), nbc.PieceSize)
+
+	_, ok, err := p.store.GetNextPending(context.Background())
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
 func TestIdempotency(t *testing.T) {
 	t.Parallel()
 	p, _, ipfs := newClient(t)
@@ -93,6 +139,10 @@ func TestE2EFail(t *testing.T) {
 }
 
 func newClient(t *testing.T) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.HttpApi) {
+	return newClientWithPadding(t, 0)
+}
+
+func newClientWithPadding(t *testing.T, padToSize uint64) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.HttpApi) {
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
 		require.NoError(t, fin.Cleanup(nil))
@@ -110,7 +160,7 @@ func newClient(t *testing.T) (*Piecer, *fakemsgbroker.FakeMsgBroker, *httpapi.Ht
 
 	mb := fakemsgbroker.New()
 
-	p, err := New(u, []multiaddr.Multiaddr{ma}, mb, time.Hour, time.Millisecond)
+	p, err := New(u, []multiaddr.Multiaddr{ma}, mb, time.Hour, time.Millisecond, padToSize)
 	require.NoError(t, err)
 	fin.Add(p)
 

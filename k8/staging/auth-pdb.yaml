@@ -1,0 +1,9 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auth

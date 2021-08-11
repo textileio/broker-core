@@ -23,6 +23,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const maxPaddingSize = 32 << 30
+
 var log = logger.Logger("piecer")
 
 // Piecer provides a data-preparation pipeline for Batchs.
@@ -33,8 +35,9 @@ type Piecer struct {
 	store           *store.Store
 	daemonFrequency time.Duration
 	retryDelay      time.Duration
-	newRequest      chan struct{}
+	padToSize       uint64
 
+	newRequest      chan struct{}
 	daemonCtx       context.Context
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
@@ -54,8 +57,17 @@ func New(
 	ipfsEndpoints []multiaddr.Multiaddr,
 	mb mbroker.MsgBroker,
 	daemonFrequency time.Duration,
-	retryDelay time.Duration) (*Piecer, error) {
+	retryDelay time.Duration,
+	padToSize uint64) (*Piecer, error) {
 	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
+	if padToSize&(padToSize-1) != 0 {
+		return nil, fmt.Errorf("pad to size %d must be a power of two", padToSize)
+	}
+
+	if padToSize > maxPaddingSize {
+		return nil, fmt.Errorf("pad to size can't be greater than 32GiB")
+	}
+
 	for i, endpoint := range ipfsEndpoints {
 		api, err := httpapi.NewApi(endpoint)
 		if err != nil {
@@ -80,6 +92,7 @@ func New(
 
 		daemonFrequency: daemonFrequency,
 		retryDelay:      retryDelay,
+		padToSize:       padToSize,
 		newRequest:      make(chan struct{}, 1),
 
 		daemonCtx:       ctx,
@@ -210,6 +223,17 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 			errCommP = fmt.Errorf("calculating final digest: %s", err)
 			return
 		}
+
+		if ps < p.padToSize {
+			log.Debugf("padding commP from %d to %d", ps, p.padToSize)
+			rawCommP, err = commP.PadCommP(rawCommP, ps, p.padToSize)
+			if err != nil {
+				errCommP = fmt.Errorf("padding commp: %s", err)
+				return
+			}
+			ps = p.padToSize
+		}
+
 		pcid, err := commcid.DataCommitmentV1ToCID(rawCommP)
 		if err != nil {
 			errCommP = fmt.Errorf("converting commP to cid: %s", err)

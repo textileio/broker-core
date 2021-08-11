@@ -14,6 +14,6 @@ spec:
             - "-instances=textile-310716:us-west1:broker-edge=tcp:5432"
           resources:
             requests:
-              memory: "10Mi"
-              cpu:    "0.1"
+              cpu:    250m
+              memory: 512Mi
 

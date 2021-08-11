@@ -28,6 +28,8 @@ func init() {
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+		{Name: "pad-to-size", DefValue: uint64(0),
+			Description: "If isn't zero, it pads smaller pieces to the defined size. Must be a power of 2 smaller than 32GiB"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -54,6 +56,7 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
+		padToSize := v.GetUint64("pad-to-size")
 		daemonFrequency := v.GetDuration("daemon-frequency")
 		retryDelay := v.GetDuration("retry-delay")
 
@@ -75,6 +78,7 @@ var rootCmd = &cobra.Command{
 			IpfsMultiaddrs:  ipfsMultiaddrs,
 			DaemonFrequency: daemonFrequency,
 			RetryDelay:      retryDelay,
+			PadToSize:       padToSize,
 			PostgresURI:     v.GetString("postgres-uri"),
 		}
 		serv, err := service.New(mb, config)
