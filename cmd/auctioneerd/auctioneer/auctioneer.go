@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -71,18 +72,22 @@ type Auctioneer struct {
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
 
-	statLastCreatedAuction    time.Time
+	statLastCreatedAuction    atomic.Value // time.Time
 	metricNewAuction          metric.Int64Counter
 	metricNewFinalizedAuction metric.Int64Counter
 	metricNewBid              metric.Int64Counter
 	metricAcceptedBid         metric.Int64Counter
 	metricLastCreatedAuction  metric.Int64ValueObserver
 	metricPubsubPeers         metric.Int64ValueObserver
+
+	winsTopics     map[peer.ID]*rpc.Topic
+	proposalTopics map[peer.ID]*rpc.Topic
+	lkTopics       sync.Mutex
 }
 
 // New returns a new Auctioneer.
 func New(
-	peer *rpcpeer.Peer,
+	p *rpcpeer.Peer,
 	store txndswrap.TxnDatastore,
 	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
@@ -93,11 +98,13 @@ func New(
 	}
 
 	a := &Auctioneer{
-		mb:          mb,
-		peer:        peer,
-		fc:          fc,
-		auctionConf: auctionConf,
-		finalizer:   finalizer.NewFinalizer(),
+		mb:             mb,
+		peer:           p,
+		fc:             fc,
+		auctionConf:    auctionConf,
+		finalizer:      finalizer.NewFinalizer(),
+		winsTopics:     make(map[peer.ID]*rpc.Topic),
+		proposalTopics: make(map[peer.ID]*rpc.Topic),
 	}
 	a.initMetrics()
 
@@ -172,7 +179,7 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
 		attribute.Bool("verified", auction.DealVerified),
 	}
 	a.metricNewAuction.Add(context.Background(), 1, labels...)
-	a.statLastCreatedAuction = time.Now()
+	a.statLastCreatedAuction.Store(time.Now())
 
 	return nil
 }
@@ -543,17 +550,10 @@ func (a *Auctioneer) selectWinners(
 }
 
 func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error {
-	topic, err := a.peer.NewTopic(ctx, core.WinsTopic(bidder), false)
+	topic, err := a.winsTopicFor(ctx, bidder)
 	if err != nil {
 		return fmt.Errorf("creating win topic: %v", err)
 	}
-	defer func() {
-		if err := topic.Close(); err != nil {
-			log.Errorf("closing wins topic: %v", err)
-		}
-	}()
-	topic.SetEventHandler(a.eventHandler)
-
 	msg, err := proto.Marshal(&pb.WinningBid{
 		AuctionId: string(id),
 		BidId:     string(bid),
@@ -583,17 +583,10 @@ func (a *Auctioneer) publishProposal(
 	bidder peer.ID,
 	pcid cid.Cid,
 ) error {
-	topic, err := a.peer.NewTopic(ctx, core.ProposalsTopic(bidder), false)
+	topic, err := a.proposalTopicFor(ctx, bidder)
 	if err != nil {
 		return fmt.Errorf("creating proposals topic: %v", err)
 	}
-	defer func() {
-		if err := topic.Close(); err != nil {
-			log.Errorf("closing proposals topic: %v", err)
-		}
-	}()
-	topic.SetEventHandler(a.eventHandler)
-
 	msg, err := proto.Marshal(&pb.WinningBidProposal{
 		AuctionId:   string(id),
 		BidId:       string(bid),
@@ -615,4 +608,41 @@ func (a *Auctioneer) publishProposal(
 		return fmt.Errorf("publishing proposal in auction %s; bidder %s returned error: %v", id, bidder, r.Err)
 	}
 	return nil
+}
+
+func (a *Auctioneer) winsTopicFor(ctx context.Context, peer peer.ID) (*rpc.Topic, error) {
+	a.lkTopics.Lock()
+	topic, exists := a.winsTopics[peer]
+	if exists {
+		a.lkTopics.Unlock()
+		return topic, nil
+	}
+	defer a.lkTopics.Unlock()
+	topic, err := a.peer.NewTopic(ctx, core.WinsTopic(peer), false)
+	if err != nil {
+		return nil, err
+	}
+	topic.SetEventHandler(a.eventHandler)
+	a.winsTopics[peer] = topic
+	a.finalizer.Add(topic)
+	return topic, nil
+}
+
+func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.Topic, error) {
+	a.lkTopics.Lock()
+	topic, exists := a.proposalTopics[peer]
+	if exists {
+		a.lkTopics.Unlock()
+		return topic, nil
+	}
+	defer a.lkTopics.Unlock()
+	topic, err := a.peer.NewTopic(ctx, core.ProposalsTopic(peer), false)
+	if err != nil {
+		return nil, err
+	}
+	topic.SetEventHandler(a.eventHandler)
+	a.proposalTopics[peer] = topic
+	a.finalizer.Add(topic)
+	return topic, nil
+
 }
