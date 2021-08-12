@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -71,7 +72,7 @@ type Auctioneer struct {
 	finalizer *finalizer.Finalizer
 	lk        sync.Mutex
 
-	statLastCreatedAuction    time.Time
+	statLastCreatedAuction    atomic.Value // time.Time
 	metricNewAuction          metric.Int64Counter
 	metricNewFinalizedAuction metric.Int64Counter
 	metricNewBid              metric.Int64Counter
@@ -178,7 +179,7 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
 		attribute.Bool("verified", auction.DealVerified),
 	}
 	a.metricNewAuction.Add(context.Background(), 1, labels...)
-	a.statLastCreatedAuction = time.Now()
+	a.statLastCreatedAuction.Store(time.Now())
 
 	return nil
 }
@@ -636,7 +637,7 @@ func (a *Auctioneer) winsTopicFor(ctx context.Context, peer peer.ID) (*rpc.Topic
 		return nil, err
 	}
 	a.winsTopics[peer] = topic
-	return topic, err
+	return topic, nil
 }
 
 func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.Topic, error) {
@@ -652,6 +653,6 @@ func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.T
 		return nil, err
 	}
 	a.proposalTopics[peer] = topic
-	return topic, err
+	return topic, nil
 
 }
