@@ -48,7 +48,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.0.5-0.20210802202026-1d12f4bc3d47
+	github.com/textileio/bidbot v0.0.5-0.20210812152825-8b6499ad10ca
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
