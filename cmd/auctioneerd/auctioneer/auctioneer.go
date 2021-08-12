@@ -554,13 +554,6 @@ func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID,
 	if err != nil {
 		return fmt.Errorf("creating win topic: %v", err)
 	}
-	defer func() {
-		if err := topic.Close(); err != nil {
-			log.Errorf("closing wins topic: %v", err)
-		}
-	}()
-	topic.SetEventHandler(a.eventHandler)
-
 	msg, err := proto.Marshal(&pb.WinningBid{
 		AuctionId: string(id),
 		BidId:     string(bid),
@@ -594,13 +587,6 @@ func (a *Auctioneer) publishProposal(
 	if err != nil {
 		return fmt.Errorf("creating proposals topic: %v", err)
 	}
-	defer func() {
-		if err := topic.Close(); err != nil {
-			log.Errorf("closing proposals topic: %v", err)
-		}
-	}()
-	topic.SetEventHandler(a.eventHandler)
-
 	msg, err := proto.Marshal(&pb.WinningBidProposal{
 		AuctionId:   string(id),
 		BidId:       string(bid),
@@ -636,7 +622,9 @@ func (a *Auctioneer) winsTopicFor(ctx context.Context, peer peer.ID) (*rpc.Topic
 	if err != nil {
 		return nil, err
 	}
+	topic.SetEventHandler(a.eventHandler)
 	a.winsTopics[peer] = topic
+	a.finalizer.Add(topic)
 	return topic, nil
 }
 
@@ -652,7 +640,9 @@ func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.T
 	if err != nil {
 		return nil, err
 	}
+	topic.SetEventHandler(a.eventHandler)
 	a.proposalTopics[peer] = topic
+	a.finalizer.Add(topic)
 	return topic, nil
 
 }
