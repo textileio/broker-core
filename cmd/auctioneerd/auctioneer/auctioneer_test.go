@@ -2,7 +2,9 @@ package auctioneer_test
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -56,7 +58,8 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	s := newClient(t)
+	duration := time.Second
+	s := newClient(t, duration)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
@@ -80,7 +83,8 @@ func TestClient_ReadyToAuction(t *testing.T) {
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	s := newClient(t)
+	duartion := time.Second
+	s := newClient(t, duartion)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
@@ -108,7 +112,7 @@ func TestClient_GetAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, broker.AuctionStatusStarted, got.Status)
 
-	time.Sleep(time.Second * 15) // Allow to finish
+	time.Sleep(duartion + time.Second) // Allow to finish
 
 	got, err = s.GetAuction(id)
 	require.NoError(t, err)
@@ -117,7 +121,8 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	s := newClient(t)
+	duration := time.Second * 5
+	s := newClient(t, duration)
 	bots := addBidbots(t, 10)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
@@ -127,61 +132,73 @@ func TestClient_RunAuction(t *testing.T) {
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	id := auction.ID("ID1")
-	err = s.OnReadyToAuction(
-		context.Background(),
-		id,
-		newBatchID(),
-		payloadCid,
-		oneGiB,
-		sixMonthsEpochs,
-		2,
-		true,
-		nil,
-		0,
-		sources,
-	)
-	require.NoError(t, err)
+	for i := 0; i < 3; i++ {
+		i := i
+		t.Run(fmt.Sprintf("round %d", i), func(t *testing.T) {
+			t.Parallel()
+			id := auction.ID(strconv.Itoa(i))
+			err := s.OnReadyToAuction(
+				context.Background(),
+				id,
+				newBatchID(),
+				payloadCid,
+				oneGiB,
+				sixMonthsEpochs,
+				2,
+				true,
+				nil,
+				0,
+				sources,
+			)
+			require.NoError(t, err)
 
-	time.Sleep(time.Second * 15) // Allow to finish
+			time.Sleep(duration + time.Second*5) // Allow to finish
 
-	got, err := s.GetAuction(id)
-	require.NoError(t, err)
-	assert.Equal(t, id, got.ID)
-	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
-	assert.Empty(t, got.ErrorCause)
-	assert.Len(t, got.Bids, 10)
-	require.Len(t, got.WinningBids, 2)
+			got, err := s.GetAuction(id)
+			require.NoError(t, err)
+			assert.Equal(t, id, got.ID)
+			assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
+			assert.Empty(t, got.ErrorCause)
+			assert.Len(t, got.Bids, 10)
+			require.Len(t, got.WinningBids, 2)
 
-	for id := range got.WinningBids {
-		assert.NotNil(t, got.Bids[id])
+			for id := range got.WinningBids {
+				assert.NotNil(t, got.Bids[id])
 
-		// Set the proposal as accepted
-		pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-		err = s.OnDealProposalAccepted(context.Background(), got.ID, id, pcid)
-		require.NoError(t, err)
-	}
+				// Set the proposal as accepted
+				pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte(id)))
+				err = s.OnDealProposalAccepted(context.Background(), got.ID, id, pcid)
+				require.NoError(t, err)
+			}
 
-	time.Sleep(time.Second * 15) // Allow to finish
+			time.Sleep(time.Second) // Allow to deliver the proposal
 
-	// Re-get auction so we can check proposal cids
-	got, err = s.GetAuction(id)
-	require.NoError(t, err)
+			// Re-get auction so we can check proposal cids
+			got, err = s.GetAuction(id)
+			require.NoError(t, err)
 
-	for _, wb := range got.WinningBids {
-		// Check if proposal cid was delivered without error
-		assert.True(t, wb.ProposalCid.Defined())
-		assert.Empty(t, wb.ErrorCause)
+			for id, wb := range got.WinningBids {
+				// Check if proposal cid was delivered without error
+				assert.Equal(t, wb.ProposalCid, cid.NewCidV1(cid.Raw, util.Hash([]byte(id))))
+				assert.Empty(t, wb.ErrorCause)
 
-		// Check if the winning bids were able to fetch the data cid
-		bot := bots[wb.BidderID]
-		require.NotNil(t, bot)
-
-		bids, err := bot.ListBids(bidstore.Query{})
-		require.NoError(t, err)
-		require.Len(t, bids, 1)
-		assert.Equal(t, bidstore.BidStatusFinalized, bids[0].Status)
-		assert.Empty(t, bids[0].ErrorCause)
+				// Check if the winning bids were able to fetch the data cid
+				bot := bots[wb.BidderID]
+				require.NotNil(t, bot)
+				bids, err := bot.ListBids(bidstore.Query{})
+				require.NoError(t, err)
+				// the bot could receive/win more than one auction
+				var seen bool
+				for _, b := range bids {
+					if b.ID == id {
+						assert.Equal(t, bidstore.BidStatusFinalized, b.Status)
+						assert.Empty(t, b.ErrorCause)
+						seen = true
+					}
+				}
+				assert.True(t, seen)
+			}
+		})
 	}
 }
 
@@ -190,7 +207,7 @@ func TestClient_RunAuction_UnhappyPath(t *testing.T) {
 	t.SkipNow()
 }
 
-func newClient(t *testing.T) *service.Service {
+func newClient(t *testing.T, duration time.Duration) *service.Service {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -205,7 +222,7 @@ func newClient(t *testing.T) *service.Service {
 			EnableMDNS: true,
 		},
 		Auction: auctioneer.AuctionConfig{
-			Duration: time.Second * 10,
+			Duration: duration,
 		},
 	}
 

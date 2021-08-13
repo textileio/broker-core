@@ -333,14 +333,20 @@ func (a *Auctioneer) processAuction(
 	<-actx.Done()
 	topic.SetMessageHandler(nil)
 
+	finalBids := make(map[core.BidID]auctioneer.Bid)
+	mu.Lock()
+	for k, v := range bids {
+		finalBids[k] = v
+	}
+	mu.Unlock()
 	log.Infof(
 		"auction %s ended; total bids: %d; num required: %d",
 		auction.ID,
-		len(bids),
+		len(finalBids),
 		auction.DealReplication,
 	)
 
-	winners, err := a.selectWinners(ctx, auction, bids)
+	winners, err := a.selectWinners(ctx, auction, finalBids)
 	if err != nil {
 		log.Warnf("auction %s failed: %v", auction.ID, err)
 		return nil, fmt.Errorf("selecting winners: %v", err)
