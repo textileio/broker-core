@@ -201,10 +201,22 @@ func (a *Auctioneer) GetAuction(id core.ID) (*auctioneer.Auction, error) {
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
 func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.BidID, pcid cid.Cid) error {
-	if err := a.queue.SetWinningBidProposalCid(id, bid, pcid, func(wb auctioneer.WinningBid) error {
+	var bidderID peer.ID
+	err := a.queue.SetWinningBidProposalCid(id, bid, pcid, func(wb auctioneer.WinningBid) error {
+		bidderID = wb.BidderID
 		// Ugly way to retain the transaction in the queue while we try publishing to the biddera
 		return a.publishProposal(ctx, id, bid, wb.BidderID, pcid)
-	}); errors.Is(q.ErrAuctionNotFound, err) {
+	})
+
+	var errCause string
+	if err != nil {
+		errCause = err.Error()
+	}
+	if err := mbroker.PublishMsgAuctionProposalCidDelivered(ctx, a.mb, id, bidderID, bid, pcid, errCause); err != nil {
+		log.Warn(err) // error is annotated
+	}
+
+	if errors.Is(q.ErrAuctionNotFound, err) {
 		return ErrAuctionNotFound
 	} else if errors.Is(q.ErrBidNotFound, err) {
 		return ErrBidNotFound
@@ -231,6 +243,9 @@ func (a *Auctioneer) processAuction(
 	addBid func(bid auctioneer.Bid) (core.BidID, error),
 ) (map[core.BidID]auctioneer.WinningBid, error) {
 	log.Infof("auction %s started", auction.ID)
+	if err := mbroker.PublishMsgAuctionStarted(ctx, a.mb, mbroker.AuctionToPbSummary(&auction)); err != nil {
+		log.Warn(err) // error is annotated
+	}
 
 	// Subscribe to bids topic
 	topic, err := a.peer.NewTopic(ctx, core.BidsTopic(auction.ID), true)
@@ -271,6 +286,9 @@ func (a *Auctioneer) processAuction(
 		}
 		if err := a.validateBid(&bid); err != nil {
 			return nil, fmt.Errorf("invalid bid: %v", err)
+		}
+		if err := mbroker.PublishMsgAuctionBidReceived(ctx, a.mb, mbroker.AuctionToPbSummary(&auction), &bid); err != nil {
+			log.Warn(err) // error is annotated
 		}
 
 		var price int64
@@ -402,7 +420,7 @@ func (a *Auctioneer) finalizeAuction(ctx context.Context, auction *auctioneer.Au
 	}
 	a.metricNewFinalizedAuction.Add(ctx, 1, labels...)
 	if err := mbroker.PublishMsgAuctionClosed(ctx, a.mb, toClosedAuction(auction)); err != nil {
-		return fmt.Errorf("publishing closed auction msg: %v", err)
+		log.Warn(err) // error is annotated
 	}
 	return nil
 }
@@ -533,6 +551,11 @@ func (a *Auctioneer) selectWinners(
 			break
 		}
 		b := heap.Pop(bh).(rankedBid)
+		if err := mbroker.PublishMsgAuctionWinnerSelected(ctx, a.mb,
+			mbroker.AuctionToPbSummary(&auction), &b.Bid); err != nil {
+			log.Warn(err) // error is annotated
+		}
+
 		if err := a.publishWin(ctx, auction.ID, b.ID, b.Bid.BidderID); err != nil {
 			log.Warn(err) // error is annotated in publishWin
 			continue
@@ -541,6 +564,9 @@ func (a *Auctioneer) selectWinners(
 			BidderID: b.Bid.BidderID,
 		}
 		i++
+		if err := mbroker.PublishMsgAuctionWinnerAcked(ctx, a.mb, mbroker.AuctionToPbSummary(&auction), &b.Bid); err != nil {
+			log.Warn(err) // error is annotated
+		}
 	}
 	if len(winners) < selectCount {
 		return winners, ErrInsufficientBids

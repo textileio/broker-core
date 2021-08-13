@@ -2,6 +2,7 @@ package auctioneer_test
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
+	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
@@ -56,7 +58,7 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
-	s := newClient(t)
+	s, _ := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
@@ -80,7 +82,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 }
 
 func TestClient_GetAuction(t *testing.T) {
-	s := newClient(t)
+	s, _ := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
@@ -117,7 +119,7 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
-	s := newClient(t)
+	s, mb := newClient(t)
 	bots := addBidbots(t, 10)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
@@ -183,6 +185,21 @@ func TestClient_RunAuction(t *testing.T) {
 		assert.Equal(t, bidstore.BidStatusFinalized, bids[0].Status)
 		assert.Empty(t, bids[0].ErrorCause)
 	}
+
+	// Because of libp2p-pubsub-rpc republishing, message can be delivered
+	// more than once.
+	assert.True(t, mb.TotalPublished() >= 18)
+	for topic, n := range map[msgbroker.TopicName]int{
+		msgbroker.AuctionStartedTopic:              1,
+		msgbroker.AuctionBidReceivedTopic:          10,
+		msgbroker.AuctionWinnerSelectedTopic:       2,
+		msgbroker.AuctionWinnerAckedTopic:          2,
+		msgbroker.AuctionProposalCidDeliveredTopic: 2,
+		msgbroker.AuctionClosedTopic:               1,
+	} {
+		assert.True(t, mb.TotalPublishedTopic(topic) >= n,
+			fmt.Sprintf("should have received at least %d %s events", n, topic))
+	}
 }
 
 func TestClient_RunAuction_UnhappyPath(t *testing.T) {
@@ -190,7 +207,7 @@ func TestClient_RunAuction_UnhappyPath(t *testing.T) {
 	t.SkipNow()
 }
 
-func newClient(t *testing.T) *service.Service {
+func newClient(t *testing.T) (*service.Service, *fakemsgbroker.FakeMsgBroker) {
 	dir := t.TempDir()
 	fin := finalizer.NewFinalizer()
 	t.Cleanup(func() {
@@ -220,7 +237,7 @@ func newClient(t *testing.T) *service.Service {
 	err = s.Start(false)
 	require.NoError(t, err)
 
-	return s
+	return s, bm
 }
 
 func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {

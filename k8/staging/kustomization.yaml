@@ -20,6 +20,9 @@ resources:
 - storage-pdb.yaml
 
 configMapGenerator:
+- envs:
+  - configApi.env
+  name: configmap-api
 - files:
   - configAuctioneer0.env
   - configAuctioneer1.env
@@ -74,4 +77,4 @@ patchesStrategicMerge:
 - piecerd-patch.yaml
 - packerd-patch.yaml
 - authd-patch.yaml
-
+- api-patch.yaml

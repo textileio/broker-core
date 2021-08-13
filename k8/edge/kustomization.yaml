@@ -10,6 +10,9 @@ resources:
 - mongo-cluster-rolebinding.yaml
 
 configMapGenerator:
+- envs:
+  - configApi.env
+  name: configmap-api
 - files:
   - configAuctioneer0.env
   - configAuctioneer1.env
@@ -62,6 +65,7 @@ patchesStrategicMerge:
 - dealerd-patch.yaml
 - piecerd-patch.yaml
 - packerd-patch.yaml
+- apid-patch.yaml
 - authd-patch.yaml
 - neard-patch.yaml
 - ethd-patch.yaml

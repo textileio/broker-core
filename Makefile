@@ -24,6 +24,10 @@ build-brokerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/brokerd
 .PHONY: build-brokerd
 
+build-apid: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/apid
+.PHONY: build-apid
+
 build-authd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/authd
 .PHONY: build-authd
@@ -134,7 +138,7 @@ define gen_sql_assets
 endef
 
 sql-assets: $(GO_BINDATA) $(SQLC)
-	$(call gen_sql_assets,broker piecer dealer packer auth);
+	$(call gen_sql_assets,broker piecer dealer packer auth api);
 .PHONY: sql-assets
 
 generate: protos sql-assets
