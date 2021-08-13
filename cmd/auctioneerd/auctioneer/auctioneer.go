@@ -670,5 +670,4 @@ func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.T
 	a.proposalTopics[peer] = topic
 	a.finalizer.Add(topic)
 	return topic, nil
-
 }

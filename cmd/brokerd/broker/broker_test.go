@@ -793,7 +793,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		fad1 := broker.FinalizedDeal{
 			BatchID:           auction.BatchID,
 			StorageProviderID: "f0011",
-			ErrorCause:        "executing auction deal: failed proposal (StorageDealFailing): deal rejected: cannot seal a sector...",
+			ErrorCause:        "failed proposal (StorageDealFailing): deal rejected: cannot seal a sector...",
 		}
 
 		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
