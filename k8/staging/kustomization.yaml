@@ -77,4 +77,4 @@ patchesStrategicMerge:
 - piecerd-patch.yaml
 - packerd-patch.yaml
 - authd-patch.yaml
-- api-patch.yaml
+- apid-patch.yaml
