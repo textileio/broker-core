@@ -32,7 +32,7 @@ UPDATE unprepared_batches
 SET status = 'executing', updated_at = CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT ub.batch_id FROM unprepared_batches ub
             WHERE (ub.ready_at < CURRENT_TIMESTAMP AND ub.status = 'pending') OR
-	          (status='executing' and extract(epoch from current_timestamp - updated_at) > $1::bigint)
+	          (ub.status='executing' and extract(epoch from current_timestamp - ub.updated_at) > $1::bigint)
                   ORDER BY ub.ready_at asc 
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1)
