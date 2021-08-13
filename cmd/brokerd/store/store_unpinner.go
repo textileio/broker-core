@@ -16,6 +16,8 @@ const (
 	UnpinTypeBatch UnpinType = iota
 	// UnpinTypeData is the type of data unpins.
 	UnpinTypeData
+
+	stuckSeconds = int64(300)
 )
 
 // UnpinJob describes a job to unpin a Cid.
@@ -23,12 +25,15 @@ type UnpinJob db.UnpinJob
 
 // UnpinJobGetNext returns the next pending unpin job to execute.
 func (s *Store) UnpinJobGetNext(ctx context.Context) (UnpinJob, bool, error) {
-	job, err := s.db.NextUnpinJob(ctx)
+	job, err := s.db.NextUnpinJob(ctx, stuckSeconds)
 	if err == sql.ErrNoRows {
 		return UnpinJob{}, false, nil
 	}
 	if err != nil {
 		return UnpinJob{}, false, err
+	}
+	if int64(time.Since(job.ReadyAt).Seconds()) > stuckSeconds {
+		log.Warnf("re-executing unpinning job %s", job.ID)
 	}
 	return UnpinJob(job), true, nil
 }

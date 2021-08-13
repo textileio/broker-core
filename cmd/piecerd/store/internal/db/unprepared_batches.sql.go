@@ -31,16 +31,16 @@ const getNextPending = `-- name: GetNextPending :one
 UPDATE unprepared_batches
 SET status = 'executing', updated_at = CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT ub.batch_id FROM unprepared_batches ub
-            WHERE ub.ready_at < CURRENT_TIMESTAMP AND
-                  ub.status = 'pending'
+            WHERE (ub.ready_at < CURRENT_TIMESTAMP AND ub.status = 'pending') OR
+	          (ub.status='executing' and extract(epoch from current_timestamp - ub.updated_at) > $1::bigint)
                   ORDER BY ub.ready_at asc 
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1)
 RETURNING batch_id, status, data_cid, ready_at, created_at, updated_at
 `
 
-func (q *Queries) GetNextPending(ctx context.Context) (UnpreparedBatch, error) {
-	row := q.queryRow(ctx, q.getNextPendingStmt, getNextPending)
+func (q *Queries) GetNextPending(ctx context.Context, stuckseconds int64) (UnpreparedBatch, error) {
+	row := q.queryRow(ctx, q.getNextPendingStmt, getNextPending, stuckseconds)
 	var i UnpreparedBatch
 	err := row.Scan(
 		&i.BatchID,

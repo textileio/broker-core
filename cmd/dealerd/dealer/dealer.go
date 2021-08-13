@@ -112,7 +112,6 @@ func (d *Dealer) daemons() {
 
 	// We don't count the metrics daemon since we don't need to wait for it.
 	d.daemonWg.Add(3)
-
 	// daemonDealMaker makes status transitions:
 	// PendingDealMaking <--> ExecutingDealMaking --> PendingConfirmation
 	go d.daemonDealMaker()
@@ -123,6 +122,8 @@ func (d *Dealer) daemons() {
 	// result to the broker. If the broker ACKs correctly, then it deletes them.
 	go d.daemonDealReporter()
 
+	// The following daemon isn't part of the above WaitGroup and is safe
+	// to not close gracefully.
 	go d.daemonExportMetrics()
 
 	<-d.daemonCtx.Done()

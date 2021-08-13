@@ -100,7 +100,7 @@ func New(
 		daemonClosed:    make(chan struct{}),
 	}
 	p.initMetrics()
-	go p.daemon()
+	go p.daemonPreparer()
 
 	return p, nil
 }
@@ -138,7 +138,7 @@ func (p *Piecer) Close() error {
 	return nil
 }
 
-func (p *Piecer) daemon() {
+func (p *Piecer) daemonPreparer() {
 	defer close(p.daemonClosed)
 
 	p.newRequest <- struct{}{}
