@@ -45,7 +45,6 @@ type Auction struct {
 type Bid struct {
 	AuctionID              string         `json:"auctionID"`
 	StorageProviderID      string         `json:"storageProviderID"`
-	WalletAddrSig          []byte         `json:"walletAddrSig"`
 	BidderID               string         `json:"bidderID"`
 	AskPrice               int64          `json:"askPrice"`
 	VerifiedAskPrice       int64          `json:"verifiedAskPrice"`

@@ -83,6 +83,7 @@ func registerAuctionEventsListener(mb MsgBroker, l AuctionEventsListener) error 
 		AuctionWinnerSelectedTopic:       onAuctionWinnerSelectedTopic(l),
 		AuctionWinnerAckedTopic:          onAuctionWinnerAckedTopic(l),
 		AuctionProposalCidDeliveredTopic: onAuctionProposalCidDeliveredTopic(l),
+		AuctionClosedTopic:               onAuctionClosedTopic(l),
 	} {
 		if err := mb.RegisterTopicHandler(topic, f); err != nil {
 			return err
@@ -169,6 +170,26 @@ func onAuctionProposalCidDeliveredTopic(l AuctionEventsListener) TopicHandler {
 	}
 }
 
+func onAuctionClosedTopic(l AuctionClosedListener) TopicHandler {
+	return func(ctx context.Context, data []byte) error {
+		r := &pb.AuctionClosed{}
+		if err := proto.Unmarshal(data, r); err != nil {
+			return fmt.Errorf("unmarshal auction closed: %s", err)
+		}
+		if r.OperationId == "" {
+			return errors.New("operation-id is empty")
+		}
+		auction, err := closedAuctionFromPb(r)
+		if err != nil {
+			return fmt.Errorf("invalid auction closed: %s", err)
+		}
+		if err := l.OnAuctionClosed(ctx, OperationID(r.OperationId), auction); err != nil {
+			return fmt.Errorf("calling auction-closed handler: %s", err)
+		}
+		return nil
+	}
+}
+
 // AuctionToPbSummary converts auctioneer.Auction to pb.
 func AuctionToPbSummary(a *auctioneer.Auction) *pb.AuctionSummary {
 	return &pb.AuctionSummary{
@@ -190,7 +211,6 @@ func bidFromPb(pbid *pb.Bid) (*auctioneer.Bid, error) {
 	}
 	return &auctioneer.Bid{
 		MinerAddr:        pbid.StorageProviderId,
-		WalletAddrSig:    pbid.WalletAddrSig,
 		BidderID:         bidderID,
 		AskPrice:         pbid.AskPrice,
 		VerifiedAskPrice: pbid.VerifiedAskPrice,
@@ -203,7 +223,6 @@ func bidFromPb(pbid *pb.Bid) (*auctioneer.Bid, error) {
 func bidToPb(bid *auctioneer.Bid) *pb.Bid {
 	return &pb.Bid{
 		StorageProviderId: bid.MinerAddr,
-		WalletAddrSig:     bid.WalletAddrSig,
 		BidderId:          peer.Encode(bid.BidderID),
 		AskPrice:          bid.AskPrice,
 		VerifiedAskPrice:  bid.VerifiedAskPrice,

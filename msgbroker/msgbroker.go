@@ -508,23 +508,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}
 	} else if l, ok := s.(AuctionClosedListener); ok {
 		countRegistered++
-		err := mb.RegisterTopicHandler(AuctionClosedTopic, func(ctx context.Context, data []byte) error {
-			r := &pb.AuctionClosed{}
-			if err := proto.Unmarshal(data, r); err != nil {
-				return fmt.Errorf("unmarshal auction closed: %s", err)
-			}
-			if r.OperationId == "" {
-				return errors.New("operation-id is empty")
-			}
-			auction, err := closedAuctionFromPb(r)
-			if err != nil {
-				return fmt.Errorf("invalid auction closed: %s", err)
-			}
-			if err := l.OnAuctionClosed(ctx, OperationID(r.OperationId), auction); err != nil {
-				return fmt.Errorf("calling auction-closed handler: %s", err)
-			}
-			return nil
-		}, opts...)
+		err := mb.RegisterTopicHandler(AuctionClosedTopic, onAuctionClosedTopic(l), opts...)
 		if err != nil {
 			return fmt.Errorf("registering handler for auction-closed topic: %s", err)
 		}
