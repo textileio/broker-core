@@ -99,8 +99,8 @@ func (s *Service) OnAuctionWinnerAcked(ctx context.Context, t time.Time, a *pb.A
 
 // OnAuctionProposalCidDelivered .
 func (s *Service) OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time,
-	auctionID, bidID, proposalCid, errorCause string) {
-	if err := s.store.ProposalDelivered(ctx, ts, auctionID, bidID, proposalCid, errorCause); err != nil {
+	auctionID, bidderID, bidID, proposalCid, errorCause string) {
+	if err := s.store.ProposalDelivered(ctx, ts, auctionID, bidderID, bidID, proposalCid, errorCause); err != nil {
 		log.Error(err)
 	}
 }

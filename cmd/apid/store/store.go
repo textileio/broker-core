@@ -85,10 +85,10 @@ func (s *Store) AckedBid(ctx context.Context, auctionID string, b *auctioneer.Bi
 
 // ProposalDelivered .
 func (s *Store) ProposalDelivered(ctx context.Context, ts time.Time, auctionID,
-	bidID, proposalCid, errorCause string) (err error) {
+	bidderID, bidID, proposalCid, errorCause string) (err error) {
 	return s.db.ProposalDelivered(ctx, db.ProposalDeliveredParams{
-		AuctionID: auctionID,
-		// 	BidderID:  b.BidderID.String(),
+		AuctionID:              auctionID,
+		BidderID:               bidderID,
 		ProposalCid:            sql.NullString{String: proposalCid, Valid: true},
 		ProposalCidDeliveredAt: sql.NullTime{Time: ts, Valid: true},
 	})

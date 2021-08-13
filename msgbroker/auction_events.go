@@ -24,7 +24,7 @@ type AuctionEventsListener interface {
 	OnAuctionWinnerSelected(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid)
 	OnAuctionWinnerAcked(context.Context, time.Time, *pb.AuctionSummary, *auctioneer.Bid)
 	OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time, auctionID,
-		bidID, proposalCid, errorCause string)
+		bidderID, bidID, proposalCid, errorCause string)
 	AuctionClosedListener
 }
 
@@ -65,10 +65,11 @@ func PublishMsgAuctionWinnerAcked(ctx context.Context, mb MsgBroker, a *pb.Aucti
 
 // PublishMsgAuctionProposalCidDelivered .
 func PublishMsgAuctionProposalCidDelivered(ctx context.Context, mb MsgBroker, auctionID auction.ID,
-	bidID auction.BidID, proposalCid cid.Cid, errorCause string) error {
+	bidderID peer.ID, bidID auction.BidID, proposalCid cid.Cid, errorCause string) error {
 	return marshalAndPublish(ctx, mb, AuctionProposalCidDeliveredTopic, &pb.AuctionProposalCidDelivered{
 		Ts:          timestamppb.Now(),
 		AuctionId:   string(auctionID),
+		BidderId:    bidderID.String(),
 		BidId:       string(bidID),
 		ProposalCid: proposalCid.Bytes(),
 		ErrorCause:  errorCause,
@@ -159,6 +160,7 @@ func onAuctionProposalCidDeliveredTopic(l AuctionEventsListener) TopicHandler {
 		l.OnAuctionProposalCidDelivered(ctx,
 			r.Ts.AsTime(),
 			r.AuctionId,
+			r.BidderId,
 			r.BidId,
 			proposalCid.String(),
 			r.ErrorCause,

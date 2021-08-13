@@ -194,7 +194,9 @@ func (a *Auctioneer) GetAuction(id core.ID) (*auctioneer.Auction, error) {
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found for id, ErrBidNotFound is returned.
 func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.BidID, pcid cid.Cid) error {
+	var bidderID peer.ID
 	err := a.queue.SetWinningBidProposalCid(id, bid, pcid, func(wb auctioneer.WinningBid) error {
+		bidderID = wb.BidderID
 		// Ugly way to retain the transaction in the queue while we try publishing to the biddera
 		return a.publishProposal(ctx, id, bid, wb.BidderID, pcid)
 	})
@@ -203,7 +205,7 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.B
 	if err != nil {
 		errCause = err.Error()
 	}
-	if err := mbroker.PublishMsgAuctionProposalCidDelivered(ctx, a.mb, id, bid, pcid, errCause); err != nil {
+	if err := mbroker.PublishMsgAuctionProposalCidDelivered(ctx, a.mb, id, bidderID, bid, pcid, errCause); err != nil {
 		log.Warn(err) // error is annotated
 	}
 

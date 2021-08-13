@@ -54,8 +54,6 @@ require (
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
 	github.com/textileio/jwt-go-eddsa v0.2.1
-	github.com/vektah/gqlparser v1.2.0 // indirect
-	github.com/vektah/gqlparser/v2 v2.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/metric v0.21.0

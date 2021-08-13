@@ -52,7 +52,8 @@ message AuctionWinnerAcked {
 message AuctionProposalCidDelivered {
     google.protobuf.Timestamp ts = 1;
     string auction_id = 2;
-    string bid_id = 3;
-    bytes proposal_cid = 4;
-    string error_cause = 5;
+    string bidder_id = 3;
+    string bid_id = 4;
+    bytes proposal_cid = 5;
+    string error_cause = 6;
 }
