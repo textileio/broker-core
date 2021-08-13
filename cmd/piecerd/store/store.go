@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	stuckEpochs = int64(7200)
+	stuckSeconds = int64(7200)
 )
 
 var (
@@ -101,7 +101,7 @@ func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.BatchID, 
 // GetNextPending returns the next pending batch to process and set the status to Executing.
 // The caller is responsible for updating the status later to Pending on error, or Done on success.
 func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, error) {
-	ub, err := s.db.GetNextPending(ctx, stuckEpochs)
+	ub, err := s.db.GetNextPending(ctx, stuckSeconds)
 	if err == sql.ErrNoRows {
 		return UnpreparedBatch{}, false, nil
 	}
@@ -109,7 +109,7 @@ func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, erro
 		return UnpreparedBatch{}, false, fmt.Errorf("db get next pending: %s", err)
 	}
 
-	if int64(time.Since(ub.ReadyAt).Seconds()) > stuckEpochs {
+	if int64(time.Since(ub.ReadyAt).Seconds()) > stuckSeconds {
 		log.Warnf("re-executing stuck batch %s", ub.BatchID)
 	}
 

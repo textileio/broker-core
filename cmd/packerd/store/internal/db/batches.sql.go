@@ -136,8 +136,8 @@ type GetNextReadyBatchRow struct {
 	ReadyAt   time.Time      `json:"readyAt"`
 }
 
-func (q *Queries) GetNextReadyBatch(ctx context.Context, stuckepochs int64) (GetNextReadyBatchRow, error) {
-	row := q.queryRow(ctx, q.getNextReadyBatchStmt, getNextReadyBatch, stuckepochs)
+func (q *Queries) GetNextReadyBatch(ctx context.Context, stuckSeconds int64) (GetNextReadyBatchRow, error) {
+	row := q.queryRow(ctx, q.getNextReadyBatchStmt, getNextReadyBatch, stuckSeconds)
 	var i GetNextReadyBatchRow
 	err := row.Scan(
 		&i.BatchID,

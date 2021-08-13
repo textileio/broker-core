@@ -221,12 +221,12 @@ RETURNING id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, sta
 `
 
 type NextPendingAuctionDealParams struct {
-	Status      Status `json:"status"`
-	StuckEpochs int64  `json:"stuckEpochs"`
+	Status       Status `json:"status"`
+	StuckSeconds int64  `json:"stuckSeconds"`
 }
 
 func (q *Queries) NextPendingAuctionDeal(ctx context.Context, arg NextPendingAuctionDealParams) (AuctionDeal, error) {
-	row := q.queryRow(ctx, q.nextPendingAuctionDealStmt, nextPendingAuctionDeal, arg.Status, arg.StuckEpochs)
+	row := q.queryRow(ctx, q.nextPendingAuctionDealStmt, nextPendingAuctionDeal, arg.Status, arg.StuckSeconds)
 	var i AuctionDeal
 	err := row.Scan(
 		&i.ID,

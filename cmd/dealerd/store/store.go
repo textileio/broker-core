@@ -27,7 +27,7 @@ const (
 	// StatusReportFinalized indicates that a deal result is pending to be reported.
 	StatusReportFinalized = AuctionDealStatus(db.StatusReportFinalized)
 
-	stuckEpochs = int64(300)
+	stuckSeconds = int64(300)
 )
 
 var (
@@ -146,12 +146,12 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 func (s *Store) GetNextPending(ctx context.Context, status AuctionDealStatus) (ad AuctionDeal, exists bool, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
 		params := db.NextPendingAuctionDealParams{
-			Status:      db.Status(status),
-			StuckEpochs: stuckEpochs,
+			Status:       db.Status(status),
+			StuckSeconds: stuckSeconds,
 		}
 		deal, err := q.NextPendingAuctionDeal(ctx, params)
 		if err == nil {
-			if int64(time.Since(deal.ReadyAt).Seconds()) > stuckEpochs {
+			if int64(time.Since(deal.ReadyAt).Seconds()) > stuckSeconds {
 				log.Warnf("re-executing stuck auction deal %s", deal.ID)
 			}
 			ad = AuctionDeal(deal)

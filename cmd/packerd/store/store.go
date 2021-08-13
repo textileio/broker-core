@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	stuckEpochs = int64(3600)
+	stuckSeconds = int64(3600)
 )
 
 var (
@@ -230,14 +230,14 @@ func (s *Store) GetNextReadyBatch(
 	err error) {
 	if err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		var rb db.GetNextReadyBatchRow
-		rb, err = s.db.GetNextReadyBatch(ctx, stuckEpochs)
+		rb, err = s.db.GetNextReadyBatch(ctx, stuckSeconds)
 		if err == sql.ErrNoRows {
 			return nil
 		}
 		if err != nil {
 			return fmt.Errorf("db get next ready: %s", err)
 		}
-		if int64(time.Since(rb.ReadyAt).Seconds()) > stuckEpochs {
+		if int64(time.Since(rb.ReadyAt).Seconds()) > stuckSeconds {
 			log.Warnf("re-executing stuck batch %s", rb.BatchID)
 		}
 

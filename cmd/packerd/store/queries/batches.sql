@@ -30,7 +30,7 @@ UPDATE batches
 SET status='executing', updated_at=CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT b.batch_id FROM batches b
 	          WHERE b.status = 'ready' OR
-		        (status='executing' and extract(epoch from current_timestamp - b.updated_at) > @stuckEpochs::bigint)
+		        (status='executing' and extract(epoch from current_timestamp - b.updated_at) > @stuck_seconds::bigint)
 		  ORDER BY b.ready_at asc
 		  FOR UPDATE SKIP LOCKED
 	          LIMIT 1)

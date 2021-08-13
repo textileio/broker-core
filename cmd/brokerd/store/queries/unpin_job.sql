@@ -7,7 +7,7 @@ SET executing = TRUE,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = (SELECT id FROM unpin_jobs
     WHERE (unpin_jobs.ready_at < CURRENT_TIMESTAMP AND NOT executing) OR
-          (executing and extract(epoch from current_timestamp-unpin_jobs.updated_at) > @stuck_epochs::bigint)
+          (executing and extract(epoch from current_timestamp-unpin_jobs.updated_at) > @stuck_seconds::bigint)
     ORDER BY unpin_jobs.ready_at asc
     FOR UPDATE SKIP LOCKED
     LIMIT 1)

@@ -39,8 +39,8 @@ WHERE batch_id = (SELECT ub.batch_id FROM unprepared_batches ub
 RETURNING batch_id, status, data_cid, ready_at, created_at, updated_at
 `
 
-func (q *Queries) GetNextPending(ctx context.Context, stuckepochs int64) (UnpreparedBatch, error) {
-	row := q.queryRow(ctx, q.getNextPendingStmt, getNextPending, stuckepochs)
+func (q *Queries) GetNextPending(ctx context.Context, stuckseconds int64) (UnpreparedBatch, error) {
+	row := q.queryRow(ctx, q.getNextPendingStmt, getNextPending, stuckseconds)
 	var i UnpreparedBatch
 	err := row.Scan(
 		&i.BatchID,

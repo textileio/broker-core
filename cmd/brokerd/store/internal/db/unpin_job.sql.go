@@ -45,8 +45,8 @@ WHERE id = (SELECT id FROM unpin_jobs
 RETURNING id, executing, cid, type, ready_at, created_at, updated_at
 `
 
-func (q *Queries) NextUnpinJob(ctx context.Context, stuckEpochs int64) (UnpinJob, error) {
-	row := q.queryRow(ctx, q.nextUnpinJobStmt, nextUnpinJob, stuckEpochs)
+func (q *Queries) NextUnpinJob(ctx context.Context, stuckSeconds int64) (UnpinJob, error) {
+	row := q.queryRow(ctx, q.nextUnpinJobStmt, nextUnpinJob, stuckSeconds)
 	var i UnpinJob
 	err := row.Scan(
 		&i.ID,
