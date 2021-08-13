@@ -8,8 +8,8 @@ INSERT INTO unprepared_batches(
 UPDATE unprepared_batches
 SET status = 'executing', updated_at = CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT ub.batch_id FROM unprepared_batches ub
-            WHERE ub.ready_at < CURRENT_TIMESTAMP AND
-                  ub.status = 'pending'
+            WHERE (ub.ready_at < CURRENT_TIMESTAMP AND ub.status = 'pending') OR
+	          (status='executing' and extract(epoch from current_timestamp - updated_at) > @stuckEpochs::bigint)
                   ORDER BY ub.ready_at asc 
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1)
@@ -19,5 +19,3 @@ RETURNING *;
 UPDATE unprepared_batches 
 SET status = $3, updated_at = CURRENT_TIMESTAMP, ready_at=$2
 WHERE batch_id = $1;
-
-

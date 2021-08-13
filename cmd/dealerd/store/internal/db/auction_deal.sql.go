@@ -209,17 +209,24 @@ UPDATE auction_deals
 SET executing = TRUE,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = (SELECT id FROM auction_deals
-    WHERE auction_deals.ready_at < CURRENT_TIMESTAMP AND
-          auction_deals.status=$1 AND
-          NOT auction_deals.executing
+    WHERE auction_deals.status = $1 AND
+          (
+            (auction_deals.ready_at < CURRENT_TIMESTAMP AND NOT auction_deals.executing) OR
+            (auction_deals.executing AND extract(epoch from current_timestamp - auction_deals.updated_at) > $2::bigint)
+   	  )
     ORDER BY auction_deals.ready_at asc
     FOR UPDATE SKIP LOCKED
     LIMIT 1)
 RETURNING id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at
 `
 
-func (q *Queries) NextPendingAuctionDeal(ctx context.Context, status Status) (AuctionDeal, error) {
-	row := q.queryRow(ctx, q.nextPendingAuctionDealStmt, nextPendingAuctionDeal, status)
+type NextPendingAuctionDealParams struct {
+	Status      Status `json:"status"`
+	StuckEpochs int64  `json:"stuckEpochs"`
+}
+
+func (q *Queries) NextPendingAuctionDeal(ctx context.Context, arg NextPendingAuctionDealParams) (AuctionDeal, error) {
+	row := q.queryRow(ctx, q.nextPendingAuctionDealStmt, nextPendingAuctionDeal, arg.Status, arg.StuckEpochs)
 	var i AuctionDeal
 	err := row.Scan(
 		&i.ID,

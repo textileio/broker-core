@@ -16,6 +16,7 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/dealerd/store/migrations"
 	"github.com/textileio/broker-core/storeutil"
+	logger "github.com/textileio/go-log/v2"
 )
 
 const (
@@ -25,9 +26,13 @@ const (
 	StatusConfirmation = AuctionDealStatus(db.StatusConfirmation)
 	// StatusReportFinalized indicates that a deal result is pending to be reported.
 	StatusReportFinalized = AuctionDealStatus(db.StatusReportFinalized)
+
+	stuckEpochs = int64(300)
 )
 
 var (
+	log = logger.Logger("store")
+
 	// ErrNotFound is returned if the item isn't found in the store.
 	ErrNotFound = errors.New("key not found")
 
@@ -140,8 +145,15 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 // the deal as executing. If none exists, it returns false in the second parameter.
 func (s *Store) GetNextPending(ctx context.Context, status AuctionDealStatus) (ad AuctionDeal, exists bool, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		deal, err := q.NextPendingAuctionDeal(ctx, db.Status(status))
+		params := db.NextPendingAuctionDealParams{
+			Status:      db.Status(status),
+			StuckEpochs: stuckEpochs,
+		}
+		deal, err := q.NextPendingAuctionDeal(ctx, params)
 		if err == nil {
+			if int64(time.Since(deal.ReadyAt).Seconds()) > stuckEpochs {
+				log.Warnf("re-executing stuck auction deal %s", deal.ID)
+			}
 			ad = AuctionDeal(deal)
 		}
 		return err

@@ -44,9 +44,11 @@ UPDATE auction_deals
 SET executing = TRUE,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = (SELECT id FROM auction_deals
-    WHERE auction_deals.ready_at < CURRENT_TIMESTAMP AND
-          auction_deals.status=$1 AND
-          NOT auction_deals.executing
+    WHERE auction_deals.status = @status AND
+          (
+            (auction_deals.ready_at < CURRENT_TIMESTAMP AND NOT auction_deals.executing) OR
+            (auction_deals.executing AND extract(epoch from current_timestamp - auction_deals.updated_at) > @stuck_epochs::bigint)
+   	  )
     ORDER BY auction_deals.ready_at asc
     FOR UPDATE SKIP LOCKED
     LIMIT 1)

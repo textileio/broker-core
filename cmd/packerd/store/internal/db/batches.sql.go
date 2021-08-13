@@ -121,23 +121,30 @@ const getNextReadyBatch = `-- name: GetNextReadyBatch :one
 UPDATE batches
 SET status='executing', updated_at=CURRENT_TIMESTAMP
 WHERE batch_id = (SELECT b.batch_id FROM batches b
-	          WHERE b.status = 'ready'
+	          WHERE b.status = 'ready' OR
+		        (status='executing' and extract(epoch from current_timestamp - b.updated_at) > $1::bigint)
 		  ORDER BY b.ready_at asc
 		  FOR UPDATE SKIP LOCKED
 	          LIMIT 1)
-RETURNING batch_id, total_size, origin
+RETURNING batch_id, total_size, origin, ready_at
 `
 
 type GetNextReadyBatchRow struct {
 	BatchID   broker.BatchID `json:"batchID"`
 	TotalSize int64          `json:"totalSize"`
 	Origin    string         `json:"origin"`
+	ReadyAt   time.Time      `json:"readyAt"`
 }
 
-func (q *Queries) GetNextReadyBatch(ctx context.Context) (GetNextReadyBatchRow, error) {
-	row := q.queryRow(ctx, q.getNextReadyBatchStmt, getNextReadyBatch)
+func (q *Queries) GetNextReadyBatch(ctx context.Context, stuckepochs int64) (GetNextReadyBatchRow, error) {
+	row := q.queryRow(ctx, q.getNextReadyBatchStmt, getNextReadyBatch, stuckepochs)
 	var i GetNextReadyBatchRow
-	err := row.Scan(&i.BatchID, &i.TotalSize, &i.Origin)
+	err := row.Scan(
+		&i.BatchID,
+		&i.TotalSize,
+		&i.Origin,
+		&i.ReadyAt,
+	)
 	return i, err
 }
 

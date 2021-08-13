@@ -37,15 +37,16 @@ UPDATE unpin_jobs
 SET executing = TRUE,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = (SELECT id FROM unpin_jobs
-    WHERE unpin_jobs.ready_at < CURRENT_TIMESTAMP AND NOT executing
+    WHERE (unpin_jobs.ready_at < CURRENT_TIMESTAMP AND NOT executing) OR
+          (executing and extract(epoch from current_timestamp-unpin_jobs.updated_at) > $1::bigint)
     ORDER BY unpin_jobs.ready_at asc
     FOR UPDATE SKIP LOCKED
     LIMIT 1)
 RETURNING id, executing, cid, type, ready_at, created_at, updated_at
 `
 
-func (q *Queries) NextUnpinJob(ctx context.Context) (UnpinJob, error) {
-	row := q.queryRow(ctx, q.nextUnpinJobStmt, nextUnpinJob)
+func (q *Queries) NextUnpinJob(ctx context.Context, stuckEpochs int64) (UnpinJob, error) {
+	row := q.queryRow(ctx, q.nextUnpinJobStmt, nextUnpinJob, stuckEpochs)
 	var i UnpinJob
 	err := row.Scan(
 		&i.ID,

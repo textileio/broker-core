@@ -14,11 +14,18 @@ import (
 	"github.com/textileio/broker-core/cmd/piecerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/piecerd/store/migrations"
 	"github.com/textileio/broker-core/storeutil"
+	logger "github.com/textileio/go-log/v2"
+)
+
+const (
+	stuckEpochs = int64(7200)
 )
 
 var (
 	// ErrBatchExists if the provided batch id already exists.
 	ErrBatchExists = errors.New("batch-id already exists")
+
+	log = logger.Logger("store")
 )
 
 // UnpreparedBatchStatus is the status of an unprepared batch.
@@ -94,12 +101,16 @@ func (s *Store) CreateUnpreparedBatch(ctx context.Context, sdID broker.BatchID, 
 // GetNextPending returns the next pending batch to process and set the status to Executing.
 // The caller is responsible for updating the status later to Pending on error, or Done on success.
 func (s *Store) GetNextPending(ctx context.Context) (UnpreparedBatch, bool, error) {
-	ub, err := s.db.GetNextPending(ctx)
+	ub, err := s.db.GetNextPending(ctx, stuckEpochs)
 	if err == sql.ErrNoRows {
 		return UnpreparedBatch{}, false, nil
 	}
 	if err != nil {
 		return UnpreparedBatch{}, false, fmt.Errorf("db get next pending: %s", err)
+	}
+
+	if int64(time.Since(ub.ReadyAt).Seconds()) > stuckEpochs {
+		log.Warnf("re-executing stuck batch %s", ub.BatchID)
 	}
 
 	dataCid, err := cid.Decode(ub.DataCid)
