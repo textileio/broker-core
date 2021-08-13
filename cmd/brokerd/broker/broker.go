@@ -546,14 +546,16 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		}
 		log.Infof("creating new auction for failed deal with storage-provider %s", fad.StorageProviderID)
 
+		isMinerMisconfigured := strings.Contains(fad.ErrorCause, "deal rejected")
+
+		auctionDeadlineEpoch := ba.FilEpochDeadline
 		// If the Batch has a specific deadline, check if the re-auction can be run
 		// considering the broker auction duration. If doesn't fit before the known deadline
 		// we can't reauction and we fail the batch.
 		//
 		// If the batch doesn't have a specified deadline (==0), we can re-auction without deadline
 		// constraint.
-		var auctionDeadlineEpoch uint64
-		if ba.FilEpochDeadline > 0 {
+		if !isMinerMisconfigured && ba.FilEpochDeadline > 0 {
 			auctionDeadline := time.Now().Add(b.conf.auctionDuration)
 			auctionDeadlineEpoch, err = timeToFilEpoch(auctionDeadline)
 			if err != nil {

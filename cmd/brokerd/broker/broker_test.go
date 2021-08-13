@@ -783,6 +783,53 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		// No re-auctions since we didn't have enough time.
 		require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
 	})
+
+	t.Run("deal-rejected", func(t *testing.T) {
+		b, mb, _ := createBroker(t)
+
+		batchDeadline := time.Now().Add(time.Hour * 24)
+		batchDeadlineEpoch, _ := timeToFilEpoch(batchDeadline)
+		sr, auction := brokerSetup(t, b, batchDeadline)
+		fad1 := broker.FinalizedDeal{
+			BatchID:           auction.BatchID,
+			StorageProviderID: "f0011",
+			ErrorCause:        "failed proposal (StorageDealFailing): deal rejected: cannot seal a sector...",
+		}
+
+		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
+		require.NoError(t, err)
+
+		// Verify that the batch and storage request dont't errored.
+		ba, err := b.GetBatch(ctx, sr.BatchID)
+		require.NoError(t, err)
+		require.Equal(t, broker.BatchStatusDealMaking, ba.Status)
+		require.Empty(t, ba.Error)
+
+		mbr1, err := b.GetStorageRequestInfo(ctx, sr.ID)
+		require.NoError(t, err)
+		require.Equal(t, broker.RequestDealMaking, mbr1.StorageRequest.Status)
+
+		// Check that two ReadyToAuction message was generated, since we always re-auction
+		// on deal rejections with the same original deadline specified from the user:
+		// 1. The one from `NewBatchPrepared`.
+		// 2. The re-auction one.
+		require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+		data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 1)
+		require.NoError(t, err)
+		rda := &pb.ReadyToAuction{}
+		err = proto.Unmarshal(data, rda)
+		require.NoError(t, err)
+		require.Equal(t, b.conf.dealDuration, rda.DealDuration)
+		require.Equal(t, ba.PayloadCid.Bytes(), rda.PayloadCid)
+		require.Equal(t, ba.PieceSize, rda.DealSize)
+		require.Equal(t, string(ba.ID), rda.BatchId)
+		require.Equal(t, ba.RepFactor, int(rda.DealReplication))
+		require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
+		require.Equal(t, batchDeadlineEpoch, rda.FilEpochDeadline) // Important assertion.
+		require.NotNil(t, rda.Sources.CarUrl)
+		require.Equal(t, ba.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
+		require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
+	})
 }
 
 func createBroker(t *testing.T) (
