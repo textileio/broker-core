@@ -2,7 +2,6 @@
 INSERT INTO bids (
     auction_id,
     storage_provider_id,
-    wallet_addr_sig,
     bidder_id,
     ask_price,
     verified_ask_price,
@@ -17,16 +16,14 @@ INSERT INTO bids (
       $5,
       $6,
       $7,
-      $8,
-      $9)
+      $8)
   ON CONFLICT (auction_id, bidder_id) DO UPDATE SET
     storage_provider_id = $2,
-    wallet_addr_sig = $3,
-    ask_price = $5,
-    verified_ask_price = $6,
-    start_epoch = $7,
-    fast_retrieval = $8,
-    received_at = $9;
+    ask_price = $4,
+    verified_ask_price = $5,
+    start_epoch = $6,
+    fast_retrieval = $7,
+    received_at = $8;
 
 -- name: WonBid :exec
 UPDATE bids SET won_at = $3

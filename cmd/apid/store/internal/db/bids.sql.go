@@ -29,7 +29,6 @@ const createOrUpdateBid = `-- name: CreateOrUpdateBid :exec
 INSERT INTO bids (
     auction_id,
     storage_provider_id,
-    wallet_addr_sig,
     bidder_id,
     ask_price,
     verified_ask_price,
@@ -44,22 +43,19 @@ INSERT INTO bids (
       $5,
       $6,
       $7,
-      $8,
-      $9)
+      $8)
   ON CONFLICT (auction_id, bidder_id) DO UPDATE SET
     storage_provider_id = $2,
-    wallet_addr_sig = $3,
-    ask_price = $5,
-    verified_ask_price = $6,
-    start_epoch = $7,
-    fast_retrieval = $8,
-    received_at = $9
+    ask_price = $4,
+    verified_ask_price = $5,
+    start_epoch = $6,
+    fast_retrieval = $7,
+    received_at = $8
 `
 
 type CreateOrUpdateBidParams struct {
 	AuctionID         string    `json:"auctionID"`
 	StorageProviderID string    `json:"storageProviderID"`
-	WalletAddrSig     []byte    `json:"walletAddrSig"`
 	BidderID          string    `json:"bidderID"`
 	AskPrice          int64     `json:"askPrice"`
 	VerifiedAskPrice  int64     `json:"verifiedAskPrice"`
@@ -72,7 +68,6 @@ func (q *Queries) CreateOrUpdateBid(ctx context.Context, arg CreateOrUpdateBidPa
 	_, err := q.exec(ctx, q.createOrUpdateBidStmt, createOrUpdateBid,
 		arg.AuctionID,
 		arg.StorageProviderID,
-		arg.WalletAddrSig,
 		arg.BidderID,
 		arg.AskPrice,
 		arg.VerifiedAskPrice,
@@ -84,7 +79,7 @@ func (q *Queries) CreateOrUpdateBid(ctx context.Context, arg CreateOrUpdateBidPa
 }
 
 const getBid = `-- name: GetBid :one
-SELECT auction_id, storage_provider_id, wallet_addr_sig, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, acknowledged_at, proposal_cid_delivered_at, proposal_cid FROM bids WHERE auction_id = $1 and bidder_id = $2
+SELECT auction_id, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, acknowledged_at, proposal_cid_delivered_at, proposal_cid FROM bids WHERE auction_id = $1 and bidder_id = $2
 `
 
 type GetBidParams struct {
@@ -98,7 +93,6 @@ func (q *Queries) GetBid(ctx context.Context, arg GetBidParams) (Bid, error) {
 	err := row.Scan(
 		&i.AuctionID,
 		&i.StorageProviderID,
-		&i.WalletAddrSig,
 		&i.BidderID,
 		&i.AskPrice,
 		&i.VerifiedAskPrice,

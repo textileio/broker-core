@@ -55,7 +55,6 @@ func (s *Store) CreateOrUpdateBid(ctx context.Context, auctionID string, b *auct
 	return s.db.CreateOrUpdateBid(ctx, db.CreateOrUpdateBidParams{
 		AuctionID:         auctionID,
 		StorageProviderID: b.MinerAddr,
-		WalletAddrSig:     b.WalletAddrSig,
 		BidderID:          b.BidderID.String(),
 		AskPrice:          b.AskPrice,
 		VerifiedAskPrice:  b.VerifiedAskPrice,

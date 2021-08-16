@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS auctions (
 CREATE TABLE IF NOT EXISTS bids (
     auction_id TEXT NOT NULL,
     storage_provider_id TEXT NOT NULL,
-    wallet_addr_sig BYTEA NOT NULL,
     bidder_id TEXT NOT NULL,
     ask_price BIGINT NOT NULL,
     verified_ask_price BIGINT NOT NULL,
