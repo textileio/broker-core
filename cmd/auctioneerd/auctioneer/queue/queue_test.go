@@ -193,10 +193,21 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 		})
 		require.Error(t, err)
 
+		var published int
 		err = q.SetWinningBidProposalCid(got.ID, id, pcid, func(wb auctioneer.WinningBid) error {
+			published++
 			return nil
 		})
 		require.NoError(t, err)
+		assert.Equal(t, 1, published)
+
+		// make sure proposal cid is only published once
+		err = q.SetWinningBidProposalCid(got.ID, id, pcid, func(wb auctioneer.WinningBid) error {
+			published++
+			return nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 1, published)
 	}
 
 	got, err = q.GetAuction(id)

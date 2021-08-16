@@ -256,9 +256,14 @@ func (q *Queue) SetWinningBidProposalCid(
 		return errors.New("auction finalized with error; can't set proposal cid")
 	}
 
+	if wb.ProposalCid == pcid {
+		log.Warnf("proposal cid %s is already published, duplicated message?", pcid)
+		return nil
+	}
 	wb.ProposalCid = pcid
 	handleErr := handler(wb)
 	if handleErr != nil {
+		wb.ProposalCid = cid.Undef
 		wb.ErrorCause = handleErr.Error()
 	} else {
 		wb.ErrorCause = ""
