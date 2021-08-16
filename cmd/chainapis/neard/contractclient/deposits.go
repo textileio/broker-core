@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient/transaction"
+	api "github.com/textileio/near-api-go"
+	"github.com/textileio/near-api-go/transaction"
 )
 
 // Deposit holds information about a deposit.
@@ -72,8 +72,8 @@ func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string) (bo
 		ctx,
 		c.contractAccountID,
 		"hasDeposit",
-		nearclient.CallFunctionWithFinality("final"),
-		nearclient.CallFunctionWithArgs(map[string]interface{}{
+		api.CallFunctionWithFinality("final"),
+		api.CallFunctionWithArgs(map[string]interface{}{
 			"brokerId":  brokerID,
 			"accountId": accountID,
 		}),

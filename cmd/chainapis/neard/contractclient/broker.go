@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient/transaction"
+	api "github.com/textileio/near-api-go"
+	"github.com/textileio/near-api-go/transaction"
 )
 
 // BrokerInfo holds information about a broker.
@@ -65,8 +65,8 @@ func (c *Client) GetBroker(ctx context.Context, brokerID string) (*BrokerInfo, e
 		ctx,
 		c.contractAccountID,
 		"getBroker",
-		nearclient.CallFunctionWithFinality("final"),
-		nearclient.CallFunctionWithArgs(map[string]interface{}{"brokerId": brokerID}),
+		api.CallFunctionWithFinality("final"),
+		api.CallFunctionWithArgs(map[string]interface{}{"brokerId": brokerID}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("calling rpc function: %v", err)
@@ -87,7 +87,7 @@ func (c *Client) ListBrokers(ctx context.Context) ([]BrokerInfo, error) {
 		ctx,
 		c.contractAccountID,
 		"listBrokers",
-		nearclient.CallFunctionWithFinality("final"),
+		api.CallFunctionWithFinality("final"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("calling rpc function: %v", err)

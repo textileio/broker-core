@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient/account"
 	logging "github.com/textileio/go-log/v2"
+	api "github.com/textileio/near-api-go"
+	"github.com/textileio/near-api-go/account"
 )
 
 const (
@@ -65,13 +65,13 @@ type BrokerValue struct {
 
 // Client communicates with the contract API.
 type Client struct {
-	NearClient        *nearclient.Client
+	NearClient        *api.Client
 	contractAccountID string
 	clientAccountID   string
 }
 
 // NewClient creates a new Client.
-func NewClient(nc *nearclient.Client, contractAccountID, clientAccountID string) (*Client, error) {
+func NewClient(nc *api.Client, contractAccountID, clientAccountID string) (*Client, error) {
 	return &Client{
 		NearClient:        nc,
 		contractAccountID: contractAccountID,
@@ -120,7 +120,7 @@ func (c *Client) GetChanges(ctx context.Context, blockHeight int) ([]Change, str
 	res, err := c.NearClient.DataChanges(
 		ctx,
 		[]string{c.contractAccountID},
-		nearclient.DataChangesWithBlockHeight(blockHeight),
+		api.DataChangesWithBlockHeight(blockHeight),
 	)
 	if err != nil {
 		return nil, "", fmt.Errorf("calling data changes: %v", err)
