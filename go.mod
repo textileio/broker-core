@@ -3,7 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
-	cloud.google.com/go/pubsub v1.13.0
+	cloud.google.com/go/pubsub v1.15.0
 	cloud.google.com/go/storage v1.16.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.6
@@ -57,8 +57,8 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/metric v0.21.0
-	google.golang.org/api v0.50.0
-	google.golang.org/grpc v1.39.0
+	google.golang.org/api v0.54.0
+	google.golang.org/grpc v1.39.1
 	google.golang.org/protobuf v1.27.1
 )
 
