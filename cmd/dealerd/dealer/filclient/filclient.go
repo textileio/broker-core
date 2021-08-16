@@ -185,7 +185,7 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 	}
 
 	if mlookup.Receipt.ExitCode != 0 {
-		return 0, fmt.Errorf("the message failed to execute (exit: %d)", mlookup.Receipt.ExitCode)
+		return 0, fmt.Errorf("the message failed to execute (exit: %s)", mlookup.Receipt.ExitCode)
 	}
 
 	var retval market.PublishStorageDealsReturn
