@@ -118,7 +118,6 @@ func TestService_NearDetectInput(t *testing.T) {
 	input = detectInput(invalidToken)
 	require.Equal(t, invalidToken, input.token)
 	require.Equal(t, rawToken, input.tokenType)
-
 }
 
 func TestService_RawAuthToken(t *testing.T) {
