@@ -38,7 +38,7 @@ var (
 	StartDelay = time.Second * 10
 
 	// MaxConcurrency is the maximum number of auctions that will be handled concurrently.
-	MaxConcurrency = 100
+	MaxConcurrency = 1
 
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
