@@ -2,17 +2,20 @@ package service
 
 import (
 	"context"
-	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rand"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	jwt "github.com/golang-jwt/jwt"
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
 	ethjwt "github.com/textileio/broker-core/cmd/authd/eth"
+	nearjwt "github.com/textileio/broker-core/cmd/authd/near"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	mocks "github.com/textileio/broker-core/mocks/chainapi"
 	"github.com/textileio/broker-core/tests"
@@ -23,35 +26,33 @@ import (
 
 const bufSize = 1024 * 1024
 
-var privateKey *ecdsa.PrivateKey
-var token string
-var kid string
-
 func init() {
 	if err := logging.SetLogLevels(map[string]golog.LogLevel{
 		"auth/service": golog.LevelDebug,
 	}); err != nil {
 		panic(err)
 	}
-	var err error
-	privateKey, err = crypto.GenerateKey()
+}
+
+func TestService_EthDetectInput(t *testing.T) {
+	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		panic(err)
 	}
 
 	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
-	kid = "eth:1337:" + addr.Hex()
+	kid := "eth:1337:" + addr.Hex()
 
 	now := time.Now()
 	claims := &jwt.StandardClaims{
-		Issuer:    kid,
-		Subject:   kid,
+		Issuer:    addr.String(),
+		Subject:   addr.String(),
 		Audience:  "provider",
 		NotBefore: now.Unix(),
 		IssuedAt:  now.Unix(),
 		ExpiresAt: now.Add(time.Hour).Unix(),
 	}
-	t := &jwt.Token{
+	jwtToken := &jwt.Token{
 		Header: map[string]interface{}{
 			"typ": "JWT",
 			"alg": ethjwt.SigningMethod.Alg(),
@@ -60,27 +61,10 @@ func init() {
 		Claims: claims,
 		Method: ethjwt.SigningMethod,
 	}
-	token, err = t.SignedString(privateKey)
+	token, err := jwtToken.SignedString(privateKey)
 	if err != nil {
 		panic(err)
 	}
-}
-
-// func TestService_validateToken(t *testing.T) {
-// 	// Valid token
-// 	output, err := validateToken(token)
-// 	require.NoError(t, err)
-// 	require.Equal(t, output.Iss, kid)
-// 	require.Equal(t, output.Sub, kid)
-// 	require.Equal(t, output.Aud, "provider")
-// 	// Invalid token
-// 	invalidToken := "INVALID_TOKEN"
-// 	output, err = validateToken(invalidToken)
-// 	require.Error(t, err)
-// 	require.Nil(t, output)
-// }
-
-func TestService_detectInput(t *testing.T) {
 	// Valid token
 	input := detectInput(token)
 	require.Equal(t, token, input.token)
@@ -91,6 +75,50 @@ func TestService_detectInput(t *testing.T) {
 	input = detectInput(invalidToken)
 	require.Equal(t, invalidToken, input.token)
 	require.Equal(t, rawToken, input.tokenType)
+}
+
+func TestService_NearDetectInput(t *testing.T) {
+	var err error
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	kid := "near:localnet:" + base58.Encode(publicKey)
+
+	now := time.Now()
+	claims := &jwt.StandardClaims{
+		Issuer:    "account.localnet",
+		Subject:   "account.localnet",
+		Audience:  "provider",
+		NotBefore: now.Unix(),
+		IssuedAt:  now.Unix(),
+		ExpiresAt: now.Add(time.Hour).Unix(),
+	}
+	jwtToken := &jwt.Token{
+		Header: map[string]interface{}{
+			"typ": "JWT",
+			"alg": nearjwt.SigningMethod.Alg(),
+			"kid": kid,
+		},
+		Claims: claims,
+		Method: nearjwt.SigningMethod,
+	}
+	token, err := jwtToken.SignedString(privateKey)
+	if err != nil {
+		panic(err)
+	}
+	// Valid token
+	input := detectInput(token)
+	require.Equal(t, token, input.token)
+	require.Equal(t, chainToken, input.tokenType)
+
+	// Raw token
+	invalidToken := "RAW_TOKEN"
+	input = detectInput(invalidToken)
+	require.Equal(t, invalidToken, input.token)
+	require.Equal(t, rawToken, input.tokenType)
+
 }
 
 func TestService_RawAuthToken(t *testing.T) {

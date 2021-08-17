@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -10,7 +9,7 @@ import (
 
 	eth "github.com/ethereum/go-ethereum/common"
 	jwt "github.com/golang-jwt/jwt"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/mr-tron/base58"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/authd/store"
@@ -139,24 +138,7 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	origin := ""
 	suborigin := ""
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
-		header, ok := token.Header[tokenHeaderKeyJwk]
-		if ok {
-			for k, v := range header.(map[string]interface{}) {
-				if val, ok := v.(string); !ok {
-					continue
-				} else if k == jwkMapKeyX {
-					dx, err := base64.URLEncoding.DecodeString(val)
-					if err != nil {
-						return nil, fmt.Errorf("decoding x header value: %v", err)
-					}
-					// TODO: This will be handled by the kid header handling below once we update the near client.
-					origin = nearOrigin
-					suborigin = nearTestnetSuborigin
-					return crypto.UnmarshalEd25519PublicKey(dx)
-				}
-			}
-		}
-		header, ok = token.Header[tokenHeaderKeyKid]
+		header, ok := token.Header[tokenHeaderKeyKid]
 		if ok {
 			var val string
 			if val, ok = header.(string); !ok {
@@ -169,8 +151,19 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 			origin = parts[0]
 			suborigin = parts[1]
 			addrString := strings.Split(val, ":")[2]
-			addrBytes := eth.FromHex(addrString)
-			return eth.BytesToAddress(addrBytes), nil
+			switch token.Method.Alg() {
+			case "NEAR":
+				addrBytes, err := base58.Decode(addrString)
+				if err != nil {
+					return nil, fmt.Errorf("unable to parse public key: %v", err)
+				}
+				return addrBytes, nil
+			case "ETH":
+				addrBytes := eth.FromHex(addrString)
+				return eth.BytesToAddress(addrBytes), nil
+			default:
+				return nil, errors.New("invalid key info")
+			}
 		}
 		return nil, errors.New("invalid key info")
 	})
