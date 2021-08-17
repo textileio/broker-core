@@ -26,16 +26,10 @@ import (
 )
 
 const (
-	nearOrigin = "near"
-	ethOrigin  = "eth"
-	polyOrigin = "poly"
-
-	nearTestnetSuborigin = "testnet"
-
-	tokenHeaderKeyJwk = "jwk"
+	nearOrigin        = "near"
+	ethOrigin         = "eth"
+	polyOrigin        = "poly"
 	tokenHeaderKeyKid = "kid"
-
-	jwkMapKeyX = "x"
 )
 
 var log = golog.Logger("auth/service")
