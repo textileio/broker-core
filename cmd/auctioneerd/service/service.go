@@ -113,7 +113,14 @@ func (s *Service) OnReadyToAuction(
 	filEpochDeadline uint64,
 	sources auction.Sources,
 ) error {
-	err := s.lib.CreateAuction(core.Auction{
+	_, err := s.lib.GetAuction(id)
+	if err == nil {
+		log.Warnf("auction %s already exists, skip processing", id)
+		return nil
+	} else if err != auctioneer.ErrAuctionNotFound {
+		return fmt.Errorf("get auction: %v", err)
+	}
+	err = s.lib.CreateAuction(core.Auction{
 		ID:                       id,
 		BatchID:                  sdID,
 		PayloadCid:               payloadCid,
