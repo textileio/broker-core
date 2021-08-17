@@ -292,9 +292,6 @@ func (s *Store) BatchError(
 				return fmt.Errorf("error cause should be empty: %s", sd.Error)
 			}
 		case broker.BatchStatusError:
-			if sd.Error != errorCause {
-				return fmt.Errorf("the error cause is different from the registered on : %s %s", sd.Error, errorCause)
-			}
 			brIDs, err = txn.GetStorageRequestIDs(ctx, batchIDToSQL(id))
 			return err
 		default:
