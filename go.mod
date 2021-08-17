@@ -38,11 +38,9 @@ require (
 	github.com/libp2p/go-libp2p v0.14.3
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5
-	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.15
-	github.com/near/borsh-go v0.3.0
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/spf13/cobra v1.2.1
@@ -54,6 +52,7 @@ require (
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
 	github.com/textileio/jwt-go-eddsa v0.2.1
+	github.com/textileio/near-api-go v0.1.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/metric v0.21.0

@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient/types"
+	api "github.com/textileio/near-api-go"
+	"github.com/textileio/near-api-go/types"
 )
 
 var ctx = context.Background()
@@ -148,7 +148,7 @@ func makeClient(t *testing.T) (*Client, func()) {
 		NetworkID: "testnet",
 		// Signer:    keys,
 	}
-	nc, err := nearclient.NewClient(config)
+	nc, err := api.NewClient(config)
 	require.NoError(t, err)
 	c, err := NewClient(nc, "asutula.testnet", "asutula.testnet")
 	require.NoError(t, err)

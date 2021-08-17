@@ -12,12 +12,12 @@ import (
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/metrics"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient/keys"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/nearclient/types"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/releaser"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/service"
 	logging "github.com/textileio/go-log/v2"
+	api "github.com/textileio/near-api-go"
+	"github.com/textileio/near-api-go/keys"
+	"github.com/textileio/near-api-go/types"
 )
 
 var (
@@ -94,7 +94,7 @@ var rootCmd = &cobra.Command{
 				common.CheckErrf("parsing private key: %v", err)
 			}
 
-			nearClient, err := nearclient.NewClient(&types.Config{
+			nearClient, err := api.NewClient(&types.Config{
 				RPCClient: rpcClient,
 				Signer:    signer,
 			})
