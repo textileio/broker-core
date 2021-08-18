@@ -508,9 +508,9 @@ func (bh *BidHeap) Len() int {
 // Less returns true if the value at j is less than the value at i.
 func (bh *BidHeap) Less(i, j int) bool {
 	if bh.dealVerified {
-		return bh.h[i].Bid.VerifiedAskPrice > bh.h[j].Bid.VerifiedAskPrice
+		return bh.h[i].Bid.VerifiedAskPrice < bh.h[j].Bid.VerifiedAskPrice
 	}
-	return bh.h[i].Bid.AskPrice > bh.h[j].Bid.AskPrice
+	return bh.h[i].Bid.AskPrice < bh.h[j].Bid.AskPrice
 }
 
 // Swap index i and j.
