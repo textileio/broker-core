@@ -861,7 +861,7 @@ type dumbChainAPI struct {
 
 var _ chainapi.ChainAPI = (*dumbChainAPI)(nil)
 
-func (dr *dumbChainAPI) HasDeposit(ctx context.Context, brokerID, accountID, chainID string) (bool, error) {
+func (dr *dumbChainAPI) HasDeposit(ctx context.Context, depositee, chainID string) (bool, error) {
 	return true, nil
 }
 

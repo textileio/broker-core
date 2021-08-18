@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/textileio/bidbot/lib/common"
-	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
+	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
@@ -22,14 +22,14 @@ var (
 // Service implements the chainservice for NEAR.
 type Service struct {
 	chainapi.UnimplementedChainApiServiceServer
-	ccs    map[string]*contractclient.Client
+	pcs    map[string]*providerclient.Client
 	server *grpc.Server
 }
 
 // NewService creates a new Service.
-func NewService(listener net.Listener, ccs map[string]*contractclient.Client) (*Service, error) {
+func NewService(listener net.Listener, pcs map[string]*providerclient.Client) (*Service, error) {
 	s := &Service{
-		ccs:    ccs,
+		pcs:    pcs,
 		server: grpc.NewServer(grpc.UnaryInterceptor(common.GrpcLoggerInterceptor(log))),
 	}
 	go func() {
@@ -48,11 +48,11 @@ func (s *Service) HasDeposit(
 	ctx context.Context,
 	req *chainapi.HasDepositRequest,
 ) (*chainapi.HasDepositResponse, error) {
-	cc, ok := s.ccs[req.ChainId]
+	pc, ok := s.pcs[req.ChainId]
 	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported chain id: %s", req.ChainId)
 	}
-	res, err := cc.HasDeposit(ctx, req.BrokerId, req.AccountId)
+	res, err := pc.HasDeposit(ctx, req.Depositee)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "calling has deposit: %v", err)
 	}

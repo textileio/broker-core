@@ -58,7 +58,7 @@ func (s *Service) HasDeposit(
 	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported chain id: %s", req.ChainId)
 	}
-	res, err := contractClient.HasDeposit(nil, ec.HexToAddress(req.AccountId))
+	res, err := contractClient.HasDeposit(nil, ec.HexToAddress(req.Depositee))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "calling has deposit: %v", err)
 	}

@@ -13,20 +13,20 @@ type ChainAPI struct {
 	mock.Mock
 }
 
-// HasDeposit provides a mock function with given fields: ctx, brokerID, accountID, chainID
-func (_m *ChainAPI) HasDeposit(ctx context.Context, brokerID string, accountID string, chainID string) (bool, error) {
-	ret := _m.Called(ctx, brokerID, accountID, chainID)
+// HasDeposit provides a mock function with given fields: ctx, depositee, chainID
+func (_m *ChainAPI) HasDeposit(ctx context.Context, depositee string, chainID string) (bool, error) {
+	ret := _m.Called(ctx, depositee, chainID)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) bool); ok {
-		r0 = rf(ctx, brokerID, accountID, chainID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = rf(ctx, depositee, chainID)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = rf(ctx, brokerID, accountID, chainID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, depositee, chainID)
 	} else {
 		r1 = ret.Error(1)
 	}

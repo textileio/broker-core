@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
-	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
+	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
 	logging "github.com/textileio/go-log/v2"
 )
 
 // Releaser manages calling releaseDeposits on the contract.
 type Releaser struct {
-	cc      *contractclient.Client
+	cc      *providerclient.Client
 	t       *time.Ticker
 	timeout time.Duration
 	close   chan struct{}
@@ -21,7 +22,7 @@ type Releaser struct {
 }
 
 // New creates a new Releaser.
-func New(cc *contractclient.Client, chainID string, freq, timeout time.Duration) (*Releaser, error) {
+func New(cc *providerclient.Client, chainID string, freq, timeout time.Duration) (*Releaser, error) {
 	if chainID == "" {
 		return nil, errors.New("no chain id provided")
 	}
@@ -61,8 +62,11 @@ func (r *Releaser) start() {
 				}
 				cancel()
 				needsRelease := false
-				for _, info := range state.DepositMap {
-					if uint64(state.BlockHeight) > info.Deposit.Expiration {
+				for _, deposit := range state.DepositMap {
+					// value > 0 && currentTimestamp <= DepositTimestamp + value / sessionDivisor
+					zero := (&big.Int{}).SetInt64(0)
+					sessionLength := (&big.Int{}).Div(deposit.Value, state.SessionDivisor)
+					if deposit.Value.Cmp(zero) > 0 && time.Now().UnixNano() <= deposit.Timestamp+sessionLength.Int64() {
 						needsRelease = true
 						break
 					}

@@ -215,12 +215,11 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 // validateDepositedFunds validates that the user has locked funds on chain.
 func validateDepositedFunds(
 	ctx context.Context,
-	brokerID string,
-	accountID string,
+	depositee string,
 	chainID string,
 	chainAPI chainapi.ChainAPI,
 ) (bool, error) {
-	hasDeposit, err := chainAPI.HasDeposit(ctx, brokerID, accountID, chainID)
+	hasDeposit, err := chainAPI.HasDeposit(ctx, depositee, chainID)
 	if err != nil {
 		return false, fmt.Errorf("checking for deposited funds: %v", err)
 	}
@@ -272,7 +271,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		default:
 			return nil, fmt.Errorf("unknown origin %s", token.Origin)
 		}
-		fundsOk, err := validateDepositedFunds(ctx, token.Aud, token.Iss, token.Suborigin, chainAPI)
+		fundsOk, err := validateDepositedFunds(ctx, token.Iss, token.Suborigin, chainAPI)
 		if !fundsOk || err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
 		}
