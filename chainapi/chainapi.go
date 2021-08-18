@@ -6,5 +6,5 @@ import (
 
 // ChainAPI provides blockchain interactions.
 type ChainAPI interface {
-	HasDeposit(ctx context.Context, brokerID, accountID string, chainID string) (bool, error)
+	HasDeposit(ctx context.Context, depositee string, chainID string) (bool, error)
 }

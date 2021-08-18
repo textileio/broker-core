@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
+	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
 	logging "github.com/textileio/go-log/v2"
 )
 
 // Releaser manages calling releaseDeposits on the contract.
 type Releaser struct {
-	cc      *contractclient.Client
+	cc      *providerclient.Client
 	t       *time.Ticker
 	timeout time.Duration
 	close   chan struct{}
@@ -21,7 +21,7 @@ type Releaser struct {
 }
 
 // New creates a new Releaser.
-func New(cc *contractclient.Client, chainID string, freq, timeout time.Duration) (*Releaser, error) {
+func New(cc *providerclient.Client, chainID string, freq, timeout time.Duration) (*Releaser, error) {
 	if chainID == "" {
 		return nil, errors.New("no chain id provided")
 	}
@@ -53,20 +53,21 @@ func (r *Releaser) start() {
 			case <-r.t.C:
 				r.log.Info("checking state for expired deposits")
 				ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
-				state, err := r.cc.GetState(ctx)
+				_, err := r.cc.GetState(ctx)
 				if err != nil {
 					r.log.Errorf("calling get state: %v", err)
 					cancel()
 					continue
 				}
 				cancel()
-				needsRelease := false
-				for _, info := range state.DepositMap {
-					if uint64(state.BlockHeight) > info.Deposit.Expiration {
-						needsRelease = true
-						break
-					}
-				}
+				// needsRelease := false
+				needsRelease := true
+				// for _, deposit := range state.DepositMap {
+				// 	if uint64(state.BlockHeight) > deposit.Expiration {
+				// 		needsRelease = true
+				// 		break
+				// 	}
+				// }
 				if needsRelease {
 					r.log.Info("calling release deposits")
 					ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
