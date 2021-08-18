@@ -52,7 +52,6 @@ require (
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
-	github.com/textileio/jwt-go-eddsa v0.2.1
 	github.com/textileio/near-api-go v0.1.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1

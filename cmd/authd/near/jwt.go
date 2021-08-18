@@ -10,7 +10,7 @@ import (
 )
 
 // SigningMethodNear implements the NEAR signing method.
-// Expects *crypto.Ed25519PublicKey for signing and *crypto.Ed25519PublicKey
+// Expects ed25519.Ed25519PrivateKey for signing and ed25519.Ed25519PublicKey
 // for validation.
 type SigningMethodNear struct {
 	Name string
@@ -32,7 +32,7 @@ func (m *SigningMethodNear) Alg() string {
 }
 
 // Verify implements the Verify method from SigningMethod.
-// For this signing method, must be a *ed25519.PublicKey structure.
+// For this signing method, must be a ed25519.PublicKey structure.
 func (m *SigningMethodNear) Verify(signingString, signature string, key interface{}) error {
 	var err error
 
@@ -66,7 +66,7 @@ func (m *SigningMethodNear) Verify(signingString, signature string, key interfac
 }
 
 // Sign implements the Sign method from SigningMethod.
-// For this signing method, must be a *crypto.Ed25519PublicKey structure.
+// For this signing method, must be a ed25519.Ed25519PrivateKey structure.
 func (m *SigningMethodNear) Sign(signingString string, key interface{}) (string, error) {
 	var ed25519Key ed25519.PrivateKey
 	var ok bool

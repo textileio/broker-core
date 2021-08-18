@@ -19,7 +19,7 @@ import (
 
 	// These imports run init functions, which register each algo with jwt-go.
 	_ "github.com/textileio/broker-core/cmd/authd/eth"
-	_ "github.com/textileio/jwt-go-eddsa"
+	_ "github.com/textileio/broker-core/cmd/authd/near"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

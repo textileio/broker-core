@@ -2071,8 +2071,6 @@ github.com/textileio/go-libp2p-pubsub-rpc v0.0.2 h1:+LjGp5ByapB4XqU9WHhVodXlaHwT
 github.com/textileio/go-libp2p-pubsub-rpc v0.0.2/go.mod h1:hZ9OeFmGIjjH1fqahmxj6yvlPR6X7uPZ2rII1SyTsog=
 github.com/textileio/go-log/v2 v2.1.3-gke-1 h1:7e3xSUXQB8hn4uUe5fp41kLThW1o9T65gSM7qjS323g=
 github.com/textileio/go-log/v2 v2.1.3-gke-1/go.mod h1:DwACkjFS3kjZZR/4Spx3aPfSsciyslwUe5bxV8CEU2w=
-github.com/textileio/jwt-go-eddsa v0.2.1 h1:+08aBfLoy/Mgdhn8EM4RwD9kTA28I0iwhhQEUrw5XB4=
-github.com/textileio/jwt-go-eddsa v0.2.1/go.mod h1:Cxdn7h4kRvcMAuR2TRnEF2nX8uM97eKvPhj4TvSjbHk=
 github.com/textileio/near-api-go v0.1.0 h1:RYqLzl6vtcANax+Yzca3i0uhenFiUiVvhLOf9uUueuI=
 github.com/textileio/near-api-go v0.1.0/go.mod h1:/AraCW5KkqaofSdm8+lSttk4Bq8mYDv5yfanpnhrNJo=
 github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e/go.mod h1:XDKHRm5ThF8YJjx001LtgelzsoaEcvnA7lVWz9EeX3g=
