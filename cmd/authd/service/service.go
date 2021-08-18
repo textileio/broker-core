@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"net"
@@ -144,16 +145,16 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 			}
 			origin = parts[0]
 			suborigin = parts[1]
-			addrString := strings.Split(val, ":")[2]
+			kidString := strings.Split(val, ":")[2]
 			switch token.Method.Alg() {
 			case "NEAR":
-				addrBytes, err := base58.Decode(addrString)
+				keyBytes, err := base58.Decode(kidString)
 				if err != nil {
 					return nil, fmt.Errorf("unable to parse public key: %v", err)
 				}
-				return addrBytes, nil
+				return ed25519.PublicKey(keyBytes), nil
 			case "ETH":
-				addrBytes := eth.FromHex(addrString)
+				addrBytes := eth.FromHex(kidString)
 				return eth.BytesToAddress(addrBytes), nil
 			default:
 				return nil, errors.New("invalid key info")
