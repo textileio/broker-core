@@ -98,6 +98,7 @@ var rootCmd = &cobra.Command{
 			}
 
 			nearClient, err := api.NewClient(&types.Config{
+				NetworkID: chainID,
 				RPCClient: rpcClient,
 				Signer:    signer,
 			})

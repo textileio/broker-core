@@ -88,7 +88,7 @@ func (m *Metrics) initMetrics() {
 		}
 
 		// Account info metrics.
-		acc, err := m.rc.GetAccount(ctx)
+		acc, err := m.pc.GetAccount(ctx)
 		if err != nil {
 			m.log.Errorf("getting account info: %v", err)
 		} else {
@@ -116,7 +116,7 @@ func (m *Metrics) initMetrics() {
 		}
 
 		// Node status metrics.
-		nodeStatus, err := m.rc.NearClient.NodeStatus(ctx)
+		nodeStatus, err := m.pc.NearClient.NodeStatus(ctx)
 		if err != nil {
 			m.log.Errorf("getting node status: %v", err)
 		} else {
