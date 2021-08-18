@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	api "github.com/textileio/near-api-go"
+	"github.com/textileio/near-api-go/transaction"
 )
 
 // HasDeposit calls the contract hasLocked function.
@@ -31,7 +32,12 @@ func (c *Client) HasDeposit(ctx context.Context, depositee string) (bool, error)
 
 // ReleaseDeposits unlocks all funds from expired sessions in the contract.
 func (c *Client) ReleaseDeposits(ctx context.Context) error {
-	_, err := c.NearClient.Account(c.clientAccountID).FunctionCall(ctx, c.contractAccountID, "releaseDeposits")
+	_, err := c.NearClient.Account(c.clientAccountID).FunctionCall(
+		ctx,
+		c.contractAccountID,
+		"releaseDeposits",
+		transaction.FunctionCallWithArgs(map[string]interface{}{}),
+	)
 	if err != nil {
 		return fmt.Errorf("calling rpc unlock funds: %v", err)
 	}
