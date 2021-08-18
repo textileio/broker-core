@@ -72,16 +72,19 @@ func (s *Service) OwnsPublicKey(
 	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported chain id: %s", req.ChainId)
 	}
+
 	key, err := keys.NewPublicKeyFromString(req.PublicKey)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "parsing public key: %v", err)
 	}
+
 	_, err = pc.NearClient.Account(req.AccountId).ViewAccessKey(ctx, key)
 	if err != nil && strings.Contains(err.Error(), "does not exist while viewing") {
 		return &chainapi.OwnsPublicKeyResponse{OwnsPublicKey: false}, nil
 	} else if err != nil {
 		return nil, status.Errorf(codes.Internal, "viewing access key: %v", err)
 	}
+
 	return &chainapi.OwnsPublicKeyResponse{OwnsPublicKey: true}, nil
 }
 
