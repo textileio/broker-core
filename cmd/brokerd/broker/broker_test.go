@@ -865,6 +865,10 @@ func (dr *dumbChainAPI) HasDeposit(ctx context.Context, depositee, chainID strin
 	return true, nil
 }
 
+func (dr *dumbChainAPI) OwnsPublicKey(ctx context.Context, accountID, publicKey, chainID string) (bool, error) {
+	return true, nil
+}
+
 func (dr *dumbChainAPI) clean() {
 }
 

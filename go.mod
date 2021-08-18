@@ -5,8 +5,10 @@ go 1.16
 require (
 	cloud.google.com/go/pubsub v1.13.0
 	cloud.google.com/go/storage v1.16.0
+	github.com/StackExchange/wmi v1.2.1 // indirect
+	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
-	github.com/ethereum/go-ethereum v1.10.6
+	github.com/ethereum/go-ethereum v1.10.7
 	github.com/filecoin-project/go-address v0.0.6
 	github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0
@@ -17,6 +19,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48
 	github.com/filecoin-project/lotus v1.11.0
 	github.com/filecoin-project/specs-actors v0.9.14
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.3.0
@@ -44,6 +47,7 @@ require (
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/ory/dockertest/v3 v3.7.0
+	github.com/shirou/gopsutil v3.21.7+incompatible // indirect
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
@@ -52,10 +56,17 @@ require (
 	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
-	github.com/textileio/near-api-go v0.1.0
+	github.com/textileio/near-api-go v0.2.0
+	github.com/tklauser/go-sysconf v0.3.8 // indirect
+	github.com/tklauser/numcpus v0.3.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/metric v0.21.0
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.7.0 // indirect
+	go.uber.org/zap v1.19.0 // indirect
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+	golang.org/x/sys v0.0.0-20210818153620-00dd8d7831e7 // indirect
 	google.golang.org/api v0.50.0
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1

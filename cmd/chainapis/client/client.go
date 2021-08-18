@@ -33,3 +33,17 @@ func (c *Client) HasDeposit(ctx context.Context, depositee string, chainID strin
 	}
 	return res.HasDeposit, nil
 }
+
+// OwnsPublicKey checks if the provided accountID owns the specified publicKey.
+func (c *Client) OwnsPublicKey(ctx context.Context, accountID, publicKey, chainID string) (bool, error) {
+	req := &pb.OwnsPublicKeyRequest{
+		AccountId: accountID,
+		PublicKey: publicKey,
+		ChainId:   chainID,
+	}
+	res, err := c.c.OwnsPublicKey(ctx, req)
+	if err != nil {
+		return false, fmt.Errorf("calling owns public key api: %v", err)
+	}
+	return res.OwnsPublicKey, nil
+}

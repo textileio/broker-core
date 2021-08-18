@@ -11,6 +11,17 @@ message HasDepositResponse {
   bool has_deposit = 1;
 }
 
+message OwnsPublicKeyRequest {
+  string account_id = 1;
+  string public_key = 2;
+  string chain_id = 3;
+}
+
+message OwnsPublicKeyResponse {
+  bool owns_public_key = 1;
+}
+
 service ChainApiService {
   rpc HasDeposit(HasDepositRequest) returns (HasDepositResponse) {}
+  rpc OwnsPublicKey(OwnsPublicKeyRequest) returns (OwnsPublicKeyResponse) {}
 }

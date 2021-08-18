@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	logging "github.com/textileio/go-log/v2"
+	"github.com/textileio/near-api-go/keys"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
@@ -59,6 +61,28 @@ func (s *Service) HasDeposit(
 	return &chainapi.HasDepositResponse{
 		HasDeposit: res,
 	}, nil
+}
+
+// OwnsPublicKey returns whether or not the specified account owns the provided public key.
+func (s *Service) OwnsPublicKey(
+	ctx context.Context,
+	req *chainapi.OwnsPublicKeyRequest,
+) (*chainapi.OwnsPublicKeyResponse, error) {
+	pc, ok := s.pcs[req.ChainId]
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "unsupported chain id: %s", req.ChainId)
+	}
+	key, err := keys.NewPublicKeyFromString(req.PublicKey)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "parsing public key: %v", err)
+	}
+	_, err = pc.NearClient.Account(req.AccountId).ViewAccessKey(ctx, key)
+	if err != nil && strings.Contains(err.Error(), "does not exist while viewing") {
+		return &chainapi.OwnsPublicKeyResponse{OwnsPublicKey: false}, nil
+	} else if err != nil {
+		return nil, status.Errorf(codes.Internal, "viewing access key: %v", err)
+	}
+	return &chainapi.OwnsPublicKeyResponse{OwnsPublicKey: true}, nil
 }
 
 // Close stops the server and cleans up all internally created resources.

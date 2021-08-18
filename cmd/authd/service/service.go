@@ -104,6 +104,7 @@ type ValidatedToken struct {
 	Sub       string
 	Iss       string
 	Aud       string
+	PublicID  string
 	Origin    string
 	Suborigin string
 }
@@ -132,6 +133,7 @@ func detectInput(token string) *detectedInput {
 func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	origin := ""
 	suborigin := ""
+	publicID := ""
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
 		header, ok := token.Header[tokenHeaderKeyKid]
 		if ok {
@@ -148,12 +150,14 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 			kidString := strings.Split(val, ":")[2]
 			switch token.Method.Alg() {
 			case "NEAR":
+				publicID = fmt.Sprintf("ed25519:%s", kidString)
 				keyBytes, err := base58.Decode(kidString)
 				if err != nil {
 					return nil, fmt.Errorf("unable to parse public key: %v", err)
 				}
 				return ed25519.PublicKey(keyBytes), nil
 			case "ETH":
+				publicID = kidString
 				addrBytes := eth.FromHex(kidString)
 				return eth.BytesToAddress(addrBytes), nil
 			default:
@@ -181,6 +185,7 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		Sub:       claims.Subject,
 		Iss:       claims.Issuer,
 		Aud:       claims.Audience,
+		PublicID:  publicID,
 		Origin:    origin,
 		Suborigin: suborigin,
 	}
@@ -224,10 +229,21 @@ func validateDepositedFunds(
 	if err != nil {
 		return false, fmt.Errorf("checking for deposited funds: %v", err)
 	}
-	if !hasDeposit {
-		return false, errors.New("account doesn't have deposited funds")
+	return hasDeposit, nil
+}
+
+func validateOwnsKey(
+	ctx context.Context,
+	accountID string,
+	publicID string,
+	chainID string,
+	chainAPI chainapi.ChainAPI,
+) (bool, error) {
+	ownsKey, err := chainAPI.OwnsPublicKey(ctx, accountID, publicID, chainID)
+	if err != nil {
+		return false, fmt.Errorf("checking for owned key: %v", err)
 	}
-	return true, nil
+	return ownsKey, nil
 }
 
 // Auth authenticates a user storage request.
@@ -272,10 +288,23 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		default:
 			return nil, fmt.Errorf("unknown origin %s", token.Origin)
 		}
+
 		fundsOk, err := validateDepositedFunds(ctx, token.Iss, token.Suborigin, chainAPI)
-		if !fundsOk || err != nil {
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "validating deposited funds: %v", err)
+		}
+		if !fundsOk {
 			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
 		}
+
+		ownsKey, err := validateOwnsKey(ctx, token.Iss, token.PublicID, token.Suborigin, chainAPI)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "validating owns key: %v", err)
+		}
+		if !ownsKey {
+			return nil, status.Errorf(codes.Unauthenticated, "doesn't own key: %v", err)
+		}
+
 		log.Debugf("successful chain authentication: %s", token.Iss)
 		return &pb.AuthResponse{
 			Identity: token.Sub,

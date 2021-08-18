@@ -67,6 +67,15 @@ func (s *Service) HasDeposit(
 	}, nil
 }
 
+// OwnsPublicKey returns whether or not the specified account owns the provided public key.
+func (s *Service) OwnsPublicKey(
+	ctx context.Context,
+	req *chainapi.OwnsPublicKeyRequest,
+) (*chainapi.OwnsPublicKeyResponse, error) {
+	// TODO: Actuyally implement it, even though it will always return true in our usage.
+	return &chainapi.OwnsPublicKeyResponse{OwnsPublicKey: true}, nil
+}
+
 // Close stops the server and cleans up all internally created resources.
 func (s *Service) Close() error {
 	stopped := make(chan struct{})
