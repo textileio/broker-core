@@ -14,7 +14,11 @@ import (
 )
 
 const (
-	depositsPrefix = "d"
+	initiatedPrefix          = "initiated"
+	apiEndpointPrefix        = "_apiEndpoint"
+	providerProportionPrefix = "_providerProportion"
+	sessionDivisorPrefix     = "_sessionDivisor"
+	depositsPrefix           = "d"
 )
 
 // Deposit holds information about a deposit.
@@ -116,42 +120,73 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 		return nil, fmt.Errorf("calling view state: %v", err)
 	}
 
-	deposits := make(map[string]Deposit)
+	s := &State{
+		DepositMap:  make(map[string]Deposit),
+		BlockHash:   res.BlockHash,
+		BlockHeight: res.BlockHeight,
+	}
 
 	for _, val := range res.Values {
 		if err := extractNewEntry(
 			val.Key,
 			val.Value,
-			func(v DepositValue) { deposits[v.Key] = *v.Value },
+			func(i bool) { s.Initiated = i },
+			func(endpoint string) { s.APIEndpoint = endpoint },
+			func(p float64) { s.ProviderProportion = p },
+			func(d *big.Int) { s.SessionDivisor = d },
+			func(v DepositValue) { s.DepositMap[v.Key] = *v.Value },
 		); err != nil {
 			return nil, fmt.Errorf("extracting entry: %v", err)
 		}
 	}
-	return &State{
-		DepositMap:  deposits,
-		BlockHash:   res.BlockHash,
-		BlockHeight: res.BlockHeight,
-	}, nil
+	return s, nil
 }
 
 func extractNewEntry(
 	keyBase64 string,
 	valueBase64 string,
+	initiatedHandler func(bool),
+	apiEndpointHandler func(string),
+	providerProportionHandler func(float64),
+	sessionDivisorHandler func(*big.Int),
 	depositHandler func(DepositValue),
 ) error {
 	prefix, meta, _, err := parseKey(keyBase64)
 	if err != nil {
 		return fmt.Errorf("parsing key: %v", err)
 	}
-	if len(meta) != 1 || meta[0] != "entries" {
-		return nil
-	}
 	valueBytes, err := base64.StdEncoding.DecodeString(valueBase64)
 	if err != nil {
 		return fmt.Errorf("decoding value base64: %v", err)
 	}
 	switch prefix {
+	case initiatedPrefix:
+		s := string(valueBytes)
+		i, err := strconv.ParseBool(s)
+		if err != nil {
+			return fmt.Errorf("parsing initiated value %s: %v", s, err)
+		}
+		initiatedHandler(i)
+	case apiEndpointPrefix:
+		apiEndpointHandler(string(valueBytes))
+	case providerProportionPrefix:
+		s := string(valueBytes)
+		p, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return fmt.Errorf("parsing provider proportion value %s: %v", s, err)
+		}
+		providerProportionHandler(p)
+	case sessionDivisorPrefix:
+		s := string(valueBytes)
+		d, ok := (&big.Int{}).SetString(s, 10)
+		if !ok {
+			return fmt.Errorf("unable to parse session divisor value %s", s)
+		}
+		sessionDivisorHandler(d)
 	case depositsPrefix:
+		if len(meta) != 1 || meta[0] != "entries" {
+			return nil
+		}
 		var v DepositValue
 		if err := json.Unmarshal(valueBytes, &v); err != nil {
 			return fmt.Errorf("unmarshaling value: %v", err)
