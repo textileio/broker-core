@@ -74,20 +74,20 @@ func TestIt(t *testing.T) {
 // 	require.NotNil(t, res)
 // }
 
-func TestGetState(t *testing.T) {
-	c, cleanup := makeClient(t)
-	defer cleanup()
-	res, err := c.GetState(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, res)
-}
+// func TestGetState(t *testing.T) {
+// 	c, cleanup := makeClient(t)
+// 	defer cleanup()
+// 	res, err := c.GetState(ctx)
+// 	require.NoError(t, err)
+// 	require.NotNil(t, res)
+// }
 
-func TestReleaseDeposits(t *testing.T) {
-	c, cleanup := makeClient(t)
-	defer cleanup()
-	err := c.ReleaseDeposits(ctx)
-	require.NoError(t, err)
-}
+// func TestReleaseDeposits(t *testing.T) {
+// 	c, cleanup := makeClient(t)
+// 	defer cleanup()
+// 	err := c.ReleaseDeposits(ctx)
+// 	require.NoError(t, err)
+// }
 
 // func TestUpdatePayload(t *testing.T) {
 // 	c, cleanup := makeClient(t)
@@ -158,7 +158,7 @@ func makeClient(t *testing.T) (*Client, func()) {
 	}
 	nc, err := api.NewClient(config)
 	require.NoError(t, err)
-	c, err := NewClient(nc, "bridge-provider.testnet", "asutula.testnet")
+	c, err := NewClient(nc, "bridge-provider.testnet", "lock-box.testnet")
 	require.NoError(t, err)
 	return c, func() {
 		rpcClient.Close()

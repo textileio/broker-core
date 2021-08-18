@@ -23,7 +23,7 @@ const (
 
 // Deposit holds information about a deposit.
 type Deposit struct {
-	Timestamp uint64   `json:"timestamp"`
+	Timestamp int64    `json:"timestamp"`
 	Depositor string   `json:"depositor"`
 	Value     *big.Int `json:"value"`
 }
@@ -36,7 +36,7 @@ func (d *Deposit) MarshalJSON() ([]byte, error) {
 		Value     string `json:"value"`
 		*Alias
 	}{
-		Timestamp: strconv.FormatUint(d.Timestamp, 10),
+		Timestamp: strconv.FormatInt(d.Timestamp, 10),
 		Value:     d.Value.String(),
 		Alias:     (*Alias)(d),
 	})
@@ -55,7 +55,7 @@ func (d *Deposit) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	timestamp, err := strconv.ParseUint(aux.Timestamp, 10, 64)
+	timestamp, err := strconv.ParseInt(aux.Timestamp, 10, 64)
 	if err != nil {
 		return fmt.Errorf("parsing expiration: %v", err)
 	}

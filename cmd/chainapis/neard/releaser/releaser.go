@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
@@ -53,21 +54,23 @@ func (r *Releaser) start() {
 			case <-r.t.C:
 				r.log.Info("checking state for expired deposits")
 				ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
-				_, err := r.cc.GetState(ctx)
+				state, err := r.cc.GetState(ctx)
 				if err != nil {
 					r.log.Errorf("calling get state: %v", err)
 					cancel()
 					continue
 				}
 				cancel()
-				// needsRelease := false
-				needsRelease := true
-				// for _, deposit := range state.DepositMap {
-				// 	if uint64(state.BlockHeight) > deposit.Expiration {
-				// 		needsRelease = true
-				// 		break
-				// 	}
-				// }
+				needsRelease := false
+				for _, deposit := range state.DepositMap {
+					// value > 0 && currentTimestamp <= DepositTimestamp + value / sessionDivisor
+					zero := (&big.Int{}).SetInt64(0)
+					sessionLength := (&big.Int{}).Div(deposit.Value, state.SessionDivisor)
+					if deposit.Value.Cmp(zero) > 0 && time.Now().UnixNano() <= deposit.Timestamp+sessionLength.Int64() {
+						needsRelease = true
+						break
+					}
+				}
 				if needsRelease {
 					r.log.Info("calling release deposits")
 					ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
