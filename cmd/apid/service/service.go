@@ -104,7 +104,8 @@ func (s *Service) OnAuctionWinnerAcked(ctx context.Context, t time.Time, a *pb.A
 // OnAuctionProposalCidDelivered .
 func (s *Service) OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time,
 	auctionID, bidderID, bidID, proposalCid, errorCause string) {
-	log.Debug("handling proposal cid delivered message: %v, %v, %v, %v, %v", auctionID, bidderID, bidID, proposalCid, errorCause)
+	log.Debug("handling proposal cid delivered message: %v, %v, %v, %v, %v",
+		auctionID, bidderID, bidID, proposalCid, errorCause)
 	if err := s.store.ProposalDelivered(ctx, ts, auctionID, bidderID, bidID, proposalCid, errorCause); err != nil {
 		log.Error(err)
 	}
