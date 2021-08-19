@@ -16,7 +16,7 @@ type SigningMethodEth struct {
 	Name string
 }
 
-// SigningMethod is a specific instance for Ed25519.
+// SigningMethod is a specific instance of the ETH signing method.
 var SigningMethod *SigningMethodEth
 
 // PrefixedHash is a helper function that calculates a hash for the given message that can be
@@ -92,6 +92,8 @@ func (m *SigningMethodEth) Sign(signingString string, privateKey interface{}) (s
 	if err != nil {
 		return "", fmt.Errorf("signing: %v", err)
 	}
+
+	sigBytes[64] += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
 
 	return jwt.EncodeSegment(sigBytes), nil
 }

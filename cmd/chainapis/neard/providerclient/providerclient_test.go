@@ -1,4 +1,4 @@
-package contractclient
+package providerclient
 
 import (
 	"context"
@@ -81,6 +81,13 @@ func TestIt(t *testing.T) {
 // 	require.NotNil(t, res)
 // }
 
+// func TestReleaseDeposits(t *testing.T) {
+// 	c, cleanup := makeClient(t)
+// 	defer cleanup()
+// 	err := c.ReleaseDeposits(ctx)
+// 	require.NoError(t, err)
+// }
+
 // func TestUpdatePayload(t *testing.T) {
 // 	c, cleanup := makeClient(t)
 // 	defer cleanup()
@@ -139,7 +146,7 @@ func makeClient(t *testing.T) (*Client, func()) {
 	require.NoError(t, err)
 
 	// keys, err := keys.NewKeyPairFromString(
-	// 	"ed25519xxxx",
+	// 	"ed25519:",
 	// )
 	// require.NoError(t, err)
 
@@ -150,7 +157,7 @@ func makeClient(t *testing.T) (*Client, func()) {
 	}
 	nc, err := api.NewClient(config)
 	require.NoError(t, err)
-	c, err := NewClient(nc, "asutula.testnet", "asutula.testnet")
+	c, err := NewClient(nc, "bridge-provider.testnet", "lock-box.testnet")
 	require.NoError(t, err)
 	return c, func() {
 		rpcClient.Close()

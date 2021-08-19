@@ -7,7 +7,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/textileio/broker-core/cmd/chainapis/neard/contractclient"
+	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
+	"github.com/textileio/broker-core/cmd/chainapis/neard/registryclient"
 	logging "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -20,16 +21,18 @@ var meter = metric.Must(global.Meter(prefix))
 
 // Metrics creates metrics about the NEAR smart contract and API node.
 type Metrics struct {
-	cc      *contractclient.Client
+	rc      *registryclient.Client
+	pc      *providerclient.Client
 	chainID string
 
 	log *logging.ZapEventLogger
 }
 
 // New creates a new Metrics.
-func New(cc *contractclient.Client, chainID string) *Metrics {
+func New(rc *registryclient.Client, pc *providerclient.Client, chainID string) *Metrics {
 	m := &Metrics{
-		cc:      cc,
+		rc:      rc,
+		pc:      pc,
 		chainID: chainID,
 		log:     logging.Logger(fmt.Sprintf("neard-metrics-%s", chainID)),
 	}
@@ -54,28 +57,38 @@ func (m *Metrics) initMetrics() {
 	batchObs := meter.NewBatchObserver(func(ctx context.Context, result metric.BatchObserverResult) {
 		var obs []metric.Observation
 
-		// Contract state metrics.
-		state, err := m.cc.GetState(ctx)
+		// Registry contract State metrics.
+		registryState, err := m.rc.GetState(ctx)
 		if err != nil {
-			m.log.Errorf("getting contract state: %v", err)
+			m.log.Errorf("getting registry contract state: %v", err)
+		} else {
+			obs = append(
+				obs,
+				providerCount.Observation(int64(len(registryState.Providers))),
+			)
+		}
+
+		// Provider contract State metrics.
+		providerState, err := m.pc.GetState(ctx)
+		if err != nil {
+			m.log.Errorf("getting provider contract state: %v", err)
 		} else {
 			// Calc sum of deposits.
 			sumDeposits := big.NewFloat(0)
-			for _, deposit := range state.DepositMap {
-				sumDeposits.Add(sumDeposits, (&big.Float{}).SetInt(deposit.Deposit.Amount))
+			for _, deposit := range providerState.DepositMap {
+				sumDeposits.Add(sumDeposits, (&big.Float{}).SetInt(deposit.Value))
 			}
 			sumDeposits.Mul(sumDeposits, big.NewFloat(math.Pow(10, -24)))
 			sumDepositsF, _ := sumDeposits.Float64()
 			obs = append(
 				obs,
-				providerCount.Observation(int64(len(state.BrokerMap))),
-				depositsCount.Observation(int64(len(state.DepositMap))),
+				depositsCount.Observation(int64(len(providerState.DepositMap))),
 				depositsSum.Observation(sumDepositsF),
 			)
 		}
 
 		// Account info metrics.
-		acc, err := m.cc.GetAccount(ctx)
+		acc, err := m.pc.GetAccount(ctx)
 		if err != nil {
 			m.log.Errorf("getting account info: %v", err)
 		} else {
@@ -103,7 +116,7 @@ func (m *Metrics) initMetrics() {
 		}
 
 		// Node status metrics.
-		nodeStatus, err := m.cc.NearClient.NodeStatus(ctx)
+		nodeStatus, err := m.pc.NearClient.NodeStatus(ctx)
 		if err != nil {
 			m.log.Errorf("getting node status: %v", err)
 		} else {

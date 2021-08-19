@@ -22,10 +22,9 @@ func New(cc *grpc.ClientConn) chainapi.ChainAPI {
 }
 
 // HasDeposit checks if an account has deposited funds for a broker.
-func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string, chainID string) (bool, error) {
+func (c *Client) HasDeposit(ctx context.Context, depositee string, chainID string) (bool, error) {
 	req := &pb.HasDepositRequest{
-		BrokerId:  brokerID,
-		AccountId: accountID,
+		Depositee: depositee,
 		ChainId:   chainID,
 	}
 	res, err := c.c.HasDeposit(ctx, req)
@@ -33,4 +32,18 @@ func (c *Client) HasDeposit(ctx context.Context, brokerID, accountID string, cha
 		return false, fmt.Errorf("calling has deposit api: %v", err)
 	}
 	return res.HasDeposit, nil
+}
+
+// OwnsPublicKey checks if the provided accountID owns the specified publicKey.
+func (c *Client) OwnsPublicKey(ctx context.Context, accountID, publicKey, chainID string) (bool, error) {
+	req := &pb.OwnsPublicKeyRequest{
+		AccountId: accountID,
+		PublicKey: publicKey,
+		ChainId:   chainID,
+	}
+	res, err := c.c.OwnsPublicKey(ctx, req)
+	if err != nil {
+		return false, fmt.Errorf("calling owns public key api: %v", err)
+	}
+	return res.OwnsPublicKey, nil
 }

@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"net"
@@ -10,7 +10,7 @@ import (
 
 	eth "github.com/ethereum/go-ethereum/common"
 	jwt "github.com/golang-jwt/jwt"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/mr-tron/base58"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/authd/store"
@@ -20,23 +20,17 @@ import (
 
 	// These imports run init functions, which register each algo with jwt-go.
 	_ "github.com/textileio/broker-core/cmd/authd/eth"
-	_ "github.com/textileio/jwt-go-eddsa"
+	_ "github.com/textileio/broker-core/cmd/authd/near"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	nearOrigin = "near"
-	ethOrigin  = "eth"
-	polyOrigin = "poly"
-
-	nearTestnetSuborigin = "testnet"
-
-	tokenHeaderKeyJwk = "jwk"
+	nearOrigin        = "near"
+	ethOrigin         = "eth"
+	polyOrigin        = "poly"
 	tokenHeaderKeyKid = "kid"
-
-	jwkMapKeyX = "x"
 )
 
 var log = golog.Logger("auth/service")
@@ -110,6 +104,7 @@ type ValidatedToken struct {
 	Sub       string
 	Iss       string
 	Aud       string
+	PublicID  string
 	Origin    string
 	Suborigin string
 }
@@ -138,25 +133,9 @@ func detectInput(token string) *detectedInput {
 func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 	origin := ""
 	suborigin := ""
+	publicID := ""
 	token, err := jwt.ParseWithClaims(jwtBase64URL, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
-		header, ok := token.Header[tokenHeaderKeyJwk]
-		if ok {
-			for k, v := range header.(map[string]interface{}) {
-				if val, ok := v.(string); !ok {
-					continue
-				} else if k == jwkMapKeyX {
-					dx, err := base64.URLEncoding.DecodeString(val)
-					if err != nil {
-						return nil, fmt.Errorf("decoding x header value: %v", err)
-					}
-					// TODO: This will be handled by the kid header handling below once we update the near client.
-					origin = nearOrigin
-					suborigin = nearTestnetSuborigin
-					return crypto.UnmarshalEd25519PublicKey(dx)
-				}
-			}
-		}
-		header, ok = token.Header[tokenHeaderKeyKid]
+		header, ok := token.Header[tokenHeaderKeyKid]
 		if ok {
 			var val string
 			if val, ok = header.(string); !ok {
@@ -168,9 +147,22 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 			}
 			origin = parts[0]
 			suborigin = parts[1]
-			addrString := strings.Split(val, ":")[2]
-			addrBytes := eth.FromHex(addrString)
-			return eth.BytesToAddress(addrBytes), nil
+			kidString := strings.Split(val, ":")[2]
+			switch token.Method.Alg() {
+			case "NEAR":
+				publicID = fmt.Sprintf("ed25519:%s", kidString)
+				keyBytes, err := base58.Decode(kidString)
+				if err != nil {
+					return nil, fmt.Errorf("unable to parse public key: %v", err)
+				}
+				return ed25519.PublicKey(keyBytes), nil
+			case "ETH":
+				publicID = kidString
+				addrBytes := eth.FromHex(kidString)
+				return eth.BytesToAddress(addrBytes), nil
+			default:
+				return nil, errors.New("invalid key info")
+			}
 		}
 		return nil, errors.New("invalid key info")
 	})
@@ -193,6 +185,7 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 		Sub:       claims.Subject,
 		Iss:       claims.Issuer,
 		Aud:       claims.Audience,
+		PublicID:  publicID,
 		Origin:    origin,
 		Suborigin: suborigin,
 	}
@@ -228,19 +221,29 @@ func validateToken(jwtBase64URL string) (*ValidatedToken, error) {
 // validateDepositedFunds validates that the user has locked funds on chain.
 func validateDepositedFunds(
 	ctx context.Context,
-	brokerID string,
-	accountID string,
+	depositee string,
 	chainID string,
 	chainAPI chainapi.ChainAPI,
 ) (bool, error) {
-	hasDeposit, err := chainAPI.HasDeposit(ctx, brokerID, accountID, chainID)
+	hasDeposit, err := chainAPI.HasDeposit(ctx, depositee, chainID)
 	if err != nil {
 		return false, fmt.Errorf("checking for deposited funds: %v", err)
 	}
-	if !hasDeposit {
-		return false, errors.New("account doesn't have deposited funds")
+	return hasDeposit, nil
+}
+
+func validateOwnsKey(
+	ctx context.Context,
+	accountID string,
+	publicID string,
+	chainID string,
+	chainAPI chainapi.ChainAPI,
+) (bool, error) {
+	ownsKey, err := chainAPI.OwnsPublicKey(ctx, accountID, publicID, chainID)
+	if err != nil {
+		return false, fmt.Errorf("checking for owned key: %v", err)
 	}
-	return true, nil
+	return ownsKey, nil
 }
 
 // Auth authenticates a user storage request.
@@ -285,10 +288,23 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		default:
 			return nil, fmt.Errorf("unknown origin %s", token.Origin)
 		}
-		fundsOk, err := validateDepositedFunds(ctx, token.Aud, token.Iss, token.Suborigin, chainAPI)
-		if !fundsOk || err != nil {
+
+		fundsOk, err := validateDepositedFunds(ctx, token.Iss, token.Suborigin, chainAPI)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "validating deposited funds: %v", err)
+		}
+		if !fundsOk {
 			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
 		}
+
+		ownsKey, err := validateOwnsKey(ctx, token.Iss, token.PublicID, token.Suborigin, chainAPI)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "validating owns key: %v", err)
+		}
+		if !ownsKey {
+			return nil, status.Errorf(codes.Unauthenticated, "doesn't own key: %v", err)
+		}
+
 		log.Debugf("successful chain authentication: %s", token.Iss)
 		return &pb.AuthResponse{
 			Identity: token.Sub,

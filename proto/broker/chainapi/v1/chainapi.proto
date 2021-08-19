@@ -3,15 +3,25 @@ package broker.chainapi.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/chainapi/v1;chainapi";
 
 message HasDepositRequest {
-  string broker_id = 1;
-  string account_id = 2;
-  string chain_id = 3;
+  string depositee = 1;
+  string chain_id = 2;
 }
 
 message HasDepositResponse {
   bool has_deposit = 1;
 }
 
+message OwnsPublicKeyRequest {
+  string account_id = 1;
+  string public_key = 2;
+  string chain_id = 3;
+}
+
+message OwnsPublicKeyResponse {
+  bool owns_public_key = 1;
+}
+
 service ChainApiService {
   rpc HasDeposit(HasDepositRequest) returns (HasDepositResponse) {}
+  rpc OwnsPublicKey(OwnsPublicKeyRequest) returns (OwnsPublicKeyResponse) {}
 }

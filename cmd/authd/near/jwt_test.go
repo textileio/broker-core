@@ -1,18 +1,17 @@
-package ethjwt
+package nearjwt
 
 import (
-	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rand"
 	"log"
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang-jwt/jwt"
 )
 
-var privateKey string
-var signingMethod *SigningMethodEth
+var privateKey ed25519.PrivateKey
+var signingMethod *SigningMethodNear
 var testData []struct {
 	name        string
 	tokenString string
@@ -22,18 +21,16 @@ var testData []struct {
 }
 
 func init() {
-	signingMethod = &SigningMethodEth{"ETH"}
+	signingMethod = &SigningMethodNear{"NEAR"}
 	jwt.RegisterSigningMethod(SigningMethod.Alg(), func() jwt.SigningMethod {
 		return SigningMethod
 	})
 
-	pk, err := crypto.GenerateKey()
+	var err error
+	_, privateKey, err = ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	privateKeyBytes := crypto.FromECDSA(pk)
-	privateKey = hexutil.Encode(privateKeyBytes)[2:]
 
 	testData = []struct {
 		name        string
@@ -43,16 +40,16 @@ func init() {
 		valid       bool
 	}{
 		{
-			"ETH",
+			"valid key",
 			generateToken(true),
-			"ETH",
+			"NEAR",
 			map[string]interface{}{"jti": "foo", "sub": "bar"},
 			true,
 		},
 		{
 			"invalid key",
 			generateToken(false),
-			"ETH",
+			"NEAR",
 			map[string]interface{}{"jti": "foo", "sub": "bar"},
 			false,
 		},
@@ -60,22 +57,18 @@ func init() {
 }
 
 func TestSigningMethodEth_Alg(t *testing.T) {
-	if SigningMethod.Alg() != "ETH" {
+	if SigningMethod.Alg() != "NEAR" {
 		t.Fatal("wrong alg")
 	}
 }
 
 func TestSigningMethodEth_Sign(t *testing.T) {
-	sk, err := crypto.HexToECDSA(privateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, data := range testData {
 		if data.valid {
 			parts := strings.Split(data.tokenString, ".")
 
 			method := jwt.GetSigningMethod(data.alg)
-			sig, err := method.Sign(strings.Join(parts[0:2], "."), sk)
+			sig, err := method.Sign(strings.Join(parts[0:2], "."), privateKey)
 			if err != nil {
 				t.Errorf("[%v] error signing token: %v", data.name, err)
 			}
@@ -87,17 +80,11 @@ func TestSigningMethodEth_Sign(t *testing.T) {
 }
 
 func TestSigningMethodEth_Verify(t *testing.T) {
-	sk, err := crypto.HexToECDSA(privateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pk := sk.Public()
-	publicKeyECDSA, ok := pk.(*ecdsa.PublicKey)
+	pk := privateKey.Public()
+	publicKey, ok := pk.(ed25519.PublicKey)
 	if !ok {
-		log.Fatal("error casting public key to ECDSA")
+		log.Fatal("error casting public key to Ed25519")
 	}
-	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
 	for _, data := range testData {
 		parts := strings.Split(data.tokenString, ".")
@@ -106,7 +93,7 @@ func TestSigningMethodEth_Verify(t *testing.T) {
 
 		signingString := strings.Join(parts[0:2], ".")
 
-		err := method.Verify(signingString, parts[2], address)
+		err := method.Verify(signingString, parts[2], publicKey)
 		if data.valid && err != nil {
 			t.Errorf("[%v] error while verifying key: %v", data.name, err)
 		}
@@ -117,15 +104,11 @@ func TestSigningMethodEth_Verify(t *testing.T) {
 }
 
 func TestGenerateEthToken(t *testing.T) {
-	sk, err := crypto.HexToECDSA(privateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
 	claims := &jwt.StandardClaims{
 		Id:      "foo",
 		Subject: "bar",
 	}
-	_, err = jwt.NewWithClaims(SigningMethod, claims).SignedString(sk)
+	_, err := jwt.NewWithClaims(SigningMethod, claims).SignedString(privateKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,15 +116,14 @@ func TestGenerateEthToken(t *testing.T) {
 
 func generateToken(valid bool) string {
 	if valid {
-		sk, _ := crypto.HexToECDSA(privateKey)
 		claims := &jwt.StandardClaims{
 			Id:      "foo",
 			Subject: "bar",
 		}
-		token, _ := jwt.NewWithClaims(SigningMethod, claims).SignedString(sk)
+		token, _ := jwt.NewWithClaims(SigningMethod, claims).SignedString(privateKey)
 		return token
 	}
-	sk, _ := crypto.GenerateKey()
+	_, sk, _ := ed25519.GenerateKey(rand.Reader)
 	claims := &jwt.StandardClaims{
 		Id:      "foo",
 		Subject: "bar",

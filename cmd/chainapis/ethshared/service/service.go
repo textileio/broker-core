@@ -58,13 +58,22 @@ func (s *Service) HasDeposit(
 	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported chain id: %s", req.ChainId)
 	}
-	res, err := contractClient.HasDeposit(nil, ec.HexToAddress(req.AccountId))
+	res, err := contractClient.HasDeposit(nil, ec.HexToAddress(req.Depositee))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "calling has deposit: %v", err)
 	}
 	return &chainapi.HasDepositResponse{
 		HasDeposit: res,
 	}, nil
+}
+
+// OwnsPublicKey returns whether or not the specified account owns the provided public key.
+func (s *Service) OwnsPublicKey(
+	ctx context.Context,
+	req *chainapi.OwnsPublicKeyRequest,
+) (*chainapi.OwnsPublicKeyResponse, error) {
+	// TODO: Actuyally implement it, even though it will always return true in our usage.
+	return &chainapi.OwnsPublicKeyResponse{OwnsPublicKey: true}, nil
 }
 
 // Close stops the server and cleans up all internally created resources.
