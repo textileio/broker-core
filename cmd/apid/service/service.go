@@ -112,7 +112,7 @@ func (s *Service) OnAuctionProposalCidDelivered(ctx context.Context, ts time.Tim
 
 // OnAuctionClosed .
 func (s *Service) OnAuctionClosed(ctx context.Context, opID msgbroker.OperationID, ca broker.ClosedAuction) error {
-	log.Debug("handling auction closed message: %+v", auction)
+	log.Debug("handling auction closed message: %+v", ca)
 	if err := s.store.AuctionClosed(ctx, ca, time.Now()); err != nil {
 		log.Error(err)
 	}
