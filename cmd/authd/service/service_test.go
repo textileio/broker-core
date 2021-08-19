@@ -164,7 +164,7 @@ func TestService_ValidateLockedFunds(t *testing.T) {
 		mock.AnythingOfType("string"),
 	).Return(false, nil)
 	ok, err = validateDepositedFunds(context.Background(), sub, chainID, mockChain)
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.False(t, ok)
 	mockChain.AssertExpectations(t)
 }
