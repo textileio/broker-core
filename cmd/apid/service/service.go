@@ -53,7 +53,7 @@ func New(mb msgbroker.MsgBroker, httpAddr string, postgresURI string) (*Service,
 
 // OnAuctionStarted .
 func (s *Service) OnAuctionStarted(ctx context.Context, t time.Time, a *pb.AuctionSummary) {
-	log.Debug("handling auction started message: %+v", a)
+	log.Debugf("handling auction started message: %+v", a)
 	if err := s.store.CreateOrUpdateAuction(ctx, a); err != nil {
 		log.Error(err)
 	}
@@ -61,7 +61,7 @@ func (s *Service) OnAuctionStarted(ctx context.Context, t time.Time, a *pb.Aucti
 
 // OnAuctionBidReceived .
 func (s *Service) OnAuctionBidReceived(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
-	log.Debug("handling bid received message: %+v, %+v", a, b)
+	log.Debugf("handling bid received message: %+v, %+v", a, b)
 	err := s.store.CreateOrUpdateAuction(ctx, a)
 	if err == nil {
 		err = s.store.CreateOrUpdateBid(ctx, a.Id, b)
@@ -73,7 +73,7 @@ func (s *Service) OnAuctionBidReceived(ctx context.Context, t time.Time, a *pb.A
 
 // OnAuctionWinnerSelected .
 func (s *Service) OnAuctionWinnerSelected(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
-	log.Debug("handling winner selected message: %+v, %+v", a, b)
+	log.Debugf("handling winner selected message: %+v, %+v", a, b)
 	err := s.store.CreateOrUpdateAuction(ctx, a)
 	if err == nil {
 		err = s.store.CreateOrUpdateBid(ctx, a.Id, b)
@@ -88,7 +88,7 @@ func (s *Service) OnAuctionWinnerSelected(ctx context.Context, t time.Time, a *p
 
 // OnAuctionWinnerAcked .
 func (s *Service) OnAuctionWinnerAcked(ctx context.Context, t time.Time, a *pb.AuctionSummary, b *auctioneer.Bid) {
-	log.Debug("handling winner acked message: %+v, %+v", a, b)
+	log.Debugf("handling winner acked message: %+v, %+v", a, b)
 	err := s.store.CreateOrUpdateAuction(ctx, a)
 	if err == nil {
 		err = s.store.CreateOrUpdateBid(ctx, a.Id, b)
@@ -104,7 +104,7 @@ func (s *Service) OnAuctionWinnerAcked(ctx context.Context, t time.Time, a *pb.A
 // OnAuctionProposalCidDelivered .
 func (s *Service) OnAuctionProposalCidDelivered(ctx context.Context, ts time.Time,
 	auctionID, bidderID, bidID, proposalCid, errorCause string) {
-	log.Debug("handling proposal cid delivered message: %v, %v, %v, %v, %v",
+	log.Debugf("handling proposal cid delivered message: %v, %v, %v, %v, %v",
 		auctionID, bidderID, bidID, proposalCid, errorCause)
 	if err := s.store.ProposalDelivered(ctx, ts, auctionID, bidderID, bidID, proposalCid, errorCause); err != nil {
 		log.Error(err)
@@ -113,7 +113,7 @@ func (s *Service) OnAuctionProposalCidDelivered(ctx context.Context, ts time.Tim
 
 // OnAuctionClosed .
 func (s *Service) OnAuctionClosed(ctx context.Context, opID msgbroker.OperationID, ca broker.ClosedAuction) error {
-	log.Debug("handling auction closed message: %+v", ca)
+	log.Debugf("handling auction closed message: %+v", ca)
 	if err := s.store.AuctionClosed(ctx, ca, time.Now()); err != nil {
 		log.Error(err)
 	}
