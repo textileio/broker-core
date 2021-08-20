@@ -7,7 +7,6 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
 	core "github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
@@ -22,8 +21,9 @@ var log = golog.Logger("auctioneer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Peer    rpcpeer.Config
-	Auction auctioneer.AuctionConfig
+	Peer        rpcpeer.Config
+	Auction     auctioneer.AuctionConfig
+	PostgresURI string
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
@@ -39,7 +39,7 @@ var _ mbroker.ReadyToAuctionListener = (*Service)(nil)
 var _ mbroker.DealProposalAcceptedListener = (*Service)(nil)
 
 // New returns a new Service.
-func New(conf Config, store txndswrap.TxnDatastore, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, error) {
+func New(conf Config, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer peer
@@ -50,7 +50,7 @@ func New(conf Config, store txndswrap.TxnDatastore, mb mbroker.MsgBroker, fc fil
 	fin.Add(p)
 
 	// Create auctioneer
-	lib, err := auctioneer.New(p, store, mb, fc, conf.Auction)
+	lib, err := auctioneer.New(p, conf.PostgresURI, mb, fc, conf.Auction)
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctioneer: %v", err)
 	}
@@ -96,31 +96,32 @@ func (s *Service) PeerInfo() (*rpcpeer.Info, error) {
 }
 
 // GetAuction gets the state of an auction by id. Mostly for test purpose.
-func (s *Service) GetAuction(id auction.ID) (*core.Auction, error) {
-	return s.lib.GetAuction(id)
+func (s *Service) GetAuction(ctx context.Context, id auction.ID) (*core.Auction, error) {
+	return s.lib.GetAuction(ctx, id)
 }
 
 // OnReadyToAuction handles messagse from ready-to-auction topic.
 func (s *Service) OnReadyToAuction(
-	_ context.Context,
+	ctx context.Context,
 	id auction.ID,
 	sdID broker.BatchID,
 	payloadCid cid.Cid,
-	dealSize, dealDuration uint64,
+	dealSize uint64,
+	dealDuration uint64,
 	dealReplication uint32,
 	dealVerified bool,
 	excludedStorageProviders []string,
 	filEpochDeadline uint64,
 	sources auction.Sources,
 ) error {
-	_, err := s.lib.GetAuction(id)
+	_, err := s.lib.GetAuction(ctx, id)
 	if err == nil {
 		log.Warnf("auction %s already exists, skip processing", id)
 		return nil
 	} else if err != auctioneer.ErrAuctionNotFound {
 		return fmt.Errorf("get auction: %v", err)
 	}
-	err = s.lib.CreateAuction(core.Auction{
+	err = s.lib.CreateAuction(ctx, core.Auction{
 		ID:                       id,
 		BatchID:                  sdID,
 		PayloadCid:               payloadCid,

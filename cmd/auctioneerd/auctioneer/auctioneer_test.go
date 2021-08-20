@@ -29,6 +29,7 @@ import (
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
+	"github.com/textileio/broker-core/tests"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
 	golog "github.com/textileio/go-log/v2"
@@ -89,9 +90,10 @@ func TestClient_GetAuction(t *testing.T) {
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
+	ctx := context.Background()
 	id := auction.ID("ID1")
 	err = s.OnReadyToAuction(
-		context.Background(),
+		ctx,
 		id,
 		newBatchID(),
 		payloadCid,
@@ -105,14 +107,14 @@ func TestClient_GetAuction(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	got, err := s.GetAuction(id)
+	got, err := s.GetAuction(ctx, id)
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, broker.AuctionStatusStarted, got.Status)
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
-	got, err = s.GetAuction(id)
+	got, err = s.GetAuction(ctx, id)
 	require.NoError(t, err)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status) // no miners making bids
 	assert.NotEmpty(t, got.ErrorCause)
@@ -129,9 +131,10 @@ func TestClient_RunAuction(t *testing.T) {
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
+	ctx := context.Background()
 	id := auction.ID("ID1")
 	err = s.OnReadyToAuction(
-		context.Background(),
+		ctx,
 		id,
 		newBatchID(),
 		payloadCid,
@@ -147,7 +150,7 @@ func TestClient_RunAuction(t *testing.T) {
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
-	got, err := s.GetAuction(id)
+	got, err := s.GetAuction(ctx, id)
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
@@ -160,14 +163,14 @@ func TestClient_RunAuction(t *testing.T) {
 
 		// Set the proposal as accepted
 		pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-		err = s.OnDealProposalAccepted(context.Background(), got.ID, id, pcid)
+		err = s.OnDealProposalAccepted(ctx, got.ID, id, pcid)
 		require.NoError(t, err)
 	}
 
 	time.Sleep(time.Second * 15) // Allow to finish
 
 	// Re-get auction so we can check proposal cids
-	got, err = s.GetAuction(id)
+	got, err = s.GetAuction(ctx, id)
 	require.NoError(t, err)
 
 	for _, wb := range got.WinningBids {
@@ -216,6 +219,8 @@ func newClient(t *testing.T) (*service.Service, *fakemsgbroker.FakeMsgBroker) {
 
 	listener := bufconn.Listen(bufConnSize)
 	fin.Add(listener)
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
 	config := service.Config{
 		Peer: rpcpeer.Config{
 			RepoPath:   dir,
@@ -224,14 +229,11 @@ func newClient(t *testing.T) (*service.Service, *fakemsgbroker.FakeMsgBroker) {
 		Auction: auctioneer.AuctionConfig{
 			Duration: time.Second * 10,
 		},
+		PostgresURI: u,
 	}
 
-	store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "auctionq"))
-	require.NoError(t, err)
-	fin.Add(store)
-
 	bm := fakemsgbroker.New()
-	s, err := service.New(config, store, bm, newFilClientMock())
+	s, err := service.New(config, bm, newFilClientMock())
 	require.NoError(t, err)
 	fin.Add(s)
 	err = s.Start(false)
@@ -259,7 +261,7 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 				EnableMDNS: true,
 			},
 			BidParams: bidbotsrv.BidParams{
-				MinerAddr:             "foo",
+				StorageProviderID:     "foo",
 				WalletAddrSig:         []byte("bar"),
 				AskPrice:              100000000000,
 				VerifiedAskPrice:      100000000000,
@@ -267,6 +269,7 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 				DealStartWindow:       oneDayEpochs,
 				DealDataDirectory:     t.TempDir(),
 				DealDataFetchAttempts: 3,
+				DealDataFetchTimeout:  time.Second,
 			},
 			AuctionFilters: bidbotsrv.AuctionFilters{
 				DealDuration: bidbotsrv.MinMaxFilter{

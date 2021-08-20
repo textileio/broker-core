@@ -38,7 +38,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.2.0
 	github.com/lib/pq v1.10.2
-	github.com/libp2p/go-libp2p v0.14.3
+	github.com/libp2p/go-libp2p v0.14.4
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5
 	github.com/mr-tron/base58 v1.2.0
@@ -51,10 +51,9 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.0.5-0.20210812152825-8b6499ad10ca
+	github.com/textileio/bidbot v0.0.7-0.20210819014045-873e9f76b558
 	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.2
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5-0.20210821004002-7755799c3cb6
 	github.com/textileio/go-log/v2 v2.1.3-gke-1
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect

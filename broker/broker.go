@@ -34,36 +34,20 @@ type ClosedAuction struct {
 }
 
 // AuctionStatus is the status of an auction.
-type AuctionStatus int
+type AuctionStatus string
 
 const (
 	// AuctionStatusUnspecified indicates the initial or invalid status of an auction.
-	AuctionStatusUnspecified AuctionStatus = iota
+	AuctionStatusUnspecified AuctionStatus = ""
 	// AuctionStatusQueued indicates the auction is currently queued.
-	AuctionStatusQueued
+	AuctionStatusQueued AuctionStatus = "queued"
 	// AuctionStatusStarted indicates the auction has started.
-	AuctionStatusStarted
+	AuctionStatusStarted AuctionStatus = "started"
 	// AuctionStatusFinalized indicates the auction has reached a final state.
 	// If ErrorCause is empty, the auction has received a sufficient number of bids.
 	// If ErrorCause is not empty, a fatal error has occurred and the auction should be considered abandoned.
-	AuctionStatusFinalized
+	AuctionStatusFinalized AuctionStatus = "finalized"
 )
-
-// String returns a string-encoded status.
-func (as AuctionStatus) String() string {
-	switch as {
-	case AuctionStatusUnspecified:
-		return "unspecified"
-	case AuctionStatusQueued:
-		return "queued"
-	case AuctionStatusStarted:
-		return "started"
-	case AuctionStatusFinalized:
-		return "finalized"
-	default:
-		return "invalid"
-	}
-}
 
 // Broker provides full set of functionalities for Filecoin brokering.
 type Broker interface {

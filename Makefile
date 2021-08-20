@@ -132,13 +132,13 @@ buf-ssh: $(BUF)
 	# $(BUF) breaking --against-input "$(SSH_GIT)#branch=main"
 
 define gen_sql_assets
-	for daemon in $(1); do \
-		cd cmd/$${daemon}d/store && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -; \
+	for path in $(1); do \
+		cd cmd/$${path} && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -; \
 	done
 endef
 
 sql-assets: $(GO_BINDATA) $(SQLC)
-	$(call gen_sql_assets,broker piecer dealer packer auth api);
+	$(call gen_sql_assets,authd/store auctioneerd/auctioneer/queue apid/store brokerd/store dealerd/store packerd/store piecerd/store);
 .PHONY: sql-assets
 
 generate: protos sql-assets

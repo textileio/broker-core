@@ -19,13 +19,13 @@ func TestAcceptBid(t *testing.T) {
 	// validation, but just in case.
 	require.False(t, acceptBid(&auctioneer.Auction{FilEpochDeadline: 89999}, &auctioneer.Bid{}))
 
-	require.True(t, acceptBid(&auctioneer.Auction{}, &auctioneer.Bid{MinerAddr: "f0001"}))
+	require.True(t, acceptBid(&auctioneer.Auction{}, &auctioneer.Bid{StorageProviderID: "f0001"}))
 	require.True(t, acceptBid(&auctioneer.Auction{
 		ExcludedStorageProviders: []string{"f0002"}},
-		&auctioneer.Bid{MinerAddr: "f0001"}))
+		&auctioneer.Bid{StorageProviderID: "f0001"}))
 	require.False(t, acceptBid(&auctioneer.Auction{
 		ExcludedStorageProviders: []string{"f0001"},
-	}, &auctioneer.Bid{MinerAddr: "f0001"}))
+	}, &auctioneer.Bid{StorageProviderID: "f0001"}))
 }
 
 func TestSortBids(t *testing.T) {

@@ -149,7 +149,7 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(
 			ctx, cancel := context.WithTimeout(ctx, config.AckDeadline)
 			defer cancel()
 			if err := handler(ctx, m.Data); err != nil {
-				log.Error(err)
+				log.Errorf("handling %s message: %v", topicName, err)
 				m.Nack()
 				return
 			}

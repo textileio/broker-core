@@ -197,7 +197,7 @@ func AuctionToPbSummary(a *auctioneer.Auction) *pb.AuctionSummary {
 		BatchId:                  string(a.BatchID),
 		DealVerified:             a.DealVerified,
 		ExcludedStorageProviders: a.ExcludedStorageProviders,
-		Status:                   a.Status.String(),
+		Status:                   string(a.Status),
 		StartedAt:                timestamppb.New(a.StartedAt),
 		UpdatedAt:                timestamppb.New(a.UpdatedAt),
 		Duration:                 uint64(a.Duration),
@@ -210,19 +210,19 @@ func bidFromPb(pbid *pb.Bid) (*auctioneer.Bid, error) {
 		return nil, fmt.Errorf("invalid bidder ID: %v", err)
 	}
 	return &auctioneer.Bid{
-		MinerAddr:        pbid.StorageProviderId,
-		BidderID:         bidderID,
-		AskPrice:         pbid.AskPrice,
-		VerifiedAskPrice: pbid.VerifiedAskPrice,
-		StartEpoch:       pbid.StartEpoch,
-		FastRetrieval:    pbid.FastRetrieval,
-		ReceivedAt:       pbid.ReceivedAt.AsTime(),
+		StorageProviderID: pbid.StorageProviderId,
+		BidderID:          bidderID,
+		AskPrice:          pbid.AskPrice,
+		VerifiedAskPrice:  pbid.VerifiedAskPrice,
+		StartEpoch:        pbid.StartEpoch,
+		FastRetrieval:     pbid.FastRetrieval,
+		ReceivedAt:        pbid.ReceivedAt.AsTime(),
 	}, nil
 }
 
 func bidToPb(bid *auctioneer.Bid) *pb.Bid {
 	return &pb.Bid{
-		StorageProviderId: bid.MinerAddr,
+		StorageProviderId: bid.StorageProviderID,
 		BidderId:          peer.Encode(bid.BidderID),
 		AskPrice:          bid.AskPrice,
 		VerifiedAskPrice:  bid.VerifiedAskPrice,

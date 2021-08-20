@@ -7,7 +7,6 @@ resources:
 - ../base/ipfs-cluster
 - cert.yaml
 - ipfs-cluster-service.yaml
-- mongo-cluster-rolebinding.yaml
 - auctioneer-pdb.yaml
 - auth-pdb.yaml
 - broker-pdb.yaml
@@ -66,15 +65,15 @@ secretGenerator:
   type: Opaque
 
 patchesStrategicMerge:
-- ipfs-cluster-setup-confmap-patch.yaml
-- ipfs-cluster-volumeclaim-patch.yaml
-- ipfs-cluster-statefulset-patch.yaml
-- ingress-patch.yaml
-- mongo-patch.yaml
-- storaged-patch.yaml
+- apid-patch.yaml
+- auctioneerd-patch.yaml
+- authd-patch.yaml
 - brokerd-patch.yaml
 - dealerd-patch.yaml
-- piecerd-patch.yaml
+- ingress-patch.yaml
+- ipfs-cluster-setup-confmap-patch.yaml
+- ipfs-cluster-statefulset-patch.yaml
+- ipfs-cluster-volumeclaim-patch.yaml
 - packerd-patch.yaml
-- authd-patch.yaml
-- apid-patch.yaml
+- piecerd-patch.yaml
+- storaged-patch.yaml

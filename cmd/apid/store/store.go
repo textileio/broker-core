@@ -54,7 +54,7 @@ func (s *Store) CreateOrUpdateAuction(ctx context.Context, a *pb.AuctionSummary)
 func (s *Store) CreateOrUpdateBid(ctx context.Context, auctionID string, b *auctioneer.Bid) (err error) {
 	return s.db.CreateOrUpdateBid(ctx, db.CreateOrUpdateBidParams{
 		AuctionID:         auctionID,
-		StorageProviderID: b.MinerAddr,
+		StorageProviderID: b.StorageProviderID,
 		BidderID:          b.BidderID.String(),
 		AskPrice:          b.AskPrice,
 		VerifiedAskPrice:  b.VerifiedAskPrice,
@@ -97,7 +97,7 @@ func (s *Store) ProposalDelivered(ctx context.Context, ts time.Time, auctionID,
 func (s *Store) AuctionClosed(ctx context.Context, ca broker.ClosedAuction, ts time.Time) error {
 	return s.db.CloseAuction(ctx, db.CloseAuctionParams{
 		ID:         string(ca.ID),
-		Status:     db.AuctionStatus(ca.Status.String()),
+		Status:     db.AuctionStatus(ca.Status),
 		ClosedAt:   sql.NullTime{Time: ts, Valid: true},
 		ErrorCause: ca.ErrorCause,
 	})
