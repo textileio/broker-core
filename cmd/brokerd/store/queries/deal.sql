@@ -21,7 +21,8 @@ INSERT INTO deals(
 UPDATE deals
 SET deal_id = $3,
     deal_expiration = $4,
-    error_cause = $5
+    error_cause = $5,
+    updated_at=CURRENT_TIMESTAMP
 WHERE batch_id = $1 AND storage_provider_id = $2;
 
 
