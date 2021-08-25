@@ -39,23 +39,6 @@ func init() {
 	StartDelay = 0
 }
 
-func TestQueue_newID(t *testing.T) {
-	t.Parallel()
-	q := newQueue(t)
-
-	// Ensure monotonic
-	var last auction.ID
-	for i := 0; i < 10000; i++ {
-		id, err := q.newID(time.Now())
-		require.NoError(t, err)
-
-		if i > 0 {
-			assert.Greater(t, id, last)
-		}
-		last = id
-	}
-}
-
 func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
@@ -168,13 +151,14 @@ func newQueue(t *testing.T) *Queue {
 func runner(
 	_ context.Context,
 	a auctioneer.Auction,
-	addBid func(bid auctioneer.Bid) (auction.BidID, error),
+	addBid func(bid auctioneer.Bid) error,
 ) (map[auction.BidID]auctioneer.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)
 
 	result := make(map[auction.BidID]auctioneer.WinningBid)
 	receivedBids := []auctioneer.Bid{
 		{
+			ID:                "bid1",
 			StorageProviderID: "miner1",
 			WalletAddrSig:     []byte("sig1"),
 			BidderID:          randomPeerID(),
@@ -185,6 +169,7 @@ func runner(
 			ReceivedAt:        time.Now(),
 		},
 		{
+			ID:                "bid2",
 			StorageProviderID: "miner2",
 			WalletAddrSig:     []byte("sig2"),
 			BidderID:          randomPeerID(),
@@ -195,6 +180,7 @@ func runner(
 			ReceivedAt:        time.Now(),
 		},
 		{
+			ID:                "bid3",
 			StorageProviderID: "miner3",
 			WalletAddrSig:     []byte("sig3"),
 			BidderID:          randomPeerID(),
@@ -208,12 +194,12 @@ func runner(
 
 	// Select winners
 	for i, bid := range receivedBids {
-		id, err := addBid(bid)
+		err := addBid(bid)
 		if err != nil {
 			return nil, err
 		}
 		if i < int(a.DealReplication) {
-			result[id] = auctioneer.WinningBid{
+			result[bid.ID] = auctioneer.WinningBid{
 				BidderID: receivedBids[0].BidderID,
 			}
 		}

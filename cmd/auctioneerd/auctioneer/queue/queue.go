@@ -2,12 +2,10 @@ package queue
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,7 +13,6 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/oklog/ulid/v2"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
@@ -49,7 +46,7 @@ var (
 type Handler func(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	addBid func(bid auctioneer.Bid) (auction.BidID, error),
+	addBid func(bid auctioneer.Bid) error,
 ) (map[auction.BidID]auctioneer.WinningBid, error)
 
 // Finalizer is called when an auction moves from "started" to "finalized".
@@ -64,13 +61,11 @@ type Queue struct {
 	finalizer Finalizer
 	jobCh     chan *auctioneer.Auction
 	tickCh    chan struct{}
-	entropy   *ulid.MonotonicEntropy
 
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	wg sync.WaitGroup
-	lk sync.Mutex
 }
 
 // NewQueue returns a new Queue using handler to process auctions.
@@ -203,26 +198,6 @@ func validate(a auctioneer.Auction) error {
 	return nil
 }
 
-// newID returns new monotonically increasing auction ids.
-func (q *Queue) newID(t time.Time) (auction.ID, error) {
-	q.lk.Lock() // entropy is not safe for concurrent use
-
-	if q.entropy == nil {
-		q.entropy = ulid.Monotonic(rand.Reader, 0)
-	}
-	id, err := ulid.New(ulid.Timestamp(t.UTC()), q.entropy)
-	if errors.Is(err, ulid.ErrMonotonicOverflow) {
-		q.entropy = nil
-		q.lk.Unlock()
-		return q.newID(t)
-	} else if err != nil {
-		q.lk.Unlock()
-		return "", fmt.Errorf("generating id: %v", err)
-	}
-	q.lk.Unlock()
-	return auction.ID(strings.ToLower(id.String())), nil
-}
-
 // GetAuction returns an auction by id.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 func (q *Queue) GetAuction(ctx context.Context, id auction.ID) (a *auctioneer.Auction, err error) {
@@ -351,7 +326,7 @@ func (q *Queue) worker(num int) {
 		case a := <-q.jobCh:
 			log.Infof("worker %d started auction %s", num, a.ID)
 			// Handle the auction with the handler func
-			wbs, err := q.handler(q.ctx, *a, func(bid auctioneer.Bid) (auction.BidID, error) {
+			wbs, err := q.handler(q.ctx, *a, func(bid auctioneer.Bid) error {
 				return q.addBid(a, bid)
 			})
 			if err != nil {
@@ -402,22 +377,17 @@ func (q *Queue) saveAndFinalizeAuction(a *auctioneer.Auction) {
 	}
 }
 
-func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) (auction.BidID, error) {
+func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) error {
 	if a.Status != broker.AuctionStatusStarted {
-		return "", errors.New("auction has not started")
-	}
-	id, err := q.newID(bid.ReceivedAt)
-	if err != nil {
-		return "", fmt.Errorf("generating bid id: %v", err)
+		return errors.New("auction has not started")
 	}
 	if a.Bids == nil {
 		a.Bids = make(map[auction.BidID]auctioneer.Bid)
 	}
-	bidID := auction.BidID(id)
-	a.Bids[bidID] = bid
+	a.Bids[bid.ID] = bid
 
 	if err := q.db.CreateBid(q.ctx, db.CreateBidParams{
-		ID:                bidID,
+		ID:                bid.ID,
 		AuctionID:         a.ID,
 		StorageProviderID: bid.StorageProviderID,
 		WalletAddrSig:     bid.WalletAddrSig,
@@ -428,9 +398,9 @@ func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) (auction.BidID
 		FastRetrieval:     bid.FastRetrieval,
 		ReceivedAt:        bid.ReceivedAt,
 	}); err != nil {
-		return "", fmt.Errorf("saving bid: %v", err)
+		return fmt.Errorf("saving bid: %v", err)
 	}
-	return auction.BidID(id), nil
+	return nil
 }
 
 func (q *Queue) start() {

@@ -3,6 +3,7 @@ package auctioneer
 import (
 	"container/heap"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/oklog/ulid/v2"
 	pb "github.com/textileio/bidbot/gen/v1"
 	"github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/bidbot/lib/auction"
@@ -66,7 +68,8 @@ type Auctioneer struct {
 	auctions *rpc.Topic
 
 	finalizer *finalizer.Finalizer
-	lk        sync.Mutex
+	lkEntropy sync.Mutex
+	entropy   *ulid.MonotonicEntropy
 
 	statLastCreatedAuction    atomic.Value // time.Time
 	metricNewAuction          metric.Int64Counter
@@ -133,8 +136,6 @@ func (a *Auctioneer) Close() error {
 // If bootstrap is true, the peer will dial the configured bootstrap addresses
 // before creating the deal auction feed.
 func (a *Auctioneer) Start(bootstrap bool) error {
-	a.lk.Lock()
-	defer a.lk.Unlock()
 	if a.started {
 		return nil
 	}
@@ -243,7 +244,7 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 func (a *Auctioneer) processAuction(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	addBid func(bid auctioneer.Bid) (core.BidID, error),
+	addBid func(bid auctioneer.Bid) error,
 ) (map[core.BidID]auctioneer.WinningBid, error) {
 	if err := mbroker.PublishMsgAuctionStarted(ctx, a.mb, mbroker.AuctionToPbSummary(&auction)); err != nil {
 		log.Warn(err) // error is annotated
@@ -275,8 +276,13 @@ func (a *Auctioneer) processAuction(
 		if err := proto.Unmarshal(msg, pbid); err != nil {
 			return nil, fmt.Errorf("unmarshaling message: %v", err)
 		}
+		id, err := a.newID()
+		if err != nil {
+			return nil, fmt.Errorf("generating bid id: %v", err)
+		}
 
 		bid := auctioneer.Bid{
+			ID:                id,
 			StorageProviderID: pbid.StorageProviderId,
 			WalletAddrSig:     pbid.WalletAddrSig,
 			BidderID:          from,
@@ -316,16 +322,16 @@ func (a *Auctioneer) processAuction(
 		bidders[bid.BidderID] = struct{}{}
 		mu.Unlock()
 
-		id, err := addBid(bid)
+		err = addBid(bid)
 		if err != nil {
 			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
 		}
 		mu.Lock()
-		bids[id] = bid
+		bids[bid.ID] = bid
 		mu.Unlock()
 		a.metricAcceptedBid.Add(ctx, 1, label)
 
-		return []byte(id), nil
+		return []byte(bid.ID), nil
 	}
 	topic.SetMessageHandler(bidsHandler)
 
@@ -670,4 +676,24 @@ func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.T
 	a.proposalTopics[peer] = topic
 	a.finalizer.Add(topic)
 	return topic, nil
+}
+
+// newID returns new monotonically increasing bid ids.
+func (a *Auctioneer) newID() (auction.BidID, error) {
+	a.lkEntropy.Lock() // entropy is not safe for concurrent use
+
+	if a.entropy == nil {
+		a.entropy = ulid.Monotonic(rand.Reader, 0)
+	}
+	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), a.entropy)
+	if errors.Is(err, ulid.ErrMonotonicOverflow) {
+		a.entropy = nil
+		a.lkEntropy.Unlock()
+		return a.newID()
+	} else if err != nil {
+		a.lkEntropy.Unlock()
+		return "", fmt.Errorf("generating id: %v", err)
+	}
+	a.lkEntropy.Unlock()
+	return auction.BidID(strings.ToLower(id.String())), nil
 }
