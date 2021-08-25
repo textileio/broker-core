@@ -43,9 +43,6 @@ var (
 
 	// ErrBidNotFound indicates the requested bid was not found.
 	ErrBidNotFound = errors.New("bid not found")
-
-	// ErrProposalDelivered indicates the requested bid already has proposal CID delivered.
-	ErrProposalDelivered = errors.New("prooposal cid was delivered")
 )
 
 // Handler is called when an auction moves from "queued" to "started".
@@ -263,25 +260,25 @@ func (q *Queue) GetAuction(ctx context.Context, id auction.ID) (a *auctioneer.Au
 	return
 }
 
-// GetBidderID returns the bidder ID for a bid.
+// GetFinalizedAuctionBid returns the bid given an auction ID and a bid ID.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
 // If a bid is not found or id, ErrBidNotFound is returned.
-// If an proposal CID is already delivered for the bid, ErrProposalDelivered is returned.
-func (q *Queue) GetBidderID(
+// It also errors if the auction is not finalized or finalized with error.
+func (q *Queue) GetFinalizedAuctionBid(
 	ctx context.Context,
 	id auction.ID,
 	bid auction.BidID,
-) (peer.ID, error) {
+) (*auctioneer.Bid, error) {
 	a, err := q.GetAuction(ctx, id)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// Check if auction is in good standing
 	if a.Status != broker.AuctionStatusFinalized {
-		return "", errors.New("auction is not finalized")
+		return nil, errors.New("auction is not finalized")
 	}
 	if a.ErrorCause != "" {
-		return "", errors.New("auction finalized with error; can't set proposal cid")
+		return nil, errors.New("auction finalized with error")
 	}
 
 	var matched *auctioneer.Bid
@@ -292,12 +289,9 @@ func (q *Queue) GetBidderID(
 		}
 	}
 	if matched == nil {
-		return "", ErrBidNotFound
+		return nil, ErrBidNotFound
 	}
-	if matched.ProposalCid.Defined() {
-		return "", ErrProposalDelivered
-	}
-	return matched.BidderID, nil
+	return matched, nil
 }
 
 // SetProposalCidDelivered saves the proposal CID for the bid.

@@ -94,7 +94,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	assert.False(t, got.UpdatedAt.IsZero())
 }
 
-func TestQueue_GetBidderID(t *testing.T) {
+func TestQueue_GetFinalizedAuctionBid(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
@@ -125,24 +125,25 @@ func TestQueue_GetBidderID(t *testing.T) {
 	pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("proposal")))
 
 	// Test auction not found
-	_, err = q.GetBidderID(ctx, "foo", "bar")
+	_, err = q.GetFinalizedAuctionBid(ctx, "foo", "bar")
 	require.ErrorIs(t, err, ErrAuctionNotFound)
 
 	// Test bid not found
-	_, err = q.GetBidderID(ctx, got.ID, "foo")
+	_, err = q.GetFinalizedAuctionBid(ctx, got.ID, "foo")
 	require.ErrorIs(t, err, ErrBidNotFound)
 
 	for id := range got.WinningBids {
-		bidderID, err := q.GetBidderID(ctx, got.ID, id)
+		bid, err := q.GetFinalizedAuctionBid(ctx, got.ID, id)
 		require.NoError(t, err)
-		assert.NotEmpty(t, bidderID)
+		assert.NotEmpty(t, bid.BidderID)
+		require.False(t, bid.ProposalCid.Defined())
 
-		// make sure proposal cid is only published once
+		// make sure proposal cid is set to the bid.
 		err = q.SetProposalCidDelivered(ctx, got.ID, id, pcid)
 		require.NoError(t, err)
-		bidderID, err = q.GetBidderID(ctx, got.ID, id)
-		require.ErrorIs(t, err, ErrProposalDelivered)
-		assert.Empty(t, bidderID)
+		bid, err = q.GetFinalizedAuctionBid(ctx, got.ID, id)
+		require.NoError(t, err)
+		require.True(t, bid.ProposalCid.Defined())
 	}
 
 	got, err = q.GetAuction(ctx, id)

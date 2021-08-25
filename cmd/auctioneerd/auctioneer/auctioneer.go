@@ -44,9 +44,6 @@ var (
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
 
-	// ErrBidNotFound indicates the requested auction was not found.
-	ErrBidNotFound = errors.New("bid not found")
-
 	// ErrInsufficientBids indicates the auction failed due to insufficient bids.
 	ErrInsufficientBids = errors.New("insufficient bids")
 )
@@ -200,41 +197,35 @@ func (a *Auctioneer) GetAuction(ctx context.Context, id core.ID) (*auctioneer.Au
 
 // DeliverProposal delivers the proposal Cid for an accepted deal to the winning bidder.
 // This may be called multiple times by the broker in the event delivery fails.
-// If an auction is not found for id, ErrAuctionNotFound is returned.
-// If a bid is not found for id, ErrBidNotFound is returned.
-func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.BidID, pcid cid.Cid) error {
+func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bidID core.BidID, pcid cid.Cid) error {
 	if !pcid.Defined() {
 		return errors.New("proposal cid is not defined")
 	}
 
-	bidderID, err := a.queue.GetBidderID(ctx, id, bid)
-	if errors.Is(q.ErrAuctionNotFound, err) {
-		return ErrAuctionNotFound
-	}
-	if errors.Is(q.ErrBidNotFound, err) {
-		return ErrBidNotFound
-	}
-	if errors.Is(q.ErrProposalDelivered, err) {
+	bid, err := a.queue.GetFinalizedAuctionBid(ctx, auctionID, bidID)
+	if bid.ProposalCid.Defined() {
 		log.Warnf("proposal cid %s is already published, duplicated message?", pcid)
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("getting bidder ID: %v", err)
+		return fmt.Errorf("getting bid: %v", err)
 	}
 	var errCause string
-	publishErr := a.publishProposal(ctx, id, bid, bidderID, pcid)
+	publishErr := a.publishProposal(ctx, auctionID, bidID, bid.BidderID, pcid)
 	if publishErr != nil {
 		errCause = publishErr.Error()
-		if err := a.queue.SetProposalCidDeliveryError(ctx, id, bid, errCause); err != nil {
+		if err := a.queue.SetProposalCidDeliveryError(ctx, auctionID, bidID, errCause); err != nil {
 			log.Errorf("setting proposal cid delivery error: %v", err)
 		}
+		publishErr = fmt.Errorf("publishing proposal to %s in auction %s: %v", bid.StorageProviderID, auctionID, publishErr)
 	} else {
-		log.Infof("delivered proposal %s for bid %s in auction %s", pcid, bid, id)
-		if err := a.queue.SetProposalCidDelivered(ctx, id, bid, pcid); err != nil {
+		log.Infof("delivered proposal %s for bid %s in auction %s to %s", pcid, bidID, auctionID, bid.StorageProviderID)
+		if err := a.queue.SetProposalCidDelivered(ctx, auctionID, bidID, pcid); err != nil {
 			log.Errorf("saving proposal cid: %v", err)
 		}
 	}
-	if err := mbroker.PublishMsgAuctionProposalCidDelivered(ctx, a.mb, id, bidderID, bid, pcid, errCause); err != nil {
+	if err := mbroker.PublishMsgAuctionProposalCidDelivered(ctx, a.mb, auctionID,
+		bid.BidderID, bidID, pcid, errCause); err != nil {
 		log.Warn(err) // error is annotated
 	}
 	return publishErr
@@ -634,13 +625,13 @@ func (a *Auctioneer) publishProposal(
 	defer cancel()
 	res, err := topic.Publish(tctx, msg, rpc.WithRepublishing(true))
 	if err != nil {
-		return fmt.Errorf("publishing proposal to %s in auction %s: %v", bidder, id, err)
+		return err
 	}
 	r := <-res
 	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
-		return fmt.Errorf("publishing proposal to %s in auction %s: %v", bidder, id, r.Err)
+		return err
 	} else if r.Err != nil {
-		return fmt.Errorf("publishing proposal in auction %s; bidder %s returned error: %v", id, bidder, r.Err)
+		return fmt.Errorf("bidder returned error: %v", r.Err)
 	}
 	return nil
 }
