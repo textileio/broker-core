@@ -61,7 +61,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	q := newQueue(t)
 
 	ctx := context.Background()
-	id := auction.ID("ID-1")
+	id := auction.ID("ID-CreateAuction")
 	err := q.CreateAuction(ctx, auctioneer.Auction{
 		ID:              id,
 		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
@@ -99,7 +99,7 @@ func TestQueue_GetFinalizedAuctionBid(t *testing.T) {
 	q := newQueue(t)
 
 	ctx := context.Background()
-	id := auction.ID("ID-1")
+	id := auction.ID("ID-GetFinalizedAuctionBid")
 	err := q.CreateAuction(ctx, auctioneer.Auction{
 		ID:              id,
 		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),

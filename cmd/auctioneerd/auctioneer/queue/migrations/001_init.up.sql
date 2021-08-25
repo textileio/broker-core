@@ -17,8 +17,9 @@ CREATE TABLE IF NOT EXISTS auctions (
     started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+CREATE INDEX IF NOT EXISTS auctions_fil_epoch_deadline ON auctions(fil_epoch_deadline);
 CREATE INDEX IF NOT EXISTS auctions_status ON auctions(status);
-CREATE INDEX IF NOT EXISTS auctions_updated_at ON auctions(updated_at);
+
 
 CREATE TABLE IF NOT EXISTS bids (
     id text PRIMARY KEY,

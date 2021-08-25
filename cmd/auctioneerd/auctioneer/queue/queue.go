@@ -146,12 +146,15 @@ func (q *Queue) CreateAuction(ctx context.Context, a auctioneer.Auction) error {
 		}
 	}
 
-	if err := q.db.CreateAuction(ctx, params); err != nil {
-		return fmt.Errorf("creating auction: %v", err)
-	}
-	log.Debugf("created auction %s", a.ID)
-	q.enqueue(&a)
-	return nil
+	return storeutil.WithTx(ctx, q.conn, func(tx *sql.Tx) error {
+		txn := q.db.WithTx(tx)
+		if err := txn.CreateAuction(ctx, params); err != nil {
+			return fmt.Errorf("creating auction: %v", err)
+		}
+		log.Debugf("created auction %s", a.ID)
+		q.enqueue(ctx, txn, &a)
+		return nil
+	})
 }
 
 func validate(a auctioneer.Auction) error {
@@ -321,16 +324,17 @@ func (q *Queue) SetProposalCidDeliveryError(
 	})
 }
 
-func (q *Queue) enqueue(a *auctioneer.Auction) {
-	if err := q.saveAndTransitionStatus(q.ctx, a, broker.AuctionStatusStarted); err != nil {
+func (q *Queue) enqueue(ctx context.Context, qx *db.Queries, a *auctioneer.Auction) {
+	if err := saveAndTransitionStatus(ctx, qx, a, broker.AuctionStatusStarted); err != nil {
 		log.Errorf("updating status (started): %v", err)
 		return
 	}
 	select {
 	case q.jobCh <- a:
+		log.Debugf("enqueued %s ", a.ID)
 	default:
 		log.Debugf("workers are busy; queueing %s ", a.ID)
-		if err := q.saveAndTransitionStatus(q.ctx, a, broker.AuctionStatusQueued); err != nil {
+		if err := saveAndTransitionStatus(ctx, qx, a, broker.AuctionStatusQueued); err != nil {
 			log.Errorf("updating status (queued): %v", err)
 		}
 	}
@@ -382,7 +386,7 @@ func (q *Queue) worker(num int) {
 }
 
 func (q *Queue) saveAndFinalizeAuction(a *auctioneer.Auction) {
-	if err := q.saveAndTransitionStatus(q.ctx, a, broker.AuctionStatusFinalized); err != nil {
+	if err := saveAndTransitionStatus(q.ctx, q.db, a, broker.AuctionStatusFinalized); err != nil {
 		log.Errorf("updating status (%s): %v", broker.AuctionStatusFinalized, err)
 		return
 	}
@@ -392,7 +396,7 @@ func (q *Queue) saveAndFinalizeAuction(a *auctioneer.Auction) {
 		a.ErrorCause = err.Error()
 
 		// Save error
-		if err := q.saveAndTransitionStatus(q.ctx, a, a.Status); err != nil {
+		if err := saveAndTransitionStatus(q.ctx, q.db, a, a.Status); err != nil {
 			log.Errorf("saving finalizer error: %v", err)
 		}
 	}
@@ -445,29 +449,37 @@ func (q *Queue) start() {
 }
 
 func (q *Queue) processNext() {
-	a, err := q.db.GetNextReadyToExecute(q.ctx, stuckSeconds)
-	if err == sql.ErrNoRows {
-		return
-	} else if err != nil {
-		log.Errorf("getting next in queue: %v", err)
-		return
-	}
-	auction, err := auctionFromDb(a)
+	err := storeutil.WithTx(q.ctx, q.conn, func(tx *sql.Tx) error {
+		txn := q.db.WithTx(tx)
+		a, err := txn.GetNextReadyToExecute(q.ctx, stuckSeconds)
+		if err == sql.ErrNoRows {
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("getting next in queue: %v", err)
+		}
+		log.Debugf("got auction from DB: %v", a.ID)
+		auction, err := auctionFromDb(a)
+		if err != nil {
+			return fmt.Errorf("auction from DB: %v", err)
+		}
+		q.enqueue(q.ctx, txn, auction)
+		return nil
+	})
 	if err != nil {
-		log.Errorf("auction from DB: %v", err)
-		return
+		log.Error(err)
 	}
-	q.enqueue(auction)
 }
 
 // saveAndTransitionStatus sets a new status, updating the started time if needed.
 // Do not directly edit the auction status because it is needed to determine the correct status transition.
 // Pass the desired new status with newStatus.
-func (q *Queue) saveAndTransitionStatus(ctx context.Context, a *auctioneer.Auction,
+func saveAndTransitionStatus(ctx context.Context,
+	q *db.Queries,
+	a *auctioneer.Auction,
 	newStatus broker.AuctionStatus) error {
 	if a.Status != newStatus {
 		a.Status = newStatus
-		return q.db.UpdateAuctionStatusAndError(ctx, db.UpdateAuctionStatusAndErrorParams{
+		return q.UpdateAuctionStatusAndError(ctx, db.UpdateAuctionStatusAndErrorParams{
 			ID:         a.ID,
 			Status:     a.Status,
 			ErrorCause: a.ErrorCause,
