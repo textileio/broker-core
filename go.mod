@@ -3,7 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
-	cloud.google.com/go/pubsub v1.13.0
+	cloud.google.com/go/pubsub v1.16.0
 	cloud.google.com/go/storage v1.16.0
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
@@ -67,8 +67,8 @@ require (
 	go.uber.org/zap v1.19.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/sys v0.0.0-20210818153620-00dd8d7831e7 // indirect
-	google.golang.org/api v0.50.0
-	google.golang.org/grpc v1.39.0
+	google.golang.org/api v0.54.0
+	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
 )
 
