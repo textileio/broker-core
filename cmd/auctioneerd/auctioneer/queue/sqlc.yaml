@@ -1,0 +1,31 @@
+version: "1"
+packages:
+  - name: "db"
+    path: "internal/db"
+    queries: "./queries"
+    schema: "./migrations"
+    engine: "postgresql"
+    emit_prepared_queries: true
+    emit_interface: false
+    emit_exact_table_names: false
+    emit_empty_slices: false
+    emit_json_tags: true
+    json_tags_case_style: "camel"
+
+overrides:
+  - column: "auctions.id"
+    go_type: "github.com/textileio/bidbot/lib/auction.ID"
+  - column: "auctions.batch_id"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"
+  - column: "auctions.rep_factor"
+    go_type: "int32"
+  - column: "auctions.deal_duration"
+    go_type: "uint64"
+  - column: "auctions.fil_epoch_deadline"
+    go_type: "uint64"
+  - column: "auctions.status"
+    go_type: "github.com/textileio/broker-core/broker.AuctionStatus"
+  - column: "bids.id"
+    go_type: "github.com/textileio/bidbot/lib/auction.BidID"
+  - column: "bids.auction_id"
+    go_type: "github.com/textileio/bidbot/lib/auction.ID"

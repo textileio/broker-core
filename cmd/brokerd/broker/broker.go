@@ -21,6 +21,7 @@ import (
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/broker-core/storeutil"
 )
 
 const (
@@ -206,7 +207,7 @@ func (b *Broker) CreatePrepared(
 		return broker.StorageRequest{}, err
 	}
 	defer func() {
-		err = b.store.FinishTxForCtx(ctx, err)
+		err = storeutil.FinishTxForCtx(ctx, err)
 	}()
 
 	log.Debugf("creating prepared storage-request")
@@ -234,11 +235,11 @@ func (b *Broker) CreatePrepared(
 		auction.ID(auctionID),
 		ba.ID,
 		ba.PayloadCid,
-		int(ba.PieceSize),
+		ba.PieceSize,
 		ba.DealDuration,
 		ba.RepFactor,
 		b.conf.verifiedDeals,
-		nil,
+		nil, // excludedStorageProviders
 		auctionEpochDeadline,
 		ba.Sources,
 	); err != nil {
@@ -345,17 +346,12 @@ func (b *Broker) NewBatchPrepared(
 		return fmt.Errorf("the data preparation result is invalid: %s", err)
 	}
 
-	auctionID, err := b.newID()
-	if err != nil {
-		return fmt.Errorf("generating auction id: %s", err)
-	}
-
 	ctx, err = b.store.CtxWithTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = b.store.FinishTxForCtx(ctx, err)
+		err = storeutil.FinishTxForCtx(ctx, err)
 	}()
 
 	ba, err := b.store.GetBatch(ctx, batchID)
@@ -386,17 +382,21 @@ func (b *Broker) NewBatchPrepared(
 		return fmt.Errorf("saving piecer output in batch: %s", err)
 	}
 
+	auctionID, err := b.newID()
+	if err != nil {
+		return fmt.Errorf("generating auction id: %s", err)
+	}
 	if err := msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
 		auction.ID(auctionID),
 		batchID,
 		ba.PayloadCid,
-		int(dpr.PieceSize),
+		dpr.PieceSize,
 		ba.DealDuration,
 		ba.RepFactor,
 		b.conf.verifiedDeals,
-		nil,
+		nil, // excludedStorageProviders,
 		ba.FilEpochDeadline,
 		ba.Sources,
 	); err != nil {
@@ -423,7 +423,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return err
 	}
 	defer func() {
-		err = b.store.FinishTxForCtx(ctx, err)
+		err = storeutil.FinishTxForCtx(ctx, err)
 	}()
 
 	if exists, err := b.store.OperationExists(ctx, string(opID)); err != nil {
@@ -448,7 +448,6 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 			// The batch can be rebatched. We switch the batch to error status,
 			// and also signal the store to liberate the underlying storage requests to Pending.
 			// This way they can be signaled to be re-batched.
-			log.Debugf("auction %s closed with error %s, rebatching...", au.ID, au.ErrorCause)
 			if err := b.errorBatchAndRebatch(ctx, au.BatchID, au.ErrorCause); err != nil {
 				return fmt.Errorf("erroring batch and rebatching: %s", err)
 			}
@@ -494,7 +493,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return fmt.Errorf("adding storage-provider deals: %s", err)
 	}
 
-	log.Debugf("publishing ready to create deals for auction %s, batch", au.ID, au.BatchID)
+	log.Debugf("publishing ready to create deals for auction %s, batch %s", au.ID, au.BatchID)
 	if err := msgbroker.PublishMsgReadyToCreateDeals(ctx, b.mb, ads); err != nil {
 		return fmt.Errorf("sending ready to create deals msg to msgbroker: %s", err)
 	}
@@ -514,7 +513,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		return err
 	}
 	defer func() {
-		err = b.store.FinishTxForCtx(ctx, err)
+		err = storeutil.FinishTxForCtx(ctx, err)
 	}()
 
 	if exists, err := b.store.OperationExists(ctx, string(opID)); err != nil {
@@ -586,7 +585,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 			auction.ID(auctionID),
 			ba.ID,
 			ba.PayloadCid,
-			int(ba.PieceSize),
+			ba.PieceSize,
 			ba.DealDuration,
 			1,
 			b.conf.verifiedDeals,

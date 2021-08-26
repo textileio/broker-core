@@ -119,7 +119,8 @@ type ReadyToAuctionListener interface {
 		id auction.ID,
 		BatchID broker.BatchID,
 		payloadCid cid.Cid,
-		dealSize, dealDuration uint64,
+		dealSize uint64,
+		dealDuration uint64,
 		dealReplication uint32,
 		dealVerified bool,
 		excludedStorageProviders []string,
@@ -303,7 +304,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				return errors.New("duration is zero")
 			}
 			if len(r.Proposals) == 0 {
-				return errors.New("list of proposals is empty")
+				return fmt.Errorf("batch %s: list of proposals is empty", r.BatchId)
 			}
 			ads := dealer.AuctionDeals{
 				ID:         r.Id,
@@ -467,9 +468,6 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			}
 			if req.DealSize == 0 {
 				return errors.New("deal size must be greater than zero")
-			}
-			if req.DealDuration == 0 {
-				return errors.New("deal duration must be greater than zero")
 			}
 			if req.DealReplication == 0 {
 				return errors.New("deal replication must be greater than zero")
@@ -702,7 +700,9 @@ func PublishMsgReadyToAuction(
 	id auction.ID,
 	BatchID broker.BatchID,
 	payloadCid cid.Cid,
-	dealSize, dealDuration, dealReplication int,
+	dealSize uint64,
+	dealDuration,
+	dealReplication int,
 	dealVerified bool,
 	excludedStorageProviders []string,
 	filEpochDeadline uint64,
@@ -711,7 +711,7 @@ func PublishMsgReadyToAuction(
 		Id:                       string(id),
 		BatchId:                  string(BatchID),
 		PayloadCid:               payloadCid.Bytes(),
-		DealSize:                 uint64(dealSize),
+		DealSize:                 dealSize,
 		DealDuration:             uint64(dealDuration),
 		DealReplication:          uint32(dealReplication),
 		DealVerified:             dealVerified,

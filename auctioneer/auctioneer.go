@@ -32,14 +32,19 @@ type Auction struct {
 
 // Bid defines the core bid model.
 type Bid struct {
-	MinerAddr        string
-	WalletAddrSig    []byte
-	BidderID         peer.ID
-	AskPrice         int64 // attoFIL per GiB per epoch
-	VerifiedAskPrice int64 // attoFIL per GiB per epoch
-	StartEpoch       uint64
-	FastRetrieval    bool
-	ReceivedAt       time.Time
+	ID                       auction.BidID
+	StorageProviderID        string
+	WalletAddrSig            []byte
+	BidderID                 peer.ID
+	AskPrice                 int64 // attoFIL per GiB per epoch
+	VerifiedAskPrice         int64 // attoFIL per GiB per epoch
+	StartEpoch               uint64
+	FastRetrieval            bool
+	ReceivedAt               time.Time
+	WonAt                    time.Time
+	ProposalCid              cid.Cid
+	ProposalCidDeliveredAt   time.Time
+	ProposalCidDeliveryError string
 }
 
 // WinningBid contains details about a winning bid.

@@ -1,12 +1,12 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: packer-01
+  name: auctioneer-01
 spec:
   template:
     spec:
       containers:
-        - name: packer
+        - name: auctioneer
           resources:
             requests:
               cpu:    500m

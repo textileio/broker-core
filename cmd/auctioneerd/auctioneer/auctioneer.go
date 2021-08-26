@@ -3,6 +3,7 @@ package auctioneer
 import (
 	"container/heap"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,11 +13,11 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/oklog/ulid/v2"
 	pb "github.com/textileio/bidbot/gen/v1"
 	"github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/cast"
-	"github.com/textileio/bidbot/lib/dshelper/txndswrap"
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
@@ -45,9 +46,6 @@ var (
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
 
-	// ErrBidNotFound indicates the requested bid was not found.
-	ErrBidNotFound = errors.New("bid not found")
-
 	// ErrInsufficientBids indicates the auction failed due to insufficient bids.
 	ErrInsufficientBids = errors.New("insufficient bids")
 )
@@ -70,7 +68,8 @@ type Auctioneer struct {
 	auctions *rpc.Topic
 
 	finalizer *finalizer.Finalizer
-	lk        sync.Mutex
+	lkEntropy sync.Mutex
+	entropy   *ulid.MonotonicEntropy
 
 	statLastCreatedAuction    atomic.Value // time.Time
 	metricNewAuction          metric.Int64Counter
@@ -88,7 +87,7 @@ type Auctioneer struct {
 // New returns a new Auctioneer.
 func New(
 	p *rpcpeer.Peer,
-	store txndswrap.TxnDatastore,
+	postgresURI string,
 	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
 	auctionConf AuctionConfig,
@@ -108,7 +107,10 @@ func New(
 	}
 	a.initMetrics()
 
-	queue := q.NewQueue(store, a.processAuction, a.finalizeAuction)
+	queue, err := q.NewQueue(postgresURI, a.processAuction, a.finalizeAuction)
+	if err != nil {
+		return nil, fmt.Errorf("creating queue: %v", err)
+	}
 	a.finalizer.Add(queue)
 	a.queue = queue
 
@@ -134,8 +136,6 @@ func (a *Auctioneer) Close() error {
 // If bootstrap is true, the peer will dial the configured bootstrap addresses
 // before creating the deal auction feed.
 func (a *Auctioneer) Start(bootstrap bool) error {
-	a.lk.Lock()
-	defer a.lk.Unlock()
 	if a.started {
 		return nil
 	}
@@ -165,10 +165,10 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 
 // CreateAuction creates a new auction.
 // New auctions are queued if the auctioneer is busy.
-func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
+func (a *Auctioneer) CreateAuction(ctx context.Context, auction auctioneer.Auction) error {
 	auction.Status = broker.AuctionStatusUnspecified
 	auction.Duration = a.auctionConf.Duration
-	if err := a.queue.CreateAuction(auction); err != nil {
+	if err := a.queue.CreateAuction(ctx, auction); err != nil {
 		return fmt.Errorf("creating auction: %v", err)
 	}
 
@@ -186,8 +186,8 @@ func (a *Auctioneer) CreateAuction(auction auctioneer.Auction) error {
 
 // GetAuction returns an auction by id.
 // If an auction is not found for id, ErrAuctionNotFound is returned.
-func (a *Auctioneer) GetAuction(id core.ID) (*auctioneer.Auction, error) {
-	auc, err := a.queue.GetAuction(id)
+func (a *Auctioneer) GetAuction(ctx context.Context, id core.ID) (*auctioneer.Auction, error) {
+	auc, err := a.queue.GetAuction(ctx, id)
 	if errors.Is(q.ErrAuctionNotFound, err) {
 		return nil, ErrAuctionNotFound
 	} else if err != nil {
@@ -198,34 +198,38 @@ func (a *Auctioneer) GetAuction(id core.ID) (*auctioneer.Auction, error) {
 
 // DeliverProposal delivers the proposal Cid for an accepted deal to the winning bidder.
 // This may be called multiple times by the broker in the event delivery fails.
-// If an auction is not found for id, ErrAuctionNotFound is returned.
-// If a bid is not found for id, ErrBidNotFound is returned.
-func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.BidID, pcid cid.Cid) error {
-	var bidderID peer.ID
-	err := a.queue.SetWinningBidProposalCid(id, bid, pcid, func(wb auctioneer.WinningBid) error {
-		bidderID = wb.BidderID
-		// Ugly way to retain the transaction in the queue while we try publishing to the biddera
-		return a.publishProposal(ctx, id, bid, wb.BidderID, pcid)
-	})
-
-	var errCause string
-	if err != nil {
-		errCause = err.Error()
+func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bidID core.BidID, pcid cid.Cid) error {
+	if !pcid.Defined() {
+		return errors.New("proposal cid is not defined")
 	}
-	if err := mbroker.PublishMsgAuctionProposalCidDelivered(ctx, a.mb, id, bidderID, bid, pcid, errCause); err != nil {
+
+	bid, err := a.queue.GetFinalizedAuctionBid(ctx, auctionID, bidID)
+	if bid.ProposalCid.Defined() {
+		log.Warnf("proposal cid %s is already published, duplicated message?", pcid)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("getting bid: %v", err)
+	}
+	var errCause string
+	publishErr := a.publishProposal(ctx, auctionID, bidID, bid.BidderID, pcid)
+	if publishErr != nil {
+		errCause = publishErr.Error()
+		if err := a.queue.SetProposalCidDeliveryError(ctx, auctionID, bidID, errCause); err != nil {
+			log.Errorf("setting proposal cid delivery error: %v", err)
+		}
+		publishErr = fmt.Errorf("publishing proposal to %s in auction %s: %v", bid.StorageProviderID, auctionID, publishErr)
+	} else {
+		log.Infof("delivered proposal %s for bid %s in auction %s to %s", pcid, bidID, auctionID, bid.StorageProviderID)
+		if err := a.queue.SetProposalCidDelivered(ctx, auctionID, bidID, pcid); err != nil {
+			log.Errorf("saving proposal cid: %v", err)
+		}
+	}
+	if err := mbroker.PublishMsgAuctionProposalCidDelivered(ctx, a.mb, auctionID,
+		bid.BidderID, bidID, pcid, errCause); err != nil {
 		log.Warn(err) // error is annotated
 	}
-
-	if errors.Is(q.ErrAuctionNotFound, err) {
-		return ErrAuctionNotFound
-	} else if errors.Is(q.ErrBidNotFound, err) {
-		return ErrBidNotFound
-	} else if err != nil {
-		return fmt.Errorf("delivering proposal %s: %v", pcid, err)
-	}
-
-	log.Infof("delivered proposal %s for bid %s in auction %s", pcid, bid, id)
-	return nil
+	return publishErr
 }
 
 // processAuction handles the next auction in the queue.
@@ -240,9 +244,8 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, id core.ID, bid core.B
 func (a *Auctioneer) processAuction(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	addBid func(bid auctioneer.Bid) (core.BidID, error),
+	addBid func(bid auctioneer.Bid) error,
 ) (map[core.BidID]auctioneer.WinningBid, error) {
-	log.Infof("auction %s started", auction.ID)
 	if err := mbroker.PublishMsgAuctionStarted(ctx, a.mb, mbroker.AuctionToPbSummary(&auction)); err != nil {
 		log.Warn(err) // error is annotated
 	}
@@ -273,16 +276,21 @@ func (a *Auctioneer) processAuction(
 		if err := proto.Unmarshal(msg, pbid); err != nil {
 			return nil, fmt.Errorf("unmarshaling message: %v", err)
 		}
+		id, err := a.newID()
+		if err != nil {
+			return nil, fmt.Errorf("generating bid id: %v", err)
+		}
 
 		bid := auctioneer.Bid{
-			MinerAddr:        pbid.MinerAddr,
-			WalletAddrSig:    pbid.WalletAddrSig,
-			BidderID:         from,
-			AskPrice:         pbid.AskPrice,
-			VerifiedAskPrice: pbid.VerifiedAskPrice,
-			StartEpoch:       pbid.StartEpoch,
-			FastRetrieval:    pbid.FastRetrieval,
-			ReceivedAt:       time.Now(),
+			ID:                id,
+			StorageProviderID: pbid.StorageProviderId,
+			WalletAddrSig:     pbid.WalletAddrSig,
+			BidderID:          from,
+			AskPrice:          pbid.AskPrice,
+			VerifiedAskPrice:  pbid.VerifiedAskPrice,
+			StartEpoch:        pbid.StartEpoch,
+			FastRetrieval:     pbid.FastRetrieval,
+			ReceivedAt:        time.Now(),
 		}
 		if err := a.validateBid(&bid); err != nil {
 			return nil, fmt.Errorf("invalid bid: %v", err)
@@ -298,7 +306,7 @@ func (a *Auctioneer) processAuction(
 			price = bid.AskPrice
 		}
 		log.Infof("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
-		label := attribute.String("miner-addr", bid.MinerAddr)
+		label := attribute.String("storage-provider-id", bid.StorageProviderID)
 		a.metricNewBid.Add(ctx, 1, label)
 
 		if !acceptBid(&auction, &bid) {
@@ -314,22 +322,20 @@ func (a *Auctioneer) processAuction(
 		bidders[bid.BidderID] = struct{}{}
 		mu.Unlock()
 
-		id, err := addBid(bid)
+		err = addBid(bid)
 		if err != nil {
 			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
 		}
 		mu.Lock()
-		bids[id] = bid
+		bids[bid.ID] = bid
 		mu.Unlock()
 		a.metricAcceptedBid.Add(ctx, 1, label)
 
-		return []byte(id), nil
+		return []byte(bid.ID), nil
 	}
 	topic.SetMessageHandler(bidsHandler)
 
-	// Set deadline
-	deadline := auction.StartedAt.Add(auction.Duration)
-
+	deadline := time.Now().Add(auction.Duration)
 	// Publish the auction
 	msg, err := proto.Marshal(&pb.Auction{
 		Id:               string(auction.ID),
@@ -345,7 +351,7 @@ func (a *Auctioneer) processAuction(
 	}
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	if _, err := a.auctions.Publish(actx, msg, rpc.WithIgnoreResponse(true)); err != nil {
+	if _, err := a.auctions.Publish(actx, msg, rpc.WithRepublishing(true), rpc.WithIgnoreResponse(true)); err != nil {
 		return nil, fmt.Errorf("publishing auction: %v", err)
 	}
 	<-actx.Done()
@@ -373,8 +379,8 @@ func (a *Auctioneer) processAuction(
 }
 
 func (a *Auctioneer) validateBid(b *auctioneer.Bid) error {
-	if b.MinerAddr == "" {
-		return errors.New("miner address must not be empty")
+	if b.StorageProviderID == "" {
+		return errors.New("storage provider ID must not be empty")
 	}
 	if b.WalletAddrSig == nil {
 		return errors.New("wallet address signature must not be empty")
@@ -392,7 +398,7 @@ func (a *Auctioneer) validateBid(b *auctioneer.Bid) error {
 		return errors.New("start epoch must be greater than zero")
 	}
 
-	ok, err := a.fc.VerifyBidder(b.WalletAddrSig, b.BidderID, b.MinerAddr)
+	ok, err := a.fc.VerifyBidder(b.WalletAddrSig, b.BidderID, b.StorageProviderID)
 	if err != nil {
 		return fmt.Errorf("verifying miner address: %v", err)
 	}
@@ -440,7 +446,7 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 			price = bid.AskPrice
 		}
 		wbids[wbid] = broker.WinningBid{
-			StorageProviderID: bid.MinerAddr,
+			StorageProviderID: bid.StorageProviderID,
 			Price:             price,
 			StartEpoch:        bid.StartEpoch,
 			FastRetrieval:     bid.FastRetrieval,
@@ -468,12 +474,12 @@ func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
 func acceptBid(auction *auctioneer.Auction, bid *auctioneer.Bid) bool {
 	if auction.FilEpochDeadline > 0 && (bid.StartEpoch <= 0 || auction.FilEpochDeadline < bid.StartEpoch) {
 		log.Debugf("miner %s start epoch %d doesn't meet the deadline %d of auction %s",
-			bid.MinerAddr, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
+			bid.StorageProviderID, bid.StartEpoch, auction.FilEpochDeadline, auction.ID)
 		return false
 	}
 	for _, addr := range auction.ExcludedStorageProviders {
-		if bid.MinerAddr == addr {
-			log.Debugf("miner %s is explicitly excluded from auction %s", bid.MinerAddr, auction.ID)
+		if bid.StorageProviderID == addr {
+			log.Debugf("miner %s is explicitly excluded from auction %s", bid.StorageProviderID, auction.ID)
 			return false
 		}
 	}
@@ -623,15 +629,15 @@ func (a *Auctioneer) publishProposal(
 	}
 	tctx, cancel := context.WithTimeout(ctx, notifyTimeout)
 	defer cancel()
-	res, err := topic.Publish(tctx, msg)
+	res, err := topic.Publish(tctx, msg, rpc.WithRepublishing(true))
 	if err != nil {
-		return fmt.Errorf("publishing proposal to %s in auction %s: %v", bidder, id, err)
+		return err
 	}
 	r := <-res
 	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
-		return fmt.Errorf("publishing proposal to %s in auction %s: %v", bidder, id, r.Err)
+		return err
 	} else if r.Err != nil {
-		return fmt.Errorf("publishing proposal in auction %s; bidder %s returned error: %v", id, bidder, r.Err)
+		return fmt.Errorf("bidder returned error: %v", r.Err)
 	}
 	return nil
 }
@@ -670,4 +676,24 @@ func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.T
 	a.proposalTopics[peer] = topic
 	a.finalizer.Add(topic)
 	return topic, nil
+}
+
+// newID returns new monotonically increasing bid ids.
+func (a *Auctioneer) newID() (auction.BidID, error) {
+	a.lkEntropy.Lock() // entropy is not safe for concurrent use
+
+	if a.entropy == nil {
+		a.entropy = ulid.Monotonic(rand.Reader, 0)
+	}
+	id, err := ulid.New(ulid.Timestamp(time.Now().UTC()), a.entropy)
+	if errors.Is(err, ulid.ErrMonotonicOverflow) {
+		a.entropy = nil
+		a.lkEntropy.Unlock()
+		return a.newID()
+	} else if err != nil {
+		a.lkEntropy.Unlock()
+		return "", fmt.Errorf("generating id: %v", err)
+	}
+	a.lkEntropy.Unlock()
+	return auction.BidID(strings.ToLower(id.String())), nil
 }

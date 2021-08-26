@@ -169,6 +169,7 @@ func (s *Store) AddStorageRequestToOpenBatch(
 			mbtsParams := db.MoveBatchToStatusParams{
 				BatchID: ob.BatchID,
 				Status:  db.BatchStatusReady,
+				ReadyAt: time.Now(),
 			}
 			if _, err := queries.MoveBatchToStatus(ctx, mbtsParams); err != nil {
 				return fmt.Errorf("move batch to status: %s", err)
@@ -238,7 +239,7 @@ func (s *Store) GetNextReadyBatch(
 			return fmt.Errorf("db get next ready: %s", err)
 		}
 		if int64(time.Since(rb.ReadyAt).Seconds()) > stuckSeconds {
-			log.Warnf("re-executing stuck batch %s", rb.BatchID)
+			log.Warnf("re-packing stuck batch %s", rb.BatchID)
 		}
 
 		srs, err = s.db.GetStorageRequestsFromBatch(ctx, rb.BatchID)

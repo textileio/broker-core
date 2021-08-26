@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
-	"github.com/textileio/bidbot/lib/dshelper"
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/bidbot/lib/peerflags"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
@@ -42,8 +41,7 @@ func init() {
 	rootCmd.AddCommand(initCmd, daemonCmd)
 
 	flags := []common.Flag{
-		{Name: "mongo-uri", DefValue: "", Description: "MongoDB URI backing go-datastore"},
-		{Name: "mongo-dbname", DefValue: "", Description: "MongoDB database name backing go-datastore"},
+		{Name: "postgres-uri", DefValue: "", Description: "Postgres database URI"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "auction-duration", DefValue: time.Second * 30, Description: "Auction duration"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
@@ -118,15 +116,13 @@ var daemonCmd = &cobra.Command{
 		pconfig, err := peerflags.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
 		common.CheckErrf("getting peer config: %v", err)
 
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "private-key", "wallet-addr-sig", "gpubsub-api-key")
+		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"),
+			"private-key", "wallet-addr-sig", "gpubsub-api-key", "postgres-uri")
 		common.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
 		err = common.SetupInstrumentation(v.GetString("metrics-addr"))
 		common.CheckErrf("booting instrumentation: %v", err)
-
-		store, err := dshelper.NewMongoTxnDatastore(v.GetString("mongo-uri"), v.GetString("mongo-dbname"))
-		common.CheckErrf("creating datastore: %v", err)
 
 		fin := finalizer.NewFinalizer()
 		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
@@ -142,6 +138,7 @@ var daemonCmd = &cobra.Command{
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},
+			PostgresURI: v.GetString("postgres-uri"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")
@@ -150,7 +147,7 @@ var daemonCmd = &cobra.Command{
 		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "auctioneerd")
 		common.CheckErrf("creating google pubsub client: %s", err)
 
-		serv, err := service.New(config, store, mb, fc)
+		serv, err := service.New(config, mb, fc)
 		common.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 		err = serv.Start(true)

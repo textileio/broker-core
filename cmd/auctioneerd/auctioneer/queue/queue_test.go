@@ -3,7 +3,6 @@ package queue
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -20,7 +19,7 @@ import (
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
-	badger "github.com/textileio/go-ds-badger3"
+	"github.com/textileio/broker-core/tests"
 	golog "github.com/textileio/go-log/v2"
 )
 
@@ -37,83 +36,16 @@ func init() {
 	testCid, _ = cid.Parse("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH1")
 	carURL, _ := url.Parse("https://foo.com/cid/123")
 	testSources = auction.Sources{CARURL: &auction.CARURL{URL: *carURL}}
-}
-
-func TestQueue_newID(t *testing.T) {
-	t.Parallel()
-	q := newQueue(t)
-
-	// Ensure monotonic
-	var last auction.ID
-	for i := 0; i < 10000; i++ {
-		id, err := q.newID(time.Now())
-		require.NoError(t, err)
-
-		if i > 0 {
-			assert.Greater(t, id, last)
-		}
-		last = id
-	}
-}
-
-func TestQueue_ListAuctions(t *testing.T) {
-	t.Parallel()
-	q := newQueue(t)
-
-	limit := 100
-	now := time.Now()
-
-	ids := make([]auction.ID, limit)
-	for i := 0; i < limit; i++ {
-		now = now.Add(time.Millisecond)
-		id := auction.ID(fmt.Sprintf("%03d", i))
-		err := q.CreateAuction(auctioneer.Auction{
-			ID:              id,
-			BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
-			PayloadCid:      testCid,
-			DealSize:        1024,
-			DealDuration:    1,
-			DealReplication: 1,
-			Sources:         testSources,
-			Duration:        time.Second,
-		})
-		require.NoError(t, err)
-		ids[i] = id
-	}
-
-	// Allow all to finish
-	time.Sleep(time.Second)
-
-	// Empty query, should return newest 10 records
-	l, err := q.ListAuctions(Query{})
-	require.NoError(t, err)
-	assert.Len(t, l, 10)
-	assert.Equal(t, ids[limit-1], l[0].ID)
-	assert.Equal(t, ids[limit-10], l[9].ID)
-
-	// Get next page, should return next 10 records
-	offset := l[len(l)-1].ID
-	l, err = q.ListAuctions(Query{Offset: string(offset)})
-	require.NoError(t, err)
-	assert.Len(t, l, 10)
-	assert.Equal(t, ids[limit-11], l[0].ID)
-	assert.Equal(t, ids[limit-20], l[9].ID)
-
-	// Get previous page, should return the first page in reverse order
-	offset = l[0].ID
-	l, err = q.ListAuctions(Query{Offset: string(offset), Order: OrderAscending})
-	require.NoError(t, err)
-	assert.Len(t, l, 10)
-	assert.Equal(t, ids[limit-10], l[0].ID)
-	assert.Equal(t, ids[limit-1], l[9].ID)
+	StartDelay = 0
 }
 
 func TestQueue_CreateAuction(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id := auction.ID("ID-1")
-	err := q.CreateAuction(auctioneer.Auction{
+	ctx := context.Background()
+	id := auction.ID("ID-CreateAuction")
+	err := q.CreateAuction(ctx, auctioneer.Auction{
 		ID:              id,
 		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
@@ -128,7 +60,7 @@ func TestQueue_CreateAuction(t *testing.T) {
 	// Allow to finish
 	time.Sleep(time.Second)
 
-	got, err := q.GetAuction(id)
+	got, err := q.GetAuction(ctx, id)
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
 	assert.NotEmpty(t, got.BatchID)
@@ -145,12 +77,13 @@ func TestQueue_CreateAuction(t *testing.T) {
 	assert.False(t, got.UpdatedAt.IsZero())
 }
 
-func TestQueue_SetWinningBidProposalCid(t *testing.T) {
+func TestQueue_GetFinalizedAuctionBid(t *testing.T) {
 	t.Parallel()
 	q := newQueue(t)
 
-	id := auction.ID("ID-1")
-	err := q.CreateAuction(auctioneer.Auction{
+	ctx := context.Background()
+	id := auction.ID("ID-GetFinalizedAuctionBid")
+	err := q.CreateAuction(ctx, auctioneer.Auction{
 		ID:              id,
 		BatchID:         broker.BatchID(strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())),
 		PayloadCid:      testCid,
@@ -165,7 +98,7 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	// Allow to finish
 	time.Sleep(time.Second)
 
-	got, err := q.GetAuction(id)
+	got, err := q.GetAuction(ctx, id)
 	require.NoError(t, err)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Empty(t, got.ErrorCause)
@@ -175,42 +108,28 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 	pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("proposal")))
 
 	// Test auction not found
-	err = q.SetWinningBidProposalCid("foo", "bar", pcid, func(wb auctioneer.WinningBid) error {
-		return nil
-	})
+	_, err = q.GetFinalizedAuctionBid(ctx, "foo", "bar")
 	require.ErrorIs(t, err, ErrAuctionNotFound)
 
 	// Test bid not found
-	err = q.SetWinningBidProposalCid(got.ID, "foo", pcid, func(wb auctioneer.WinningBid) error {
-		return nil
-	})
+	_, err = q.GetFinalizedAuctionBid(ctx, got.ID, "foo")
 	require.ErrorIs(t, err, ErrBidNotFound)
 
 	for id := range got.WinningBids {
-		// Test bad proposal cid
-		err = q.SetWinningBidProposalCid(got.ID, id, cid.Undef, func(wb auctioneer.WinningBid) error {
-			return nil
-		})
-		require.Error(t, err)
-
-		var published int
-		err = q.SetWinningBidProposalCid(got.ID, id, pcid, func(wb auctioneer.WinningBid) error {
-			published++
-			return nil
-		})
+		bid, err := q.GetFinalizedAuctionBid(ctx, got.ID, id)
 		require.NoError(t, err)
-		assert.Equal(t, 1, published)
+		assert.NotEmpty(t, bid.BidderID)
+		require.False(t, bid.ProposalCid.Defined())
 
-		// make sure proposal cid is only published once
-		err = q.SetWinningBidProposalCid(got.ID, id, pcid, func(wb auctioneer.WinningBid) error {
-			published++
-			return nil
-		})
+		// make sure proposal cid is set to the bid.
+		err = q.SetProposalCidDelivered(ctx, got.ID, id, pcid)
 		require.NoError(t, err)
-		assert.Equal(t, 1, published)
+		bid, err = q.GetFinalizedAuctionBid(ctx, got.ID, id)
+		require.NoError(t, err)
+		require.True(t, bid.ProposalCid.Defined())
 	}
 
-	got, err = q.GetAuction(id)
+	got, err = q.GetAuction(ctx, id)
 	require.NoError(t, err)
 	for _, wb := range got.WinningBids {
 		assert.True(t, wb.ProposalCid.Defined())
@@ -219,12 +138,12 @@ func TestQueue_SetWinningBidProposalCid(t *testing.T) {
 }
 
 func newQueue(t *testing.T) *Queue {
-	s, err := badger.NewDatastore(t.TempDir(), &badger.DefaultOptions)
+	u, err := tests.PostgresURL()
 	require.NoError(t, err)
-	q := NewQueue(s, runner, finalizer)
+	q, err := NewQueue(u, runner, finalizer)
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, q.Close())
-		require.NoError(t, s.Close())
 	})
 	return q
 }
@@ -232,52 +151,55 @@ func newQueue(t *testing.T) *Queue {
 func runner(
 	_ context.Context,
 	a auctioneer.Auction,
-	addBid func(bid auctioneer.Bid) (auction.BidID, error),
+	addBid func(bid auctioneer.Bid) error,
 ) (map[auction.BidID]auctioneer.WinningBid, error) {
 	time.Sleep(time.Millisecond * 100)
 
 	result := make(map[auction.BidID]auctioneer.WinningBid)
 	receivedBids := []auctioneer.Bid{
 		{
-			MinerAddr:        "miner1",
-			WalletAddrSig:    []byte("sig1"),
-			BidderID:         randomPeerID(),
-			AskPrice:         100,
-			VerifiedAskPrice: 100,
-			StartEpoch:       1,
-			FastRetrieval:    true,
-			ReceivedAt:       time.Now(),
+			ID:                "bid1",
+			StorageProviderID: "miner1",
+			WalletAddrSig:     []byte("sig1"),
+			BidderID:          randomPeerID(),
+			AskPrice:          100,
+			VerifiedAskPrice:  100,
+			StartEpoch:        1,
+			FastRetrieval:     true,
+			ReceivedAt:        time.Now(),
 		},
 		{
-			MinerAddr:        "miner2",
-			WalletAddrSig:    []byte("sig2"),
-			BidderID:         randomPeerID(),
-			AskPrice:         200,
-			VerifiedAskPrice: 200,
-			StartEpoch:       1,
-			FastRetrieval:    true,
-			ReceivedAt:       time.Now(),
+			ID:                "bid2",
+			StorageProviderID: "miner2",
+			WalletAddrSig:     []byte("sig2"),
+			BidderID:          randomPeerID(),
+			AskPrice:          200,
+			VerifiedAskPrice:  200,
+			StartEpoch:        1,
+			FastRetrieval:     true,
+			ReceivedAt:        time.Now(),
 		},
 		{
-			MinerAddr:        "miner3",
-			WalletAddrSig:    []byte("sig3"),
-			BidderID:         randomPeerID(),
-			AskPrice:         300,
-			VerifiedAskPrice: 300,
-			StartEpoch:       1,
-			FastRetrieval:    true,
-			ReceivedAt:       time.Now(),
+			ID:                "bid3",
+			StorageProviderID: "miner3",
+			WalletAddrSig:     []byte("sig3"),
+			BidderID:          randomPeerID(),
+			AskPrice:          300,
+			VerifiedAskPrice:  300,
+			StartEpoch:        1,
+			FastRetrieval:     true,
+			ReceivedAt:        time.Now(),
 		},
 	}
 
 	// Select winners
 	for i, bid := range receivedBids {
-		id, err := addBid(bid)
+		err := addBid(bid)
 		if err != nil {
 			return nil, err
 		}
 		if i < int(a.DealReplication) {
-			result[id] = auctioneer.WinningBid{
+			result[bid.ID] = auctioneer.WinningBid{
 				BidderID: receivedBids[0].BidderID,
 			}
 		}

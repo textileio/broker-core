@@ -8,7 +8,6 @@ resources:
 - brokerd.yaml
 - dealerd.yaml
 - ingress.yaml
-- mongo.yaml
 - postgres.yaml
 - neard.yaml
 - ethd.yaml

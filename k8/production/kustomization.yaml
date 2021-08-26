@@ -6,7 +6,6 @@ resources:
 - ../base
 - ../base/ipfs-cluster
 - cert.yaml
-- mongo-cluster-rolebinding.yaml
 
 configMapGenerator:
 - files:
@@ -42,7 +41,6 @@ patchesStrategicMerge:
 - ipfs-cluster-volumeclaim-patch.yaml
 - ipfs-cluster-statefulset-patch.yaml
 - ingress-patch.yaml
-- mongo-patch.yaml
 - dealerd-patch.yaml
 - neard-patch.yaml
 - piecer-patch.yaml

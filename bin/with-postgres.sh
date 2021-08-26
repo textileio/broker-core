@@ -36,4 +36,4 @@ EOD
 [ $? -eq 0 ] || quit "fail to initialize postgres database"
 unset POSTGRES_PASSWORD
 unset POSTGRES_USER
-$1 --postgres-uri="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME?sslmode=disable&search_path=${DB_USER}&timezone=UTC"
+$@ --postgres-uri="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME?sslmode=disable&search_path=${DB_USER}&timezone=UTC"
