@@ -205,7 +205,7 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 
 	bid, err := a.queue.GetFinalizedAuctionBid(ctx, auctionID, bidID)
 	if err != nil {
-		return fmt.Errorf("getting bid: %v", err)
+		return fmt.Errorf("getting bid %s for auction %s: %v", bidID, auctionID, err)
 	}
 	if bid.ProposalCid.Defined() {
 		log.Warnf("proposal cid %s is already published, duplicated message?", pcid)
