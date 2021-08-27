@@ -59,7 +59,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/otel v1.0.0-RC1
+	go.opentelemetry.io/otel v1.0.0-RC2
 	go.opentelemetry.io/otel/metric v0.21.0
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
