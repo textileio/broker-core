@@ -116,18 +116,19 @@ func (q *Queue) CreateAuction(ctx context.Context, a auctioneer.Auction) error {
 		return fmt.Errorf("invalid auction data: %s", err)
 	}
 	params := db.CreateAuctionParams{
-		ID:               a.ID,
-		BatchID:          a.BatchID,
-		DealSize:         int64(a.DealSize),
-		DealDuration:     a.DealDuration,
-		DealReplication:  int32(a.DealReplication),
-		DealVerified:     a.DealVerified,
-		FilEpochDeadline: a.FilEpochDeadline,
-		PayloadCid:       a.PayloadCid.String(),
-		Status:           broker.AuctionStatusQueued,
-		Duration:         int64(a.Duration),
+		ID:                       a.ID,
+		BatchID:                  a.BatchID,
+		DealSize:                 int64(a.DealSize),
+		DealDuration:             a.DealDuration,
+		DealReplication:          int32(a.DealReplication),
+		DealVerified:             a.DealVerified,
+		FilEpochDeadline:         a.FilEpochDeadline,
+		ExcludedStorageProviders: a.ExcludedStorageProviders,
+		PayloadCid:               a.PayloadCid.String(),
+		Status:                   broker.AuctionStatusQueued,
+		Duration:                 int64(a.Duration),
 	}
-	if a.ExcludedStorageProviders == nil {
+	if len(a.ExcludedStorageProviders) == 0 {
 		params.ExcludedStorageProviders = []string{}
 	}
 	if a.Sources.CARURL != nil {
