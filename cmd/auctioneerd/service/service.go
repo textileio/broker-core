@@ -63,7 +63,8 @@ func New(conf Config, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, e
 		finalizer: fin,
 	}
 
-	if err := mbroker.RegisterHandlers(mb, s); err != nil {
+	// OnDealProposalAccepted needs to notify bidbot about the proposal which requires NotifyTimeout. 2x to be safe.
+	if err := mbroker.RegisterHandlers(mb, s, mbroker.WithACKDeadline(auctioneer.NotifyTimeout*2)); err != nil {
 		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
 	}
 

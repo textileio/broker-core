@@ -40,8 +40,8 @@ var (
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
 
-	// notifyTimeout is the max duration the auctioneer will wait for a response from bidders.
-	notifyTimeout = time.Second * 30
+	// NotifyTimeout is the max duration the auctioneer will wait for a response from bidders.
+	NotifyTimeout = time.Second * 30
 
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
@@ -593,7 +593,7 @@ func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID,
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	tctx, cancel := context.WithTimeout(ctx, notifyTimeout)
+	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
 	defer cancel()
 	res, err := topic.Publish(tctx, msg)
 	if err != nil {
@@ -627,7 +627,7 @@ func (a *Auctioneer) publishProposal(
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	tctx, cancel := context.WithTimeout(ctx, notifyTimeout)
+	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
 	defer cancel()
 	res, err := topic.Publish(tctx, msg, rpc.WithRepublishing(true))
 	if err != nil {
