@@ -59,6 +59,9 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	s, _ := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
@@ -83,6 +86,9 @@ func TestClient_ReadyToAuction(t *testing.T) {
 }
 
 func TestClient_GetAuction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	s, _ := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
@@ -121,6 +127,9 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	s, mb := newClient(t)
 	bots := addBidbots(t, 10)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())

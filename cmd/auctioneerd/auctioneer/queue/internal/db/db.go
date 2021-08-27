@@ -40,6 +40,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNextReadyToExecuteStmt, err = db.PrepareContext(ctx, getNextReadyToExecute); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNextReadyToExecute: %w", err)
 	}
+	if q.getRecentWeekFailureRateStmt, err = db.PrepareContext(ctx, getRecentWeekFailureRate); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentWeekFailureRate: %w", err)
+	}
+	if q.getRecentWeekWinningRateStmt, err = db.PrepareContext(ctx, getRecentWeekWinningRate); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentWeekWinningRate: %w", err)
+	}
 	if q.updateAuctionStatusAndErrorStmt, err = db.PrepareContext(ctx, updateAuctionStatusAndError); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAuctionStatusAndError: %w", err)
 	}
@@ -85,6 +91,16 @@ func (q *Queries) Close() error {
 	if q.getNextReadyToExecuteStmt != nil {
 		if cerr := q.getNextReadyToExecuteStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNextReadyToExecuteStmt: %w", cerr)
+		}
+	}
+	if q.getRecentWeekFailureRateStmt != nil {
+		if cerr := q.getRecentWeekFailureRateStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentWeekFailureRateStmt: %w", cerr)
+		}
+	}
+	if q.getRecentWeekWinningRateStmt != nil {
+		if cerr := q.getRecentWeekWinningRateStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentWeekWinningRateStmt: %w", cerr)
 		}
 	}
 	if q.updateAuctionStatusAndErrorStmt != nil {
@@ -152,6 +168,8 @@ type Queries struct {
 	getAuctionBidsStmt                 *sql.Stmt
 	getAuctionWinningBidsStmt          *sql.Stmt
 	getNextReadyToExecuteStmt          *sql.Stmt
+	getRecentWeekFailureRateStmt       *sql.Stmt
+	getRecentWeekWinningRateStmt       *sql.Stmt
 	updateAuctionStatusAndErrorStmt    *sql.Stmt
 	updateBidsWonAtStmt                *sql.Stmt
 	updateProposalCidStmt              *sql.Stmt
@@ -168,6 +186,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getAuctionBidsStmt:                 q.getAuctionBidsStmt,
 		getAuctionWinningBidsStmt:          q.getAuctionWinningBidsStmt,
 		getNextReadyToExecuteStmt:          q.getNextReadyToExecuteStmt,
+		getRecentWeekFailureRateStmt:       q.getRecentWeekFailureRateStmt,
+		getRecentWeekWinningRateStmt:       q.getRecentWeekWinningRateStmt,
 		updateAuctionStatusAndErrorStmt:    q.updateAuctionStatusAndErrorStmt,
 		updateBidsWonAtStmt:                q.updateBidsWonAtStmt,
 		updateProposalCidStmt:              q.updateProposalCidStmt,

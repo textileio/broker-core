@@ -152,6 +152,84 @@ func (q *Queries) GetAuctionWinningBids(ctx context.Context, auctionID auction.I
 	return items, nil
 }
 
+const getRecentWeekFailureRate = `-- name: GetRecentWeekFailureRate :many
+WITH b AS (SELECT storage_provider_id,
+      extract(epoch from interval '1 weeks') / extract(epoch from current_timestamp - received_at) AS freshness,
+      CASE WHEN proposal_cid_delivered_at IS NULL THEN 1 ELSE 0 END failed
+    FROM bids
+    WHERE received_at < current_timestamp - interval '1 hours' AND received_at > current_timestamp - interval '1 weeks' AND won_at IS NOT NULL)
+SELECT b.storage_provider_id, (SUM(b.freshness*b.failed)*1000000/SUM(b.freshness))::bigint AS failure_rate_ppm
+FROM b
+GROUP BY storage_provider_id ORDER by failure_rate_ppm
+`
+
+type GetRecentWeekFailureRateRow struct {
+	StorageProviderID string `json:"storageProviderID"`
+	FailureRatePpm    int64  `json:"failureRatePpm"`
+}
+
+func (q *Queries) GetRecentWeekFailureRate(ctx context.Context) ([]GetRecentWeekFailureRateRow, error) {
+	rows, err := q.query(ctx, q.getRecentWeekFailureRateStmt, getRecentWeekFailureRate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRecentWeekFailureRateRow
+	for rows.Next() {
+		var i GetRecentWeekFailureRateRow
+		if err := rows.Scan(&i.StorageProviderID, &i.FailureRatePpm); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRecentWeekWinningRate = `-- name: GetRecentWeekWinningRate :many
+WITH b AS (SELECT storage_provider_id,
+      extract(epoch from interval '1 weeks') / extract(epoch from current_timestamp - received_at) AS freshness,
+      CASE WHEN won_at IS NULL THEN 0 ELSE 1 END winning
+    FROM bids
+    WHERE received_at < current_timestamp - interval '1 hours' AND received_at > current_timestamp - interval '1 weeks')
+SELECT b.storage_provider_id, (SUM(b.freshness*b.winning)*1000000/SUM(b.freshness))::bigint AS winning_rate_ppm
+FROM b
+GROUP BY storage_provider_id ORDER by winning_rate_ppm
+`
+
+type GetRecentWeekWinningRateRow struct {
+	StorageProviderID string `json:"storageProviderID"`
+	WinningRatePpm    int64  `json:"winningRatePpm"`
+}
+
+func (q *Queries) GetRecentWeekWinningRate(ctx context.Context) ([]GetRecentWeekWinningRateRow, error) {
+	rows, err := q.query(ctx, q.getRecentWeekWinningRateStmt, getRecentWeekWinningRate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRecentWeekWinningRateRow
+	for rows.Next() {
+		var i GetRecentWeekWinningRateRow
+		if err := rows.Scan(&i.StorageProviderID, &i.WinningRatePpm); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateBidsWonAt = `-- name: UpdateBidsWonAt :many
 UPDATE bids SET won_at = CURRENT_TIMESTAMP
 WHERE id = ANY($1::text[]) AND auction_id = $2

@@ -1,0 +1,118 @@
+package auctioneer
+
+import (
+	"context"
+	"math/rand"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	core "github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/auctioneer"
+)
+
+func TestSortByPrice(t *testing.T) {
+	for _, testCase := range []struct {
+		name    string
+		bids    []auctioneer.Bid
+		auction *auctioneer.Auction
+		winner  string
+	}{
+		{"unverified", []auctioneer.Bid{
+			auctioneer.Bid{ID: "medium", AskPrice: 1},
+			auctioneer.Bid{ID: "low", AskPrice: 0},
+			auctioneer.Bid{ID: "high", AskPrice: 2},
+		}, &auctioneer.Auction{DealVerified: false}, "low"},
+		{"verified", []auctioneer.Bid{
+			auctioneer.Bid{ID: "high", VerifiedAskPrice: 2},
+			auctioneer.Bid{ID: "low", VerifiedAskPrice: 0},
+			auctioneer.Bid{ID: "medium", VerifiedAskPrice: 1},
+		}, &auctioneer.Auction{DealVerified: true}, "low"},
+	} {
+		s := BidsSorter(ByPrice())
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			b := <-s.Sort(ctx, testCase.auction, testCase.bids)
+			assert.Equal(t, core.BidID(testCase.winner), b.ID)
+		})
+	}
+}
+
+func TestSortRandom(t *testing.T) {
+	hits := make(map[core.BidID]int)
+	s := BidsSorter(Random(rand.NewSource(time.Now().UnixNano())))
+	for i := 0; i < 100; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		b := <-s.Sort(ctx, &auctioneer.Auction{}, []auctioneer.Bid{auctioneer.Bid{ID: "a", AskPrice: 1}, auctioneer.Bid{ID: "b", AskPrice: 1}})
+		hits[b.ID]++
+		cancel()
+	}
+	for id, n := range hits {
+		// we should have some randomness
+		assert.InDelta(t, 50, n, 40, id)
+	}
+}
+
+func TestSortByProviderFailureRate(t *testing.T) {
+	rateTable := map[string]int{
+		"f0001": 100,
+		"f0002": 1,
+		"f0003": 9999,
+	}
+	bids := []auctioneer.Bid{
+		auctioneer.Bid{ID: "medium", StorageProviderID: "f0001"},
+		auctioneer.Bid{ID: "low", StorageProviderID: "f0002"},
+		auctioneer.Bid{ID: "high", StorageProviderID: "f0003"},
+		auctioneer.Bid{ID: "zero", StorageProviderID: "f0004"},
+	}
+
+	ch := BidsSorter(ByProviderRate(rateTable)).Sort(context.Background(), &auctioneer.Auction{}, bids)
+	assert.EqualValues(t, "zero", (<-ch).ID)
+	assert.EqualValues(t, "low", (<-ch).ID)
+	assert.EqualValues(t, "medium", (<-ch).ID)
+	assert.EqualValues(t, "high", (<-ch).ID)
+}
+
+func TestCombination(t *testing.T) {
+	bids := []auctioneer.Bid{
+		auctioneer.Bid{ID: "1", AskPrice: 1, StartEpoch: 3},
+		auctioneer.Bid{ID: "2", AskPrice: 3, StartEpoch: 1},
+		auctioneer.Bid{ID: "3", AskPrice: 2, StartEpoch: 2},
+		auctioneer.Bid{ID: "4", AskPrice: 2, StartEpoch: 1},
+	}
+	for _, testCase := range []struct {
+		name     string
+		cmp      Cmp
+		expected []string
+	}{
+		{
+			"epoch-over-price",
+			Weighed{}.Add(ByStartEpoch(), 10).Add(ByPrice(), 6),
+			[]string{"4", "2", "3", "1"},
+		},
+		{
+			"price-over-epoch",
+			Weighed{}.Add(ByPrice(), 10).Add(ByStartEpoch(), 6),
+			[]string{"4", "1", "3", "2"},
+		},
+		{
+			"epoch-then-price",
+			Ordered(ByStartEpoch(), ByPrice()),
+			[]string{"4", "2", "3", "1"},
+		},
+		{
+			"price-then-epoch",
+			Ordered(ByPrice(), ByStartEpoch()),
+			[]string{"1", "4", "3", "2"},
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			var result []string
+			for b := range BidsSorter(testCase.cmp).Sort(context.Background(), &auctioneer.Auction{}, bids) {
+				result = append(result, string(b.ID))
+			}
+			assert.Equal(t, testCase.expected, result)
+		})
+	}
+}

@@ -273,6 +273,33 @@ func (q *Queue) GetFinalizedAuctionBid(
 	return matched, nil
 }
 
+// GetProviderFailureRates gets the recent failure rate (wins the auction but
+// fails to make the deal) of storage providers.
+func (q *Queue) GetProviderFailureRates(ctx context.Context) (map[string]int, error) {
+	rows, err := q.db.GetRecentWeekFailureRate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]int)
+	for _, row := range rows {
+		ret[row.StorageProviderID] = int(row.FailureRatePpm)
+	}
+	return ret, nil
+}
+
+// GetProviderWinningRates gets the recent winning rate of storage providers.
+func (q *Queue) GetProviderWinningRates(ctx context.Context) (map[string]int, error) {
+	rows, err := q.db.GetRecentWeekWinningRate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]int)
+	for _, row := range rows {
+		ret[row.StorageProviderID] = int(row.WinningRatePpm)
+	}
+	return ret, nil
+}
+
 // SetProposalCidDelivered saves the proposal CID for the bid.
 func (q *Queue) SetProposalCidDelivered(
 	ctx context.Context,
