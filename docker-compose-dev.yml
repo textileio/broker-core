@@ -219,6 +219,25 @@ services:
       - postgres
       - gpubsub
     restart: unless-stopped
+  gqld:
+    build:
+      context: .
+      dockerfile: ./cmd/gqld/Dockerfile
+    platform: linux/amd64
+    entrypoint: ["npm", "start"]
+    environment:
+      - DEV=true
+      - PORT=5000
+      - DATABASE_URL=postgres://dev_user:dev_password@postgres:5432/postgres
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE
+    depends_on:
+      - postgres
+      - brokerd
+      - auctioneerd
+    restart: unless-stopped
   postgres:
     image: postgres:latest
     platform: linux/amd64
