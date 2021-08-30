@@ -7,6 +7,7 @@ resources:
 - authd.yaml
 - brokerd.yaml
 - dealerd.yaml
+- gqld.yaml
 - ingress.yaml
 - postgres.yaml
 - neard.yaml
