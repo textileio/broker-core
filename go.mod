@@ -8,7 +8,7 @@ require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
-	github.com/ethereum/go-ethereum v1.10.7
+	github.com/ethereum/go-ethereum v1.10.8
 	github.com/filecoin-project/go-address v0.0.6
 	github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0
