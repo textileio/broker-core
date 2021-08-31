@@ -279,6 +279,10 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	log.Debugf("storage-provider %s replied proposal %s status check: %s",
 		storageProviderID, propCid, storagemarket.DealStates[resp.DealState.State])
 
+	if resp.DealState.State == storagemarket.StorageDealError {
+		log.Warnf("deal error: %s", resp.DealState.Message)
+	}
+
 	return &resp.DealState, nil
 }
 
