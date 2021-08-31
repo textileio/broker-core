@@ -37,14 +37,14 @@ spec:
                 name: storage
                 port:
                   number: 8888
-          - path: /graphql/*
+          - path: /graphql
             pathType: ImplementationSpecific
             backend:
               service:
                 name: gql
                 port:
                   number: 5000
-          - path: /graphiql/*
+          - path: /graphiql
             pathType: ImplementationSpecific
             backend:
               service:
