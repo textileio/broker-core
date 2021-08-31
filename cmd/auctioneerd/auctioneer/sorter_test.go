@@ -29,7 +29,7 @@ func TestSortByPrice(t *testing.T) {
 			auctioneer.Bid{ID: "medium", VerifiedAskPrice: 1},
 		}, &auctioneer.Auction{DealVerified: true}, "low"},
 	} {
-		s := BidsSorter(ByPrice())
+		s := BidsSorter(LowerPrice())
 		t.Run(testCase.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -44,7 +44,8 @@ func TestSortRandom(t *testing.T) {
 	s := BidsSorter(Random(rand.NewSource(time.Now().UnixNano())))
 	for i := 0; i < 100; i++ {
 		ctx, cancel := context.WithCancel(context.Background())
-		b := <-s.Sort(ctx, &auctioneer.Auction{}, []auctioneer.Bid{auctioneer.Bid{ID: "a", AskPrice: 1}, auctioneer.Bid{ID: "b", AskPrice: 1}})
+		b := <-s.Sort(ctx, &auctioneer.Auction{},
+			[]auctioneer.Bid{auctioneer.Bid{ID: "a", AskPrice: 1}, auctioneer.Bid{ID: "b", AskPrice: 1}})
 		hits[b.ID]++
 		cancel()
 	}
@@ -67,7 +68,7 @@ func TestSortByProviderFailureRate(t *testing.T) {
 		auctioneer.Bid{ID: "zero", StorageProviderID: "f0004"},
 	}
 
-	ch := BidsSorter(ByProviderRate(rateTable)).Sort(context.Background(), &auctioneer.Auction{}, bids)
+	ch := BidsSorter(LowerProviderRate(rateTable)).Sort(context.Background(), &auctioneer.Auction{}, bids)
 	assert.EqualValues(t, "zero", (<-ch).ID)
 	assert.EqualValues(t, "low", (<-ch).ID)
 	assert.EqualValues(t, "medium", (<-ch).ID)
@@ -88,22 +89,22 @@ func TestCombination(t *testing.T) {
 	}{
 		{
 			"epoch-over-price",
-			Weighed{}.Add(ByStartEpoch(), 10).Add(ByPrice(), 6),
+			Weighed{}.Add(EarlierStartEpoch(1), 10).Add(LowerPrice(), 6),
 			[]string{"4", "2", "3", "1"},
 		},
 		{
 			"price-over-epoch",
-			Weighed{}.Add(ByPrice(), 10).Add(ByStartEpoch(), 6),
+			Weighed{}.Add(LowerPrice(), 10).Add(EarlierStartEpoch(1), 6),
 			[]string{"4", "1", "3", "2"},
 		},
 		{
 			"epoch-then-price",
-			Ordered(ByStartEpoch(), ByPrice()),
+			Ordered(EarlierStartEpoch(1), LowerPrice()),
 			[]string{"4", "2", "3", "1"},
 		},
 		{
 			"price-then-epoch",
-			Ordered(ByPrice(), ByStartEpoch()),
+			Ordered(LowerPrice(), EarlierStartEpoch(1)),
 			[]string{"1", "4", "3", "2"},
 		},
 	} {

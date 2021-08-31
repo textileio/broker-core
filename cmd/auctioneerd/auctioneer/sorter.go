@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"context"
 	"math/rand"
+	"time"
 
 	"github.com/textileio/broker-core/auctioneer"
 )
@@ -71,6 +72,7 @@ func (wc Weighed) Add(cmp Cmp, weight int) Weighed {
 	return w
 }
 
+// Cmp adds up the result of calling Cmp of each comparators with their respective weights.
 func (wc Weighed) Cmp(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid) int {
 	var weighed int
 	for k, cmp := range wc.cmps {
@@ -79,9 +81,9 @@ func (wc Weighed) Cmp(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid)
 	return weighed
 }
 
-// ByPrice returns a comparator which prefers lower ask price or verified ask
+// LowerPrice returns a comparator which prefers lower ask price or verified ask
 // price depending on if the auction is verified. The price difference is returned.
-func ByPrice() Cmp {
+func LowerPrice() Cmp {
 	return CmpFn(func(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid) int {
 		if a.DealVerified {
 			return int(i.VerifiedAskPrice - j.VerifiedAskPrice)
@@ -90,11 +92,16 @@ func ByPrice() Cmp {
 	})
 }
 
-// ByStartEpoch returns a comparator which prefers bid with smaller start
-// epoch. The difference of the start epoch is returned.
-func ByStartEpoch() Cmp {
+// EarlierStartEpoch returns a comparator which prefers bid with earlier start
+// epoch. The difference between the start epochs in the scale of the
+// resolution is returned.
+func EarlierStartEpoch(resolution time.Duration) Cmp {
+	epochResolution := int(resolution.Seconds() / 30)
+	if epochResolution == 0 {
+		epochResolution = 1
+	}
 	return CmpFn(func(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid) int {
-		return int(i.StartEpoch) - int(j.StartEpoch)
+		return (int(i.StartEpoch) - int(j.StartEpoch)) / epochResolution
 	})
 }
 
@@ -106,10 +113,10 @@ func (wc providerRate) Cmp(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer
 	return wc.rates[i.StorageProviderID] - wc.rates[j.StorageProviderID]
 }
 
-// ByProviderRate returns a comparator which considers some rate of the storage
+// LowerProviderRate returns a comparator which considers some rate of the storage
 // provider. Provider with lower rate gets a higher chance to win. Provider
 // not in the provided rates table are considered to have zero rate.
-func ByProviderRate(rates map[string]int) Cmp {
+func LowerProviderRate(rates map[string]int) Cmp {
 	return providerRate{rates}
 }
 

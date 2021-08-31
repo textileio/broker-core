@@ -60,6 +60,7 @@ type Auctioneer struct {
 	mb          mbroker.MsgBroker
 	queue       *q.Queue
 	started     bool
+	ctx         context.Context
 	auctionConf AuctionConfig
 
 	peer     *rpcpeer.Peer
@@ -82,13 +83,8 @@ type Auctioneer struct {
 	proposalTopics map[peer.ID]*rpc.Topic
 	lkTopics       sync.Mutex
 
-	providerFailureRates         map[string]int
-	providerFailureRatesLoadedAt time.Time
-	lkProviderFailureRates       sync.Mutex
-
-	providerWinningRates         map[string]int
-	providerWinningRatesLoadedAt time.Time
-	lkProviderWinningRates       sync.Mutex
+	// providerFailureRates atomic.Value // map[string]int
+	providerWinningRates atomic.Value // map[string]int
 }
 
 // New returns a new Auctioneer.
@@ -121,6 +117,10 @@ func New(
 	a.finalizer.Add(queue)
 	a.queue = queue
 
+	ctx, cancel := context.WithCancel(context.Background())
+	a.finalizer.Add(finalizer.NewContextCloser(cancel))
+	a.ctx = ctx
+
 	return a, nil
 }
 
@@ -152,20 +152,17 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 		a.peer.Bootstrap()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	a.finalizer.Add(finalizer.NewContextCloser(cancel))
-
 	// Create the global auctions topic
-	auctions, err := a.peer.NewTopic(ctx, core.Topic, false)
+	auctions, err := a.peer.NewTopic(a.ctx, core.Topic, false)
 	if err != nil {
 		return fmt.Errorf("creating auctions topic: %v", err)
 	}
 	auctions.SetEventHandler(a.eventHandler)
 	a.auctions = auctions
 	a.finalizer.Add(auctions)
-
 	log.Info("created the deal auction feed")
 
+	go a.refreshProviderRates()
 	a.started = true
 	return nil
 }
@@ -502,11 +499,9 @@ func (a *Auctioneer) selectWinners(
 	tctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	sortStrategy := Ordered(
-		ByPrice(),      // sort by lower price
-		ByStartEpoch(), // then by earlier start epoch
-		Weighed{}.Add( // if both are the same, below factors are equally considered. Note that the rates are in the scale of [0, 1e6].
-			ByProviderRate(a.getProviderFailureRates(ctx)), 1, // lower recent failures are preferred - they are more stable
-		).Add(ByProviderRate(a.getProviderWinningRates(ctx)), 1)) // lower recent winnings are also preferred - for fairness
+		LowerPrice(),                 // sort by lower price first
+		EarlierStartEpoch(time.Hour), // then by earlier start epoch, but in hourly scale
+		LowerProviderRate(a.getProviderWinningRates())) // then lower recent winnings are preferred for fairness
 	chCandidates := BidsSorter(sortStrategy).Sort(tctx, &auction, bids)
 	for b := range chCandidates {
 		if err := mbroker.PublishMsgAuctionWinnerSelected(ctx, a.mb,
@@ -534,32 +529,20 @@ func (a *Auctioneer) selectWinners(
 	return winners, ErrInsufficientBids
 }
 
-func (a *Auctioneer) getProviderFailureRates(ctx context.Context) map[string]int {
-	a.lkProviderFailureRates.Lock()
-	defer a.lkProviderFailureRates.Unlock()
-	if time.Since(a.providerFailureRatesLoadedAt) > time.Hour {
-		if rates, err := a.queue.GetProviderFailureRates(ctx); err != nil {
-			log.Warnf("getting storage provider recent failure rates, use cached rates: %v", err)
-		} else {
-			a.providerFailureRates = rates
-			a.providerFailureRatesLoadedAt = time.Now()
-		}
-	}
-	return a.providerFailureRates
-}
+// func (a *Auctioneer) getProviderFailureRates() map[string]int {
+// 	rates := a.providerFailureRates.Load()
+// 	if rates != nil {
+// 		return rates.(map[string]int)
+// 	}
+// 	return nil
+// }
 
-func (a *Auctioneer) getProviderWinningRates(ctx context.Context) map[string]int {
-	a.lkProviderWinningRates.Lock()
-	defer a.lkProviderWinningRates.Unlock()
-	if time.Since(a.providerWinningRatesLoadedAt) > time.Hour {
-		if rates, err := a.queue.GetProviderWinningRates(ctx); err != nil {
-			log.Warnf("getting storage provider recent failure rates, use cached rates: %v", err)
-		} else {
-			a.providerWinningRates = rates
-			a.providerWinningRatesLoadedAt = time.Now()
-		}
+func (a *Auctioneer) getProviderWinningRates() map[string]int {
+	rates := a.providerWinningRates.Load()
+	if rates != nil {
+		return rates.(map[string]int)
 	}
-	return a.providerWinningRates
+	return nil
 }
 
 func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error {
@@ -677,4 +660,27 @@ func (a *Auctioneer) newID() (auction.BidID, error) {
 	}
 	a.lkEntropy.Unlock()
 	return auction.BidID(strings.ToLower(id.String())), nil
+}
+
+func (a *Auctioneer) refreshProviderRates() {
+	tk := time.NewTicker(time.Hour)
+	for {
+		// if rates, err := a.queue.GetProviderFailureRates(a.ctx); err != nil {
+		// 	log.Errorf("getting storage provider recent failure rates: %v", err)
+		// } else {
+		// 	a.providerFailureRates.Store(rates)
+		// }
+		if rates, err := a.queue.GetProviderWinningRates(a.ctx); err != nil {
+			log.Errorf("getting storage provider recent winning rates: %v", err)
+		} else {
+			a.providerWinningRates.Store(rates)
+		}
+
+		select {
+		case <-tk.C:
+			// continue
+		case <-a.ctx.Done():
+			return
+		}
+	}
 }

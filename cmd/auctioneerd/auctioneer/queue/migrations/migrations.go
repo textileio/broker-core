@@ -135,7 +135,7 @@ func _002_bids_received_at_indexUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_bids_received_at_index.up.sql", size: 66, mode: os.FileMode(420), modTime: time.Unix(1630073114, 0)}
+	info := bindataFileInfo{name: "002_bids_received_at_index.up.sql", size: 66, mode: os.FileMode(420), modTime: time.Unix(1630416990, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

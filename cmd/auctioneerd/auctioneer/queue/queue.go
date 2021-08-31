@@ -280,7 +280,7 @@ func (q *Queue) GetProviderFailureRates(ctx context.Context) (map[string]int, er
 	if err != nil {
 		return nil, err
 	}
-	ret := make(map[string]int)
+	ret := make(map[string]int, len(rows))
 	for _, row := range rows {
 		ret[row.StorageProviderID] = int(row.FailureRatePpm)
 	}
@@ -293,7 +293,7 @@ func (q *Queue) GetProviderWinningRates(ctx context.Context) (map[string]int, er
 	if err != nil {
 		return nil, err
 	}
-	ret := make(map[string]int)
+	ret := make(map[string]int, len(rows))
 	for _, row := range rows {
 		ret[row.StorageProviderID] = int(row.WinningRatePpm)
 	}
