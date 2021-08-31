@@ -78,6 +78,17 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
+      - name: Build and push gql
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/gqld/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/gql:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
       - name: Build and push auctioneer
         uses: docker/build-push-action@v2
         with:
