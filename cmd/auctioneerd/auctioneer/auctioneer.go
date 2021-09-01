@@ -563,7 +563,10 @@ func (a *Auctioneer) selectWinners(
 		}
 
 		if err := a.publishWin(ctx, auction.ID, b.ID, b.Bid.BidderID); err != nil {
-			log.Warn(err) // error is annotated in publishWin
+			// skip this intended error from bidder which signals auctioneer to silently move on
+			if !strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
+				log.Warn(err) // error is annotated in publishWin
+			}
 			continue
 		}
 		winners[b.ID] = auctioneer.WinningBid{
