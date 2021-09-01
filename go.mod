@@ -3,7 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
-	cloud.google.com/go/pubsub v1.13.0
+	cloud.google.com/go/pubsub v1.16.0
 	cloud.google.com/go/storage v1.16.0
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
@@ -58,15 +58,14 @@ require (
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/otel v1.0.0-RC1
-	go.opentelemetry.io/otel/metric v0.21.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.22.0
+	go.opentelemetry.io/otel v1.0.0-RC2
+	go.opentelemetry.io/otel/metric v0.22.0
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/sys v0.0.0-20210818153620-00dd8d7831e7 // indirect
-	google.golang.org/api v0.50.0
-	google.golang.org/grpc v1.39.0
+	google.golang.org/api v0.56.0
+	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
 )
 
