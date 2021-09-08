@@ -134,20 +134,24 @@ func Random() Cmp {
 
 // BidsSorter constructs a sorter from the given comparator and bids.
 func BidsSorter(auction *auctioneer.Auction, bids []auctioneer.Bid) Sorter {
-	bh := &BidHeap{a: auction, h: bids}
-	return Sorter{bh}
+	// the heap is constructed within its method calls.
+	return Sorter{&bidHeap{a: auction, h: bids}}
 }
 
 // Sorter has a single sort method which takes an aunction and some bids, then
 // sort the bids based on the comparator given.
 type Sorter struct {
-	bh *BidHeap
+	bh *bidHeap
 }
 
 // Iterate sends the sorted result to the channel one by one. The channel is
 // closed when all bids are exhausted or the context is done.
 func (s Sorter) Iterate(ctx context.Context, cmp Cmp) chan auctioneer.Bid {
-	s.bh = &BidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
+	h := make([]auctioneer.Bid, 0, len(s.bh.h))
+	for _, b := range s.bh.h {
+		h = append(h, b)
+	}
+	s.bh = &bidHeap{a: s.bh.a, h: h, cmp: cmp}
 	heap.Init(s.bh)
 	ret := make(chan auctioneer.Bid)
 	go func() {
@@ -171,7 +175,11 @@ func (s Sorter) Iterate(ctx context.Context, cmp Cmp) chan auctioneer.Bid {
 // to the channel.The channel is closed when N bids has been picked, or when
 // all bids are exhausted, or the context is done.
 func (s Sorter) RandomTopN(ctx context.Context, n int, cmp Cmp) chan auctioneer.Bid {
-	s.bh = &BidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
+	h := make([]auctioneer.Bid, 0, len(s.bh.h))
+	for _, b := range s.bh.h {
+		h = append(h, b)
+	}
+	s.bh = &bidHeap{a: s.bh.a, h: h, cmp: cmp}
 	heap.Init(s.bh)
 	ret := make(chan auctioneer.Bid)
 	go func() {
@@ -195,41 +203,35 @@ func (s Sorter) RandomTopN(ctx context.Context, n int, cmp Cmp) chan auctioneer.
 	return ret
 }
 
-// Random sends random bids to the channel one by one, until all bids are
-// exhausted, or the context is done.
-func (s Sorter) Random(ctx context.Context, cmp Cmp) chan auctioneer.Bid {
-	return s.RandomTopN(ctx, s.bh.Len(), cmp)
-}
-
-// BidHeap is used to efficiently select auction winners.
-type BidHeap struct {
+// bidHeap is used to efficiently select auction winners.
+type bidHeap struct {
 	a   *auctioneer.Auction
 	h   []auctioneer.Bid
 	cmp Cmp
 }
 
 // Len returns the length of h.
-func (bh BidHeap) Len() int {
+func (bh bidHeap) Len() int {
 	return len(bh.h)
 }
 
 // Less returns true if the value at j is less than the value at i.
-func (bh BidHeap) Less(i, j int) bool {
+func (bh bidHeap) Less(i, j int) bool {
 	return bh.cmp.Cmp(bh.a, bh.h[i], bh.h[j]) < 0
 }
 
 // Swap index i and j.
-func (bh BidHeap) Swap(i, j int) {
+func (bh bidHeap) Swap(i, j int) {
 	bh.h[i], bh.h[j] = bh.h[j], bh.h[i]
 }
 
 // Push adds x to h.
-func (bh *BidHeap) Push(x interface{}) {
+func (bh *bidHeap) Push(x interface{}) {
 	bh.h = append(bh.h, x.(auctioneer.Bid))
 }
 
 // Pop removes and returns the last element in h.
-func (bh *BidHeap) Pop() (x interface{}) {
+func (bh *bidHeap) Pop() (x interface{}) {
 	x, bh.h = bh.h[len(bh.h)-1], bh.h[:len(bh.h)-1]
 	return x
 }

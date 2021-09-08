@@ -42,7 +42,15 @@ WITH b AS (SELECT storage_provider_id,
     WHERE received_at < current_timestamp - interval '1 days' AND received_at > current_timestamp - interval '1 weeks' AND won_at IS NOT NULL)
 SELECT b.storage_provider_id, (SUM(b.freshness*b.failed)*1000000/COUNT(*))::bigint AS failure_rate_ppm
 FROM b
-GROUP BY storage_provider_id ORDER by failure_rate_ppm;
+GROUP BY storage_provider_id;
+
+-- name: GetRecentWeekMaxOnChainSeconds :many
+-- get the maximum time in the last week a storage provider making a deal on chain.
+SELECT storage_provider_id,
+      MAX(extract(epoch from current_timestamp - deal_confirmed_at))::bigint AS max_on_chain_seconds
+    FROM bids
+    WHERE received_at > current_timestamp - interval '1 weeks' AND deal_confirmed_at IS NOT NULL
+GROUP BY storage_provider_id;
 
 -- name: GetRecentWeekWinningRate :many
 -- here's the logic:
@@ -56,7 +64,7 @@ WITH b AS (SELECT storage_provider_id,
     WHERE received_at < current_timestamp - interval '10 minutes' AND received_at > current_timestamp - interval '1 weeks')
 SELECT b.storage_provider_id, (SUM(b.freshness*b.winning)*1000000/COUNT(*))::bigint AS winning_rate_ppm
 FROM b
-GROUP BY storage_provider_id ORDER by winning_rate_ppm;
+GROUP BY storage_provider_id;
 
 -- name: UpdateBidsWonAt :many
 UPDATE bids SET won_at = CURRENT_TIMESTAMP

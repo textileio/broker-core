@@ -162,7 +162,7 @@ WITH b AS (SELECT storage_provider_id,
     WHERE received_at < current_timestamp - interval '1 days' AND received_at > current_timestamp - interval '1 weeks' AND won_at IS NOT NULL)
 SELECT b.storage_provider_id, (SUM(b.freshness*b.failed)*1000000/COUNT(*))::bigint AS failure_rate_ppm
 FROM b
-GROUP BY storage_provider_id ORDER by failure_rate_ppm
+GROUP BY storage_provider_id
 `
 
 type GetRecentWeekFailureRateRow struct {
@@ -197,6 +197,43 @@ func (q *Queries) GetRecentWeekFailureRate(ctx context.Context) ([]GetRecentWeek
 	return items, nil
 }
 
+const getRecentWeekMaxOnChainSeconds = `-- name: GetRecentWeekMaxOnChainSeconds :many
+SELECT storage_provider_id,
+      MAX(extract(epoch from current_timestamp - deal_confirmed_at))::bigint AS max_on_chain_seconds
+    FROM bids
+    WHERE received_at > current_timestamp - interval '1 weeks' AND deal_confirmed_at IS NOT NULL
+GROUP BY storage_provider_id
+`
+
+type GetRecentWeekMaxOnChainSecondsRow struct {
+	StorageProviderID string `json:"storageProviderID"`
+	MaxOnChainSeconds int64  `json:"maxOnChainSeconds"`
+}
+
+// get the maximum time in the last week a storage provider making a deal on chain.
+func (q *Queries) GetRecentWeekMaxOnChainSeconds(ctx context.Context) ([]GetRecentWeekMaxOnChainSecondsRow, error) {
+	rows, err := q.query(ctx, q.getRecentWeekMaxOnChainSecondsStmt, getRecentWeekMaxOnChainSeconds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRecentWeekMaxOnChainSecondsRow
+	for rows.Next() {
+		var i GetRecentWeekMaxOnChainSecondsRow
+		if err := rows.Scan(&i.StorageProviderID, &i.MaxOnChainSeconds); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRecentWeekWinningRate = `-- name: GetRecentWeekWinningRate :many
 WITH b AS (SELECT storage_provider_id,
       extract(epoch from interval '1 weeks') / extract(epoch from current_timestamp - received_at) AS freshness,
@@ -205,7 +242,7 @@ WITH b AS (SELECT storage_provider_id,
     WHERE received_at < current_timestamp - interval '10 minutes' AND received_at > current_timestamp - interval '1 weeks')
 SELECT b.storage_provider_id, (SUM(b.freshness*b.winning)*1000000/COUNT(*))::bigint AS winning_rate_ppm
 FROM b
-GROUP BY storage_provider_id ORDER by winning_rate_ppm
+GROUP BY storage_provider_id
 `
 
 type GetRecentWeekWinningRateRow struct {

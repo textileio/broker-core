@@ -33,14 +33,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	log = golog.Logger("auctioneer")
+const (
+	// NotifyTimeout is the max duration the auctioneer will wait for a response from bidders.
+	NotifyTimeout = time.Second * 30
 
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
 
-	// NotifyTimeout is the max duration the auctioneer will wait for a response from bidders.
-	NotifyTimeout = time.Second * 30
+	filecoinGenesisUnixEpoch = 1598306400
+)
+
+var (
+	log = golog.Logger("auctioneer")
 
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
@@ -79,12 +83,15 @@ type Auctioneer struct {
 	metricLastCreatedAuction  metric.Int64ValueObserver
 	metricPubsubPeers         metric.Int64ValueObserver
 
+	// this is just an alias of the method publishWin, used here so we can mock out libp2p rpc in tests.
+	winsPublisher  func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error
 	winsTopics     map[peer.ID]*rpc.Topic
 	proposalTopics map[peer.ID]*rpc.Topic
 	lkTopics       sync.Mutex
 
-	providerFailureRates atomic.Value // map[string]int
-	providerWinningRates atomic.Value // map[string]int
+	providerFailureRates   atomic.Value // map[string]int
+	providerOnChainEpoches atomic.Value // map[string]uint64
+	providerWinningRates   atomic.Value // map[string]int
 }
 
 // New returns a new Auctioneer.
@@ -108,6 +115,7 @@ func New(
 		winsTopics:     make(map[peer.ID]*rpc.Topic),
 		proposalTopics: make(map[peer.ID]*rpc.Topic),
 	}
+	a.winsPublisher = a.publishWin
 	a.initMetrics()
 
 	queue, err := q.NewQueue(postgresURI, a.processAuction, a.finalizeAuction)
@@ -325,6 +333,11 @@ func (a *Auctioneer) processAuction(
 			return nil, errors.New("bid rejected")
 		}
 
+		if auction.FilEpochDeadline > 0 &&
+			currentFilEpoch()+a.getProviderOnChainEpoches()[bid.StorageProviderID] > auction.FilEpochDeadline {
+			return nil, errors.New("bid rejected")
+		}
+
 		mu.Lock()
 		_, exists := bidders[from]
 		if exists {
@@ -505,8 +518,6 @@ func (a *Auctioneer) selectWinners(
 ) (map[core.BidID]auctioneer.WinningBid, error) {
 	winners := make(map[core.BidID]auctioneer.WinningBid)
 	sorter := BidsSorter(&auction, bids)
-	tctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	topN := len(bids) / 5
 	if topN < 5 {
 		topN = 5
@@ -518,19 +529,19 @@ func (a *Auctioneer) selectWinners(
 		case 0:
 			// for the first replica, leaning toward the providers with less recent failures (can not make a
 			// winning deal on chain for some reason).
-			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(tctx, topN, Ordered(LowerPrice(),
+			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(ctx, topN, Ordered(LowerPrice(),
 				LowerProviderRate(a.getProviderFailureRates()))))
 		case 1:
 			// the second replica, leaning toward those who win less recently. If they can not handle the
 			// throughput, the deals will fail eventually.
-			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(tctx, topN, Ordered(LowerPrice(),
+			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(ctx, topN, Ordered(LowerPrice(),
 				LowerProviderRate(a.getProviderWinningRates()))))
 		default:
 			// the rest of replicas, just randomly choose the rest of miners, but with low price (0).
-			b, win = a.selectOneWinner(ctx, &auction, sorter.Iterate(tctx, Ordered(LowerPrice(), Random())))
+			b, win = a.selectOneWinner(ctx, &auction, sorter.Iterate(ctx, Ordered(LowerPrice(), Random())))
 			if !win {
 				// exhausted all bids
-				break
+				return winners, ErrInsufficientBids
 			}
 		}
 		if !win {
@@ -548,7 +559,6 @@ func (a *Auctioneer) selectWinners(
 			return winners, nil
 		}
 	}
-	return winners, ErrInsufficientBids
 }
 
 func (a *Auctioneer) selectOneWinner(ctx context.Context, auction *auctioneer.Auction, ch chan auctioneer.Bid) (auctioneer.Bid, bool) {
@@ -558,7 +568,7 @@ func (a *Auctioneer) selectOneWinner(ctx context.Context, auction *auctioneer.Au
 			log.Warn(err) // error is annotated
 		}
 
-		if err := a.publishWin(ctx, auction.ID, b.ID, b.BidderID); err != nil {
+		if err := a.winsPublisher(ctx, auction.ID, b.ID, b.BidderID); err != nil {
 			// skip this intended error from bidder which signals auctioneer to silently move on
 			if !strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
 				log.Warn(err) // error is annotated in publishWin
@@ -574,6 +584,14 @@ func (a *Auctioneer) getProviderFailureRates() map[string]int {
 	rates := a.providerFailureRates.Load()
 	if rates != nil {
 		return rates.(map[string]int)
+	}
+	return nil
+}
+
+func (a *Auctioneer) getProviderOnChainEpoches() map[string]uint64 {
+	rates := a.providerOnChainEpoches.Load()
+	if rates != nil {
+		return rates.(map[string]uint64)
 	}
 	return nil
 }
@@ -706,6 +724,11 @@ func (a *Auctioneer) newID() (auction.BidID, error) {
 func (a *Auctioneer) refreshProviderRates() {
 	tk := time.NewTicker(10 * time.Minute)
 	for {
+		if rates, err := a.queue.GetProviderOnChainEpoches(a.ctx); err != nil {
+			log.Errorf("getting storage provider recent on chain epoches: %v", err)
+		} else {
+			a.providerOnChainEpoches.Store(rates)
+		}
 		if rates, err := a.queue.GetProviderFailureRates(a.ctx); err != nil {
 			log.Errorf("getting storage provider recent failure rates: %v", err)
 		} else {
@@ -724,4 +747,8 @@ func (a *Auctioneer) refreshProviderRates() {
 			return
 		}
 	}
+}
+
+func currentFilEpoch() uint64 {
+	return uint64((time.Now().Unix() - filecoinGenesisUnixEpoch) / 30)
 }
