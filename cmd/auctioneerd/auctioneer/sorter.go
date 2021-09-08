@@ -9,6 +9,10 @@ import (
 	"github.com/textileio/broker-core/auctioneer"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 // Cmp is the interface for a comparator.
 type Cmp interface {
 	// Cmp returns arbitrary number with the following semantics:
@@ -121,38 +125,38 @@ func LowerProviderRate(rates map[string]int) Cmp {
 }
 
 // Random returns a comparator which randomly returns -1, 0, or 1 using the
-// given source.
-func Random(s rand.Source) Cmp {
+// global random source.
+func Random() Cmp {
 	return CmpFn(func(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid) int {
-		return int(s.Int63()%3 - 1)
+		return int(rand.Int63()%3 - 1)
 	})
 }
 
-// BidsSorter constructs a sorter from the given comparator.
-func BidsSorter(cmp Cmp) Sorter { return Sorter{cmp} }
+// BidsSorter constructs a sorter from the given comparator and bids.
+func BidsSorter(auction *auctioneer.Auction, bids []auctioneer.Bid) Sorter {
+	bh := &BidHeap{a: auction, h: bids}
+	return Sorter{bh}
+}
 
 // Sorter has a single sort method which takes an aunction and some bids, then
 // sort the bids based on the comparator given.
 type Sorter struct {
-	cmp Cmp
+	bh *BidHeap
 }
 
-// Sort does the sort work and sends the result to the channel one by one. The
-// channel is closed when all bids are exhausted or the context is done.
-func (s Sorter) Sort(ctx context.Context, auction *auctioneer.Auction, bids []auctioneer.Bid) chan auctioneer.Bid {
+// Iterate sends the sorted result to the channel one by one. The channel is
+// closed when all bids are exhausted or the context is done.
+func (s Sorter) Iterate(ctx context.Context, cmp Cmp) chan auctioneer.Bid {
+	s.bh = &BidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
+	heap.Init(s.bh)
 	ret := make(chan auctioneer.Bid)
 	go func() {
 		defer close(ret)
-		bh := &BidHeap{a: auction, cmp: s.cmp}
-		heap.Init(bh)
-		for _, b := range bids {
-			heap.Push(bh, b)
-		}
 		for {
-			if bh.Len() == 0 {
+			if s.bh.Len() == 0 {
 				return
 			}
-			b := heap.Pop(bh).(auctioneer.Bid)
+			b := heap.Pop(s.bh).(auctioneer.Bid)
 			select {
 			case <-ctx.Done():
 				return
@@ -161,6 +165,40 @@ func (s Sorter) Sort(ctx context.Context, auction *auctioneer.Auction, bids []au
 		}
 	}()
 	return ret
+}
+
+// RandomTopN randomly choose one of the top N from the sorted list and sends
+// to the channel.The channel is closed when N bids has been picked, or when
+// all bids are exhausted, or the context is done.
+func (s Sorter) RandomTopN(ctx context.Context, n int, cmp Cmp) chan auctioneer.Bid {
+	s.bh = &BidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
+	heap.Init(s.bh)
+	ret := make(chan auctioneer.Bid)
+	go func() {
+		defer close(ret)
+		if n > s.bh.Len() {
+			n = s.bh.Len()
+		}
+		for {
+			if n == 0 {
+				return
+			}
+			b := heap.Remove(s.bh, rand.Intn(n)).(auctioneer.Bid)
+			n--
+			select {
+			case <-ctx.Done():
+				return
+			case ret <- b:
+			}
+		}
+	}()
+	return ret
+}
+
+// Random sends random bids to the channel one by one, until all bids are
+// exhausted, or the context is done.
+func (s Sorter) Random(ctx context.Context, cmp Cmp) chan auctioneer.Bid {
+	return s.RandomTopN(ctx, s.bh.Len(), cmp)
 }
 
 // BidHeap is used to efficiently select auction winners.

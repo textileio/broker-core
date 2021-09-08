@@ -327,6 +327,17 @@ func (q *Queue) SetProposalCidDeliveryError(
 	})
 }
 
+// MarkDealAsConfirmed marks the deal as confirmed by recording its confirmation time.
+func (q *Queue) MarkDealAsConfirmed(
+	ctx context.Context,
+	auctionID auction.ID,
+	bidID auction.BidID) error {
+	return q.db.UpdateDealConfirmedAt(ctx, db.UpdateDealConfirmedAtParams{
+		ID:        bidID,
+		AuctionID: auctionID,
+	})
+}
+
 func (q *Queue) enqueue(ctx context.Context, qx *db.Queries, a *auctioneer.Auction) {
 	if err := saveAndTransitionStatus(ctx, qx, a, broker.AuctionStatusStarted); err != nil {
 		log.Errorf("updating status (started): %v", err)

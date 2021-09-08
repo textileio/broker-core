@@ -83,7 +83,7 @@ type Auctioneer struct {
 	proposalTopics map[peer.ID]*rpc.Topic
 	lkTopics       sync.Mutex
 
-	// providerFailureRates atomic.Value // map[string]int
+	providerFailureRates atomic.Value // map[string]int
 	providerWinningRates atomic.Value // map[string]int
 }
 
@@ -234,6 +234,14 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 		log.Warn(err) // error is annotated
 	}
 	return publishErr
+}
+
+// MarkFinalizedDeal marks the deal as confirmed if it has no error.
+func (a *Auctioneer) MarkFinalizedDeal(ctx context.Context, fad broker.FinalizedDeal) error {
+	if fad.ErrorCause != "" {
+		return nil
+	}
+	return a.queue.MarkDealAsConfirmed(ctx, fad.AuctionID, fad.BidID)
 }
 
 // processAuction handles the next auction in the queue.
@@ -496,24 +504,38 @@ func (a *Auctioneer) selectWinners(
 	bids []auctioneer.Bid,
 ) (map[core.BidID]auctioneer.WinningBid, error) {
 	winners := make(map[core.BidID]auctioneer.WinningBid)
+	sorter := BidsSorter(&auction, bids)
 	tctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	sortStrategy := Ordered(
-		LowerPrice(),                 // sort by lower price first
-		EarlierStartEpoch(time.Hour), // then by earlier start epoch, but in hourly scale
-		LowerProviderRate(a.getProviderWinningRates())) // then lower recent winnings are preferred for fairness
-	chCandidates := BidsSorter(sortStrategy).Sort(tctx, &auction, bids)
-	for b := range chCandidates {
-		if err := mbroker.PublishMsgAuctionWinnerSelected(ctx, a.mb,
-			mbroker.AuctionToPbSummary(&auction), &b); err != nil {
-			log.Warn(err) // error is annotated
-		}
-
-		if err := a.publishWin(ctx, auction.ID, b.ID, b.BidderID); err != nil {
-			// skip this intended error from bidder which signals auctioneer to silently move on
-			if !strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
-				log.Warn(err) // error is annotated in publishWin
+	topN := len(bids) / 5
+	if topN < 5 {
+		topN = 5
+	}
+	for i := 0; ; i++ {
+		var b auctioneer.Bid
+		var win bool
+		switch i {
+		case 0:
+			// for the first replica, leaning toward the providers with less recent failures (can not make a
+			// winning deal on chain for some reason).
+			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(tctx, topN, Ordered(LowerPrice(),
+				LowerProviderRate(a.getProviderFailureRates()))))
+		case 1:
+			// the second replica, leaning toward those who win less recently. If they can not handle the
+			// throughput, the deals will fail eventually.
+			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(tctx, topN, Ordered(LowerPrice(),
+				LowerProviderRate(a.getProviderWinningRates()))))
+		default:
+			// the rest of replicas, just randomly choose the rest of miners, but with low price (0).
+			b, win = a.selectOneWinner(ctx, &auction, sorter.Iterate(tctx, Ordered(LowerPrice(), Random())))
+			if !win {
+				// exhausted all bids
+				break
 			}
+		}
+		if !win {
+			// can not get a winning bid satisfying the requirement of the replica, continue to the next
+			// replica.
 			continue
 		}
 		winners[b.ID] = auctioneer.WinningBid{
@@ -529,13 +551,32 @@ func (a *Auctioneer) selectWinners(
 	return winners, ErrInsufficientBids
 }
 
-// func (a *Auctioneer) getProviderFailureRates() map[string]int {
-// 	rates := a.providerFailureRates.Load()
-// 	if rates != nil {
-// 		return rates.(map[string]int)
-// 	}
-// 	return nil
-// }
+func (a *Auctioneer) selectOneWinner(ctx context.Context, auction *auctioneer.Auction, ch chan auctioneer.Bid) (auctioneer.Bid, bool) {
+	for b := range ch {
+		if err := mbroker.PublishMsgAuctionWinnerSelected(ctx, a.mb,
+			mbroker.AuctionToPbSummary(auction), &b); err != nil {
+			log.Warn(err) // error is annotated
+		}
+
+		if err := a.publishWin(ctx, auction.ID, b.ID, b.BidderID); err != nil {
+			// skip this intended error from bidder which signals auctioneer to silently move on
+			if !strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
+				log.Warn(err) // error is annotated in publishWin
+			}
+			continue
+		}
+		return b, true
+	}
+	return auctioneer.Bid{}, false
+}
+
+func (a *Auctioneer) getProviderFailureRates() map[string]int {
+	rates := a.providerFailureRates.Load()
+	if rates != nil {
+		return rates.(map[string]int)
+	}
+	return nil
+}
 
 func (a *Auctioneer) getProviderWinningRates() map[string]int {
 	rates := a.providerWinningRates.Load()
@@ -663,13 +704,13 @@ func (a *Auctioneer) newID() (auction.BidID, error) {
 }
 
 func (a *Auctioneer) refreshProviderRates() {
-	tk := time.NewTicker(time.Hour)
+	tk := time.NewTicker(10 * time.Minute)
 	for {
-		// if rates, err := a.queue.GetProviderFailureRates(a.ctx); err != nil {
-		// 	log.Errorf("getting storage provider recent failure rates: %v", err)
-		// } else {
-		// 	a.providerFailureRates.Store(rates)
-		// }
+		if rates, err := a.queue.GetProviderFailureRates(a.ctx); err != nil {
+			log.Errorf("getting storage provider recent failure rates: %v", err)
+		} else {
+			a.providerFailureRates.Store(rates)
+		}
 		if rates, err := a.queue.GetProviderWinningRates(a.ctx); err != nil {
 			log.Errorf("getting storage provider recent winning rates: %v", err)
 		} else {

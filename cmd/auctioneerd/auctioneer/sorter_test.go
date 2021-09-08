@@ -2,9 +2,7 @@ package auctioneer
 
 import (
 	"context"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	core "github.com/textileio/bidbot/lib/auction"
@@ -29,11 +27,11 @@ func TestSortByPrice(t *testing.T) {
 			auctioneer.Bid{ID: "medium", VerifiedAskPrice: 1},
 		}, &auctioneer.Auction{DealVerified: true}, "low"},
 	} {
-		s := BidsSorter(LowerPrice())
 		t.Run(testCase.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			b := <-s.Sort(ctx, testCase.auction, testCase.bids)
+			s := BidsSorter(testCase.auction, testCase.bids)
+			b := <-s.Iterate(ctx, LowerPrice())
 			assert.Equal(t, core.BidID(testCase.winner), b.ID)
 		})
 	}
@@ -41,11 +39,13 @@ func TestSortByPrice(t *testing.T) {
 
 func TestSortRandom(t *testing.T) {
 	hits := make(map[core.BidID]int)
-	s := BidsSorter(Random(rand.NewSource(time.Now().UnixNano())))
 	for i := 0; i < 100; i++ {
-		ctx, cancel := context.WithCancel(context.Background())
-		b := <-s.Sort(ctx, &auctioneer.Auction{},
+		s := BidsSorter(
+			&auctioneer.Auction{},
 			[]auctioneer.Bid{auctioneer.Bid{ID: "a", AskPrice: 1}, auctioneer.Bid{ID: "b", AskPrice: 1}})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		b := <-s.Iterate(ctx, Random())
 		hits[b.ID]++
 		cancel()
 	}
@@ -68,7 +68,7 @@ func TestSortByProviderFailureRate(t *testing.T) {
 		auctioneer.Bid{ID: "zero", StorageProviderID: "f0004"},
 	}
 
-	ch := BidsSorter(LowerProviderRate(rateTable)).Sort(context.Background(), &auctioneer.Auction{}, bids)
+	ch := BidsSorter(&auctioneer.Auction{}, bids).Iterate(context.Background(), LowerProviderRate(rateTable))
 	assert.EqualValues(t, "zero", (<-ch).ID)
 	assert.EqualValues(t, "low", (<-ch).ID)
 	assert.EqualValues(t, "medium", (<-ch).ID)
@@ -110,7 +110,7 @@ func TestCombination(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			var result []string
-			for b := range BidsSorter(testCase.cmp).Sort(context.Background(), &auctioneer.Auction{}, bids) {
+			for b := range BidsSorter(&auctioneer.Auction{}, bids).Iterate(context.Background(), testCase.cmp) {
 				result = append(result, string(b.ID))
 			}
 			assert.Equal(t, testCase.expected, result)

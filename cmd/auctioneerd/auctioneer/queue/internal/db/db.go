@@ -52,6 +52,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateBidsWonAtStmt, err = db.PrepareContext(ctx, updateBidsWonAt); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateBidsWonAt: %w", err)
 	}
+	if q.updateDealConfirmedAtStmt, err = db.PrepareContext(ctx, updateDealConfirmedAt); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateDealConfirmedAt: %w", err)
+	}
 	if q.updateProposalCidStmt, err = db.PrepareContext(ctx, updateProposalCid); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateProposalCid: %w", err)
 	}
@@ -113,6 +116,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateBidsWonAtStmt: %w", cerr)
 		}
 	}
+	if q.updateDealConfirmedAtStmt != nil {
+		if cerr := q.updateDealConfirmedAtStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateDealConfirmedAtStmt: %w", cerr)
+		}
+	}
 	if q.updateProposalCidStmt != nil {
 		if cerr := q.updateProposalCidStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateProposalCidStmt: %w", cerr)
@@ -172,6 +180,7 @@ type Queries struct {
 	getRecentWeekWinningRateStmt       *sql.Stmt
 	updateAuctionStatusAndErrorStmt    *sql.Stmt
 	updateBidsWonAtStmt                *sql.Stmt
+	updateDealConfirmedAtStmt          *sql.Stmt
 	updateProposalCidStmt              *sql.Stmt
 	updateProposalCidDeliveryErrorStmt *sql.Stmt
 }
@@ -190,6 +199,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getRecentWeekWinningRateStmt:       q.getRecentWeekWinningRateStmt,
 		updateAuctionStatusAndErrorStmt:    q.updateAuctionStatusAndErrorStmt,
 		updateBidsWonAtStmt:                q.updateBidsWonAtStmt,
+		updateDealConfirmedAtStmt:          q.updateDealConfirmedAtStmt,
 		updateProposalCidStmt:              q.updateProposalCidStmt,
 		updateProposalCidDeliveryErrorStmt: q.updateProposalCidDeliveryErrorStmt,
 	}
