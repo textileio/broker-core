@@ -127,7 +127,7 @@ func LowerProviderRate(rates map[string]int) Cmp {
 // Note that it violates the invariants of heap operations and the result distribution is very uneven.
 func Random() Cmp {
 	return CmpFn(func(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid) int {
-		return int(rand.Int63()%3 - 1)
+		return int(rand.Intn(3) - 1)
 	})
 }
 

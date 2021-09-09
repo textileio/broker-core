@@ -286,9 +286,12 @@ func (a *Auctioneer) processAuction(
 		bids    []auctioneer.Bid
 		bidders = make(map[peer.ID]struct{})
 		mu      sync.Mutex
+		wg      sync.WaitGroup
 	)
 
 	bidsHandler := func(from peer.ID, _ string, msg []byte) ([]byte, error) {
+		wg.Add(1)
+		defer wg.Done()
 		if err := from.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid bidder: %v", err)
 		}
@@ -376,20 +379,16 @@ func (a *Auctioneer) processAuction(
 	}
 	<-actx.Done()
 	topic.SetMessageHandler(nil)
-
-	log.Infof(
-		"auction %s ended; total bids: %d; num required: %d",
-		auction.ID,
-		len(bids),
-		auction.DealReplication,
-	)
+	// wait for bidsHandlers to finish to avoid data race.
+	wg.Wait()
+	log.Infof("auction %s ended; total bids: %d; num required: %d",
+		auction.ID, len(bids), auction.DealReplication)
 
 	winners, err := a.selectWinners(ctx, auction, bids)
 	if err != nil {
 		log.Warnf("auction %s failed: %v", auction.ID, err)
 		return nil, fmt.Errorf("selecting winners: %v", err)
 	}
-
 	var info []string
 	for id, wb := range winners {
 		info = append(info, fmt.Sprintf("bid: %s; bidder: %s", id, wb.BidderID))
@@ -529,7 +528,7 @@ func (a *Auctioneer) selectWinners(
 	if topN < 5 {
 		topN = 5
 	}
-	for i := 0; ; i++ {
+	for i := 0; len(winners) < int(auction.DealReplication); i++ {
 		var b auctioneer.Bid
 		var win bool
 		cctx, cancel := context.WithCancel(ctx)
@@ -565,10 +564,8 @@ func (a *Auctioneer) selectWinners(
 		if err := mbroker.PublishMsgAuctionWinnerAcked(ctx, a.mb, mbroker.AuctionToPbSummary(&auction), &b); err != nil {
 			log.Warn(err) // error is annotated
 		}
-		if len(winners) == int(auction.DealReplication) {
-			return winners, nil
-		}
 	}
+	return winners, nil
 }
 
 func (a *Auctioneer) selectOneWinner(
@@ -598,7 +595,7 @@ func (a *Auctioneer) getProviderFailureRates() map[string]int {
 	if rates != nil {
 		return rates.(map[string]int)
 	}
-	return nil
+	return map[string]int{}
 }
 
 func (a *Auctioneer) getProviderOnChainEpoches() map[string]uint64 {
@@ -606,7 +603,7 @@ func (a *Auctioneer) getProviderOnChainEpoches() map[string]uint64 {
 	if rates != nil {
 		return rates.(map[string]uint64)
 	}
-	return nil
+	return map[string]uint64{}
 }
 
 func (a *Auctioneer) getProviderWinningRates() map[string]int {
@@ -614,7 +611,7 @@ func (a *Auctioneer) getProviderWinningRates() map[string]int {
 	if rates != nil {
 		return rates.(map[string]int)
 	}
-	return nil
+	return map[string]int{}
 }
 
 func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error {
