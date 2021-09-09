@@ -39,20 +39,18 @@ func TestSortByPrice(t *testing.T) {
 
 func TestSortRandom(t *testing.T) {
 	hits := make(map[core.BidID]int)
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		s := BidsSorter(
 			&auctioneer.Auction{},
-			[]auctioneer.Bid{auctioneer.Bid{ID: "a", AskPrice: 1}, auctioneer.Bid{ID: "b", AskPrice: 1}})
+			[]auctioneer.Bid{auctioneer.Bid{ID: "a"}, auctioneer.Bid{ID: "b"}, auctioneer.Bid{ID: "c"}, auctioneer.Bid{ID: "d"}})
 
-		ctx, cancel := context.WithCancel(context.Background())
-		b := <-s.Iterate(ctx, Random())
+		_, cancel := context.WithCancel(context.Background())
+		b := <-s.Iterate(context.Background(), Random())
 		hits[b.ID]++
 		cancel()
 	}
-	for id, n := range hits {
-		// we should have some randomness
-		assert.InDelta(t, 50, n, 40, id)
-	}
+	// there should be some randomness, albeit very uneven.
+	assert.Len(t, hits, 4)
 }
 
 func TestSortByProviderRates(t *testing.T) {
@@ -122,25 +120,46 @@ func TestCombination(t *testing.T) {
 }
 
 func TestRandomTopN(t *testing.T) {
+	rateTable := map[string]int{
+		"f0001": 100,
+		"f0002": 1,
+		"f0003": 2,
+		"f0004": 9999,
+	}
+	bids := []auctioneer.Bid{
+		auctioneer.Bid{ID: "medium", StorageProviderID: "f0001"},
+		auctioneer.Bid{ID: "low", StorageProviderID: "f0002"},
+		auctioneer.Bid{ID: "low2", StorageProviderID: "f0003"},
+		auctioneer.Bid{ID: "high", StorageProviderID: "f0004"},
+		auctioneer.Bid{ID: "zero", StorageProviderID: "f0005"},
+	}
+
 	hits := make(map[core.BidID]int)
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
+		ch := BidsSorter(&auctioneer.Auction{}, bids).RandomTopN(context.Background(), 4, LowerProviderRate(rateTable))
+		hits[(<-ch).ID]++
+	}
+	assert.InDelta(t, 250, hits["zero"], 50)
+	assert.InDelta(t, 250, hits["low"], 50)
+	assert.InDelta(t, 250, hits["low2"], 50)
+	assert.InDelta(t, 250, hits["medium"], 50)
+}
+
+func TestRandom(t *testing.T) {
+	hits := make(map[core.BidID]int)
+	for i := 0; i < 1000; i++ {
 		s := BidsSorter(
 			&auctioneer.Auction{},
-			[]auctioneer.Bid{
-				auctioneer.Bid{ID: "a", AskPrice: 2},
-				auctioneer.Bid{ID: "b", AskPrice: 10},
-				auctioneer.Bid{ID: "c", AskPrice: 1},
-				auctioneer.Bid{ID: "d", AskPrice: 1},
-			})
-		ctx, cancel := context.WithCancel(context.Background())
-		b := <-s.RandomTopN(ctx, 3, LowerPrice())
+			[]auctioneer.Bid{auctioneer.Bid{ID: "a"}, auctioneer.Bid{ID: "b"}, auctioneer.Bid{ID: "c"}, auctioneer.Bid{ID: "d"}})
+
+		_, cancel := context.WithCancel(context.Background())
+		b := <-s.Random(context.Background())
 		hits[b.ID]++
 		cancel()
 	}
-	assert.NotContains(t, hits, "b", "the bid with higher price should not be chosen")
-	assert.Len(t, hits, 3)
+	assert.Len(t, hits, 4)
 	for id, n := range hits {
-		// we should have some randomness
-		assert.InDelta(t, 33, n, 10, id)
+		// we should have fairly good randomness
+		assert.InDelta(t, 250, n, 50, id)
 	}
 }

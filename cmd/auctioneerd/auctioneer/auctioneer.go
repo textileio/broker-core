@@ -333,11 +333,6 @@ func (a *Auctioneer) processAuction(
 			return nil, errors.New("bid rejected")
 		}
 
-		if auction.FilEpochDeadline > 0 &&
-			currentFilEpoch()+a.getProviderOnChainEpoches()[bid.StorageProviderID] > auction.FilEpochDeadline {
-			return nil, errors.New("bid rejected")
-		}
-
 		mu.Lock()
 		_, exists := bidders[from]
 		if exists {
@@ -517,36 +512,51 @@ func (a *Auctioneer) selectWinners(
 	bids []auctioneer.Bid,
 ) (map[core.BidID]auctioneer.WinningBid, error) {
 	winners := make(map[core.BidID]auctioneer.WinningBid)
-	sorter := BidsSorter(&auction, bids)
-	topN := len(bids) / 5
+	sorter := BidsSorter(&auction, bids).Select(func(b *auctioneer.Bid) bool {
+		// consider only bids with zero price for now.
+		return !auction.DealVerified && b.AskPrice == 0 || auction.DealVerified && b.VerifiedAskPrice == 0
+	})
+	if auction.FilEpochDeadline > 0 {
+		// select providers historically (the recent week) confirmed deals sooner than the auction requires.
+		epoches := a.getProviderOnChainEpoches()
+		minWindow := auction.FilEpochDeadline - currentFilEpoch()
+		sorter = sorter.Select(func(b *auctioneer.Bid) bool {
+			return minWindow > epoches[b.StorageProviderID]
+		})
+	}
+
+	topN := sorter.Len() / 5
 	if topN < 5 {
 		topN = 5
 	}
 	for i := 0; ; i++ {
 		var b auctioneer.Bid
 		var win bool
+		cctx, cancel := context.WithCancel(ctx)
 		switch i {
 		case 0:
 			// for the first replica, leaning toward the providers with less recent failures (can not make a
 			// winning deal on chain for some reason).
-			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(ctx, topN, Ordered(LowerPrice(),
-				LowerProviderRate(a.getProviderFailureRates()))))
+			b, win = a.selectOneWinner(cctx, &auction, sorter.RandomTopN(cctx, topN,
+				LowerProviderRate(a.getProviderFailureRates())))
 		case 1:
-			// the second replica, leaning toward those who win less recently. If they can not handle the
-			// throughput, the deals will fail eventually.
-			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(ctx, topN, Ordered(LowerPrice(),
-				LowerProviderRate(a.getProviderWinningRates()))))
+			// the second replica, leaning toward those who have less winning bids recently. The order
+			// changes very often. If they can not handle the throughput, the deals will fail eventually.
+			b, win = a.selectOneWinner(cctx, &auction, sorter.RandomTopN(cctx, topN,
+				LowerProviderRate(a.getProviderWinningRates())))
 		default:
 			// the rest of replicas, just randomly choose the rest of miners, but with low price (0).
-			b, win = a.selectOneWinner(ctx, &auction, sorter.Iterate(ctx, Ordered(LowerPrice(), Random())))
+			b, win = a.selectOneWinner(cctx, &auction, sorter.Random(cctx))
 			if !win {
+				cancel()
 				// exhausted all bids
 				return winners, ErrInsufficientBids
 			}
 		}
+		cancel()
 		if !win {
-			// can not get a winning bid satisfying the requirement of the replica, continue to the next
-			// replica.
+			// can not get a winning bid satisfying the requirement of the current replica,
+			// continue to the next replica.
 			continue
 		}
 		winners[b.ID] = auctioneer.WinningBid{
@@ -561,7 +571,10 @@ func (a *Auctioneer) selectWinners(
 	}
 }
 
-func (a *Auctioneer) selectOneWinner(ctx context.Context, auction *auctioneer.Auction, ch chan auctioneer.Bid) (auctioneer.Bid, bool) {
+func (a *Auctioneer) selectOneWinner(
+	ctx context.Context,
+	auction *auctioneer.Auction,
+	ch chan auctioneer.Bid) (auctioneer.Bid, bool) {
 	for b := range ch {
 		if err := mbroker.PublishMsgAuctionWinnerSelected(ctx, a.mb,
 			mbroker.AuctionToPbSummary(auction), &b); err != nil {

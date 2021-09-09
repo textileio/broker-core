@@ -30,6 +30,7 @@ func TestNewID(t *testing.T) {
 }
 
 func TestAcceptBid(t *testing.T) {
+	t.Parallel()
 	require.True(t, acceptBid(&auctioneer.Auction{}, &auctioneer.Bid{}))
 	require.True(t, acceptBid(&auctioneer.Auction{}, &auctioneer.Bid{StartEpoch: 90000}))
 	require.True(t, acceptBid(&auctioneer.Auction{FilEpochDeadline: 89999}, &auctioneer.Bid{StartEpoch: 89999}))
@@ -48,7 +49,6 @@ func TestAcceptBid(t *testing.T) {
 }
 
 func TestSelectWinners(t *testing.T) {
-	t.Skip()
 	failureRates := map[string]int{
 		"sp1": 1,
 		"sp2": 2,
@@ -59,6 +59,9 @@ func TestSelectWinners(t *testing.T) {
 		"sp7": 200,
 		"sp8": 100,
 	}
+	onChainEpoches := map[string]uint64{
+		"spWithLongEpoch": 200,
+	}
 	winningRates := map[string]int{
 		"sp1": 200,
 		"sp2": 100,
@@ -66,11 +69,10 @@ func TestSelectWinners(t *testing.T) {
 		"sp4": 10,
 		"sp5": 10,
 		"sp6": 2,
-		"sp7": 2,
+		"sp7": 1,
 		"sp8": 1,
 	}
 	bids := []auctioneer.Bid{
-		auctioneer.Bid{ID: "bid0", StorageProviderID: "sp0"},
 		auctioneer.Bid{ID: "bid1", StorageProviderID: "sp1"},
 		auctioneer.Bid{ID: "bid2", StorageProviderID: "sp2"},
 		auctioneer.Bid{ID: "bid3", StorageProviderID: "sp3"},
@@ -79,65 +81,88 @@ func TestSelectWinners(t *testing.T) {
 		auctioneer.Bid{ID: "bid6", StorageProviderID: "sp6"},
 		auctioneer.Bid{ID: "bid7", StorageProviderID: "sp7"},
 		auctioneer.Bid{ID: "bid8", StorageProviderID: "sp8"},
+		auctioneer.Bid{ID: "bid9", StorageProviderID: "spWithLongEpoch"},
+		auctioneer.Bid{ID: "bid10", StorageProviderID: "spWithPrice", AskPrice: 1},
 	}
 	for _, testCase := range []struct {
-		name    string
-		auction auctioneer.Auction
-		winners []core.BidID
+		name           string
+		auction        auctioneer.Auction
+		winningChances []struct {
+			ids    []core.BidID
+			chance float64
+		}
 	}{
 		{
 			"one replica, randomly choose one from 5 with low failure rates",
-			auctioneer.Auction{DealReplication: 1},
-			[]core.BidID{"bid0", "bid1", "bid2", "bid3", "bid4"},
+			auctioneer.Auction{DealReplication: 1, FilEpochDeadline: currentFilEpoch() + 1},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5"}, 0.2}},
 		},
 		{
-			"two replicas, choose one with low failure rates and another with low winning rates",
-			auctioneer.Auction{DealReplication: 2},
-			[]core.BidID{"bid0", "bid1", "bid2", "bid3", "bid4",
-				"bid4", "bid5", "bid6", "bid7", "bid8"},
+			"two replicas, one with low failure rates and another with low winning rates",
+			auctioneer.Auction{DealReplication: 2, FilEpochDeadline: currentFilEpoch() + 1},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5"}, 0.2},
+				{[]core.BidID{"bid4", "bid5", "bid6", "bid7", "bid8"}, 0.2}},
 		},
 		{
-			"three replicas, randomly choose one apart from the above",
-			auctioneer.Auction{DealReplication: 3},
-			[]core.BidID{"bid0", "bid1", "bid2", "bid3", "bid4",
-				"bid4", "bid5", "bid6", "bid7", "bid8",
-				"bid0", "bid1", "bid2", "bid3", "bid4", "bid5", "bid6", "bid7", "bid8"},
+			"three replicas, randomly choose one plus the above",
+			auctioneer.Auction{DealReplication: 3, FilEpochDeadline: currentFilEpoch() + 1},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5"}, 0.2},
+				{[]core.BidID{"bid4", "bid5", "bid6", "bid7", "bid8"}, 0.2},
+				{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5", "bid6", "bid7", "bid8"}, 0.125}},
 		},
 		{
 			"more replicas, choose more random ones",
-			auctioneer.Auction{DealReplication: 4},
-			[]core.BidID{"bid0", "bid1", "bid2", "bid3", "bid4",
-				"bid4", "bid5", "bid6", "bid7", "bid8",
-				"bid0", "bid1", "bid2", "bid3", "bid4", "bid5", "bid6", "bid7", "bid8",
-				"bid0", "bid1", "bid2", "bid3", "bid4", "bid5", "bid6", "bid7", "bid8"},
+			auctioneer.Auction{DealReplication: 4, FilEpochDeadline: currentFilEpoch() + 1},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5"}, 0.2},
+				{[]core.BidID{"bid4", "bid5", "bid6", "bid7", "bid8"}, 0.2},
+				{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5", "bid6", "bid7", "bid8"}, 0.125},
+				{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5", "bid6", "bid7", "bid8"}, 0.125}},
+		},
+		{
+			"no epoch deadline, additional providers are considered",
+			auctioneer.Auction{DealReplication: 1},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid9"}, 0.2}},
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			rounds, total := 1000, 0
+			rounds := 500
 			expectedWins := make(map[core.BidID]int)
-			for _, id := range testCase.winners {
-				total++
-				expectedWins[id]++
-			}
-			for id, _ := range expectedWins {
-				expectedWins[id] = expectedWins[id] * rounds / total
+			for _, winningChance := range testCase.winningChances {
+				for _, id := range winningChance.ids {
+					expectedWins[id] += int(winningChance.chance * float64(rounds))
+				}
 			}
 			a := &Auctioneer{mb: fakemsgbroker.New(),
 				winsPublisher: func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error { return nil },
 			}
 			a.providerFailureRates.Store(failureRates)
+			a.providerOnChainEpoches.Store(onChainEpoches)
 			a.providerWinningRates.Store(winningRates)
 			spWins := make(map[core.BidID]int)
 			for i := 0; i < rounds; i++ {
 				winningBids, err := a.selectWinners(context.Background(), testCase.auction, bids)
 				assert.NoError(t, err)
 				assert.Len(t, winningBids, int(testCase.auction.DealReplication))
-				for id, _ := range winningBids {
+				for id := range winningBids {
 					assert.Contains(t, expectedWins, id)
 					spWins[id]++
 				}
 			}
-			t.Log(spWins)
 			assert.Len(t, spWins, len(expectedWins))
 			for id, n := range spWins {
 				assert.InDelta(t, n, expectedWins[id], float64(expectedWins[id]/2))

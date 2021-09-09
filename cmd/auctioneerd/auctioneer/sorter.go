@@ -117,15 +117,14 @@ func (wc providerRate) Cmp(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer
 	return wc.rates[i.StorageProviderID] - wc.rates[j.StorageProviderID]
 }
 
-// LowerProviderRate returns a comparator which considers some rate of the storage
-// provider. Provider with lower rate gets a higher chance to win. Provider
-// not in the provided rates table are considered to have zero rate.
+// LowerProviderRate returns a comparator which considers some rate of the storage provider. Provider with lower rate
+// gets a higher chance to win. Provider not in the provided rates table are considered to have zero rate.
 func LowerProviderRate(rates map[string]int) Cmp {
 	return providerRate{rates}
 }
 
-// Random returns a comparator which randomly returns -1, 0, or 1 using the
-// global random source.
+// Random returns a comparator which randomly returns -1, 0, or 1 using the global random source.
+// Note that it violates the invariants of heap operations and the result distribution is very uneven.
 func Random() Cmp {
 	return CmpFn(func(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid) int {
 		return int(rand.Int63()%3 - 1)
@@ -144,13 +143,27 @@ type Sorter struct {
 	bh *bidHeap
 }
 
+// Len returns the number of bids remain in the sorter right now.
+func (s Sorter) Len() int {
+	return s.bh.Len()
+}
+
+// Select returns a new sorter with the bids don't pass the filter being removed.
+func (s Sorter) Select(filter func(*auctioneer.Bid) bool) Sorter {
+	h := make([]auctioneer.Bid, 0, len(s.bh.h))
+	for _, b := range s.bh.h {
+		if filter(&b) {
+			h = append(h, b)
+		}
+	}
+	return Sorter{&bidHeap{a: s.bh.a, h: h}}
+}
+
 // Iterate sends the sorted result to the channel one by one. The channel is
 // closed when all bids are exhausted or the context is done.
 func (s Sorter) Iterate(ctx context.Context, cmp Cmp) chan auctioneer.Bid {
 	h := make([]auctioneer.Bid, 0, len(s.bh.h))
-	for _, b := range s.bh.h {
-		h = append(h, b)
-	}
+	h = append(h, s.bh.h...)
 	s.bh = &bidHeap{a: s.bh.a, h: h, cmp: cmp}
 	heap.Init(s.bh)
 	ret := make(chan auctioneer.Bid)
@@ -176,9 +189,7 @@ func (s Sorter) Iterate(ctx context.Context, cmp Cmp) chan auctioneer.Bid {
 // all bids are exhausted, or the context is done.
 func (s Sorter) RandomTopN(ctx context.Context, n int, cmp Cmp) chan auctioneer.Bid {
 	h := make([]auctioneer.Bid, 0, len(s.bh.h))
-	for _, b := range s.bh.h {
-		h = append(h, b)
-	}
+	h = append(h, s.bh.h...)
 	s.bh = &bidHeap{a: s.bh.a, h: h, cmp: cmp}
 	heap.Init(s.bh)
 	ret := make(chan auctioneer.Bid)
@@ -191,11 +202,38 @@ func (s Sorter) RandomTopN(ctx context.Context, n int, cmp Cmp) chan auctioneer.
 			if n == 0 {
 				return
 			}
-			b := heap.Remove(s.bh, rand.Intn(n)).(auctioneer.Bid)
+			i := rand.Intn(n)
+			temp := make([]auctioneer.Bid, 0, i)
+			for j := 0; j < i; j++ {
+				temp = append(temp, heap.Pop(s.bh).(auctioneer.Bid))
+			}
+			b := heap.Pop(s.bh).(auctioneer.Bid)
+			for _, t := range temp {
+				heap.Push(s.bh, t)
+			}
 			n--
 			select {
 			case <-ctx.Done():
 				return
+			case ret <- b:
+			}
+		}
+	}()
+	return ret
+}
+
+// Random randomly sends one bid to the channel, until all bids are exhausted, or the context is done.
+func (s Sorter) Random(ctx context.Context) chan auctioneer.Bid {
+	h := make([]auctioneer.Bid, 0, len(s.bh.h))
+	h = append(h, s.bh.h...)
+	s.bh = &bidHeap{a: s.bh.a, h: h, cmp: Random()}
+	ret := make(chan auctioneer.Bid)
+	go func() {
+		defer close(ret)
+		for s.bh.Len() > 0 {
+			b := heap.Remove(s.bh, rand.Intn(s.bh.Len())).(auctioneer.Bid)
+			select {
+			case <-ctx.Done():
 			case ret <- b:
 			}
 		}

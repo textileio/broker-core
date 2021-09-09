@@ -272,8 +272,8 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 			BidParams: bidbotsrv.BidParams{
 				StorageProviderID:     "foo",
 				WalletAddrSig:         []byte("bar"),
-				AskPrice:              100000000000,
-				VerifiedAskPrice:      100000000000,
+				AskPrice:              0,
+				VerifiedAskPrice:      0,
 				FastRetrieval:         true,
 				DealStartWindow:       oneDayEpochs,
 				DealDataDirectory:     t.TempDir(),
