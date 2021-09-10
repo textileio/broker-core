@@ -37,6 +37,7 @@ type Service struct {
 
 var _ mbroker.ReadyToAuctionListener = (*Service)(nil)
 var _ mbroker.DealProposalAcceptedListener = (*Service)(nil)
+var _ mbroker.FinalizedDealListener = (*Service)(nil)
 
 // New returns a new Service.
 func New(conf Config, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, error) {
@@ -149,6 +150,14 @@ func (s *Service) OnDealProposalAccepted(
 ) error {
 	if err := s.lib.DeliverProposal(ctx, auctionID, bidID, proposalCid); err != nil {
 		return fmt.Errorf("procesing deal-proposal-accepted msg: %v", err)
+	}
+	return nil
+}
+
+// OnFinalizedDeal receives a finalized deal from a storage-provider.
+func (s *Service) OnFinalizedDeal(ctx context.Context, _ mbroker.OperationID, fad broker.FinalizedDeal) error {
+	if err := s.lib.MarkFinalizedDeal(ctx, fad); err != nil {
+		return fmt.Errorf("procesing dfinalized-deal msg: %v", err)
 	}
 	return nil
 }

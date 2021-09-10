@@ -40,11 +40,23 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNextReadyToExecuteStmt, err = db.PrepareContext(ctx, getNextReadyToExecute); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNextReadyToExecute: %w", err)
 	}
+	if q.getRecentWeekFailureRateStmt, err = db.PrepareContext(ctx, getRecentWeekFailureRate); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentWeekFailureRate: %w", err)
+	}
+	if q.getRecentWeekMaxOnChainSecondsStmt, err = db.PrepareContext(ctx, getRecentWeekMaxOnChainSeconds); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentWeekMaxOnChainSeconds: %w", err)
+	}
+	if q.getRecentWeekWinningRateStmt, err = db.PrepareContext(ctx, getRecentWeekWinningRate); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentWeekWinningRate: %w", err)
+	}
 	if q.updateAuctionStatusAndErrorStmt, err = db.PrepareContext(ctx, updateAuctionStatusAndError); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAuctionStatusAndError: %w", err)
 	}
 	if q.updateBidsWonAtStmt, err = db.PrepareContext(ctx, updateBidsWonAt); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateBidsWonAt: %w", err)
+	}
+	if q.updateDealConfirmedAtStmt, err = db.PrepareContext(ctx, updateDealConfirmedAt); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateDealConfirmedAt: %w", err)
 	}
 	if q.updateProposalCidStmt, err = db.PrepareContext(ctx, updateProposalCid); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateProposalCid: %w", err)
@@ -87,6 +99,21 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getNextReadyToExecuteStmt: %w", cerr)
 		}
 	}
+	if q.getRecentWeekFailureRateStmt != nil {
+		if cerr := q.getRecentWeekFailureRateStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentWeekFailureRateStmt: %w", cerr)
+		}
+	}
+	if q.getRecentWeekMaxOnChainSecondsStmt != nil {
+		if cerr := q.getRecentWeekMaxOnChainSecondsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentWeekMaxOnChainSecondsStmt: %w", cerr)
+		}
+	}
+	if q.getRecentWeekWinningRateStmt != nil {
+		if cerr := q.getRecentWeekWinningRateStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentWeekWinningRateStmt: %w", cerr)
+		}
+	}
 	if q.updateAuctionStatusAndErrorStmt != nil {
 		if cerr := q.updateAuctionStatusAndErrorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateAuctionStatusAndErrorStmt: %w", cerr)
@@ -95,6 +122,11 @@ func (q *Queries) Close() error {
 	if q.updateBidsWonAtStmt != nil {
 		if cerr := q.updateBidsWonAtStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateBidsWonAtStmt: %w", cerr)
+		}
+	}
+	if q.updateDealConfirmedAtStmt != nil {
+		if cerr := q.updateDealConfirmedAtStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateDealConfirmedAtStmt: %w", cerr)
 		}
 	}
 	if q.updateProposalCidStmt != nil {
@@ -152,8 +184,12 @@ type Queries struct {
 	getAuctionBidsStmt                 *sql.Stmt
 	getAuctionWinningBidsStmt          *sql.Stmt
 	getNextReadyToExecuteStmt          *sql.Stmt
+	getRecentWeekFailureRateStmt       *sql.Stmt
+	getRecentWeekMaxOnChainSecondsStmt *sql.Stmt
+	getRecentWeekWinningRateStmt       *sql.Stmt
 	updateAuctionStatusAndErrorStmt    *sql.Stmt
 	updateBidsWonAtStmt                *sql.Stmt
+	updateDealConfirmedAtStmt          *sql.Stmt
 	updateProposalCidStmt              *sql.Stmt
 	updateProposalCidDeliveryErrorStmt *sql.Stmt
 }
@@ -168,8 +204,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getAuctionBidsStmt:                 q.getAuctionBidsStmt,
 		getAuctionWinningBidsStmt:          q.getAuctionWinningBidsStmt,
 		getNextReadyToExecuteStmt:          q.getNextReadyToExecuteStmt,
+		getRecentWeekFailureRateStmt:       q.getRecentWeekFailureRateStmt,
+		getRecentWeekMaxOnChainSecondsStmt: q.getRecentWeekMaxOnChainSecondsStmt,
+		getRecentWeekWinningRateStmt:       q.getRecentWeekWinningRateStmt,
 		updateAuctionStatusAndErrorStmt:    q.updateAuctionStatusAndErrorStmt,
 		updateBidsWonAtStmt:                q.updateBidsWonAtStmt,
+		updateDealConfirmedAtStmt:          q.updateDealConfirmedAtStmt,
 		updateProposalCidStmt:              q.updateProposalCidStmt,
 		updateProposalCidDeliveryErrorStmt: q.updateProposalCidDeliveryErrorStmt,
 	}

@@ -42,6 +42,9 @@ const (
 	oneGiB          = 1024 * 1024 * 1024
 	oneDayEpochs    = 60 * 24 * 2
 	sixMonthsEpochs = oneDayEpochs * 365 / 2
+
+	// auction duration in the tests
+	auctionDuration = 5 * time.Second
 )
 
 func init() {
@@ -59,6 +62,9 @@ func init() {
 }
 
 func TestClient_ReadyToAuction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	s, _ := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
@@ -83,6 +89,9 @@ func TestClient_ReadyToAuction(t *testing.T) {
 }
 
 func TestClient_GetAuction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	s, _ := newClient(t)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
@@ -112,7 +121,7 @@ func TestClient_GetAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, broker.AuctionStatusStarted, got.Status)
 
-	time.Sleep(time.Second * 15) // Allow to finish
+	time.Sleep(auctionDuration * 2) // Allow to finish
 
 	got, err = s.GetAuction(ctx, id)
 	require.NoError(t, err)
@@ -121,6 +130,9 @@ func TestClient_GetAuction(t *testing.T) {
 }
 
 func TestClient_RunAuction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	s, mb := newClient(t)
 	bots := addBidbots(t, 10)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
@@ -148,7 +160,7 @@ func TestClient_RunAuction(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 15) // Allow to finish
+	time.Sleep(auctionDuration * 2) // Allow to finish
 
 	got, err := s.GetAuction(ctx, id)
 	require.NoError(t, err)
@@ -167,7 +179,7 @@ func TestClient_RunAuction(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	time.Sleep(time.Second * 15) // Allow to finish
+	time.Sleep(time.Second * 5) // Allow to deliver proposals
 
 	// Re-get auction so we can check proposal cids
 	got, err = s.GetAuction(ctx, id)
@@ -227,7 +239,7 @@ func newClient(t *testing.T) (*service.Service, *fakemsgbroker.FakeMsgBroker) {
 			EnableMDNS: true,
 		},
 		Auction: auctioneer.AuctionConfig{
-			Duration: time.Second * 10,
+			Duration: auctionDuration,
 		},
 		PostgresURI: u,
 	}
@@ -263,8 +275,8 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 			BidParams: bidbotsrv.BidParams{
 				StorageProviderID:     "foo",
 				WalletAddrSig:         []byte("bar"),
-				AskPrice:              100000000000,
-				VerifiedAskPrice:      100000000000,
+				AskPrice:              0,
+				VerifiedAskPrice:      0,
 				FastRetrieval:         true,
 				DealStartWindow:       oneDayEpochs,
 				DealDataDirectory:     t.TempDir(),
