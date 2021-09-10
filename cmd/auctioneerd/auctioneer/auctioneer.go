@@ -286,12 +286,9 @@ func (a *Auctioneer) processAuction(
 		bids    []auctioneer.Bid
 		bidders = make(map[peer.ID]struct{})
 		mu      sync.Mutex
-		wg      sync.WaitGroup
 	)
 
 	bidsHandler := func(from peer.ID, _ string, msg []byte) ([]byte, error) {
-		wg.Add(1)
-		defer wg.Done()
 		if err := from.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid bidder: %v", err)
 		}
@@ -379,8 +376,11 @@ func (a *Auctioneer) processAuction(
 	}
 	<-actx.Done()
 	topic.SetMessageHandler(nil)
-	// wait for bidsHandlers to finish to avoid data race.
-	wg.Wait()
+
+	// lock to the end to make sure bids are unchanged hereafter. It doesn't matter if some bidsHandler handler
+	// being blocked - the results are discarded anyway.
+	mu.Lock()
+	defer mu.Unlock()
 	log.Infof("auction %s ended; total bids: %d; num required: %d",
 		auction.ID, len(bids), auction.DealReplication)
 
