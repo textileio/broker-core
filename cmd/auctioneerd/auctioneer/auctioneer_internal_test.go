@@ -140,7 +140,7 @@ func TestSelectWinners(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			rounds := 500
+			rounds := 1000
 			expectedWins := make(map[core.BidID]int)
 			for _, winningChance := range testCase.winningChances {
 				for _, id := range winningChance.ids {
