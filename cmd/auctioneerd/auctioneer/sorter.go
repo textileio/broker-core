@@ -2,12 +2,15 @@ package auctioneer
 
 import (
 	"container/heap"
-	"context"
 	"math/rand"
 	"time"
 
 	"github.com/textileio/broker-core/auctioneer"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // Cmp is the interface for a comparator.
 type Cmp interface {
@@ -113,85 +116,145 @@ func (wc providerRate) Cmp(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer
 	return wc.rates[i.StorageProviderID] - wc.rates[j.StorageProviderID]
 }
 
-// LowerProviderRate returns a comparator which considers some rate of the storage
-// provider. Provider with lower rate gets a higher chance to win. Provider
-// not in the provided rates table are considered to have zero rate.
+// LowerProviderRate returns a comparator which considers some rate of the storage provider. Provider with lower rate
+// gets a higher chance to win. Provider not in the provided rates table are considered to have zero rate.
 func LowerProviderRate(rates map[string]int) Cmp {
 	return providerRate{rates}
 }
 
-// Random returns a comparator which randomly returns -1, 0, or 1 using the
-// given source.
-func Random(s rand.Source) Cmp {
+// Random returns a comparator which randomly returns -1, 0, or 1 using the global random source.
+// Note that it violates the invariants of heap operations and the result distribution is very uneven.
+func Random() Cmp {
 	return CmpFn(func(a *auctioneer.Auction, i auctioneer.Bid, j auctioneer.Bid) int {
-		return int(s.Int63()%3 - 1)
+		return int(rand.Intn(3) - 1)
 	})
 }
 
-// BidsSorter constructs a sorter from the given comparator.
-func BidsSorter(cmp Cmp) Sorter { return Sorter{cmp} }
+// BidsIter provides a general way to iterate bids sorted by sorter.
+type BidsIter func() (auctioneer.Bid, bool)
+
+// Next gets the next bid from the iterator, if exists.
+func (i BidsIter) Next() (auctioneer.Bid, bool) {
+	return i()
+}
+
+// MustNext is similar to Next, but panics when the next bid doesn't exist.
+func (i BidsIter) MustNext() auctioneer.Bid {
+	b, ok := i.Next()
+	if !ok {
+		panic("no next item")
+	}
+	return b
+}
+
+// BidsSorter constructs a sorter from the given comparator and bids.
+func BidsSorter(auction *auctioneer.Auction, bids []auctioneer.Bid) *Sorter {
+	h := make([]auctioneer.Bid, 0, len(bids))
+	h = append(h, bids...)
+	return &Sorter{&bidHeap{a: auction, h: h}}
+}
 
 // Sorter has a single sort method which takes an aunction and some bids, then
 // sort the bids based on the comparator given.
 type Sorter struct {
-	cmp Cmp
+	bh *bidHeap
 }
 
-// Sort does the sort work and sends the result to the channel one by one. The
-// channel is closed when all bids are exhausted or the context is done.
-func (s Sorter) Sort(ctx context.Context, auction *auctioneer.Auction, bids []auctioneer.Bid) chan auctioneer.Bid {
-	ret := make(chan auctioneer.Bid)
-	go func() {
-		defer close(ret)
-		bh := &BidHeap{a: auction, cmp: s.cmp}
-		heap.Init(bh)
-		for _, b := range bids {
-			heap.Push(bh, b)
-		}
-		for {
-			if bh.Len() == 0 {
-				return
-			}
-			b := heap.Pop(bh).(auctioneer.Bid)
-			select {
-			case <-ctx.Done():
-				return
-			case ret <- b:
-			}
-		}
-	}()
-	return ret
+// Len returns the number of bids remain in the sorter right now.
+func (s Sorter) Len() int {
+	return s.bh.Len()
 }
 
-// BidHeap is used to efficiently select auction winners.
-type BidHeap struct {
+// Select returns a new sorter with the bids don't pass the filter being removed.
+func (s Sorter) Select(filter func(*auctioneer.Bid) bool) Sorter {
+	h := make([]auctioneer.Bid, 0, len(s.bh.h))
+	for _, b := range s.bh.h {
+		if filter(&b) {
+			h = append(h, b)
+		}
+	}
+	return Sorter{&bidHeap{a: s.bh.a, h: h}}
+}
+
+// Iterate returns an iterator which gives the sorted result one by one.
+func (s *Sorter) Iterate(cmp Cmp) BidsIter {
+	s.bh = &bidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
+	heap.Init(s.bh)
+	return func() (auctioneer.Bid, bool) {
+		if s.bh.Len() == 0 {
+			return auctioneer.Bid{}, false
+		}
+
+		return heap.Pop(s.bh).(auctioneer.Bid), true
+	}
+}
+
+// RandomTopN returns an iterator which randomly choose one of the top N from the sorted list to return.
+func (s *Sorter) RandomTopN(n int, cmp Cmp) BidsIter {
+	s.bh = &bidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
+	heap.Init(s.bh)
+	if n > s.bh.Len() {
+		n = s.bh.Len()
+	}
+	return func() (auctioneer.Bid, bool) {
+		if n == 0 {
+			return auctioneer.Bid{}, false
+		}
+		i := rand.Intn(n)
+		temp := make([]auctioneer.Bid, 0, i)
+		for j := 0; j < i; j++ {
+			temp = append(temp, heap.Pop(s.bh).(auctioneer.Bid))
+		}
+		b := heap.Pop(s.bh).(auctioneer.Bid)
+		for _, t := range temp {
+			heap.Push(s.bh, t)
+		}
+		n--
+		return b, true
+	}
+}
+
+// Random returns an iterator which randomly choose one bid to return.
+func (s *Sorter) Random() BidsIter {
+	s.bh = &bidHeap{a: s.bh.a, h: s.bh.h, cmp: Random()}
+	heap.Init(s.bh)
+	return func() (auctioneer.Bid, bool) {
+		if s.bh.Len() == 0 {
+			return auctioneer.Bid{}, false
+		}
+		return heap.Remove(s.bh, rand.Intn(s.bh.Len())).(auctioneer.Bid), true
+	}
+}
+
+// bidHeap is used to efficiently select auction winners.
+type bidHeap struct {
 	a   *auctioneer.Auction
 	h   []auctioneer.Bid
 	cmp Cmp
 }
 
 // Len returns the length of h.
-func (bh BidHeap) Len() int {
+func (bh bidHeap) Len() int {
 	return len(bh.h)
 }
 
-// Less returns true if the value at j is less than the value at i.
-func (bh BidHeap) Less(i, j int) bool {
+// Less returns true if the value at i is less than the value at j.
+func (bh bidHeap) Less(i, j int) bool {
 	return bh.cmp.Cmp(bh.a, bh.h[i], bh.h[j]) < 0
 }
 
 // Swap index i and j.
-func (bh BidHeap) Swap(i, j int) {
+func (bh bidHeap) Swap(i, j int) {
 	bh.h[i], bh.h[j] = bh.h[j], bh.h[i]
 }
 
 // Push adds x to h.
-func (bh *BidHeap) Push(x interface{}) {
+func (bh *bidHeap) Push(x interface{}) {
 	bh.h = append(bh.h, x.(auctioneer.Bid))
 }
 
 // Pop removes and returns the last element in h.
-func (bh *BidHeap) Pop() (x interface{}) {
+func (bh *bidHeap) Pop() (x interface{}) {
 	x, bh.h = bh.h[len(bh.h)-1], bh.h[:len(bh.h)-1]
 	return x
 }

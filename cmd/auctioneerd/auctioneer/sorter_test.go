@@ -1,10 +1,7 @@
 package auctioneer
 
 import (
-	"context"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	core "github.com/textileio/bidbot/lib/auction"
@@ -29,11 +26,10 @@ func TestSortByPrice(t *testing.T) {
 			auctioneer.Bid{ID: "medium", VerifiedAskPrice: 1},
 		}, &auctioneer.Auction{DealVerified: true}, "low"},
 	} {
-		s := BidsSorter(LowerPrice())
 		t.Run(testCase.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			b := <-s.Sort(ctx, testCase.auction, testCase.bids)
+			s := BidsSorter(testCase.auction, testCase.bids)
+			b, ok := s.Iterate(LowerPrice()).Next()
+			assert.True(t, ok)
 			assert.Equal(t, core.BidID(testCase.winner), b.ID)
 		})
 	}
@@ -41,38 +37,40 @@ func TestSortByPrice(t *testing.T) {
 
 func TestSortRandom(t *testing.T) {
 	hits := make(map[core.BidID]int)
-	s := BidsSorter(Random(rand.NewSource(time.Now().UnixNano())))
-	for i := 0; i < 100; i++ {
-		ctx, cancel := context.WithCancel(context.Background())
-		b := <-s.Sort(ctx, &auctioneer.Auction{},
-			[]auctioneer.Bid{auctioneer.Bid{ID: "a", AskPrice: 1}, auctioneer.Bid{ID: "b", AskPrice: 1}})
+	for i := 0; i < 1000; i++ {
+		s := BidsSorter(
+			&auctioneer.Auction{},
+			[]auctioneer.Bid{auctioneer.Bid{ID: "a"}, auctioneer.Bid{ID: "b"}, auctioneer.Bid{ID: "c"}, auctioneer.Bid{ID: "d"}})
+
+		b, ok := s.Iterate(Random()).Next()
+		assert.True(t, ok)
 		hits[b.ID]++
-		cancel()
 	}
-	for id, n := range hits {
-		// we should have some randomness
-		assert.InDelta(t, 50, n, 40, id)
-	}
+	// there should be some randomness, albeit very uneven.
+	assert.Len(t, hits, 4)
 }
 
-func TestSortByProviderFailureRate(t *testing.T) {
+func TestSortByProviderRates(t *testing.T) {
 	rateTable := map[string]int{
 		"f0001": 100,
 		"f0002": 1,
-		"f0003": 9999,
+		"f0003": 1,
+		"f0004": 9999,
 	}
 	bids := []auctioneer.Bid{
 		auctioneer.Bid{ID: "medium", StorageProviderID: "f0001"},
 		auctioneer.Bid{ID: "low", StorageProviderID: "f0002"},
-		auctioneer.Bid{ID: "high", StorageProviderID: "f0003"},
-		auctioneer.Bid{ID: "zero", StorageProviderID: "f0004"},
+		auctioneer.Bid{ID: "low2", StorageProviderID: "f0003"},
+		auctioneer.Bid{ID: "high", StorageProviderID: "f0004"},
+		auctioneer.Bid{ID: "zero", StorageProviderID: "f0005"},
 	}
 
-	ch := BidsSorter(LowerProviderRate(rateTable)).Sort(context.Background(), &auctioneer.Auction{}, bids)
-	assert.EqualValues(t, "zero", (<-ch).ID)
-	assert.EqualValues(t, "low", (<-ch).ID)
-	assert.EqualValues(t, "medium", (<-ch).ID)
-	assert.EqualValues(t, "high", (<-ch).ID)
+	it := BidsSorter(&auctioneer.Auction{}, bids).Iterate(LowerProviderRate(rateTable))
+	assert.EqualValues(t, "zero", it.MustNext().ID)
+	assert.EqualValues(t, "low", it.MustNext().ID)
+	assert.EqualValues(t, "low2", it.MustNext().ID)
+	assert.EqualValues(t, "medium", it.MustNext().ID)
+	assert.EqualValues(t, "high", it.MustNext().ID)
 }
 
 func TestCombination(t *testing.T) {
@@ -110,10 +108,90 @@ func TestCombination(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			var result []string
-			for b := range BidsSorter(testCase.cmp).Sort(context.Background(), &auctioneer.Auction{}, bids) {
-				result = append(result, string(b.ID))
+			it := BidsSorter(&auctioneer.Auction{}, bids).Iterate(testCase.cmp)
+			for {
+				if b, ok := it.Next(); ok {
+					result = append(result, string(b.ID))
+					continue
+				}
+				break
 			}
 			assert.Equal(t, testCase.expected, result)
 		})
+	}
+}
+
+func TestRandomTopN(t *testing.T) {
+	rateTable := map[string]int{
+		"f0001": 100,
+		"f0002": 1,
+		"f0003": 2,
+		"f0004": 9999,
+	}
+	bids := []auctioneer.Bid{
+		auctioneer.Bid{ID: "medium", StorageProviderID: "f0001"},
+		auctioneer.Bid{ID: "low", StorageProviderID: "f0002"},
+		auctioneer.Bid{ID: "low2", StorageProviderID: "f0003"},
+		auctioneer.Bid{ID: "high", StorageProviderID: "f0004"},
+		auctioneer.Bid{ID: "zero", StorageProviderID: "f0005"},
+	}
+
+	hits := make(map[core.BidID]int)
+	for i := 0; i < 1000; i++ {
+		it := BidsSorter(&auctioneer.Auction{}, bids).RandomTopN(4, LowerProviderRate(rateTable))
+		hits[it.MustNext().ID]++
+	}
+	assert.InDelta(t, 250, hits["zero"], 50)
+	assert.InDelta(t, 250, hits["low"], 50)
+	assert.InDelta(t, 250, hits["low2"], 50)
+	assert.InDelta(t, 250, hits["medium"], 50)
+}
+
+func TestRandom(t *testing.T) {
+	hits := make(map[core.BidID]int)
+	for i := 0; i < 1000; i++ {
+		s := BidsSorter(
+			&auctioneer.Auction{},
+			[]auctioneer.Bid{auctioneer.Bid{ID: "a"}, auctioneer.Bid{ID: "b"}, auctioneer.Bid{ID: "c"}, auctioneer.Bid{ID: "d"}})
+
+		b := s.Random().MustNext()
+		hits[b.ID]++
+	}
+	assert.Len(t, hits, 4)
+	for id, n := range hits {
+		// we should have fairly good randomness
+		assert.InDelta(t, 250, n, 50, id)
+	}
+}
+
+func TestUniqueResults(t *testing.T) {
+	rateTable := map[string]int{
+		"f0001": 100,
+		"f0002": 1,
+		"f0003": 2,
+		"f0004": 9999,
+	}
+	bids := []auctioneer.Bid{
+		auctioneer.Bid{ID: "medium", StorageProviderID: "f0001"},
+		auctioneer.Bid{ID: "low", StorageProviderID: "f0002"},
+		auctioneer.Bid{ID: "low2", StorageProviderID: "f0003"},
+		auctioneer.Bid{ID: "high", StorageProviderID: "f0004"},
+		auctioneer.Bid{ID: "zero", StorageProviderID: "f0005"},
+	}
+
+	for i := 0; i < 100; i++ {
+		hits := make(map[core.BidID]int)
+		s := BidsSorter(&auctioneer.Auction{}, bids)
+		id := s.Iterate(LowerProviderRate(rateTable)).MustNext().ID
+		hits[id]++
+		id = s.RandomTopN(3, LowerProviderRate(rateTable)).MustNext().ID
+		assert.NotContains(t, hits, id)
+		hits[id]++
+		id = s.RandomTopN(2, LowerProviderRate(rateTable)).MustNext().ID
+		assert.NotContains(t, hits, id)
+		hits[id]++
+		id = s.Random().MustNext().ID
+		assert.NotContains(t, hits, id)
+		hits[id]++
 	}
 }

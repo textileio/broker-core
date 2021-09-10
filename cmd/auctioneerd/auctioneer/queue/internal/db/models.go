@@ -45,4 +45,5 @@ type Bid struct {
 	ProposalCid              sql.NullString `json:"proposalCid"`
 	ProposalCidDeliveredAt   sql.NullTime   `json:"proposalCidDeliveredAt"`
 	ProposalCidDeliveryError sql.NullString `json:"proposalCidDeliveryError"`
+	DealConfirmedAt          sql.NullTime   `json:"dealConfirmedAt"`
 }
