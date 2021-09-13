@@ -24,7 +24,7 @@ var (
 
 func init() {
 	flags := []cli.Flag{
-		{Name: "private-key", DefValue: "", Description: "libp2p identity base64-encoded RSA private key"},
+		{Name: "private-key", DefValue: "", Description: "Multibase-encoded libp2p marshaled peer-id private key"},
 		{Name: "listen-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "libp2p identity base64-encoded RSA private key"},
 
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
@@ -32,7 +32,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	cli.ConfigureCLI(v, "API", flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, "RELAY", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
