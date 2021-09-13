@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/broker-core/cmd/relayd/metrics"
 	"github.com/textileio/cli"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	logging "github.com/textileio/go-log/v2"
@@ -75,7 +76,10 @@ var rootCmd = &cobra.Command{
 		cli.CheckErrf("bootstraping libp2p host: %s", err)
 		fin.Add(h)
 
-		log.Info("relay waiting for connections...")
+		metrics.Register(h)
+
+		log.Infof("relay peer-id: %s", h.ID())
+		log.Info("relay open to accept connections...")
 
 		cli.HandleInterrupt(func() {
 			common.CheckErr(fin.Cleanup(nil))
