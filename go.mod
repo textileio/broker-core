@@ -39,8 +39,10 @@ require (
 	github.com/jsign/go-filsigner v0.3.2-0.20210909125145-9490c0ecd977
 	github.com/lib/pq v1.10.2
 	github.com/libp2p/go-libp2p v0.14.4
+	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/libp2p/go-libp2p-crypto v0.1.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multibase v0.0.3
@@ -52,9 +54,10 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/bidbot v0.0.8
+	github.com/textileio/cli v1.0.1
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
-	github.com/textileio/go-log/v2 v2.1.3-gke-1
+	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
