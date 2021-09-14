@@ -145,7 +145,8 @@ func (b *Broker) CreatePrepared(
 	ctx context.Context,
 	payloadCid cid.Cid,
 	pc broker.PreparedCAR,
-	meta broker.BatchMetadata) (sr broker.StorageRequest, err error) {
+	meta broker.BatchMetadata,
+	rw *broker.RemoteWallet) (sr broker.StorageRequest, err error) {
 	log.Debugf("creating prepared car storage request")
 	if !payloadCid.Defined() {
 		return broker.StorageRequest{}, ErrInvalidCid

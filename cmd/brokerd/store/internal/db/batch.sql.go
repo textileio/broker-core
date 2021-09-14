@@ -6,6 +6,7 @@ package db
 import (
 	"context"
 
+	"github.com/lib/pq"
 	"github.com/textileio/broker-core/broker"
 )
 
@@ -185,6 +186,26 @@ func (q *Queries) GetBatchTags(ctx context.Context, batchID broker.BatchID) ([]B
 		return nil, err
 	}
 	return items, nil
+}
+
+const getRemoteWalletConfig = `-- name: GetRemoteWalletConfig :one
+SELECT batch_id, peer_id, auth_token, wallet_addr, multiaddrs, created_at, updated_at FROM batch_remote_wallet
+WHERE batch_id=$1
+`
+
+func (q *Queries) GetRemoteWalletConfig(ctx context.Context, batchID broker.BatchID) (BatchRemoteWallet, error) {
+	row := q.queryRow(ctx, q.getRemoteWalletConfigStmt, getRemoteWalletConfig, batchID)
+	var i BatchRemoteWallet
+	err := row.Scan(
+		&i.BatchID,
+		&i.PeerID,
+		&i.AuthToken,
+		&i.WalletAddr,
+		pq.Array(&i.Multiaddrs),
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateBatch = `-- name: UpdateBatch :exec

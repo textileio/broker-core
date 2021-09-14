@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
@@ -127,88 +129,15 @@ func (s *Service) CreatePreparedStorageRequest(
 	if r == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
-	if r.PreparedCar == nil {
-		return nil, status.Error(codes.InvalidArgument, "empty prepared car information")
-	}
 
 	payloadCid, err := cid.Decode(r.Cid)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid cid: %s", err)
 	}
 
-	var pc broker.PreparedCAR
-	// Validate PieceCid.
-	pc.PieceCid, err = cid.Decode(r.PreparedCar.PieceCid)
+	pc, err := parsePreparedCAR(ctx, r)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "piece-cid is invalid: %s", err)
-	}
-	if pc.PieceCid.Prefix().Codec != broker.CodecFilCommitmentUnsealed {
-		return nil, status.Error(codes.InvalidArgument, "piece-cid must be have fil-commitment-unsealed codec")
-	}
-
-	// Validate PieceSize.
-	if r.PreparedCar.PieceSize <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "piece-size must be greater than zero")
-	}
-	if r.PreparedCar.PieceSize&(r.PreparedCar.PieceSize-1) != 0 {
-		return nil, status.Error(codes.InvalidArgument, "piece-size must be a power of two")
-	}
-	if r.PreparedCar.PieceSize > broker.MaxPieceSize {
-		return nil, status.Errorf(codes.InvalidArgument, "piece-size can't be greater than %d", broker.MaxPieceSize)
-	}
-	pc.PieceSize = r.PreparedCar.PieceSize
-
-	// Validate rep factor.
-	if r.PreparedCar.RepFactor < 0 {
-		return nil, status.Error(codes.InvalidArgument, "rep-factor can't be negative")
-	}
-	pc.RepFactor = int(r.PreparedCar.RepFactor)
-
-	pc.Deadline = r.PreparedCar.Deadline.AsTime()
-
-	if r.PreparedCar.CarUrl != nil {
-		url, err := url.Parse(r.PreparedCar.CarUrl.Url)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "parsing CAR URL: %s", err)
-		}
-		if url.Scheme != "http" && url.Scheme != "https" {
-			return nil, status.Error(codes.InvalidArgument, "CAR URL scheme should be http(s)")
-		}
-
-		pc.Sources.CARURL = &auction.CARURL{
-			URL: *url,
-		}
-	}
-
-	if r.PreparedCar.CarIpfs != nil {
-		carCid, err := cid.Decode(r.PreparedCar.CarIpfs.Cid)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "car cid isn't valid: %s", err)
-		}
-		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCar.CarIpfs.Multiaddrs))
-		for i, smaddr := range r.PreparedCar.CarIpfs.Multiaddrs {
-			maddr, err := multiaddr.NewMultiaddr(smaddr)
-			if err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid multiaddr %s: %s", smaddr, err)
-			}
-			maddrs[i] = maddr
-		}
-		pc.Sources.CARIPFS = &auction.CARIPFS{
-			Cid:        carCid,
-			Multiaddrs: maddrs,
-		}
-	}
-
-	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
-		return nil, status.Error(codes.InvalidArgument, "at least one download source must be specified")
-	}
-
-	u, err := datauri.NewFromSources(r.Cid, pc.Sources)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "creating data URI from sources: %s", err)
-	}
-	if err := u.Validate(ctx); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "validating sources: %s", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid prepared car info: %s", err)
 	}
 
 	if r.Metadata.Origin == "" {
@@ -222,7 +151,12 @@ func (s *Service) CreatePreparedStorageRequest(
 		meta.Tags[k] = v
 	}
 
-	br, err := s.broker.CreatePrepared(ctx, payloadCid, pc, meta)
+	rw, err := parseRemoteWallet(ctx, r)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "remote wallet configuration is invalid: %s", err)
+	}
+
+	br, err := s.broker.CreatePrepared(ctx, payloadCid, pc, meta, rw)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "creating storage request: %s", err)
 	}
@@ -386,4 +320,122 @@ func validateConfig(conf Config) error {
 		return fmt.Errorf("deal replication is greater than maximum allowed: %d", broker.MaxDealReplication)
 	}
 	return nil
+}
+
+func parsePreparedCAR(ctx context.Context, r *pb.CreatePreparedStorageRequestRequest) (broker.PreparedCAR, error) {
+	if r.PreparedCar == nil {
+		return broker.PreparedCAR{}, errors.New("empty prepared car information")
+	}
+
+	var pc broker.PreparedCAR
+	var err error
+
+	// Validate PieceCid.
+	pc.PieceCid, err = cid.Decode(r.PreparedCar.PieceCid)
+	if err != nil {
+		return broker.PreparedCAR{}, fmt.Errorf("piece-cid is invalid: %s", err)
+	}
+	if pc.PieceCid.Prefix().Codec != broker.CodecFilCommitmentUnsealed {
+		return broker.PreparedCAR{}, errors.New("piece-cid must be have fil-commitment-unsealed codec")
+	}
+
+	// Validate PieceSize.
+	if r.PreparedCar.PieceSize <= 0 {
+		return broker.PreparedCAR{}, errors.New("piece-size must be greater than zero")
+	}
+	if r.PreparedCar.PieceSize&(r.PreparedCar.PieceSize-1) != 0 {
+		return broker.PreparedCAR{}, errors.New("piece-size must be a power of two")
+	}
+	if r.PreparedCar.PieceSize > broker.MaxPieceSize {
+		return broker.PreparedCAR{}, fmt.Errorf("piece-size can't be greater than %d", broker.MaxPieceSize)
+	}
+	pc.PieceSize = r.PreparedCar.PieceSize
+
+	// Validate rep factor.
+	if r.PreparedCar.RepFactor < 0 {
+		return broker.PreparedCAR{}, errors.New("rep-factor can't be negative")
+	}
+	pc.RepFactor = int(r.PreparedCar.RepFactor)
+
+	pc.Deadline = r.PreparedCar.Deadline.AsTime()
+
+	if r.PreparedCar.CarUrl != nil {
+		url, err := url.Parse(r.PreparedCar.CarUrl.Url)
+		if err != nil {
+			return broker.PreparedCAR{}, fmt.Errorf("parsing CAR URL: %s", err)
+		}
+		if url.Scheme != "http" && url.Scheme != "https" {
+			return broker.PreparedCAR{}, errors.New("CAR URL scheme should be http(s)")
+		}
+
+		pc.Sources.CARURL = &auction.CARURL{
+			URL: *url,
+		}
+	}
+
+	if r.PreparedCar.CarIpfs != nil {
+		carCid, err := cid.Decode(r.PreparedCar.CarIpfs.Cid)
+		if err != nil {
+			return broker.PreparedCAR{}, fmt.Errorf("car cid isn't valid: %s", err)
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(r.PreparedCar.CarIpfs.Multiaddrs))
+		for i, smaddr := range r.PreparedCar.CarIpfs.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(smaddr)
+			if err != nil {
+				return broker.PreparedCAR{}, fmt.Errorf("invalid multiaddr %s: %s", smaddr, err)
+			}
+			maddrs[i] = maddr
+		}
+		pc.Sources.CARIPFS = &auction.CARIPFS{
+			Cid:        carCid,
+			Multiaddrs: maddrs,
+		}
+	}
+
+	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
+		return broker.PreparedCAR{}, errors.New("at least one download source must be specified")
+	}
+
+	u, err := datauri.NewFromSources(r.Cid, pc.Sources)
+	if err != nil {
+		return broker.PreparedCAR{}, fmt.Errorf("creating data URI from sources: %s", err)
+	}
+	if err := u.Validate(ctx); err != nil {
+		return broker.PreparedCAR{}, fmt.Errorf("validating sources: %s", err)
+	}
+
+	return pc, nil
+}
+
+func parseRemoteWallet(ctx context.Context, r *pb.CreatePreparedStorageRequestRequest) (*broker.RemoteWallet, error) {
+	if r.RemoteWallet == nil {
+		return nil, nil
+	}
+	peerID, err := peer.Decode(r.RemoteWallet.PeerId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid peer-id: %s", err)
+	}
+	if r.RemoteWallet.AuthToken == "" {
+		return nil, fmt.Errorf("empty authorization token: %s", err)
+	}
+	waddr, err := address.NewFromString(r.RemoteWallet.WalletAddr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing wallet address: %s", err)
+	}
+	multiaddrs := make([]multiaddr.Multiaddr, 0, len(r.RemoteWallet.Multiaddrs))
+	for _, smaddr := range r.RemoteWallet.Multiaddrs {
+		maddr, err := multiaddr.NewMultiaddr(smaddr)
+		if err != nil {
+			return nil, fmt.Errorf("multiaddress %s is invalid: %s", smaddr, err)
+		}
+		multiaddrs = append(multiaddrs, maddr)
+	}
+	rw := &broker.RemoteWallet{
+		PeerID:     peerID,
+		WalletAddr: waddr,
+		AuthToken:  r.RemoteWallet.AuthToken,
+		Multiaddrs: multiaddrs,
+	}
+
+	return rw, nil
 }

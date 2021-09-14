@@ -11,9 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgconn"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/bidbot/lib/auction"
@@ -103,8 +105,6 @@ func (s *Store) GetStorageRequest(
 		r, err := s.db.GetStorageRequest(ctx, id)
 		if err == sql.ErrNoRows {
 			return ErrNotFound
-		} else if err != nil {
-			return err
 		}
 		if err != nil {
 			return err
@@ -122,6 +122,46 @@ func (s *Store) GetStorageRequest(
 			BatchID:   broker.BatchID(r.BatchID.String),
 			CreatedAt: r.CreatedAt,
 			UpdatedAt: r.UpdatedAt,
+		}
+		return err
+	})
+	return
+}
+
+// GetRemoteWalletConfig gets the remote wallet configured to sign deals from a batch.
+// If none was configured, it returns ErrNotFound.
+func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (rw broker.RemoteWallet, err error) {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
+		dbrw, err := s.db.GetRemoteWalletConfig(ctx, id)
+		if err == sql.ErrNoRows {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+
+		peerID, err := peer.Decode(dbrw.PeerID)
+		if err != nil {
+			return fmt.Errorf("decoding peer-id: %s", err)
+		}
+		waddr, err := address.NewFromString(dbrw.WalletAddr)
+		if err != nil {
+			return fmt.Errorf("decoding wallet address: %s", err)
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(dbrw.Multiaddrs))
+		for i, strmaddr := range dbrw.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(strmaddr)
+			if err != nil {
+				return fmt.Errorf("decoding multiaddr %s: %s", strmaddr, err)
+			}
+			maddrs[i] = maddr
+		}
+
+		rw = broker.RemoteWallet{
+			PeerID:     peerID,
+			AuthToken:  dbrw.AuthToken,
+			WalletAddr: waddr,
+			Multiaddrs: maddrs,
 		}
 		return err
 	})

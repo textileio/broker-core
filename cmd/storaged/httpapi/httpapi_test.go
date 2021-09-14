@@ -57,37 +57,50 @@ func TestCreateSuccess(t *testing.T) {
 func TestCreatePreparedSuccess(t *testing.T) {
 	t.Parallel()
 
-	req, res := makeRequestPrepared(t)
+	tests := []struct {
+		name string
+		pr   preparedRequest
+	}{
+		{name: "without remote-wallet", pr: makeRequestPrepared(t)},
+		{name: "with remote-wallet", pr: makeRequestRemoteWallet(t)},
+	}
 
-	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
-	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
-	expectedSRI := storage.RequestInfo{Request: expectedSR}
-	usm := &uploaderMock{}
-	usm.On("CreateFromExternalSource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
-	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-	mux := createMux(usm, 1<<20, true)
-	mux.ServeHTTP(res, req)
-	require.Equal(t, http.StatusOK, res.Code)
+			c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
+			expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
+			expectedSRI := storage.RequestInfo{Request: expectedSR}
+			usm := &uploaderMock{}
+			usm.On("CreateFromExternalSource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
+			usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
-	var responseSR storage.Request
-	err := json.Unmarshal(res.Body.Bytes(), &responseSR)
-	require.NoError(t, err)
+			mux := createMux(usm, 1<<20, true)
+			mux.ServeHTTP(test.pr.res, test.pr.req)
+			require.Equal(t, http.StatusOK, test.pr.res.Code)
 
-	require.Equal(t, expectedSR, responseSR)
+			var responseSR storage.Request
+			err := json.Unmarshal(test.pr.res.Body.Bytes(), &responseSR)
+			require.NoError(t, err)
 
-	// Call Get(..)
-	req = httptest.NewRequest("GET", "/storagerequest/"+responseSR.ID, nil)
-	req.Header.Add("Authorization", "Bearer foo")
-	res = httptest.NewRecorder()
-	mux.ServeHTTP(res, req)
-	require.Equal(t, http.StatusOK, res.Code)
-	var responseSRI storage.RequestInfo
-	err = json.Unmarshal(res.Body.Bytes(), &responseSRI)
-	require.NoError(t, err)
-	require.Equal(t, expectedSRI, responseSRI)
+			require.Equal(t, expectedSR, responseSR)
 
-	usm.AssertExpectations(t)
+			// Call Get(..)
+			req := httptest.NewRequest("GET", "/storagerequest/"+responseSR.ID, nil)
+			req.Header.Add("Authorization", "Bearer foo")
+			res := httptest.NewRecorder()
+			mux.ServeHTTP(res, req)
+			require.Equal(t, http.StatusOK, res.Code)
+			var responseSRI storage.RequestInfo
+			err = json.Unmarshal(res.Body.Bytes(), &responseSRI)
+			require.NoError(t, err)
+			require.Equal(t, expectedSRI, responseSRI)
+
+			usm.AssertExpectations(t)
+		})
+	}
 }
 
 func TestFail(t *testing.T) {
@@ -187,7 +200,12 @@ func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 	return req, res
 }
 
-func makeRequestPrepared(t *testing.T) (*http.Request, *httptest.ResponseRecorder) {
+type preparedRequest struct {
+	req *http.Request
+	res *httptest.ResponseRecorder
+}
+
+func makeRequestPrepared(t *testing.T) preparedRequest {
 	adr := storage.AuctionDataRequest{
 		PayloadCid: "bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq",
 		PieceCid:   "baga6ea4seaqecjuu654vrpfi5ekfiequcfwgeuhiqflxo2e7nq6bfpb4ilxoqci",
@@ -209,7 +227,38 @@ func makeRequestPrepared(t *testing.T) (*http.Request, *httptest.ResponseRecorde
 	req.Header.Add("Authorization", "Bearer foo")
 	res := httptest.NewRecorder()
 
-	return req, res
+	return preparedRequest{req: req, res: res}
+}
+
+func makeRequestRemoteWallet(t *testing.T) preparedRequest {
+	adr := storage.AuctionDataRequest{
+		PayloadCid: "bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq",
+		PieceCid:   "baga6ea4seaqecjuu654vrpfi5ekfiequcfwgeuhiqflxo2e7nq6bfpb4ilxoqci",
+		PieceSize:  64,
+		RepFactor:  3,
+		Deadline:   "2021-06-17",
+		CARURL: &storage.CARURL{
+			URL: "https://hello.com/world.car",
+		},
+		CARIPFS: &storage.CARIPFS{
+			Cid:        "QmcCpRyHhCPNaKLVC3eMgS14L5wNfXBM6NyJafD22af5AE",
+			Multiaddrs: []string{"/ip4/127.0.0.1/tcp/9999/p2p/12D3KooWA8o5KiBQew75GKWhZcpJdBKrfWjp2Zhyp7X5thxw41TE"},
+		},
+		RemoteWallet: &storage.RemoteWallet{
+			PeerID:     "Qmf12XE1bSB8SbngTc4Yy8KLNGKT2Nhp2xuj2DFEWX3N5H",
+			WalletAddr: "f1fib3pv7jua2ockdugtz7viz3cyy6lkhh7rfx3sa",
+			AuthToken:  "abbccddee",
+			Multiaddrs: []string{"/ip4/127.0.0.1/tcp/1234/p2p/12D3KooWA8o5KiBQew75GKWhZcpJdBKrfWjp2Zhyp7X5thxw41TZ"},
+		},
+	}
+	body, err := json.Marshal(adr)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("POST", "/auction-data", bytes.NewReader(body))
+	req.Header.Add("Authorization", "Bearer foo")
+	res := httptest.NewRecorder()
+
+	return preparedRequest{req: req, res: res}
 }
 
 type uploaderMock struct {

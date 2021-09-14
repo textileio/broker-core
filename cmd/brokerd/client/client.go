@@ -59,33 +59,48 @@ func (c *Client) CreatePrepared(
 	ctx context.Context,
 	dataCid cid.Cid,
 	pc broker.PreparedCAR,
-	meta broker.BatchMetadata) (broker.StorageRequest, error) {
-	req := &pb.CreatePreparedStorageRequestRequest{
-		Cid: dataCid.String(),
-		Metadata: &pb.CreatePreparedStorageRequestRequest_Metadata{
-			Origin: meta.Origin,
-			Tags:   meta.Tags,
-		},
-	}
-	req.PreparedCar = &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
-		PieceCid:  pc.PieceCid.String(),
-		PieceSize: pc.PieceSize,
-		RepFactor: int64(pc.RepFactor),
-		Deadline:  timestamppb.New(pc.Deadline),
-	}
+	meta broker.BatchMetadata,
+	rw *broker.RemoteWallet) (broker.StorageRequest, error) {
+	var carURL *pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARURL
 	if pc.Sources.CARURL != nil {
-		req.PreparedCar.CarUrl = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARURL{
+		carURL = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARURL{
 			Url: pc.Sources.CARURL.URL.String(),
 		}
 	}
+	var carIpfs *pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARIPFS
 	if pc.Sources.CARIPFS != nil {
-		req.PreparedCar.CarIpfs = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARIPFS{
+		carIpfs = &pb.CreatePreparedStorageRequestRequest_PreparedCAR_CARIPFS{
 			Cid:        pc.Sources.CARIPFS.Cid.String(),
 			Multiaddrs: make([]string, len(pc.Sources.CARIPFS.Multiaddrs)),
 		}
 		for i, ma := range pc.Sources.CARIPFS.Multiaddrs {
-			req.PreparedCar.CarIpfs.Multiaddrs[i] = ma.String()
+			carIpfs.Multiaddrs[i] = ma.String()
 		}
+	}
+	rwStrMultiaddrs := make([]string, 0, len(rw.Multiaddrs))
+	for _, maddr := range rw.Multiaddrs {
+		rwStrMultiaddrs = append(rwStrMultiaddrs, maddr.String())
+	}
+	req := &pb.CreatePreparedStorageRequestRequest{
+		Cid: dataCid.String(),
+		PreparedCar: &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
+			PieceCid:  pc.PieceCid.String(),
+			PieceSize: pc.PieceSize,
+			RepFactor: int64(pc.RepFactor),
+			Deadline:  timestamppb.New(pc.Deadline),
+			CarUrl:    carURL,
+			CarIpfs:   carIpfs,
+		},
+		Metadata: &pb.CreatePreparedStorageRequestRequest_Metadata{
+			Origin: meta.Origin,
+			Tags:   meta.Tags,
+		},
+		RemoteWallet: &pb.CreatePreparedStorageRequestRequest_RemoteWallet{
+			PeerId:     rw.PeerID.String(),
+			AuthToken:  rw.AuthToken,
+			WalletAddr: rw.WalletAddr.String(),
+			Multiaddrs: rwStrMultiaddrs,
+		},
 	}
 
 	res, err := c.c.CreatePreparedStorageRequest(ctx, req)

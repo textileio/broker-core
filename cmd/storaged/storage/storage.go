@@ -63,14 +63,15 @@ type Deal struct {
 
 // AuctionDataRequest contains information about a prepared dataset hosted externally.
 type AuctionDataRequest struct {
-	PayloadCid string            `json:"payloadCid"`
-	PieceCid   string            `json:"pieceCid"`
-	PieceSize  uint64            `json:"pieceSize"`
-	RepFactor  int               `json:"repFactor"`
-	Deadline   string            `json:"deadline"`
-	CARURL     *CARURL           `json:"carURL"`
-	CARIPFS    *CARIPFS          `json:"carIPFS"`
-	Tags       map[string]string `json:"tags"`
+	PayloadCid   string            `json:"payloadCid"`
+	PieceCid     string            `json:"pieceCid"`
+	PieceSize    uint64            `json:"pieceSize"`
+	RepFactor    int               `json:"repFactor"`
+	Deadline     string            `json:"deadline"`
+	CARURL       *CARURL           `json:"carURL"`
+	CARIPFS      *CARIPFS          `json:"carIPFS"`
+	Tags         map[string]string `json:"tags"`
+	RemoteWallet *RemoteWallet     `json:"remoteWallet"`
 }
 
 // CARURL contains details of a CAR file stored in an HTTP endpoint.
@@ -81,5 +82,13 @@ type CARURL struct {
 // CARIPFS contains details of a CAR file Cid stored in an HTTP endpoint.
 type CARIPFS struct {
 	Cid        string   `json:"cid"`
+	Multiaddrs []string `json:"multiaddrs"`
+}
+
+// RemoteWallet contains details of a remote wallet to do signing proposal
+type RemoteWallet struct {
+	PeerID     string   `json:"peerId"`
+	AuthToken  string   `json:"authToken"`
+	WalletAddr string   `json:"walletAddr"`
 	Multiaddrs []string `json:"multiaddrs"`
 }

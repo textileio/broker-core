@@ -12,10 +12,12 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipld/go-car"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/auth"
@@ -255,50 +257,23 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		}
 	}
 
+	// Sources.
+	sources, err := parseSources(adr)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("parsing sources: %s", err)
+	}
 	pc := broker.PreparedCAR{
 		PieceCid:  pieceCid,
 		PieceSize: adr.PieceSize,
 		RepFactor: adr.RepFactor,
 		Deadline:  deadline,
+		Sources:   sources,
 	}
-
-	if adr.CARURL != nil {
-		url, err := url.Parse(adr.CARURL.URL)
-		if err != nil {
-			return storage.Request{}, fmt.Errorf("parsing CAR URL: %s", err)
-		}
-		if url.Scheme != "http" && url.Scheme != "https" {
-			return storage.Request{}, fmt.Errorf("CAR URL scheme should be http(s)")
-		}
-
-		pc.Sources.CARURL = &auction.CARURL{
-			URL: *url,
-		}
-	}
-
-	if adr.CARIPFS != nil {
-		carCid, err := cid.Decode(adr.CARIPFS.Cid)
-		if err != nil {
-			return storage.Request{}, fmt.Errorf("car cid isn't valid: %s", err)
-		}
-		maddrs := make([]multiaddr.Multiaddr, len(adr.CARIPFS.Multiaddrs))
-		for i, smaddr := range adr.CARIPFS.Multiaddrs {
-			maddr, err := multiaddr.NewMultiaddr(smaddr)
-			if err != nil {
-				return storage.Request{}, fmt.Errorf("invalid multiaddr %s: %s", smaddr, err)
-			}
-			maddrs[i] = maddr
-		}
-		pc.Sources.CARIPFS = &auction.CARIPFS{
-			Cid:        carCid,
-			Multiaddrs: maddrs,
-		}
-	}
-
 	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
 		return storage.Request{}, errors.New("at least one source must be specified")
 	}
 
+	// Metadata.
 	if origin == "" {
 		return storage.Request{}, fmt.Errorf("origin is empty")
 	}
@@ -306,7 +281,15 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		Origin: origin,
 		Tags:   adr.Tags,
 	}
-	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc, meta)
+
+	// Remote wallet.
+	remoteWallet, err := parseRemoteWallet(adr)
+	if err != nil {
+		return storage.Request{}, fmt.Errorf("parsing remote wallet config: %s", err)
+	}
+
+	// Create storage-request.
+	sr, err := bs.broker.CreatePrepared(ctx, payloadCid, pc, meta, remoteWallet)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("creating storage request: %s", err)
 	}
@@ -400,4 +383,75 @@ func storageRequestStatusToStorageRequestStatus(status broker.StorageRequestStat
 	default:
 		return storage.StatusUnknown, fmt.Errorf("unknown status: %s", status)
 	}
+}
+
+func parseSources(adr storage.AuctionDataRequest) (auction.Sources, error) {
+	var sources auction.Sources
+	if adr.CARURL != nil {
+		url, err := url.Parse(adr.CARURL.URL)
+		if err != nil {
+			return auction.Sources{}, fmt.Errorf("parsing CAR URL: %s", err)
+		}
+		if url.Scheme != "http" && url.Scheme != "https" {
+			return auction.Sources{}, fmt.Errorf("CAR URL scheme should be http(s)")
+		}
+
+		sources.CARURL = &auction.CARURL{
+			URL: *url,
+		}
+	}
+
+	if adr.CARIPFS != nil {
+		carCid, err := cid.Decode(adr.CARIPFS.Cid)
+		if err != nil {
+			return auction.Sources{}, fmt.Errorf("car cid isn't valid: %s", err)
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(adr.CARIPFS.Multiaddrs))
+		for i, smaddr := range adr.CARIPFS.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(smaddr)
+			if err != nil {
+				return auction.Sources{}, fmt.Errorf("invalid multiaddr %s: %s", smaddr, err)
+			}
+			maddrs[i] = maddr
+		}
+		sources.CARIPFS = &auction.CARIPFS{
+			Cid:        carCid,
+			Multiaddrs: maddrs,
+		}
+	}
+	return sources, nil
+}
+
+func parseRemoteWallet(adr storage.AuctionDataRequest) (*broker.RemoteWallet, error) {
+	if adr.RemoteWallet == nil {
+		return nil, nil
+	}
+
+	peerID, err := peer.Decode(adr.RemoteWallet.PeerID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid peer-id: %s", err)
+	}
+	if adr.RemoteWallet.AuthToken == "" {
+		return nil, fmt.Errorf("empty authorization token: %s", err)
+	}
+	waddr, err := address.NewFromString(adr.RemoteWallet.WalletAddr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing wallet address: %s", err)
+	}
+	multiaddrs := make([]multiaddr.Multiaddr, 0, len(adr.RemoteWallet.Multiaddrs))
+	for _, smaddr := range adr.RemoteWallet.Multiaddrs {
+		maddr, err := multiaddr.NewMultiaddr(smaddr)
+		if err != nil {
+			return nil, fmt.Errorf("multiaddress %s is invalid: %s", smaddr, err)
+		}
+		multiaddrs = append(multiaddrs, maddr)
+	}
+	// TODO(jsign): possibly check connectivity with remote wallet?
+
+	return &broker.RemoteWallet{
+		PeerID:     peerID,
+		AuthToken:  adr.RemoteWallet.AuthToken,
+		WalletAddr: waddr,
+		Multiaddrs: multiaddrs,
+	}, nil
 }

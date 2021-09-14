@@ -34,6 +34,16 @@ type BatchManifest struct {
 	Manifest []byte `json:"manifest"`
 }
 
+type BatchRemoteWallet struct {
+	BatchID    broker.BatchID `json:"batchID"`
+	PeerID     string         `json:"peerID"`
+	AuthToken  string         `json:"authToken"`
+	WalletAddr string         `json:"walletAddr"`
+	Multiaddrs []string       `json:"multiaddrs"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	UpdatedAt  time.Time      `json:"updatedAt"`
+}
+
 type BatchTag struct {
 	BatchID   broker.BatchID `json:"batchID"`
 	Key       string         `json:"key"`

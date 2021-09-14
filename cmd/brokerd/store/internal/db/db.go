@@ -61,6 +61,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getDealsStmt, err = db.PrepareContext(ctx, getDeals); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDeals: %w", err)
 	}
+	if q.getRemoteWalletConfigStmt, err = db.PrepareContext(ctx, getRemoteWalletConfig); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRemoteWalletConfig: %w", err)
+	}
 	if q.getStorageRequestStmt, err = db.PrepareContext(ctx, getStorageRequest); err != nil {
 		return nil, fmt.Errorf("error preparing query GetStorageRequest: %w", err)
 	}
@@ -162,6 +165,11 @@ func (q *Queries) Close() error {
 	if q.getDealsStmt != nil {
 		if cerr := q.getDealsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getDealsStmt: %w", cerr)
+		}
+	}
+	if q.getRemoteWalletConfigStmt != nil {
+		if cerr := q.getRemoteWalletConfigStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRemoteWalletConfigStmt: %w", cerr)
 		}
 	}
 	if q.getStorageRequestStmt != nil {
@@ -271,6 +279,7 @@ type Queries struct {
 	getBatchManifestStmt            *sql.Stmt
 	getBatchTagsStmt                *sql.Stmt
 	getDealsStmt                    *sql.Stmt
+	getRemoteWalletConfigStmt       *sql.Stmt
 	getStorageRequestStmt           *sql.Stmt
 	getStorageRequestIDsStmt        *sql.Stmt
 	getStorageRequestsStmt          *sql.Stmt
@@ -301,6 +310,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getBatchManifestStmt:            q.getBatchManifestStmt,
 		getBatchTagsStmt:                q.getBatchTagsStmt,
 		getDealsStmt:                    q.getDealsStmt,
+		getRemoteWalletConfigStmt:       q.getRemoteWalletConfigStmt,
 		getStorageRequestStmt:           q.getStorageRequestStmt,
 		getStorageRequestIDsStmt:        q.getStorageRequestIDsStmt,
 		getStorageRequestsStmt:          q.getStorageRequestsStmt,
