@@ -132,7 +132,7 @@ func (s *Store) GetStorageRequest(
 // If none was configured, it returns ErrNotFound.
 func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (rw broker.RemoteWallet, err error) {
 	err = s.withCtxTx(ctx, func(q *db.Queries) error {
-		dbrw, err := s.db.GetRemoteWalletConfig(ctx, id)
+		dbrw, err := s.db.GetBatchRemoteWallet(ctx, id)
 		if err == sql.ErrNoRows {
 			return ErrNotFound
 		}
@@ -173,7 +173,8 @@ func (s *Store) CreateBatch(
 	ctx context.Context,
 	ba *broker.Batch,
 	brIDs []broker.StorageRequestID,
-	manifest []byte) error {
+	manifest []byte,
+	rw *broker.RemoteWallet) error {
 	if ba.ID == "" {
 		return fmt.Errorf("batch id is empty")
 	}
@@ -272,6 +273,23 @@ func (s *Store) CreateBatch(
 			}
 			if err := txn.CreateBatchManifest(ctx, param); err != nil {
 				return fmt.Errorf("saving batch manifest: %s", err)
+			}
+		}
+
+		if rw != nil {
+			strmaddrs := make([]string, len(rw.Multiaddrs))
+			for i, maddr := range rw.Multiaddrs {
+				strmaddrs[i] = maddr.String()
+			}
+			param := db.CreateBatchRemoteWalletParams{
+				BatchID:    ba.ID,
+				PeerID:     rw.PeerID.String(),
+				AuthToken:  rw.AuthToken,
+				WalletAddr: rw.WalletAddr.String(),
+				Multiaddrs: strmaddrs,
+			}
+			if err := txn.CreateBatchRemoteWallet(ctx, param); err != nil {
+				return fmt.Errorf("saving batch remote wallet: %s", err)
 			}
 		}
 

@@ -219,6 +219,7 @@ func TestCreatePrepared(t *testing.T) {
 				// Check that we don't have stored information.
 				require.Error(t, store.ErrNotFound)
 			} else {
+				require.NoError(t, err)
 				// If used remote wallet, check that we persisted its information.
 				require.Equal(t, test.rw.PeerID, rw.PeerID)
 				require.Equal(t, test.rw.AuthToken, rw.AuthToken)
@@ -920,8 +921,11 @@ func makeRemoteWalletConfig(t *testing.T) *broker.RemoteWallet {
 	maddr2, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1235")
 	require.NoError(t, err)
 
+	peerID, err := peer.Decode("Qmf12XE1bSB8SbngTc4Yy8KLNGKT2Nhp2xuj2DFEWX3N5H")
+	require.NoError(t, err)
+
 	return &broker.RemoteWallet{
-		PeerID:     peer.ID("peer-id-1"),
+		PeerID:     peerID,
 		WalletAddr: waddr,
 		AuthToken:  "auth-token-1",
 		Multiaddrs: []multiaddr.Multiaddr{maddr1, maddr2},

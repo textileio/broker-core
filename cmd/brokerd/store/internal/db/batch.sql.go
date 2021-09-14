@@ -99,6 +99,40 @@ func (q *Queries) CreateBatchManifest(ctx context.Context, arg CreateBatchManife
 	return err
 }
 
+const createBatchRemoteWallet = `-- name: CreateBatchRemoteWallet :exec
+INSERT INTO batch_remote_wallet (
+	batch_id,
+	peer_id,
+	auth_token,
+	wallet_addr,
+	multiaddrs
+        ) VALUES (
+	$1,
+	$2,
+	$3,
+	$4,
+	$5)
+`
+
+type CreateBatchRemoteWalletParams struct {
+	BatchID    broker.BatchID `json:"batchID"`
+	PeerID     string         `json:"peerID"`
+	AuthToken  string         `json:"authToken"`
+	WalletAddr string         `json:"walletAddr"`
+	Multiaddrs []string       `json:"multiaddrs"`
+}
+
+func (q *Queries) CreateBatchRemoteWallet(ctx context.Context, arg CreateBatchRemoteWalletParams) error {
+	_, err := q.exec(ctx, q.createBatchRemoteWalletStmt, createBatchRemoteWallet,
+		arg.BatchID,
+		arg.PeerID,
+		arg.AuthToken,
+		arg.WalletAddr,
+		pq.Array(arg.Multiaddrs),
+	)
+	return err
+}
+
 const createBatchTag = `-- name: CreateBatchTag :exec
 INSERT INTO batch_tags (batch_id,key,value) VALUES ($1,$2,$3)
 `
@@ -155,6 +189,26 @@ func (q *Queries) GetBatchManifest(ctx context.Context, batchID string) (BatchMa
 	return i, err
 }
 
+const getBatchRemoteWallet = `-- name: GetBatchRemoteWallet :one
+SELECT batch_id, peer_id, auth_token, wallet_addr, multiaddrs, created_at, updated_at FROM batch_remote_wallet
+WHERE batch_id=$1
+`
+
+func (q *Queries) GetBatchRemoteWallet(ctx context.Context, batchID broker.BatchID) (BatchRemoteWallet, error) {
+	row := q.queryRow(ctx, q.getBatchRemoteWalletStmt, getBatchRemoteWallet, batchID)
+	var i BatchRemoteWallet
+	err := row.Scan(
+		&i.BatchID,
+		&i.PeerID,
+		&i.AuthToken,
+		&i.WalletAddr,
+		pq.Array(&i.Multiaddrs),
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getBatchTags = `-- name: GetBatchTags :many
 SELECT batch_id, key, value, created_at FROM batch_tags
 WHERE batch_id=$1
@@ -186,26 +240,6 @@ func (q *Queries) GetBatchTags(ctx context.Context, batchID broker.BatchID) ([]B
 		return nil, err
 	}
 	return items, nil
-}
-
-const getRemoteWalletConfig = `-- name: GetRemoteWalletConfig :one
-SELECT batch_id, peer_id, auth_token, wallet_addr, multiaddrs, created_at, updated_at FROM batch_remote_wallet
-WHERE batch_id=$1
-`
-
-func (q *Queries) GetRemoteWalletConfig(ctx context.Context, batchID broker.BatchID) (BatchRemoteWallet, error) {
-	row := q.queryRow(ctx, q.getRemoteWalletConfigStmt, getRemoteWalletConfig, batchID)
-	var i BatchRemoteWallet
-	err := row.Scan(
-		&i.BatchID,
-		&i.PeerID,
-		&i.AuthToken,
-		&i.WalletAddr,
-		pq.Array(&i.Multiaddrs),
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }
 
 const updateBatch = `-- name: UpdateBatch :exec

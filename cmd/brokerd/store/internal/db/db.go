@@ -31,6 +31,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createBatchManifestStmt, err = db.PrepareContext(ctx, createBatchManifest); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBatchManifest: %w", err)
 	}
+	if q.createBatchRemoteWalletStmt, err = db.PrepareContext(ctx, createBatchRemoteWallet); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBatchRemoteWallet: %w", err)
+	}
 	if q.createBatchTagStmt, err = db.PrepareContext(ctx, createBatchTag); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBatchTag: %w", err)
 	}
@@ -55,14 +58,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getBatchManifestStmt, err = db.PrepareContext(ctx, getBatchManifest); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBatchManifest: %w", err)
 	}
+	if q.getBatchRemoteWalletStmt, err = db.PrepareContext(ctx, getBatchRemoteWallet); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBatchRemoteWallet: %w", err)
+	}
 	if q.getBatchTagsStmt, err = db.PrepareContext(ctx, getBatchTags); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBatchTags: %w", err)
 	}
 	if q.getDealsStmt, err = db.PrepareContext(ctx, getDeals); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDeals: %w", err)
-	}
-	if q.getRemoteWalletConfigStmt, err = db.PrepareContext(ctx, getRemoteWalletConfig); err != nil {
-		return nil, fmt.Errorf("error preparing query GetRemoteWalletConfig: %w", err)
 	}
 	if q.getStorageRequestStmt, err = db.PrepareContext(ctx, getStorageRequest); err != nil {
 		return nil, fmt.Errorf("error preparing query GetStorageRequest: %w", err)
@@ -117,6 +120,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createBatchManifestStmt: %w", cerr)
 		}
 	}
+	if q.createBatchRemoteWalletStmt != nil {
+		if cerr := q.createBatchRemoteWalletStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBatchRemoteWalletStmt: %w", cerr)
+		}
+	}
 	if q.createBatchTagStmt != nil {
 		if cerr := q.createBatchTagStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createBatchTagStmt: %w", cerr)
@@ -157,6 +165,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getBatchManifestStmt: %w", cerr)
 		}
 	}
+	if q.getBatchRemoteWalletStmt != nil {
+		if cerr := q.getBatchRemoteWalletStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBatchRemoteWalletStmt: %w", cerr)
+		}
+	}
 	if q.getBatchTagsStmt != nil {
 		if cerr := q.getBatchTagsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getBatchTagsStmt: %w", cerr)
@@ -165,11 +178,6 @@ func (q *Queries) Close() error {
 	if q.getDealsStmt != nil {
 		if cerr := q.getDealsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getDealsStmt: %w", cerr)
-		}
-	}
-	if q.getRemoteWalletConfigStmt != nil {
-		if cerr := q.getRemoteWalletConfigStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getRemoteWalletConfigStmt: %w", cerr)
 		}
 	}
 	if q.getStorageRequestStmt != nil {
@@ -269,6 +277,7 @@ type Queries struct {
 	batchUpdateStorageRequestsStmt  *sql.Stmt
 	createBatchStmt                 *sql.Stmt
 	createBatchManifestStmt         *sql.Stmt
+	createBatchRemoteWalletStmt     *sql.Stmt
 	createBatchTagStmt              *sql.Stmt
 	createDealStmt                  *sql.Stmt
 	createOperationStmt             *sql.Stmt
@@ -277,9 +286,9 @@ type Queries struct {
 	deleteExecutingUnpinJobStmt     *sql.Stmt
 	getBatchStmt                    *sql.Stmt
 	getBatchManifestStmt            *sql.Stmt
+	getBatchRemoteWalletStmt        *sql.Stmt
 	getBatchTagsStmt                *sql.Stmt
 	getDealsStmt                    *sql.Stmt
-	getRemoteWalletConfigStmt       *sql.Stmt
 	getStorageRequestStmt           *sql.Stmt
 	getStorageRequestIDsStmt        *sql.Stmt
 	getStorageRequestsStmt          *sql.Stmt
@@ -300,6 +309,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		batchUpdateStorageRequestsStmt:  q.batchUpdateStorageRequestsStmt,
 		createBatchStmt:                 q.createBatchStmt,
 		createBatchManifestStmt:         q.createBatchManifestStmt,
+		createBatchRemoteWalletStmt:     q.createBatchRemoteWalletStmt,
 		createBatchTagStmt:              q.createBatchTagStmt,
 		createDealStmt:                  q.createDealStmt,
 		createOperationStmt:             q.createOperationStmt,
@@ -308,9 +318,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteExecutingUnpinJobStmt:     q.deleteExecutingUnpinJobStmt,
 		getBatchStmt:                    q.getBatchStmt,
 		getBatchManifestStmt:            q.getBatchManifestStmt,
+		getBatchRemoteWalletStmt:        q.getBatchRemoteWalletStmt,
 		getBatchTagsStmt:                q.getBatchTagsStmt,
 		getDealsStmt:                    q.getDealsStmt,
-		getRemoteWalletConfigStmt:       q.getRemoteWalletConfigStmt,
 		getStorageRequestStmt:           q.getStorageRequestStmt,
 		getStorageRequestIDsStmt:        q.getStorageRequestIDsStmt,
 		getStorageRequestsStmt:          q.getStorageRequestsStmt,
