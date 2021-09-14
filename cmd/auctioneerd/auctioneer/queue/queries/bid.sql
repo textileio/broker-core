@@ -47,7 +47,7 @@ GROUP BY storage_provider_id;
 -- name: GetRecentWeekMaxOnChainSeconds :many
 -- get the maximum time in the last week a storage provider making a deal on chain.
 SELECT storage_provider_id,
-      MAX(extract(epoch from current_timestamp - deal_confirmed_at))::bigint AS max_on_chain_seconds
+      MAX(extract(epoch from deal_confirmed_at - received_at))::bigint AS max_on_chain_seconds
     FROM bids
     WHERE received_at > current_timestamp - interval '1 weeks' AND deal_confirmed_at IS NOT NULL
 GROUP BY storage_provider_id;
