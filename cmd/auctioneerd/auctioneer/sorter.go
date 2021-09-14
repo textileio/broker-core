@@ -180,6 +180,7 @@ func (s Sorter) Select(filter func(*auctioneer.Bid) bool) Sorter {
 func (s *Sorter) Iterate(cmp Cmp) BidsIter {
 	s.bh = &bidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
 	heap.Init(s.bh)
+	log.Debugf("constructed heap with %d bids", s.bh.Len())
 	return func() (auctioneer.Bid, bool) {
 		if s.bh.Len() == 0 {
 			return auctioneer.Bid{}, false
@@ -193,6 +194,7 @@ func (s *Sorter) Iterate(cmp Cmp) BidsIter {
 func (s *Sorter) RandomTopN(n int, cmp Cmp) BidsIter {
 	s.bh = &bidHeap{a: s.bh.a, h: s.bh.h, cmp: cmp}
 	heap.Init(s.bh)
+	log.Debugf("constructed heap with %d bids", s.bh.Len())
 	if n > s.bh.Len() {
 		n = s.bh.Len()
 	}
@@ -218,6 +220,7 @@ func (s *Sorter) RandomTopN(n int, cmp Cmp) BidsIter {
 func (s *Sorter) Random() BidsIter {
 	s.bh = &bidHeap{a: s.bh.a, h: s.bh.h, cmp: Random()}
 	heap.Init(s.bh)
+	log.Debugf("constructed heap with %d bids", s.bh.Len())
 	return func() (auctioneer.Bid, bool) {
 		if s.bh.Len() == 0 {
 			return auctioneer.Bid{}, false
