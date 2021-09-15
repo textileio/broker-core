@@ -392,7 +392,6 @@ func (fc *FilClient) createDealProposal(
 			return nil, fmt.Errorf("remote signature is invalid: %s", err)
 		}
 		log.Debugf("remote signature from %s is valid", peerID)
-
 	}
 
 	sigprop := &market.ClientDealProposal{

@@ -74,7 +74,8 @@ func TestCreatePreparedSuccess(t *testing.T) {
 			expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
 			expectedSRI := storage.RequestInfo{Request: expectedSR}
 			usm := &uploaderMock{}
-			usm.On("CreateFromExternalSource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
+			usm.On("CreateFromExternalSource",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
 			usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
 
 			mux := createMux(usm, 1<<20, true)

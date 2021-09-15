@@ -41,6 +41,7 @@ func TestRemoteSigning(t *testing.T) {
 	}
 	authToken := "veryhardtokentoguess"
 	lwallet, err := localwallet.New(walletKeys)
+	require.NoError(t, err)
 
 	err = propsigner.NewDealSignerService(h2, authToken, lwallet)
 	require.NoError(t, err)

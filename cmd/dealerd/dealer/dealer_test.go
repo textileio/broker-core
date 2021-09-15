@@ -264,7 +264,8 @@ func TestStateMachineExecReporting(t *testing.T) {
 func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
-	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
+	fc.On("ExecuteAuctionDeal",
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
 
 	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&storagemarket.ProviderDealState{
@@ -337,7 +338,8 @@ func (fc *fcMock) CheckDealStatusWithStorageProvider(
 }
 
 func makeRemoteWalletAuds(baseAuds dealeri.AuctionDeals) dealeri.AuctionDeals {
-	waddr, err := address.NewFromString("f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
+	waddr, err := address.NewFromString(
+		"f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
 	panicIfErr(err)
 	maddr1, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1234")
 	panicIfErr(err)

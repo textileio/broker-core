@@ -275,7 +275,7 @@ func TestGetAuctionNotFound(t *testing.T) {
 func TestRemoveAuctionDeals(t *testing.T) {
 	t.Parallel()
 
-	waddr, err := address.NewFromString("f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
+	waddr, err := address.NewFromString("f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika") // nolint:lll
 	require.NoError(t, err)
 
 	type ttcases struct {

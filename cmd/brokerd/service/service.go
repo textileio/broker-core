@@ -151,7 +151,7 @@ func (s *Service) CreatePreparedStorageRequest(
 		meta.Tags[k] = v
 	}
 
-	rw, err := parseRemoteWallet(ctx, r)
+	rw, err := parseRemoteWallet(r)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "remote wallet configuration is invalid: %s", err)
 	}
@@ -407,7 +407,7 @@ func parsePreparedCAR(ctx context.Context, r *pb.CreatePreparedStorageRequestReq
 	return pc, nil
 }
 
-func parseRemoteWallet(ctx context.Context, r *pb.CreatePreparedStorageRequestRequest) (*broker.RemoteWallet, error) {
+func parseRemoteWallet(r *pb.CreatePreparedStorageRequestRequest) (*broker.RemoteWallet, error) {
 	if r.RemoteWallet == nil {
 		return nil, nil
 	}

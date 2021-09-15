@@ -7,7 +7,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/broker-core/cmd/brokerd/metrics"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -26,12 +25,13 @@ type hostNotifee struct {
 	activeStreams int64
 }
 
+// Register exports libp2p connection metrics about the host.
 func Register(h host.Host) {
 	var mActiveConns metric.Int64ValueObserver
 	var mActiveStreams metric.Int64ValueObserver
 
 	var cn hostNotifee
-	batchObs := metrics.Meter.NewBatchObserver(func(ctx context.Context, result metric.BatchObserverResult) {
+	batchObs := meter.NewBatchObserver(func(ctx context.Context, result metric.BatchObserverResult) {
 		result.Observe(
 			[]attribute.KeyValue{},
 			mActiveConns.Observation(atomic.LoadInt64(&cn.activeConns)),

@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
 	"github.com/spf13/cobra"
@@ -28,7 +28,11 @@ var (
 func init() {
 	flags := []cli.Flag{
 		{Name: "private-key", DefValue: "", Description: "Multibase-encoded libp2p marshaled peer-id private key"},
-		{Name: "listen-multiaddr", DefValue: "/ip4/0.0.0.0/tcp/4001", Description: "libp2p identity base64-encoded RSA private key"},
+		{
+			Name:        "listen-multiaddr",
+			DefValue:    "/ip4/0.0.0.0/tcp/4001",
+			Description: "libp2p identity base64-encoded RSA private key",
+		},
 
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},

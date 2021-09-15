@@ -58,6 +58,7 @@ type AuctionData struct {
 // storage-provider. The data information is stored in the linked AuctionData.
 type AuctionDeal db.AuctionDeal
 
+// RemoteWallet contains configuration of a remote wallet.
 type RemoteWallet = db.RemoteWallet
 
 // Store provides persistent storage for Bids.
@@ -266,7 +267,6 @@ func (s *Store) GetRemoteWallet(ctx context.Context, auctionDataID string) (rw *
 		return nil
 	})
 	return
-
 }
 
 // RemoveAuctionDeal removes the provided auction deal. If the corresponding auction data isn't linked

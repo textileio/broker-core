@@ -85,7 +85,7 @@ type CARIPFS struct {
 	Multiaddrs []string `json:"multiaddrs"`
 }
 
-// RemoteWallet contains details of a remote wallet to do signing proposal
+// RemoteWallet contains details of a remote wallet to do signing proposal.
 type RemoteWallet struct {
 	PeerID     string   `json:"peerId"`
 	AuthToken  string   `json:"authToken"`

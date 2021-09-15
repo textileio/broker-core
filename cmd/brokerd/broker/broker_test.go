@@ -994,7 +994,7 @@ func castCid(cidStr string) cid.Cid {
 }
 
 func makeRemoteWalletConfig(t *testing.T) *broker.RemoteWallet {
-	waddr, err := address.NewFromString("f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
+	waddr, err := address.NewFromString("f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika") // nolint:lll
 	require.NoError(t, err)
 
 	maddr1, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1234")

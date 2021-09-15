@@ -65,6 +65,7 @@ type BatchMetadata struct {
 	Tags   map[string]string
 }
 
+// RemoteWallet contains configuration of a remote wallet.
 type RemoteWallet struct {
 	PeerID     peer.ID
 	WalletAddr address.Address
