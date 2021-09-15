@@ -462,19 +462,29 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return nil
 	}
 
+	var adrw *broker.RemoteWallet
+	rw, err := b.store.GetRemoteWalletConfig(ctx, au.BatchID)
+	if err != nil && err != store.ErrNotFound {
+		return fmt.Errorf("get remote wallet config: %s", err)
+	}
+	if err != store.ErrNotFound {
+		adrw = &rw
+	}
+
 	adID, err := b.newID()
 	if err != nil {
 		return fmt.Errorf("generating auction deal id: %s", err)
 	}
 
 	ads := dealer.AuctionDeals{
-		ID:         adID,
-		BatchID:    ba.ID,
-		PayloadCid: ba.PayloadCid,
-		PieceCid:   ba.PieceCid,
-		PieceSize:  ba.PieceSize,
-		Duration:   au.DealDuration,
-		Proposals:  make([]dealer.Proposal, len(au.WinningBids)),
+		ID:           adID,
+		BatchID:      ba.ID,
+		PayloadCid:   ba.PayloadCid,
+		PieceCid:     ba.PieceCid,
+		PieceSize:    ba.PieceSize,
+		Duration:     au.DealDuration,
+		Proposals:    make([]dealer.Proposal, len(au.WinningBids)),
+		RemoteWallet: adrw,
 	}
 
 	var i int

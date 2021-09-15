@@ -656,6 +656,29 @@ func PublishMsgReadyToCreateDeals(
 			BidId:               string(t.BidID),
 		}
 	}
+	if ads.RemoteWallet != nil {
+		if err := ads.RemoteWallet.PeerID.Validate(); err != nil {
+			return fmt.Errorf("remote wallet peer-id is invalid: %s", err)
+		}
+		if ads.RemoteWallet.AuthToken == "" {
+			return errors.New("remote wallet auth-token is empty")
+		}
+		if ads.RemoteWallet.WalletAddr.Empty() {
+			return errors.New("remote wallet wallet address is empty")
+		}
+		maddrs := make([]string, len(ads.RemoteWallet.Multiaddrs))
+		for i, maddr := range ads.RemoteWallet.Multiaddrs {
+			maddrs[i] = maddr.String()
+		}
+
+		msg.RemoteWallet = &pb.ReadyToCreateDeals_RemoteWallet{
+			PeerId:     ads.RemoteWallet.PeerID.String(),
+			AuthToken:  ads.RemoteWallet.AuthToken,
+			WalletAddr: ads.RemoteWallet.WalletAddr.String(),
+			Multiaddrs: maddrs,
+		}
+	}
+
 	return marshalAndPublish(ctx, mb, ReadyToCreateDealsTopic, msg)
 }
 
