@@ -28,6 +28,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createAuctionDealStmt, err = db.PrepareContext(ctx, createAuctionDeal); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateAuctionDeal: %w", err)
 	}
+	if q.createRemoteWalletStmt, err = db.PrepareContext(ctx, createRemoteWallet); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateRemoteWallet: %w", err)
+	}
 	if q.getAuctionDataStmt, err = db.PrepareContext(ctx, getAuctionData); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAuctionData: %w", err)
 	}
@@ -39,6 +42,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getAuctionDealsByStatusStmt, err = db.PrepareContext(ctx, getAuctionDealsByStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAuctionDealsByStatus: %w", err)
+	}
+	if q.getRemoteWalletStmt, err = db.PrepareContext(ctx, getRemoteWallet); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRemoteWallet: %w", err)
 	}
 	if q.nextPendingAuctionDealStmt, err = db.PrepareContext(ctx, nextPendingAuctionDeal); err != nil {
 		return nil, fmt.Errorf("error preparing query NextPendingAuctionDeal: %w", err)
@@ -67,6 +73,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createAuctionDealStmt: %w", cerr)
 		}
 	}
+	if q.createRemoteWalletStmt != nil {
+		if cerr := q.createRemoteWalletStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createRemoteWalletStmt: %w", cerr)
+		}
+	}
 	if q.getAuctionDataStmt != nil {
 		if cerr := q.getAuctionDataStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAuctionDataStmt: %w", cerr)
@@ -85,6 +96,11 @@ func (q *Queries) Close() error {
 	if q.getAuctionDealsByStatusStmt != nil {
 		if cerr := q.getAuctionDealsByStatusStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAuctionDealsByStatusStmt: %w", cerr)
+		}
+	}
+	if q.getRemoteWalletStmt != nil {
+		if cerr := q.getRemoteWalletStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRemoteWalletStmt: %w", cerr)
 		}
 	}
 	if q.nextPendingAuctionDealStmt != nil {
@@ -148,10 +164,12 @@ type Queries struct {
 	tx                          *sql.Tx
 	createAuctionDataStmt       *sql.Stmt
 	createAuctionDealStmt       *sql.Stmt
+	createRemoteWalletStmt      *sql.Stmt
 	getAuctionDataStmt          *sql.Stmt
 	getAuctionDealStmt          *sql.Stmt
 	getAuctionDealIDsStmt       *sql.Stmt
 	getAuctionDealsByStatusStmt *sql.Stmt
+	getRemoteWalletStmt         *sql.Stmt
 	nextPendingAuctionDealStmt  *sql.Stmt
 	removeAuctionDataStmt       *sql.Stmt
 	removeAuctionDealStmt       *sql.Stmt
@@ -164,10 +182,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                          tx,
 		createAuctionDataStmt:       q.createAuctionDataStmt,
 		createAuctionDealStmt:       q.createAuctionDealStmt,
+		createRemoteWalletStmt:      q.createRemoteWalletStmt,
 		getAuctionDataStmt:          q.getAuctionDataStmt,
 		getAuctionDealStmt:          q.getAuctionDealStmt,
 		getAuctionDealIDsStmt:       q.getAuctionDealIDsStmt,
 		getAuctionDealsByStatusStmt: q.getAuctionDealsByStatusStmt,
+		getRemoteWalletStmt:         q.getRemoteWalletStmt,
 		nextPendingAuctionDealStmt:  q.nextPendingAuctionDealStmt,
 		removeAuctionDataStmt:       q.removeAuctionDataStmt,
 		removeAuctionDealStmt:       q.removeAuctionDealStmt,

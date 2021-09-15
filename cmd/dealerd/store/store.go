@@ -34,7 +34,7 @@ var (
 	log = logger.Logger("store")
 
 	// ErrNotFound is returned if the item isn't found in the store.
-	ErrNotFound = errors.New("key not found")
+	ErrNotFound = errors.New("id not found")
 
 	// ErrAuctionDataExists indicates that the auction data already exists.
 	ErrAuctionDataExists = errors.New("auction data already exists")
@@ -57,6 +57,8 @@ type AuctionData struct {
 // AuctionDeal contains information to make a deal with a particular
 // storage-provider. The data information is stored in the linked AuctionData.
 type AuctionDeal db.AuctionDeal
+
+type RemoteWallet = db.RemoteWallet
 
 // Store provides persistent storage for Bids.
 type Store struct {
@@ -85,8 +87,8 @@ func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (er
 
 // Create persist new auction data and a set of related auction deals. It
 // writes the IDs back to the parameters passed in.
-func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal) error {
-	err := validate(ad, ads)
+func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal, rw *broker.RemoteWallet) error {
+	err := validate(ad, ads, rw)
 	if err != nil {
 		return fmt.Errorf("invalid auction data: %s", err)
 	}
@@ -137,6 +139,22 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal)
 				return fmt.Errorf("saving auction deal in datastore: %s", err)
 			}
 		}
+		if rw != nil {
+			maddrs := make([]string, len(rw.Multiaddrs))
+			for i, maddr := range rw.Multiaddrs {
+				maddrs[i] = maddr.String()
+			}
+			if err := txn.CreateRemoteWallet(ctx, db.CreateRemoteWalletParams{
+				AuctionDataID: ad.ID,
+				PeerID:        rw.PeerID.String(),
+				AuthToken:     rw.AuthToken,
+				WalletAddr:    rw.WalletAddr.String(),
+				Multiaddrs:    maddrs,
+			}); err != nil {
+				return fmt.Errorf("saving remote wallet config in datastore: %s", err)
+			}
+		}
+
 		return nil
 	})
 }
@@ -233,6 +251,22 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 	return
 }
 
+func (s *Store) GetRemoteWallet(ctx context.Context, auctionDataID string) (rw RemoteWallet, err error) {
+	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		remoteWallet, err := q.GetRemoteWallet(ctx, auctionDataID)
+		if err == sql.ErrNoRows {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("get remote wallet: %s", err)
+		}
+		rw = remoteWallet
+		return nil
+	})
+	return
+
+}
+
 // RemoveAuctionDeal removes the provided auction deal. If the corresponding auction data isn't linked
 // with any remaining auction deals, then is also removed.
 func (s *Store) RemoveAuctionDeal(ctx context.Context, aud AuctionDeal) error {
@@ -275,7 +309,7 @@ func (s *Store) GetStatusCounts(ctx context.Context) (map[storagemarket.StorageD
 	return ret, nil
 }
 
-func validate(ad *AuctionData, ads []*AuctionDeal) error {
+func validate(ad *AuctionData, ads []*AuctionDeal, rw *broker.RemoteWallet) error {
 	if ad.Duration <= 0 {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
 	}
@@ -304,6 +338,18 @@ func validate(ad *AuctionData, ads []*AuctionDeal) error {
 		}
 		if auctionDeal.StartEpoch <= 0 {
 			return errors.New("start-epoch isn't positive")
+		}
+	}
+
+	if rw != nil {
+		if err := rw.PeerID.Validate(); err != nil {
+			return fmt.Errorf("remote wallet invalid peer-id: %s", err)
+		}
+		if rw.AuthToken == "" {
+			return errors.New("remote wallet auth token is empty")
+		}
+		if rw.WalletAddr.Empty() {
+			return errors.New("remote wallet wallet address is empty")
 		}
 	}
 

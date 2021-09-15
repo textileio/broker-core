@@ -1,5 +1,7 @@
 package store
 
+// TODO(jsign): should add something here reg remote wallets?
+
 import (
 	"context"
 	"database/sql"
@@ -22,7 +24,7 @@ func TestCreate(t *testing.T) {
 
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 	deepCheckAuctionData(t, s, ad)
 	deepCheckAuctionDeals(t, s, aud)
@@ -40,7 +42,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.Duration = 0
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef id", func(t *testing.T) {
@@ -48,7 +50,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.ID = ""
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef batch id", func(t *testing.T) {
@@ -56,7 +58,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.BatchID = ""
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef payload cid", func(t *testing.T) {
@@ -64,7 +66,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PayloadCid = cid.Undef
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef piece cid", func(t *testing.T) {
@@ -72,7 +74,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PieceCid = cid.Undef
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data piece size 0", func(t *testing.T) {
@@ -80,7 +82,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PieceSize = 0
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 
@@ -89,7 +91,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		aud := gaud1
 		aud.StorageProviderID = ""
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-deal negative price", func(t *testing.T) {
@@ -97,7 +99,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		aud := gaud1
 		aud.PricePerGibPerEpoch = -1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-deal start epoch 0", func(t *testing.T) {
@@ -105,7 +107,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		aud := gaud1
 		aud.StartEpoch = 0
-		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 }
@@ -119,7 +121,7 @@ func TestSaveAuctionDeal(t *testing.T) {
 
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 
 	auds, err := s.getAllPending()
@@ -160,7 +162,7 @@ func TestSaveAuctionDealFail(t *testing.T) {
 		require.NoError(t, err)
 		ad := gad1
 		aud := gaud1
-		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.NoError(t, err)
 		auds, err := s.getAllPending()
 		require.NoError(t, err)
@@ -180,7 +182,7 @@ func TestGetNext(t *testing.T) {
 	ctx := context.Background()
 	ad := gad1
 	aud := gaud1
-	err = s.Create(ctx, &ad, []*AuctionDeal{&aud})
+	err = s.Create(ctx, &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 
 	testsCases := []AuctionDealStatus{
@@ -223,7 +225,7 @@ func TestGetAllAuctionDeals(t *testing.T) {
 	ad := gad1
 	aud1 := gaud1
 	aud2 := gaud2
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud1, &aud2})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud1, &aud2}, nil)
 	require.NoError(t, err)
 	deepCheckAuctionData(t, s, ad)
 	deepCheckAuctionDeals(t, s, aud1, aud2)
@@ -245,7 +247,7 @@ func TestGetAuctionData(t *testing.T) {
 	require.NoError(t, err)
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 	auds, err := s.getAllPending()
 	require.NoError(t, err)
@@ -264,7 +266,7 @@ func TestGetAuctionNotFound(t *testing.T) {
 	require.NoError(t, err)
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 
 	_, err = s.GetAuctionData(context.Background(), "invented")
@@ -281,7 +283,7 @@ func TestRemoveAuctionDeals(t *testing.T) {
 	ad := gad1
 	aud1 := gaud1
 	aud2 := gaud2
-	err = s.Create(ctx, &ad, []*AuctionDeal{&aud1, &aud2})
+	err = s.Create(ctx, &ad, []*AuctionDeal{&aud1, &aud2}, nil)
 	require.NoError(t, err)
 
 	all, err := s.getAllPending()
