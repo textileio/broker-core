@@ -251,16 +251,18 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 	return
 }
 
-func (s *Store) GetRemoteWallet(ctx context.Context, auctionDataID string) (rw RemoteWallet, err error) {
+// GetRemoteWallet returns the remote wallet configuration for an auction if exists.
+// If the auction deal wasn't configured with a remote wallet, *it will return nil without an error*.
+func (s *Store) GetRemoteWallet(ctx context.Context, auctionDataID string) (rw *RemoteWallet, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
 		remoteWallet, err := q.GetRemoteWallet(ctx, auctionDataID)
 		if err == sql.ErrNoRows {
-			return ErrNotFound
+			return nil
 		}
 		if err != nil {
 			return fmt.Errorf("get remote wallet: %s", err)
 		}
-		rw = remoteWallet
+		rw = &remoteWallet
 		return nil
 	})
 	return

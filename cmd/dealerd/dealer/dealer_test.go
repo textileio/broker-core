@@ -102,7 +102,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 			// TODO(jsign): test that remote wallet rows are deleted when deal finalized.
 			rw, err := dealer.store.GetRemoteWallet(ctx, aud.AuctionDataID)
 			if test.auds.RemoteWallet == nil {
-				require.Equal(t, store.ErrNotFound, err)
+				require.Nil(t, rw)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, test.auds.RemoteWallet.PeerID.String(), rw.PeerID)
@@ -265,7 +265,7 @@ func TestStateMachineExecReporting(t *testing.T) {
 func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
-	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
+	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
 
 	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&storagemarket.ProviderDealState{
@@ -306,7 +306,8 @@ type fcMock struct {
 func (fc *fcMock) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
-	aud store.AuctionDeal) (cid.Cid, bool, error) {
+	aud store.AuctionDeal,
+	rw *store.RemoteWallet) (cid.Cid, bool, error) {
 	args := fc.Called(ctx, ad, aud)
 	return args.Get(0).(cid.Cid), args.Bool(1), args.Error(2)
 }
