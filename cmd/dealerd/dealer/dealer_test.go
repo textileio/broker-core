@@ -99,7 +99,6 @@ func TestReadyToCreateDeals(t *testing.T) {
 			require.Equal(t, int64(0), aud.DealID)
 			require.Equal(t, uint64(0), aud.DealExpiration)
 
-			// TODO(jsign): test that remote wallet rows are deleted when deal finalized.
 			rw, err := dealer.store.GetRemoteWallet(ctx, aud.AuctionDataID)
 			if test.auds.RemoteWallet == nil {
 				require.Nil(t, rw)

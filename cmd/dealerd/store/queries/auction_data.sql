@@ -39,3 +39,6 @@ INSERT INTO remote_wallet(
 -- name: GetRemoteWallet :one
 SELECT * FROM remote_wallet
 where auction_data_id = $1;
+
+-- name: RemoveRemoteWallet :exec
+DELETE FROM remote_wallet WHERE auction_data_id = $1;

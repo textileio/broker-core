@@ -131,3 +131,12 @@ func (q *Queries) RemoveAuctionData(ctx context.Context, id string) error {
 	_, err := q.exec(ctx, q.removeAuctionDataStmt, removeAuctionData, id)
 	return err
 }
+
+const removeRemoteWallet = `-- name: RemoveRemoteWallet :exec
+DELETE FROM remote_wallet WHERE auction_data_id = $1
+`
+
+func (q *Queries) RemoveRemoteWallet(ctx context.Context, auctionDataID string) error {
+	_, err := q.exec(ctx, q.removeRemoteWalletStmt, removeRemoteWallet, auctionDataID)
+	return err
+}

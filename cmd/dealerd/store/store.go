@@ -289,6 +289,12 @@ func (s *Store) RemoveAuctionDeal(ctx context.Context, aud AuctionDeal) error {
 			return fmt.Errorf("get linked auction data: %s", err)
 		}
 		if len(ids) == 0 {
+			// Remove wallet config (if exists, if doesn't is a noop).
+			if err := txn.RemoveRemoteWallet(ctx, aud.AuctionDataID); err != nil {
+				return fmt.Errorf("deleting remote wallet config: %s", err)
+			}
+
+			// Remove auction data.
 			if err := txn.RemoveAuctionData(ctx, aud.AuctionDataID); err != nil {
 				return fmt.Errorf("deleting orphaned auction data: %s", err)
 			}
