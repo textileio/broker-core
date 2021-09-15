@@ -30,6 +30,7 @@ type Config struct {
 	AllowUnverifiedDeals             bool
 	MaxVerifiedPricePerGiBPerEpoch   int64
 	MaxUnverifiedPricePerGiBPerEpoch int64
+	RelayMaddr                       string
 
 	Mock bool
 }
@@ -63,12 +64,16 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		}
 		fin.Add(&nopCloser{closer})
 
-		filclient, err := filclient.New(
-			&lotusAPI,
+		opts := []filclient.Option{
 			filclient.WithExportedKey(conf.LotusExportedWalletAddr),
 			filclient.WithAllowUnverifiedDeals(conf.AllowUnverifiedDeals),
 			filclient.WithMaxPriceLimits(conf.MaxVerifiedPricePerGiBPerEpoch, conf.MaxUnverifiedPricePerGiBPerEpoch),
-		)
+		}
+		if conf.RelayMaddr != "" {
+			opts = append(opts, filclient.WithRelayAddr(conf.RelayMaddr))
+		}
+		filclient, err := filclient.New(&lotusAPI, opts...)
+
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}

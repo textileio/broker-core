@@ -37,6 +37,7 @@ func init() {
 			DefValue:    int64(0),
 			Description: "Maximum price accepted for unverified deals",
 		},
+		{Name: "relay-maddr", DefValue: "", Description: "Relay multiaddress for remote wallets"},
 		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
@@ -83,6 +84,7 @@ var rootCmd = &cobra.Command{
 			AllowUnverifiedDeals:             v.GetBool("allow-unverified-deals"),
 			MaxVerifiedPricePerGiBPerEpoch:   v.GetInt64("max-verified-price-per-gib-per-epoch"),
 			MaxUnverifiedPricePerGiBPerEpoch: v.GetInt64("max-unverified-price-per-gib-per-epoch"),
+			RelayMaddr:                       v.GetString("relay-maddr"),
 
 			Mock: v.GetBool("mock"),
 		}
