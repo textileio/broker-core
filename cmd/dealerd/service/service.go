@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
+	"github.com/libp2p/go-libp2p"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
@@ -72,7 +75,14 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		if conf.RelayMaddr != "" {
 			opts = append(opts, filclient.WithRelayAddr(conf.RelayMaddr))
 		}
-		filclient, err := filclient.New(&lotusAPI, opts...)
+
+		h, err := libp2p.New(context.Background(),
+			libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("creating host: %s", err)
+		}
+		filclient, err := filclient.New(&lotusAPI, h, opts...)
 
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)

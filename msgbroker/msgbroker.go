@@ -369,7 +369,6 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 					}
 					maddrs[i] = maddr
 				}
-
 				ads.RemoteWallet = &broker.RemoteWallet{
 					PeerID:     peerID,
 					AuthToken:  r.RemoteWallet.AuthToken,
