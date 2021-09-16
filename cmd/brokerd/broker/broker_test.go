@@ -215,11 +215,12 @@ func TestCreatePrepared(t *testing.T) {
 				require.Equal(t, v, v2)
 			}
 			rw, err := b.store.GetRemoteWalletConfig(ctx, br.BatchID)
+			require.NoError(t, err)
 			if test.rw == nil {
 				// Check that we don't have stored information.
-				require.Error(t, store.ErrNotFound)
+				require.Nil(t, rw)
 			} else {
-				require.NoError(t, err)
+				require.NotNil(t, rw)
 				// If used remote wallet, check that we persisted its information.
 				require.Equal(t, test.rw.PeerID, rw.PeerID)
 				require.Equal(t, test.rw.AuthToken, rw.AuthToken)
