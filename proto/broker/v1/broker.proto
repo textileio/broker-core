@@ -41,13 +41,6 @@ message CreatePreparedStorageRequestRequest {
       repeated string multiaddrs = 2;
     }
   }
-
-  message RemoteWallet {
-    string peer_id = 1;
-    string auth_token = 2;
-    string wallet_addr = 3;
-    repeated string multiaddrs = 4;
-  }
 }
 
 message CreatePreparedStorageRequestResponse {
@@ -114,15 +107,15 @@ message ReadyToCreateDeals {
     bool fast_retrieval = 5;
     string auction_id = 6;
     string bid_id = 7;
-  }
+  } 
+}
 
-  message RemoteWallet {
+message RemoteWallet {
     string peer_id = 1;
     string auth_token = 2;
     string wallet_addr = 3;
     repeated string multiaddrs = 4;
   }
-}
 
 message ReadyToBatch {
   string operation_id = 1;

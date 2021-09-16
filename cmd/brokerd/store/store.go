@@ -132,7 +132,7 @@ func (s *Store) GetStorageRequest(
 // If none was configured, it *does not return an error but a nil result*.
 func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (rw *broker.RemoteWallet, err error) {
 	err = s.withCtxTx(ctx, func(q *db.Queries) error {
-		dbrw, err := s.db.GetBatchRemoteWallet(ctx, id)
+		dbrw, err := q.GetBatchRemoteWallet(ctx, id)
 		if err == sql.ErrNoRows {
 			return nil
 		}

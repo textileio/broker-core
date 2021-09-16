@@ -291,9 +291,25 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	}
 
 	// Remote wallet.
-	remoteWallet, err := bs.parseRemoteWallet(adr)
+	remoteWallet, err := parseRemoteWallet(adr)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("parsing remote wallet config: %s", err)
+	}
+	ctxConnect, cls := context.WithTimeout(ctx, time.Second*20)
+	defer cls()
+	maddrs := remoteWallet.Multiaddrs
+	if bs.relayMaddr != "" {
+		relayMaddr, err := multiaddr.NewMultiaddr(bs.relayMaddr + "/p2p-circuit/p2p/" + remoteWallet.PeerID.String())
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("creating relayed maddr: %s", err)
+		}
+		maddrs = append(maddrs, relayMaddr)
+	}
+	if err := bs.host.Connect(ctxConnect, peer.AddrInfo{
+		ID:    remoteWallet.PeerID,
+		Addrs: maddrs,
+	}); err != nil {
+		return storage.Request{}, fmt.Errorf("couldn't connect to remote wallet: %s", err)
 	}
 
 	// Create storage-request.
@@ -430,7 +446,7 @@ func parseSources(adr storage.AuctionDataRequest) (auction.Sources, error) {
 	return sources, nil
 }
 
-func (bs *BrokerStorage) parseRemoteWallet(adr storage.AuctionDataRequest) (*broker.RemoteWallet, error) {
+func parseRemoteWallet(adr storage.AuctionDataRequest) (*broker.RemoteWallet, error) {
 	if adr.RemoteWallet == nil {
 		return nil, nil
 	}
@@ -460,29 +476,10 @@ func (bs *BrokerStorage) parseRemoteWallet(adr storage.AuctionDataRequest) (*bro
 		}
 		maddrs = append(maddrs, maddr)
 	}
-	ctx, cls := context.WithTimeout(context.Background(), time.Second*20)
-	defer cls()
-
-	rw := &broker.RemoteWallet{
+	return &broker.RemoteWallet{
 		PeerID:     peerID,
 		AuthToken:  adr.RemoteWallet.AuthToken,
 		WalletAddr: waddr,
 		Multiaddrs: maddrs,
-	}
-
-	if bs.relayMaddr != "" {
-		relayMaddr, err := multiaddr.NewMultiaddr(bs.relayMaddr + "/p2p-circuit/p2p/" + peerID.String())
-		if err != nil {
-			return nil, fmt.Errorf("creating relayed maddr: %s", err)
-		}
-		maddrs = append(maddrs, relayMaddr)
-	}
-	if err := bs.host.Connect(ctx, peer.AddrInfo{
-		ID:    peerID,
-		Addrs: maddrs,
-	}); err != nil {
-		return nil, fmt.Errorf("couldn't connect to remote wallet: %s", err)
-	}
-
-	return rw, nil
+	}, nil
 }

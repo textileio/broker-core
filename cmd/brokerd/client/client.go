@@ -95,7 +95,7 @@ func (c *Client) CreatePrepared(
 			Origin: meta.Origin,
 			Tags:   meta.Tags,
 		},
-		RemoteWallet: &pb.CreatePreparedStorageRequestRequest_RemoteWallet{
+		RemoteWallet: &pb.RemoteWallet{
 			PeerId:     rw.PeerID.String(),
 			AuthToken:  rw.AuthToken,
 			WalletAddr: rw.WalletAddr.String(),

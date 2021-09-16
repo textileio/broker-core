@@ -706,7 +706,7 @@ func PublishMsgReadyToCreateDeals(
 			maddrs[i] = maddr.String()
 		}
 
-		msg.RemoteWallet = &pb.ReadyToCreateDeals_RemoteWallet{
+		msg.RemoteWallet = &pb.RemoteWallet{
 			PeerId:     ads.RemoteWallet.PeerID.String(),
 			AuthToken:  ads.RemoteWallet.AuthToken,
 			WalletAddr: ads.RemoteWallet.WalletAddr.String(),

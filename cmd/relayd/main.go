@@ -31,7 +31,7 @@ func init() {
 		{
 			Name:        "listen-multiaddr",
 			DefValue:    "/ip4/0.0.0.0/tcp/4001",
-			Description: "libp2p identity base64-encoded RSA private key",
+			Description: "Listening multiaddrs",
 		},
 
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
