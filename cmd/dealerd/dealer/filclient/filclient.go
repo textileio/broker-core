@@ -30,6 +30,7 @@ import (
 	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/go-auctions-client/propsigner"
 	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -83,7 +84,13 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
 		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
 	defer func() {
-		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal)
+		var attrs []attribute.KeyValue
+		if rw != nil {
+			attrs = []attribute.KeyValue{attrWalletSignature.String(rw.WalletAddr), attrRemoteWallet}
+		} else {
+			attrs = []attribute.KeyValue{attrWalletSignature.String(fc.conf.pubKey.String()), attrLocalWallet}
+		}
+		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal, attrs...)
 	}()
 
 	p, err := fc.createDealProposal(ctx, ad, aud, rw)

@@ -11,6 +11,7 @@ import (
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
@@ -82,8 +83,19 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		if err != nil {
 			return nil, fmt.Errorf("creating host: %s", err)
 		}
-		filclient, err := filclient.New(&lotusAPI, h, opts...)
+		pinfo, err := peer.AddrInfoFromString(conf.RelayMaddr)
+		if err != nil {
+			return nil, fmt.Errorf("get addrinfo from relay multiaddr: %s", err)
+		}
+		ctx, cls := context.WithTimeout(context.Background(), time.Second*20)
+		defer cls()
+		if err := h.Connect(ctx, *pinfo); err != nil {
+			cls()
+			return nil, fmt.Errorf("connecting with relay: %s", err)
+		}
+		h.ConnManager().Protect(pinfo.ID, "relay")
 
+		filclient, err := filclient.New(&lotusAPI, h, opts...)
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}

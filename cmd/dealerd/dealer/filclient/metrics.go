@@ -2,6 +2,14 @@ package filclient
 
 import (
 	"github.com/textileio/broker-core/cmd/dealerd/metrics"
+	"go.opentelemetry.io/otel/attribute"
+)
+
+var (
+	attrWalletSignature = attribute.Key("wallet")
+	attrWalletType      = attribute.Key("wallet_type")
+	attrLocalWallet     = attrWalletType.String("local")
+	attrRemoteWallet    = attrWalletType.String("remote")
 )
 
 func (fc *FilClient) initMetrics() {

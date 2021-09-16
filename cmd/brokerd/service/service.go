@@ -415,6 +415,9 @@ func parseRemoteWallet(r *pb.CreatePreparedStorageRequestRequest) (*broker.Remot
 	if err != nil {
 		return nil, fmt.Errorf("invalid peer-id: %s", err)
 	}
+	if err := peerID.Validate(); err != nil {
+		return nil, fmt.Errorf("empty peer-id: %s", err)
+	}
 	if r.RemoteWallet.AuthToken == "" {
 		return nil, fmt.Errorf("empty authorization token: %s", err)
 	}

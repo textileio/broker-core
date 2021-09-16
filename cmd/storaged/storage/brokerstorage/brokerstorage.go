@@ -17,6 +17,7 @@ import (
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/ipld/go-car"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
@@ -39,6 +40,9 @@ type BrokerStorage struct {
 	broker     broker.Broker
 	ipfsApis   []ipfsutil.IpfsAPI
 	pinataAuth string
+
+	host       host.Host
+	relayMaddr string
 }
 
 var _ storage.Requester = (*BrokerStorage)(nil)
@@ -50,6 +54,8 @@ func New(
 	broker broker.Broker,
 	ipfsEndpoints []multiaddr.Multiaddr,
 	pinataJWT string,
+	host host.Host,
+	relayMaddr string,
 ) (*BrokerStorage, error) {
 	ipfsApis := make([]ipfsutil.IpfsAPI, len(ipfsEndpoints))
 	for i, endpoint := range ipfsEndpoints {
@@ -74,6 +80,8 @@ func New(
 		broker:     broker,
 		ipfsApis:   ipfsApis,
 		pinataAuth: pinataJWT,
+		host:       host,
+		relayMaddr: relayMaddr,
 	}, nil
 }
 
@@ -283,7 +291,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	}
 
 	// Remote wallet.
-	remoteWallet, err := parseRemoteWallet(adr)
+	remoteWallet, err := bs.parseRemoteWallet(adr)
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("parsing remote wallet config: %s", err)
 	}
@@ -422,7 +430,7 @@ func parseSources(adr storage.AuctionDataRequest) (auction.Sources, error) {
 	return sources, nil
 }
 
-func parseRemoteWallet(adr storage.AuctionDataRequest) (*broker.RemoteWallet, error) {
+func (bs *BrokerStorage) parseRemoteWallet(adr storage.AuctionDataRequest) (*broker.RemoteWallet, error) {
 	if adr.RemoteWallet == nil {
 		return nil, nil
 	}
@@ -431,6 +439,9 @@ func parseRemoteWallet(adr storage.AuctionDataRequest) (*broker.RemoteWallet, er
 	if err != nil {
 		return nil, fmt.Errorf("invalid peer-id: %s", err)
 	}
+	if err := peerID.Validate(); err != nil {
+		return nil, fmt.Errorf("peer-id is invalid: %s", err)
+	}
 	if adr.RemoteWallet.AuthToken == "" {
 		return nil, fmt.Errorf("empty authorization token: %s", err)
 	}
@@ -438,20 +449,37 @@ func parseRemoteWallet(adr storage.AuctionDataRequest) (*broker.RemoteWallet, er
 	if err != nil {
 		return nil, fmt.Errorf("parsing wallet address: %s", err)
 	}
-	multiaddrs := make([]multiaddr.Multiaddr, 0, len(adr.RemoteWallet.Multiaddrs))
+	maddrs := make([]multiaddr.Multiaddr, 0, len(adr.RemoteWallet.Multiaddrs))
 	for _, smaddr := range adr.RemoteWallet.Multiaddrs {
 		maddr, err := multiaddr.NewMultiaddr(smaddr)
 		if err != nil {
 			return nil, fmt.Errorf("multiaddress %s is invalid: %s", smaddr, err)
 		}
-		multiaddrs = append(multiaddrs, maddr)
+		maddrs = append(maddrs, maddr)
 	}
-	// TODO(jsign): possibly check connectivity with remote wallet?
+	ctx, cls := context.WithTimeout(context.Background(), time.Second*20)
+	defer cls()
 
-	return &broker.RemoteWallet{
+	rw := &broker.RemoteWallet{
 		PeerID:     peerID,
 		AuthToken:  adr.RemoteWallet.AuthToken,
 		WalletAddr: waddr,
-		Multiaddrs: multiaddrs,
-	}, nil
+		Multiaddrs: maddrs,
+	}
+
+	if bs.relayMaddr != "" {
+		relayMaddr, err := multiaddr.NewMultiaddr(bs.relayMaddr + "/p2p-circuit/p2p/" + peerID.String())
+		if err != nil {
+			return nil, fmt.Errorf("creating relayed maddr: %s", err)
+		}
+		maddrs = append(maddrs, relayMaddr)
+	}
+	if err := bs.host.Connect(ctx, peer.AddrInfo{
+		ID:    peerID,
+		Addrs: maddrs,
+	}); err != nil {
+		return nil, fmt.Errorf("couldn't connect to remote wallet: %s", err)
+	}
+
+	return rw, nil
 }

@@ -540,14 +540,7 @@ func closeSuccessfulAuctionAndAssert(
 		require.Equal(t, rw.WalletAddr.String(), r.RemoteWallet.WalletAddr)
 		require.Len(t, r.RemoteWallet.Multiaddrs, len(rw.Multiaddrs))
 		for _, maddr := range rw.Multiaddrs {
-			found := false
-			for _, pbmaddr := range r.RemoteWallet.Multiaddrs {
-				if pbmaddr == maddr.String() {
-					found = true
-					break
-				}
-			}
-			require.True(t, found)
+			require.Contains(t, r.RemoteWallet.Multiaddrs, maddr.String())
 		}
 	}
 
