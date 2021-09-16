@@ -449,6 +449,9 @@ func (bs *BrokerStorage) parseRemoteWallet(adr storage.AuctionDataRequest) (*bro
 	if err != nil {
 		return nil, fmt.Errorf("parsing wallet address: %s", err)
 	}
+	if waddr.Empty() {
+		return nil, errors.New("wallet address is invalid (empty)")
+	}
 	maddrs := make([]multiaddr.Multiaddr, 0, len(adr.RemoteWallet.Multiaddrs))
 	for _, smaddr := range adr.RemoteWallet.Multiaddrs {
 		maddr, err := multiaddr.NewMultiaddr(smaddr)

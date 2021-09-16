@@ -462,13 +462,9 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return nil
 	}
 
-	var adrw *broker.RemoteWallet
 	rw, err := b.store.GetRemoteWalletConfig(ctx, au.BatchID)
-	if err != nil && err != store.ErrNotFound {
+	if err != nil {
 		return fmt.Errorf("get remote wallet config: %s", err)
-	}
-	if err != store.ErrNotFound {
-		adrw = &rw
 	}
 
 	adID, err := b.newID()
@@ -484,7 +480,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		PieceSize:    ba.PieceSize,
 		Duration:     au.DealDuration,
 		Proposals:    make([]dealer.Proposal, len(au.WinningBids)),
-		RemoteWallet: adrw,
+		RemoteWallet: rw,
 	}
 
 	var i int

@@ -129,12 +129,12 @@ func (s *Store) GetStorageRequest(
 }
 
 // GetRemoteWalletConfig gets the remote wallet configured to sign deals from a batch.
-// If none was configured, it returns ErrNotFound.
-func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (rw broker.RemoteWallet, err error) {
+// If none was configured, it *does not return an error but a nil result*.
+func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (rw *broker.RemoteWallet, err error) {
 	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		dbrw, err := s.db.GetBatchRemoteWallet(ctx, id)
 		if err == sql.ErrNoRows {
-			return ErrNotFound
+			return nil
 		}
 		if err != nil {
 			return err
@@ -148,6 +148,9 @@ func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (r
 		if err != nil {
 			return fmt.Errorf("decoding wallet address: %s", err)
 		}
+		if waddr.Empty() {
+			return errors.New("invalid wallet address (empty)")
+		}
 		maddrs := make([]multiaddr.Multiaddr, len(dbrw.Multiaddrs))
 		for i, strmaddr := range dbrw.Multiaddrs {
 			maddr, err := multiaddr.NewMultiaddr(strmaddr)
@@ -157,7 +160,7 @@ func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (r
 			maddrs[i] = maddr
 		}
 
-		rw = broker.RemoteWallet{
+		rw = &broker.RemoteWallet{
 			PeerID:     peerID,
 			AuthToken:  dbrw.AuthToken,
 			WalletAddr: waddr,

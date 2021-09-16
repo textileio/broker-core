@@ -388,8 +388,6 @@ func (fc *FilClient) createDealProposal(
 		}
 
 		log.Debugf("requesting remote signature to %s", peerID)
-
-		log.Debugf("requesting remote signature to %s", peerID)
 		sig, err = propsigner.RequestSignatureV1(ctx, fc.host, rw.AuthToken, *proposal, peerID)
 		if err != nil {
 			return nil, fmt.Errorf("remote signing proposal: %s", err)

@@ -64,8 +64,6 @@ build-relayd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/relayd
 .PHONY: build-relayd
 
-
-
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install

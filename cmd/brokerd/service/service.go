@@ -425,6 +425,9 @@ func parseRemoteWallet(r *pb.CreatePreparedStorageRequestRequest) (*broker.Remot
 	if err != nil {
 		return nil, fmt.Errorf("parsing wallet address: %s", err)
 	}
+	if waddr.Empty() {
+		return nil, errors.New("wallet address is invalid (empty)")
+	}
 	multiaddrs := make([]multiaddr.Multiaddr, 0, len(r.RemoteWallet.Multiaddrs))
 	for _, smaddr := range r.RemoteWallet.Multiaddrs {
 		maddr, err := multiaddr.NewMultiaddr(smaddr)

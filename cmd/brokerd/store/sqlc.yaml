@@ -45,5 +45,3 @@ overrides:
 
   - column: "batch_remote_wallet.batch_id"
     go_type: "github.com/textileio/broker-core/broker.BatchID"
-
-
