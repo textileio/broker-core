@@ -135,11 +135,7 @@ func _002_bids_support_calculating_ratesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "002_bids_support_calculating_rates.up.sql", size: 123, mode: os.FileMode(420), modTime: time.Unix(1631305441, 0)}
-=======
 	info := bindataFileInfo{name: "002_bids_support_calculating_rates.up.sql", size: 123, mode: os.FileMode(436), modTime: time.Unix(1631615050, 0)}
->>>>>>> ae7064ec... storaged and brokerd accepting wallet addr configs
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

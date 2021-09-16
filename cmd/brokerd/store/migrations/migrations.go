@@ -136,7 +136,7 @@ func _002_rwDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(436), modTime: time.Unix(1631647343, 0)}
+	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(436), modTime: time.Unix(1631809381, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -156,7 +156,7 @@ func _002_rwUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(436), modTime: time.Unix(1631647957, 0)}
+	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(436), modTime: time.Unix(1631809381, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

@@ -178,7 +178,7 @@ func _003_remote_walletDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(436), modTime: time.Unix(1631720468, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(436), modTime: time.Unix(1631809391, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -198,7 +198,7 @@ func _003_remote_walletUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(436), modTime: time.Unix(1631720386, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(436), modTime: time.Unix(1631809391, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
