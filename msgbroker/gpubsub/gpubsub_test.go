@@ -3,6 +3,7 @@ package gpubsub
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	logger "github.com/textileio/go-log/v2"
 )
@@ -168,4 +170,62 @@ func launchPubsubEmulator(t *testing.T) {
 	pubsubHost := "127.0.0.1:" + container.GetPort("8085/tcp")
 	err = os.Setenv("PUBSUB_EMULATOR_HOST", pubsubHost)
 	require.NoError(t, err)
+}
+
+type testCollector struct {
+	lk     sync.Mutex
+	calls  int
+	errors int
+	d      time.Duration
+}
+
+func (c *testCollector) onPublish(ctx context.Context, name string, err error) {
+	c.lk.Lock()
+	defer c.lk.Unlock()
+	c.calls++
+	if err != nil {
+		c.errors++
+	}
+}
+func (c *testCollector) onHandle(ctx context.Context, name string, d time.Duration, err error) {
+	c.lk.Lock()
+	defer c.lk.Unlock()
+	c.calls++
+	c.d = d
+	if err != nil {
+		c.errors++
+	}
+}
+
+func TestMetrics(t *testing.T) {
+	err := os.Setenv("PUBSUB_EMULATOR_HOST", "abc")
+	require.NoError(t, err)
+	ps, err := New("", "", "test-", "testd")
+	require.NoError(t, err)
+	c := &testCollector{}
+	ps.metrics = c
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+	assert.Error(t, ps.PublishMsg(ctx, "abc", nil))
+	assert.Equal(t, 1, c.calls, "onPublish should have been called")
+	assert.Equal(t, 1, c.errors, "onPublish should have been called with error")
+
+	launchPubsubEmulator(t)
+	ps, err = New("", "", "test-", "testd")
+	ps.metrics = c
+	require.NoError(t, err)
+	err = ps.RegisterTopicHandler("topic-1", func(_ context.Context, data []byte) error {
+		return errors.New("err")
+	})
+	require.NoError(t, err)
+	ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	assert.NoError(t, ps.PublishMsg(ctx, "topic-1", []byte("abc")))
+	time.Sleep(time.Second)
+	c.lk.Lock()
+	defer c.lk.Unlock()
+	// this counts the successful PublishMsg above. The message may also be redelivered, so can > 3.
+	assert.True(t, c.calls >= 3, "onHandle should have been called at least once")
+	assert.Equal(t, c.errors >= 2, "onHandle should have been called with error")
+	assert.True(t, c.d > 0, "onHandle should have been called with duration")
 }

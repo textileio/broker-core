@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/broker-core/cmd/dealerd/metrics"
 	"github.com/textileio/broker-core/cmd/dealerd/service"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
@@ -91,7 +92,7 @@ var rootCmd = &cobra.Command{
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "dealerd")
+		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "dealerd", metrics.Meter)
 		common.CheckErrf("creating google pubsub client: %s", err)
 
 		serv, err := service.New(mb, config)
