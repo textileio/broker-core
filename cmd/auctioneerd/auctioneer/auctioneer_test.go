@@ -160,7 +160,7 @@ func TestClient_RunAuction(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	time.Sleep(auctionDuration * 2) // Allow to finish
+	time.Sleep(auctionDuration * 3) // Allow to finish
 
 	got, err := s.GetAuction(ctx, id)
 	require.NoError(t, err)
