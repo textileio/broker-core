@@ -1,10 +1,14 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/libp2p/go-libp2p"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/cmd/storaged/httpapi"
@@ -25,6 +29,7 @@ type Config struct {
 	IpfsMultiaddrs        []multiaddr.Multiaddr
 	PinataJWT             string
 	MaxUploadSize         uint
+	RelayMaddr            string
 }
 
 // Service provides an implementation of the Storage API.
@@ -71,8 +76,13 @@ func createStorage(config Config) (storage.Requester, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating brokerd gRPC client: %s", err)
 	}
-
-	bs, err := brokerstorage.New(auth, up, client, config.IpfsMultiaddrs, config.PinataJWT)
+	h, err := libp2p.New(context.Background(),
+		libp2p.ConnectionManager(connmgr.NewConnManager(100, 200, time.Minute)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating host: %s", err)
+	}
+	bs, err := brokerstorage.New(auth, up, client, config.IpfsMultiaddrs, config.PinataJWT, h, config.RelayMaddr)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker storage: %s", err)
 	}

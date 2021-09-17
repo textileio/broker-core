@@ -67,3 +67,13 @@ type MarketDealStatus struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
+
+type RemoteWallet struct {
+	AuctionDataID string    `json:"auctionDataID"`
+	PeerID        string    `json:"peerID"`
+	AuthToken     string    `json:"authToken"`
+	WalletAddr    string    `json:"walletAddr"`
+	Multiaddrs    []string  `json:"multiaddrs"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}

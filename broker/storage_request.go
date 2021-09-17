@@ -3,7 +3,10 @@ package broker
 import (
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 )
 
@@ -60,6 +63,14 @@ type PreparedCAR struct {
 type BatchMetadata struct {
 	Origin string
 	Tags   map[string]string
+}
+
+// RemoteWallet contains configuration of a remote wallet.
+type RemoteWallet struct {
+	PeerID     peer.ID
+	WalletAddr address.Address
+	AuthToken  string
+	Multiaddrs []multiaddr.Multiaddr
 }
 
 // StorageRequestStatus describe the current status of a

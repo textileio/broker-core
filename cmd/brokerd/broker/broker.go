@@ -145,7 +145,8 @@ func (b *Broker) CreatePrepared(
 	ctx context.Context,
 	payloadCid cid.Cid,
 	pc broker.PreparedCAR,
-	meta broker.BatchMetadata) (sr broker.StorageRequest, err error) {
+	meta broker.BatchMetadata,
+	rw *broker.RemoteWallet) (sr broker.StorageRequest, err error) {
 	log.Debugf("creating prepared car storage request")
 	if !payloadCid.Defined() {
 		return broker.StorageRequest{}, ErrInvalidCid
@@ -216,7 +217,7 @@ func (b *Broker) CreatePrepared(
 	}
 
 	log.Debugf("creating prepared batch payload-cid %s, batch %s", payloadCid, batchID)
-	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{sr.ID}, nil); err != nil {
+	if err := b.store.CreateBatch(ctx, &ba, []broker.StorageRequestID{sr.ID}, nil, rw); err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("creating batch: %w", err)
 	}
 	sr.BatchID = ba.ID
@@ -229,6 +230,7 @@ func (b *Broker) CreatePrepared(
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("generating auction id: %s", err)
 	}
+
 	if err = msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
@@ -325,7 +327,7 @@ func (b *Broker) CreateNewBatch(
 		},
 	}
 
-	if err := b.store.CreateBatch(ctx, &ba, brIDs, manifest); err != nil {
+	if err := b.store.CreateBatch(ctx, &ba, brIDs, manifest, nil); err != nil {
 		return "", fmt.Errorf("creating batch: %w", err)
 	}
 	log.Debugf("new batch %s created with batchCid %s with %d broker-requests", ba.ID, batchCid, len(brIDs))
@@ -460,19 +462,25 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return nil
 	}
 
+	rw, err := b.store.GetRemoteWalletConfig(ctx, au.BatchID)
+	if err != nil {
+		return fmt.Errorf("get remote wallet config: %s", err)
+	}
+
 	adID, err := b.newID()
 	if err != nil {
 		return fmt.Errorf("generating auction deal id: %s", err)
 	}
 
 	ads := dealer.AuctionDeals{
-		ID:         adID,
-		BatchID:    ba.ID,
-		PayloadCid: ba.PayloadCid,
-		PieceCid:   ba.PieceCid,
-		PieceSize:  ba.PieceSize,
-		Duration:   au.DealDuration,
-		Proposals:  make([]dealer.Proposal, len(au.WinningBids)),
+		ID:           adID,
+		BatchID:      ba.ID,
+		PayloadCid:   ba.PayloadCid,
+		PieceCid:     ba.PieceCid,
+		PieceSize:    ba.PieceSize,
+		Duration:     au.DealDuration,
+		Proposals:    make([]dealer.Proposal, len(au.WinningBids)),
+		RemoteWallet: rw,
 	}
 
 	var i int

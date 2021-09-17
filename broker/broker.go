@@ -55,7 +55,12 @@ type Broker interface {
 	Create(ctx context.Context, dataCid cid.Cid, origin string) (StorageRequest, error)
 
 	// CreatePrepared creates a new StorageRequest for prepared data.
-	CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc PreparedCAR, m BatchMetadata) (StorageRequest, error)
+	CreatePrepared(
+		ctx context.Context,
+		payloadCid cid.Cid,
+		pc PreparedCAR,
+		m BatchMetadata,
+		rw *RemoteWallet) (StorageRequest, error)
 
 	// GetStorageRequestInfo returns a storage request information by id.
 	GetStorageRequestInfo(ctx context.Context, ID StorageRequestID) (StorageRequestInfo, error)

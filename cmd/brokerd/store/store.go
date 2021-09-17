@@ -11,9 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgconn"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/oklog/ulid/v2"
 	"github.com/textileio/bidbot/lib/auction"
@@ -103,8 +105,6 @@ func (s *Store) GetStorageRequest(
 		r, err := s.db.GetStorageRequest(ctx, id)
 		if err == sql.ErrNoRows {
 			return ErrNotFound
-		} else if err != nil {
-			return err
 		}
 		if err != nil {
 			return err
@@ -128,12 +128,56 @@ func (s *Store) GetStorageRequest(
 	return
 }
 
+// GetRemoteWalletConfig gets the remote wallet configured to sign deals from a batch.
+// If none was configured, it *does not return an error but a nil result*.
+func (s *Store) GetRemoteWalletConfig(ctx context.Context, id broker.BatchID) (rw *broker.RemoteWallet, err error) {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
+		dbrw, err := q.GetBatchRemoteWallet(ctx, id)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		peerID, err := peer.Decode(dbrw.PeerID)
+		if err != nil {
+			return fmt.Errorf("decoding peer-id: %s", err)
+		}
+		waddr, err := address.NewFromString(dbrw.WalletAddr)
+		if err != nil {
+			return fmt.Errorf("decoding wallet address: %s", err)
+		}
+		if waddr.Empty() {
+			return errors.New("invalid wallet address (empty)")
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(dbrw.Multiaddrs))
+		for i, strmaddr := range dbrw.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(strmaddr)
+			if err != nil {
+				return fmt.Errorf("decoding multiaddr %s: %s", strmaddr, err)
+			}
+			maddrs[i] = maddr
+		}
+
+		rw = &broker.RemoteWallet{
+			PeerID:     peerID,
+			AuthToken:  dbrw.AuthToken,
+			WalletAddr: waddr,
+			Multiaddrs: maddrs,
+		}
+		return err
+	})
+	return
+}
+
 // CreateBatch persists a batch.
 func (s *Store) CreateBatch(
 	ctx context.Context,
 	ba *broker.Batch,
 	brIDs []broker.StorageRequestID,
-	manifest []byte) error {
+	manifest []byte,
+	rw *broker.RemoteWallet) error {
 	if ba.ID == "" {
 		return fmt.Errorf("batch id is empty")
 	}
@@ -232,6 +276,23 @@ func (s *Store) CreateBatch(
 			}
 			if err := txn.CreateBatchManifest(ctx, param); err != nil {
 				return fmt.Errorf("saving batch manifest: %s", err)
+			}
+		}
+
+		if rw != nil {
+			strmaddrs := make([]string, len(rw.Multiaddrs))
+			for i, maddr := range rw.Multiaddrs {
+				strmaddrs[i] = maddr.String()
+			}
+			param := db.CreateBatchRemoteWalletParams{
+				BatchID:    ba.ID,
+				PeerID:     rw.PeerID.String(),
+				AuthToken:  rw.AuthToken,
+				WalletAddr: rw.WalletAddr.String(),
+				Multiaddrs: strmaddrs,
+			}
+			if err := txn.CreateBatchRemoteWallet(ctx, param); err != nil {
+				return fmt.Errorf("saving batch remote wallet: %s", err)
 			}
 		}
 

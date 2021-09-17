@@ -5,9 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
+	"github.com/libp2p/go-libp2p"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
 	"github.com/textileio/broker-core/cmd/dealerd/dealermock"
@@ -30,6 +34,7 @@ type Config struct {
 	AllowUnverifiedDeals             bool
 	MaxVerifiedPricePerGiBPerEpoch   int64
 	MaxUnverifiedPricePerGiBPerEpoch int64
+	RelayMaddr                       string
 
 	Mock bool
 }
@@ -45,10 +50,30 @@ var _ mbroker.ReadyToCreateDealsListener = (*Service)(nil)
 // New returns a new Service.
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
+
+	h, err := libp2p.New(context.Background(),
+		libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating host: %s", err)
+	}
+	pinfo, err := peer.AddrInfoFromString(conf.RelayMaddr)
+	if err != nil {
+		return nil, fmt.Errorf("get addrinfo from relay multiaddr: %s", err)
+	}
+	ctx, cls := context.WithTimeout(context.Background(), time.Second*20)
+	defer cls()
+	if err := h.Connect(ctx, *pinfo); err != nil {
+		cls()
+		return nil, fmt.Errorf("connecting with relay: %s", err)
+	}
+	h.ConnManager().Protect(pinfo.ID, "relay")
+	log.Debugf("connected with relay")
+
 	var lib dealeri.Dealer
 	if conf.Mock {
 		log.Warnf("running in mocked mode")
-		lib = dealermock.New(mb)
+		lib = dealermock.New(mb, h, conf.RelayMaddr)
 	} else {
 		var lotusAPI v0api.FullNodeStruct
 		closer, err := jsonrpc.NewMergeClient(context.Background(), conf.LotusGatewayURL, "Filecoin",
@@ -63,12 +88,15 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		}
 		fin.Add(&nopCloser{closer})
 
-		filclient, err := filclient.New(
-			&lotusAPI,
+		opts := []filclient.Option{
 			filclient.WithExportedKey(conf.LotusExportedWalletAddr),
 			filclient.WithAllowUnverifiedDeals(conf.AllowUnverifiedDeals),
 			filclient.WithMaxPriceLimits(conf.MaxVerifiedPricePerGiBPerEpoch, conf.MaxUnverifiedPricePerGiBPerEpoch),
-		)
+		}
+		if conf.RelayMaddr != "" {
+			opts = append(opts, filclient.WithRelayAddr(conf.RelayMaddr))
+		}
+		filclient, err := filclient.New(&lotusAPI, h, opts...)
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}

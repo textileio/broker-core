@@ -28,6 +28,7 @@ func init() {
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "pinata-jwt", DefValue: "",
 			Description: "Pinata API JWT to upload files also to Pinata. If empty, the feature will be considered disabled."},
+		{Name: "relay-maddr", DefValue: "", Description: "Relay multiaddress for remote wallets"},
 		{Name: "max-upload-size", DefValue: "4GB", Description: "Maximum upload size"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
@@ -70,6 +71,7 @@ var rootCmd = &cobra.Command{
 			IpfsMultiaddrs:        ipfsMultiaddrs,
 			PinataJWT:             v.GetString("pinata-jwt"),
 			MaxUploadSize:         v.GetSizeInBytes("max-upload-size"),
+			RelayMaddr:            v.GetString("relay-maddr"),
 		}
 		serv, err := service.New(serviceConfig)
 		common.CheckErr(err)

@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/jsign/go-filsigner/wallet"
+	"github.com/multiformats/go-multiaddr"
 )
 
 type config struct {
@@ -15,6 +16,8 @@ type config struct {
 	allowUnverifiedDeals             bool
 	maxVerifiedPricePerGiBPerEpoch   big.Int
 	maxUnverifiedPricePerGiBPerEpoch big.Int
+
+	relayMaddr string
 }
 
 var defaultConfig = config{}
@@ -52,6 +55,18 @@ func WithMaxPriceLimits(maxVerifiedPricePerGiBPerEpoch, maxUnverifiedPricePerGiB
 	return func(c *config) error {
 		c.maxVerifiedPricePerGiBPerEpoch = big.NewInt(maxVerifiedPricePerGiBPerEpoch)
 		c.maxUnverifiedPricePerGiBPerEpoch = big.NewInt(maxUnverifiedPricePerGiBPerEpoch)
+		return nil
+	}
+}
+
+// WithRelayAddr configures a relay multiaddr to include while dialing remote wallet.
+func WithRelayAddr(relayMaddr string) Option {
+	return func(c *config) error {
+		_, err := multiaddr.NewMultiaddr(relayMaddr)
+		if err != nil {
+			return fmt.Errorf("parsing relay multiaddr: %s", err)
+		}
+		c.relayMaddr = relayMaddr
 		return nil
 	}
 }

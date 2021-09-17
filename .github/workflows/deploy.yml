@@ -78,6 +78,17 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
+      - name: Build and push relay
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/relayd/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: textile/relay:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
       - name: Build and push auctioneer
         uses: docker/build-push-action@v2
         with:

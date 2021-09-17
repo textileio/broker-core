@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
@@ -22,7 +23,7 @@ func TestCreate(t *testing.T) {
 
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 	deepCheckAuctionData(t, s, ad)
 	deepCheckAuctionDeals(t, s, aud)
@@ -40,7 +41,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.Duration = 0
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef id", func(t *testing.T) {
@@ -48,7 +49,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.ID = ""
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef batch id", func(t *testing.T) {
@@ -56,7 +57,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.BatchID = ""
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef payload cid", func(t *testing.T) {
@@ -64,7 +65,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PayloadCid = cid.Undef
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data undef piece cid", func(t *testing.T) {
@@ -72,7 +73,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PieceCid = cid.Undef
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-data piece size 0", func(t *testing.T) {
@@ -80,7 +81,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		ad.PieceSize = 0
 		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 
@@ -89,7 +90,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		aud := gaud1
 		aud.StorageProviderID = ""
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-deal negative price", func(t *testing.T) {
@@ -97,7 +98,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		aud := gaud1
 		aud.PricePerGibPerEpoch = -1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 	t.Run("auction-deal start epoch 0", func(t *testing.T) {
@@ -105,7 +106,7 @@ func TestCreateFail(t *testing.T) {
 		ad := gad1
 		aud := gaud1
 		aud.StartEpoch = 0
-		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
 }
@@ -119,7 +120,7 @@ func TestSaveAuctionDeal(t *testing.T) {
 
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 
 	auds, err := s.getAllPending()
@@ -160,7 +161,7 @@ func TestSaveAuctionDealFail(t *testing.T) {
 		require.NoError(t, err)
 		ad := gad1
 		aud := gaud1
-		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+		err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.NoError(t, err)
 		auds, err := s.getAllPending()
 		require.NoError(t, err)
@@ -180,7 +181,7 @@ func TestGetNext(t *testing.T) {
 	ctx := context.Background()
 	ad := gad1
 	aud := gaud1
-	err = s.Create(ctx, &ad, []*AuctionDeal{&aud})
+	err = s.Create(ctx, &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 
 	testsCases := []AuctionDealStatus{
@@ -223,7 +224,7 @@ func TestGetAllAuctionDeals(t *testing.T) {
 	ad := gad1
 	aud1 := gaud1
 	aud2 := gaud2
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud1, &aud2})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud1, &aud2}, nil)
 	require.NoError(t, err)
 	deepCheckAuctionData(t, s, ad)
 	deepCheckAuctionDeals(t, s, aud1, aud2)
@@ -245,7 +246,7 @@ func TestGetAuctionData(t *testing.T) {
 	require.NoError(t, err)
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 	auds, err := s.getAllPending()
 	require.NoError(t, err)
@@ -264,7 +265,7 @@ func TestGetAuctionNotFound(t *testing.T) {
 	require.NoError(t, err)
 	ad := gad1
 	aud := gaud1
-	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud})
+	err = s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 	require.NoError(t, err)
 
 	_, err = s.GetAuctionData(context.Background(), "invented")
@@ -273,44 +274,75 @@ func TestGetAuctionNotFound(t *testing.T) {
 
 func TestRemoveAuctionDeals(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	u, err := tests.PostgresURL()
+
+	waddr, err := address.NewFromString(
+		"f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
 	require.NoError(t, err)
-	s, err := New(u)
-	require.NoError(t, err)
+
+	type ttcases struct {
+		name string
+		ad   *AuctionData
+		auds []*AuctionDeal
+		rw   *broker.RemoteWallet
+	}
+	var tcases []ttcases
 	ad := gad1
 	aud1 := gaud1
 	aud2 := gaud2
-	err = s.Create(ctx, &ad, []*AuctionDeal{&aud1, &aud2})
-	require.NoError(t, err)
+	tcases = append(tcases, ttcases{name: "without remote wallet", ad: &ad, auds: []*AuctionDeal{&aud1, &aud2}})
 
-	all, err := s.getAllPending()
-	require.NoError(t, err)
-	err = s.RemoveAuctionDeal(ctx, all[0])
-	require.Error(t, err, "should not remove non-final status auction deal")
-	all[0].Status = db.StatusReportFinalized
-	err = s.RemoveAuctionDeal(ctx, all[0])
-	require.Error(t, err, "should not remove pending auction deal")
-	all[0].Executing = true
-	err = s.RemoveAuctionDeal(ctx, all[0])
-	require.NoError(t, err)
+	ad = gad1
+	aud1 = gaud1
+	aud2 = gaud2
+	tcases = append(tcases, ttcases{
+		name: "with remote wallet",
+		ad:   &ad,
+		auds: []*AuctionDeal{&aud1, &aud2},
+		rw:   &broker.RemoteWallet{PeerID: "peer-id-1", AuthToken: "test-auth_token", WalletAddr: waddr},
+	})
 
-	// Check the corresponding AuctionData wasn't removed from the store,
-	// since the second auction data is still linking to it.
-	_, err = s.GetAuctionData(ctx, ad.ID)
-	require.NoError(t, err)
+	for _, test := range tcases {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-	// Remove the second.
-	all[1].Status = db.StatusReportFinalized
-	all[1].Executing = true
-	all[1].ErrorCause = "failed because something happened"
-	err = s.RemoveAuctionDeal(ctx, all[1])
-	require.NoError(t, err)
+			ctx := context.Background()
+			u, err := tests.PostgresURL()
+			require.NoError(t, err)
+			s, err := New(u)
+			require.NoError(t, err)
+			err = s.Create(ctx, test.ad, test.auds, test.rw)
+			require.NoError(t, err)
 
-	// Check the corresponding AuctionData was also removed.
-	// No more auction datas linked to it.
-	_, err = s.GetAuctionData(ctx, ad.ID)
-	require.Equal(t, sql.ErrNoRows, err)
+			all, err := s.getAllPending()
+			require.NoError(t, err)
+			err = s.RemoveAuctionDeal(ctx, all[0])
+			require.Error(t, err, "should not remove non-final status auction deal")
+			all[0].Status = db.StatusReportFinalized
+			err = s.RemoveAuctionDeal(ctx, all[0])
+			require.Error(t, err, "should not remove pending auction deal")
+			all[0].Executing = true
+			err = s.RemoveAuctionDeal(ctx, all[0])
+			require.NoError(t, err)
+
+			// Check the corresponding AuctionData wasn't removed from the store,
+			// since the second auction data is still linking to it.
+			_, err = s.GetAuctionData(ctx, test.ad.ID)
+			require.NoError(t, err)
+
+			// Remove the second.
+			all[1].Status = db.StatusReportFinalized
+			all[1].Executing = true
+			all[1].ErrorCause = "failed because something happened"
+			err = s.RemoveAuctionDeal(ctx, all[1])
+			require.NoError(t, err)
+
+			// Check the corresponding AuctionData was also removed.
+			// No more auction datas linked to it.
+			_, err = s.GetAuctionData(ctx, test.ad.ID)
+			require.Equal(t, sql.ErrNoRows, err)
+		})
+	}
 }
 
 func castCid(cidStr string) cid.Cid {

@@ -5,12 +5,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
+	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
+	"github.com/textileio/broker-core/dealer"
 	dealeri "github.com/textileio/broker-core/dealer"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	mbroker "github.com/textileio/broker-core/msgbroker"
@@ -55,43 +60,70 @@ var (
 func TestReadyToCreateDeals(t *testing.T) {
 	t.Parallel()
 
-	dealer, _ := newDealer(t)
+	tests := []struct {
+		name string
+		auds dealer.AuctionDeals
+	}{
+		{name: "without remote wallet", auds: auds},
+		{name: "with remote wallet", auds: makeRemoteWalletAuds(auds)},
+	}
 
-	ctx := context.Background()
-	err := dealer.ReadyToCreateDeals(ctx, auds)
-	require.NoError(t, err)
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			dealer, _ := newDealer(t)
 
-	aud, ok, err := dealer.store.GetNextPending(ctx, store.StatusDealMaking)
-	require.NoError(t, err)
-	require.True(t, ok)
+			ctx := context.Background()
+			err := dealer.ReadyToCreateDeals(ctx, test.auds)
+			require.NoError(t, err)
 
-	// Check that the corresponding AuctionDeal has correct values.
-	require.NotEmpty(t, aud.ID)
-	require.NotEmpty(t, aud.AuctionDataID)
-	require.Equal(t, auds.Proposals[0].StorageProviderID, aud.StorageProviderID)
-	require.Equal(t, auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGibPerEpoch)
-	require.Equal(t, auds.Proposals[0].StartEpoch, aud.StartEpoch)
-	require.Equal(t, auds.Proposals[0].Verified, aud.Verified)
-	require.Equal(t, auds.Proposals[0].FastRetrieval, aud.FastRetrieval)
-	require.Equal(t, auds.Proposals[0].AuctionID, aud.AuctionID)
-	require.Equal(t, auds.Proposals[0].BidID, aud.BidID)
-	require.Equal(t, store.StatusDealMaking, store.AuctionDealStatus(aud.Status))
-	require.True(t, aud.Executing)
-	require.Empty(t, aud.ErrorCause)
-	require.True(t, time.Since(aud.CreatedAt) < time.Minute)
-	require.Equal(t, "", aud.ProposalCid)
-	require.Equal(t, int64(0), aud.DealID)
-	require.Equal(t, uint64(0), aud.DealExpiration)
+			aud, ok, err := dealer.store.GetNextPending(ctx, store.StatusDealMaking)
+			require.NoError(t, err)
+			require.True(t, ok)
 
-	// Check that the corresponding AuctionData has correct values.
-	ad, err := dealer.store.GetAuctionData(ctx, aud.AuctionDataID)
-	require.NoError(t, err)
-	require.Equal(t, aud.AuctionDataID, ad.ID)
-	require.Equal(t, auds.BatchID, ad.BatchID)
-	require.Equal(t, auds.PayloadCid, ad.PayloadCid)
-	require.Equal(t, auds.PieceCid, ad.PieceCid)
-	require.Equal(t, auds.PieceSize, ad.PieceSize)
-	require.Equal(t, auds.Duration, ad.Duration)
+			// Check that the corresponding AuctionDeal has correct values.
+			require.NotEmpty(t, aud.ID)
+			require.NotEmpty(t, aud.AuctionDataID)
+			require.Equal(t, test.auds.Proposals[0].StorageProviderID, aud.StorageProviderID)
+			require.Equal(t, test.auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGibPerEpoch)
+			require.Equal(t, test.auds.Proposals[0].StartEpoch, aud.StartEpoch)
+			require.Equal(t, test.auds.Proposals[0].Verified, aud.Verified)
+			require.Equal(t, test.auds.Proposals[0].FastRetrieval, aud.FastRetrieval)
+			require.Equal(t, test.auds.Proposals[0].AuctionID, aud.AuctionID)
+			require.Equal(t, test.auds.Proposals[0].BidID, aud.BidID)
+			require.Equal(t, store.StatusDealMaking, store.AuctionDealStatus(aud.Status))
+			require.True(t, aud.Executing)
+			require.Empty(t, aud.ErrorCause)
+			require.True(t, time.Since(aud.CreatedAt) < time.Minute)
+			require.Equal(t, "", aud.ProposalCid)
+			require.Equal(t, int64(0), aud.DealID)
+			require.Equal(t, uint64(0), aud.DealExpiration)
+
+			rw, err := dealer.store.GetRemoteWallet(ctx, aud.AuctionDataID)
+			if test.auds.RemoteWallet == nil {
+				require.Nil(t, rw)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, test.auds.RemoteWallet.PeerID.String(), rw.PeerID)
+				require.Equal(t, test.auds.RemoteWallet.AuthToken, rw.AuthToken)
+				require.Equal(t, test.auds.RemoteWallet.WalletAddr.String(), rw.WalletAddr)
+				require.Len(t, rw.Multiaddrs, len(test.auds.RemoteWallet.Multiaddrs))
+				for _, maddr := range test.auds.RemoteWallet.Multiaddrs {
+					require.Contains(t, rw.Multiaddrs, maddr.String())
+				}
+			}
+
+			// Check that the corresponding AuctionData has correct values.
+			ad, err := dealer.store.GetAuctionData(ctx, aud.AuctionDataID)
+			require.NoError(t, err)
+			require.Equal(t, aud.AuctionDataID, ad.ID)
+			require.Equal(t, auds.BatchID, ad.BatchID)
+			require.Equal(t, auds.PayloadCid, ad.PayloadCid)
+			require.Equal(t, auds.PieceCid, ad.PieceCid)
+			require.Equal(t, auds.PieceSize, ad.PieceSize)
+			require.Equal(t, auds.Duration, ad.Duration)
+		})
+	}
 }
 
 func TestReadyToCreateDealsIdempotency(t *testing.T) {
@@ -232,7 +264,8 @@ func TestStateMachineExecReporting(t *testing.T) {
 func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
-	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
+	fc.On("ExecuteAuctionDeal",
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
 
 	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&storagemarket.ProviderDealState{
@@ -273,7 +306,8 @@ type fcMock struct {
 func (fc *fcMock) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
-	aud store.AuctionDeal) (cid.Cid, bool, error) {
+	aud store.AuctionDeal,
+	rw *store.RemoteWallet) (cid.Cid, bool, error) {
 	args := fc.Called(ctx, ad, aud)
 	return args.Get(0).(cid.Cid), args.Bool(1), args.Error(2)
 }
@@ -301,4 +335,33 @@ func (fc *fcMock) CheckDealStatusWithStorageProvider(
 	args := fc.Called(ctx, storageProviderID, propCid)
 
 	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)
+}
+
+func makeRemoteWalletAuds(baseAuds dealeri.AuctionDeals) dealeri.AuctionDeals {
+	waddr, err := address.NewFromString(
+		"f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
+	panicIfErr(err)
+	maddr1, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1234")
+	panicIfErr(err)
+	maddr2, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1235")
+	panicIfErr(err)
+
+	peerID, err := peer.Decode("Qmf12XE1bSB8SbngTc4Yy8KLNGKT2Nhp2xuj2DFEWX3N5H")
+	panicIfErr(err)
+
+	auds := baseAuds
+	auds.RemoteWallet = &broker.RemoteWallet{
+		PeerID:     peerID,
+		WalletAddr: waddr,
+		AuthToken:  "auth-token-1",
+		Multiaddrs: []multiaddr.Multiaddr{maddr1, maddr2},
+	}
+
+	return auds
+}
+
+func panicIfErr(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

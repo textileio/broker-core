@@ -60,6 +60,10 @@ build-dealerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
 .PHONY: build-dealerd
 
+build-relayd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/relayd
+.PHONY: build-relayd
+
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
@@ -152,5 +156,5 @@ define docker_push_daemon_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneer auth broker dealer chainapis/near chainapis/eth chainapis/poly packer piecer storage);
+	$(call docker_push_daemon_head,auctioneer auth broker dealer chainapis/near chainapis/eth chainapis/poly packer piecer storage relay);
 .PHONY: docker-push-head

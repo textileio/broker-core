@@ -43,7 +43,7 @@ const (
 	oneDayEpochs    = 60 * 24 * 2
 	sixMonthsEpochs = oneDayEpochs * 365 / 2
 
-	// auction duration in the tests
+	// auction duration in the tests.
 	auctionDuration = 5 * time.Second
 )
 

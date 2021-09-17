@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/filecoin-project/go-address"
@@ -14,13 +13,12 @@ import (
 	"github.com/filecoin-project/go-fil-markets/storagemarket/network"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
-	"github.com/libp2p/go-libp2p"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
 	inet "github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -30,7 +28,9 @@ import (
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/metrics"
+	"github.com/textileio/go-auctions-client/propsigner"
 	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -56,19 +56,12 @@ type FilClient struct {
 }
 
 // New returns a new FilClient.
-func New(api v0api.FullNode, opts ...Option) (*FilClient, error) {
+func New(api v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
 			return nil, fmt.Errorf("applying option: %s", err)
 		}
-	}
-
-	h, err := libp2p.New(context.Background(),
-		libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating host: %s", err)
 	}
 
 	fc := &FilClient{
@@ -85,21 +78,28 @@ func New(api v0api.FullNode, opts ...Option) (*FilClient, error) {
 func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
-	aud store.AuctionDeal) (propCid cid.Cid, retriable bool, err error) {
+	aud store.AuctionDeal,
+	rw *store.RemoteWallet) (propCid cid.Cid, retriable bool, err error) {
 	log.Debugf(
 		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
 		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
 	defer func() {
-		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal)
+		var attrs []attribute.KeyValue
+		if rw != nil {
+			attrs = []attribute.KeyValue{attrWalletSignature.String(rw.WalletAddr), attrRemoteWallet}
+		} else {
+			attrs = []attribute.KeyValue{attrWalletSignature.String(fc.conf.pubKey.String()), attrLocalWallet}
+		}
+		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal, attrs...)
 	}()
 
-	p, err := fc.createDealProposal(ctx, ad, aud)
+	p, err := fc.createDealProposal(ctx, ad, aud, rw)
 	if err != nil {
 		// Any error here deserves retries.
 		log.Errorf("creating deal proposal: %s", err)
 		return cid.Undef, true, nil
 	}
-	log.Debugf("created proposal: %s", logging.MustJSONIndent(p))
+	log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logging.MustJSONIndent(p))
 	pr, err := fc.sendProposal(ctx, p)
 	if err != nil {
 		log.Errorf("sending proposal to storage-provider: %s", err)
@@ -289,7 +289,8 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 func (fc *FilClient) createDealProposal(
 	ctx context.Context,
 	ad store.AuctionData,
-	aud store.AuctionDeal) (*network.Proposal, error) {
+	aud store.AuctionDeal,
+	rw *store.RemoteWallet) (*network.Proposal, error) {
 	collBounds, err := fc.api.StateDealProviderCollateralBounds(
 		ctx,
 		abi.PaddedPieceSize(ad.PieceSize),
@@ -314,13 +315,22 @@ func (fc *FilClient) createDealProposal(
 		return nil, fmt.Errorf("parsing storage-provider address: %s", err)
 	}
 
+	clientAddr := fc.conf.pubKey
+	if rw != nil {
+		waddr, err := address.NewFromString(rw.WalletAddr)
+		if err != nil {
+			return nil, fmt.Errorf("parsing remote wallet addr: %s", err)
+		}
+		clientAddr = waddr
+	}
+
 	// set provider collateral 10% above minimum to avoid fluctuations causing deal failure
 	provCol := big.Div(big.Mul(collBounds.Min, big.NewInt(11)), big.NewInt(10))
 	proposal := &market.DealProposal{
 		PieceCID:     ad.PieceCid,
 		PieceSize:    abi.PaddedPieceSize(ad.PieceSize), // Check padding vs not padding.
 		VerifiedDeal: aud.Verified,
-		Client:       fc.conf.pubKey,
+		Client:       clientAddr,
 		Provider:     sp,
 
 		Label: label,
@@ -337,13 +347,56 @@ func (fc *FilClient) createDealProposal(
 		return nil, fmt.Errorf("proposal validation: %s", err)
 	}
 
-	raw, err := cborutil.Dump(proposal)
-	if err != nil {
-		return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
-	}
-	sig, err := wallet.WalletSign(fc.conf.exportedHexKey, raw)
-	if err != nil {
-		return nil, fmt.Errorf("signing proposal: %s", err)
+	var sig *crypto.Signature
+	if rw == nil {
+		raw, err := cborutil.Dump(proposal)
+		if err != nil {
+			return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
+		}
+		sig, err = wallet.WalletSign(fc.conf.exportedHexKey, raw)
+		if err != nil {
+			return nil, fmt.Errorf("locally signing proposal: %s", err)
+		}
+	} else {
+		peerID, err := peer.Decode(rw.PeerID)
+		if err != nil {
+			return nil, fmt.Errorf("decoding remote peer-id: %s", err)
+		}
+		maddrs := make([]multiaddr.Multiaddr, len(rw.Multiaddrs))
+		for i, maddr := range rw.Multiaddrs {
+			maddr, err := multiaddr.NewMultiaddr(maddr)
+			if err != nil {
+				log.Warnf("parsing multiaddr %s: %s", maddr, err)
+				continue
+			}
+			maddrs[i] = maddr
+		}
+
+		if fc.conf.relayMaddr != "" {
+			relayed, err := multiaddr.NewMultiaddr(fc.conf.relayMaddr + "/p2p-circuit/p2p/" + peerID.String())
+			if err != nil {
+				return nil, fmt.Errorf("creating relayed maddr: %s", err)
+			}
+			maddrs = append(maddrs, relayed)
+		}
+		pi := peer.AddrInfo{
+			ID:    peerID,
+			Addrs: maddrs,
+		}
+		if err := fc.host.Connect(ctx, pi); err != nil {
+			return nil, fmt.Errorf("connecting with remote wallet: %s", err)
+		}
+
+		log.Debugf("requesting remote signature to %s", peerID)
+		sig, err = propsigner.RequestSignatureV1(ctx, fc.host, rw.AuthToken, *proposal, peerID)
+		if err != nil {
+			return nil, fmt.Errorf("remote signing proposal: %s", err)
+		}
+		log.Debugf("remote signature to %s received successfully", peerID)
+		if err := validateSignature(*proposal, sig); err != nil {
+			return nil, fmt.Errorf("remote signature is invalid: %s", err)
+		}
+		log.Debugf("remote signature from %s is valid", peerID)
 	}
 
 	sigprop := &market.ClientDealProposal{
@@ -480,4 +533,24 @@ func labelField(c cid.Cid) (string, error) {
 		return c.StringOfBase(multibase.Base58BTC)
 	}
 	return c.StringOfBase(multibase.Base64)
+}
+
+func validateSignature(proposal market.DealProposal, sig *crypto.Signature) error {
+	msg := &bytes.Buffer{}
+	err := proposal.MarshalCBOR(msg)
+	if err != nil {
+		return fmt.Errorf("marshaling proposal: %s", err)
+	}
+	sigBytes, err := sig.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("marshaling signature: %s", err)
+	}
+	ok, err := wallet.WalletVerify(proposal.Client, msg.Bytes(), sigBytes)
+	if err != nil {
+		return fmt.Errorf("verifying signature: %s", err)
+	}
+	if !ok {
+		return fmt.Errorf("signature is invalid: %s", err)
+	}
+	return nil
 }

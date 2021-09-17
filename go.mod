@@ -14,16 +14,16 @@ require (
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
-	github.com/filecoin-project/go-fil-markets v1.5.0
+	github.com/filecoin-project/go-fil-markets v1.8.1
 	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
-	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48
-	github.com/filecoin-project/lotus v1.11.0
+	github.com/filecoin-project/go-state-types v0.1.1-0.20210810190654-139e0e79e69e
+	github.com/filecoin-project/lotus v1.11.2
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.3.0
-	github.com/ipfs/go-cid v0.0.7
+	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-files v0.0.8
@@ -36,11 +36,13 @@ require (
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.12.0
 	github.com/joho/godotenv v1.3.0
-	github.com/jsign/go-filsigner v0.2.0
+	github.com/jsign/go-filsigner v0.3.2-0.20210909125145-9490c0ecd977
 	github.com/lib/pq v1.10.2
 	github.com/libp2p/go-libp2p v0.14.4
+	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.8.5
+	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/libp2p/go-libp2p-swarm v0.5.3
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multibase v0.0.3
@@ -52,9 +54,11 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/bidbot v0.0.8
+	github.com/textileio/cli v1.0.1
+	github.com/textileio/go-auctions-client v0.0.0-20210914093526-52fac6d8b09f
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
-	github.com/textileio/go-log/v2 v2.1.3-gke-1
+	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
@@ -62,7 +66,6 @@ require (
 	go.opentelemetry.io/otel v1.0.0-RC2
 	go.opentelemetry.io/otel/metric v0.22.0
 	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	google.golang.org/api v0.56.0
 	google.golang.org/grpc v1.40.0
