@@ -79,6 +79,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		closer, err := jsonrpc.NewMergeClient(context.Background(), conf.LotusGatewayURL, "Filecoin",
 			[]interface{}{
 				&lotusAPI.CommonStruct.Internal,
+				&lotusAPI.NetStruct.Internal,
 				&lotusAPI.Internal,
 			},
 			http.Header{},

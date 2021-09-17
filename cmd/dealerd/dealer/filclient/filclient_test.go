@@ -154,9 +154,9 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proposalCid, err := cid.Decode("bafyreibru2chqj7wanixo6m5qnmamovvgby7672ws3yojzyttimu7fl72q")
+	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f01278", proposalCid)
+	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid)
 	require.NoError(t, err)
 	fmt.Printf("%s\n", logging.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])
@@ -179,6 +179,7 @@ func createFilClient(t *testing.T) *v0api.FullNodeStruct {
 	closer, err := jsonrpc.NewMergeClient(context.Background(), "https://api.node.glif.io", "Filecoin",
 		[]interface{}{
 			&api.CommonStruct.Internal,
+			&api.NetStruct.Internal,
 			&api.Internal,
 		},
 		http.Header{},
