@@ -517,13 +517,18 @@ func (a *Auctioneer) selectWinners(
 	})
 	if auction.FilEpochDeadline > 0 {
 		// select providers historically (the recent week) confirmed deals sooner than the auction requires.
+		current := currentFilEpoch()
+		if auction.FilEpochDeadline <= current {
+			return winners, ErrInsufficientBids
+		}
+		minWindow := auction.FilEpochDeadline - current
 		epoches := a.getProviderOnChainEpoches()
-		minWindow := auction.FilEpochDeadline - currentFilEpoch()
 		sorter = sorter.Select(func(b *auctioneer.Bid) bool {
 			return minWindow > epoches[b.StorageProviderID]
 		})
 	}
 
+	log.Debugf("selecting %d winners from %d eligible bids", auction.DealReplication, sorter.Len())
 	topN := sorter.Len() / 5
 	if topN < 5 {
 		topN = 5

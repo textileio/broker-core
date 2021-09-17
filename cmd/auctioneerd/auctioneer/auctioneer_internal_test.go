@@ -94,7 +94,7 @@ func TestSelectWinners(t *testing.T) {
 	}{
 		{
 			"one replica, randomly choose one from 5 with low failure rates",
-			auctioneer.Auction{DealReplication: 1, FilEpochDeadline: currentFilEpoch() + 1},
+			auctioneer.Auction{DealReplication: 1, FilEpochDeadline: currentFilEpoch() + 10},
 			[]struct {
 				ids    []core.BidID
 				chance float64
@@ -102,26 +102,28 @@ func TestSelectWinners(t *testing.T) {
 		},
 		{
 			"two replicas, one with low failure rates and another with low winning rates",
-			auctioneer.Auction{DealReplication: 2, FilEpochDeadline: currentFilEpoch() + 1},
+			auctioneer.Auction{DealReplication: 2, FilEpochDeadline: currentFilEpoch() + 10},
 			[]struct {
 				ids    []core.BidID
 				chance float64
 			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5"}, 0.2},
-				{[]core.BidID{"bid4", "bid5", "bid6", "bid7", "bid8"}, 0.2}},
+				// bid3 appears here because it's the candidate for the 2nd replica in the case when
+				// bid4 or bid5 was chosen for the first replica.
+				{[]core.BidID{"bid3", "bid4", "bid5", "bid6", "bid7", "bid8"}, 0.2}},
 		},
 		{
 			"three replicas, randomly choose one plus the above",
-			auctioneer.Auction{DealReplication: 3, FilEpochDeadline: currentFilEpoch() + 1},
+			auctioneer.Auction{DealReplication: 3, FilEpochDeadline: currentFilEpoch() + 10},
 			[]struct {
 				ids    []core.BidID
 				chance float64
 			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5"}, 0.2},
-				{[]core.BidID{"bid4", "bid5", "bid6", "bid7", "bid8"}, 0.2},
+				{[]core.BidID{"bid3", "bid4", "bid5", "bid6", "bid7", "bid8"}, 0.2},
 				{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5", "bid6", "bid7", "bid8"}, 0.125}},
 		},
 		{
 			"more replicas, choose more random ones",
-			auctioneer.Auction{DealReplication: 4, FilEpochDeadline: currentFilEpoch() + 1},
+			auctioneer.Auction{DealReplication: 4, FilEpochDeadline: currentFilEpoch() + 10},
 			[]struct {
 				ids    []core.BidID
 				chance float64
@@ -165,7 +167,7 @@ func TestSelectWinners(t *testing.T) {
 			}
 			assert.Len(t, spWins, len(expectedWins))
 			for id, n := range spWins {
-				assert.InDelta(t, n, expectedWins[id], float64(expectedWins[id]/2))
+				assert.InDelta(t, n, expectedWins[id], float64(expectedWins[id]/2), id)
 			}
 		})
 	}
