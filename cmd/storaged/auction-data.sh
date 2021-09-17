@@ -14,7 +14,7 @@ PIECE_CID=$5
 PIECE_SIZE=$6
 REP_FACTOR=${7:-1}
 DEADLINE=${8:-$(date --date="(date --rfc-3339=seconds) + 10 days" --rfc-3339=second | sed 's/ /T/g')}
-REMOTE_WALLET=$9
+REMOTE_WALLET=${9:-""}
 
 echo "Creating storage-request with $CAR_URL [$PAYLOAD_CID, $PIECE_CID, $PIECE_SIZE bytes] with rep-factor $REP_FACTOR and deadline $DEADLINE..."
 

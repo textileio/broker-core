@@ -295,21 +295,23 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	if err != nil {
 		return storage.Request{}, fmt.Errorf("parsing remote wallet config: %s", err)
 	}
-	ctxConnect, cls := context.WithTimeout(ctx, time.Second*20)
-	defer cls()
-	maddrs := remoteWallet.Multiaddrs
-	if bs.relayMaddr != "" {
-		relayMaddr, err := multiaddr.NewMultiaddr(bs.relayMaddr + "/p2p-circuit/p2p/" + remoteWallet.PeerID.String())
-		if err != nil {
-			return storage.Request{}, fmt.Errorf("creating relayed maddr: %s", err)
+	if remoteWallet != nil {
+		ctxConnect, cls := context.WithTimeout(ctx, time.Second*20)
+		defer cls()
+		maddrs := remoteWallet.Multiaddrs
+		if bs.relayMaddr != "" {
+			relayMaddr, err := multiaddr.NewMultiaddr(bs.relayMaddr + "/p2p-circuit/p2p/" + remoteWallet.PeerID.String())
+			if err != nil {
+				return storage.Request{}, fmt.Errorf("creating relayed maddr: %s", err)
+			}
+			maddrs = append(maddrs, relayMaddr)
 		}
-		maddrs = append(maddrs, relayMaddr)
-	}
-	if err := bs.host.Connect(ctxConnect, peer.AddrInfo{
-		ID:    remoteWallet.PeerID,
-		Addrs: maddrs,
-	}); err != nil {
-		return storage.Request{}, fmt.Errorf("couldn't connect to remote wallet: %s", err)
+		if err := bs.host.Connect(ctxConnect, peer.AddrInfo{
+			ID:    remoteWallet.PeerID,
+			Addrs: maddrs,
+		}); err != nil {
+			return storage.Request{}, fmt.Errorf("couldn't connect to remote wallet: %s", err)
+		}
 	}
 
 	// Create storage-request.
