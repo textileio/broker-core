@@ -46,7 +46,7 @@ require (
 	github.com/libp2p/go-libp2p v0.14.4
 	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/libp2p/go-libp2p-core v0.10.0
 	github.com/libp2p/go-libp2p-pubsub v0.5.4 // indirect
 	github.com/libp2p/go-libp2p-swarm v0.5.3
 	github.com/mr-tron/base58 v1.2.0
