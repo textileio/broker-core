@@ -77,10 +77,7 @@ func (c *Client) CreatePrepared(
 			carIpfs.Multiaddrs[i] = ma.String()
 		}
 	}
-	rwStrMultiaddrs := make([]string, 0, len(rw.Multiaddrs))
-	for _, maddr := range rw.Multiaddrs {
-		rwStrMultiaddrs = append(rwStrMultiaddrs, maddr.String())
-	}
+
 	req := &pb.CreatePreparedStorageRequestRequest{
 		Cid: dataCid.String(),
 		PreparedCar: &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
@@ -95,12 +92,18 @@ func (c *Client) CreatePrepared(
 			Origin: meta.Origin,
 			Tags:   meta.Tags,
 		},
-		RemoteWallet: &pb.RemoteWallet{
+	}
+	if rw != nil {
+		rwStrMultiaddrs := make([]string, 0, len(rw.Multiaddrs))
+		for _, maddr := range rw.Multiaddrs {
+			rwStrMultiaddrs = append(rwStrMultiaddrs, maddr.String())
+		}
+		req.RemoteWallet = &pb.RemoteWallet{
 			PeerId:     rw.PeerID.String(),
 			AuthToken:  rw.AuthToken,
 			WalletAddr: rw.WalletAddr.String(),
 			Multiaddrs: rwStrMultiaddrs,
-		},
+		}
 	}
 
 	res, err := c.c.CreatePreparedStorageRequest(ctx, req)
