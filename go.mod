@@ -46,7 +46,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multibase v0.0.3
-	github.com/multiformats/go-multihash v0.0.15
+	github.com/multiformats/go-multihash v0.0.16
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/shirou/gopsutil v3.21.7+incompatible // indirect
