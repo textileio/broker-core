@@ -34,7 +34,7 @@ require (
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/ipld/go-car v0.1.1-0.20201119040415-11b6074b6d4d
 	github.com/jackc/pgconn v1.10.0
-	github.com/jackc/pgx/v4 v4.12.0
+	github.com/jackc/pgx/v4 v4.13.0
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.3.1
 	github.com/lib/pq v1.10.2
