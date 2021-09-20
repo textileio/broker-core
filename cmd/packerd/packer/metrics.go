@@ -7,39 +7,40 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-func (fc *Packer) initMetrics() {
-	fc.metricNewBatch = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batches_total")
-	fc.metricBatchSizeTotal = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batch_sizes_total")
-	fc.metricLastBatchCreated = metrics.Meter.NewInt64ValueObserver(
+func (p *Packer) initMetrics() {
+	p.metricNewBatch = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batches_total")
+	p.metricBatchErrors = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batch_errors_total")
+	p.metricBatchSizeTotal = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batch_sizes_total")
+	p.metricLastBatchCreated = metrics.Meter.NewInt64ValueObserver(
 		metrics.Prefix+".last_batch_created_epoch",
-		fc.lastCreatedCb,
+		p.lastCreatedCb,
 	)
-	fc.metricLastBatchCount = metrics.Meter.NewInt64ValueObserver(
+	p.metricLastBatchCount = metrics.Meter.NewInt64ValueObserver(
 		metrics.Prefix+".last_batch_count",
-		fc.lastCountCb,
+		p.lastCountCb,
 	)
-	fc.metricLastBatchSize = metrics.Meter.NewInt64ValueObserver(
+	p.metricLastBatchSize = metrics.Meter.NewInt64ValueObserver(
 		metrics.Prefix+".last_batch_size",
-		fc.lastSizeCb,
+		p.lastSizeCb,
 	)
-	fc.metricLastBatchDuration = metrics.Meter.NewInt64ValueObserver(
+	p.metricLastBatchDuration = metrics.Meter.NewInt64ValueObserver(
 		metrics.Prefix+".last_batch_duration",
-		fc.lastDurationCb,
+		p.lastDurationCb,
 	)
 }
 
-func (fc *Packer) lastCreatedCb(ctx context.Context, r metric.Int64ObserverResult) {
-	r.Observe(fc.statLastBatch.Unix())
+func (p *Packer) lastCreatedCb(ctx context.Context, r metric.Int64ObserverResult) {
+	r.Observe(p.statLastBatch.Unix())
 }
 
-func (fc *Packer) lastCountCb(ctx context.Context, r metric.Int64ObserverResult) {
-	r.Observe(fc.statLastBatchCount)
+func (p *Packer) lastCountCb(ctx context.Context, r metric.Int64ObserverResult) {
+	r.Observe(p.statLastBatchCount)
 }
 
-func (fc *Packer) lastSizeCb(ctx context.Context, r metric.Int64ObserverResult) {
-	r.Observe(fc.statLastBatchSize)
+func (p *Packer) lastSizeCb(ctx context.Context, r metric.Int64ObserverResult) {
+	r.Observe(p.statLastBatchSize)
 }
 
-func (fc *Packer) lastDurationCb(ctx context.Context, r metric.Int64ObserverResult) {
-	r.Observe(fc.statLastBatchDuration)
+func (p *Packer) lastDurationCb(ctx context.Context, r metric.Int64ObserverResult) {
+	r.Observe(p.statLastBatchDuration)
 }

@@ -49,6 +49,7 @@ type Packer struct {
 	daemonClosed    chan struct{}
 
 	metricNewBatch          metric.Int64Counter
+	metricBatchErrors       metric.Int64Counter
 	metricBatchSizeTotal    metric.Int64Counter
 	statLastBatch           time.Time
 	metricLastBatchCreated  metric.Int64ValueObserver
@@ -195,6 +196,7 @@ func (p *Packer) daemon() {
 				count, err := p.pack(p.daemonCtx)
 				if err != nil {
 					log.Errorf("packing: %s", err)
+					p.metricBatchErrors.Add(p.daemonCtx, 1)
 					break
 				}
 				if count == 0 {
@@ -215,8 +217,10 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	if !ok {
 		return 0, nil
 	}
-	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
+	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
+	label := attribute.String("origin", origin)
+	p.metricNewBatch.Add(ctx, 1, label)
 	start := time.Now()
 	batchCid, manifest, carURL, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
@@ -243,8 +247,6 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("publishing msg to broker: %s", err)
 	}
 
-	label := attribute.String("origin", origin)
-	p.metricNewBatch.Add(ctx, 1, label)
 	p.metricBatchSizeTotal.Add(ctx, batchSize, label)
 	p.statLastBatch = time.Now()
 	p.statLastBatchCount = int64(len(srIDs))

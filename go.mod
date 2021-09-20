@@ -77,3 +77,6 @@ replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
 
 replace github.com/ipfs/go-ipns => github.com/ipfs/go-ipns v0.0.2
+
+// add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
+replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/nabokihms/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.20.1-0.20210622062648-f4d780a56f54

@@ -47,6 +47,7 @@ type Piecer struct {
 	statLastDurationSeconds   int64
 	metricLastDurationSeconds metric.Int64ValueObserver
 	metricNewPrepare          metric.Int64Counter
+	metricPreparationErrors   metric.Int64Counter
 	statLastPrepared          time.Time
 	metricLastPrepared        metric.Int64ValueObserver
 }
@@ -160,7 +161,10 @@ func (p *Piecer) daemonPreparer() {
 				break
 			}
 
-			if err := p.prepare(p.daemonCtx, usd); err != nil {
+			err = p.prepare(p.daemonCtx, usd)
+			p.metricNewPrepare.Add(p.daemonCtx, 1)
+			if err != nil {
+				p.metricPreparationErrors.Add(p.daemonCtx, 1)
 				log.Errorf("preparing batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
@@ -169,6 +173,7 @@ func (p *Piecer) daemonPreparer() {
 			}
 
 			if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, 0, store.StatusDone); err != nil {
+				p.metricPreparationErrors.Add(p.daemonCtx, 1)
 				log.Errorf("deleting batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
@@ -258,7 +263,6 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 		return fmt.Errorf("publish message to message broker: %s", err)
 	}
 
-	p.metricNewPrepare.Add(ctx, 1)
 	p.statLastPrepared = time.Now()
 	p.statLastSize = int64(dpr.PieceSize)
 	p.statLastDurationSeconds = int64(duration)

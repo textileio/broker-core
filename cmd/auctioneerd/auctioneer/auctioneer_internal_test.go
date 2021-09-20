@@ -150,6 +150,7 @@ func TestSelectWinners(t *testing.T) {
 			a := &Auctioneer{mb: fakemsgbroker.New(),
 				winsPublisher: func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error { return nil },
 			}
+			a.initMetrics()
 			a.providerFailureRates.Store(failureRates)
 			a.providerOnChainEpoches.Store(onChainEpoches)
 			a.providerWinningRates.Store(winningRates)
