@@ -9,7 +9,6 @@ import (
 
 func (p *Packer) initMetrics() {
 	p.metricNewBatch = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batches_total")
-	p.metricBatchErrors = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batch_errors_total")
 	p.metricBatchSizeTotal = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batch_sizes_total")
 	p.metricLastBatchCreated = metrics.Meter.NewInt64ValueObserver(
 		metrics.Prefix+".last_batch_created_epoch",

@@ -269,26 +269,26 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	return resp, status.Err()
 }
 
-func (s *Service) doAuth(ctx context.Context, input *detectedInput) (*pb.AuthResponse, *status.Status) {
+func (s *Service) doAuth(ctx context.Context, input *detectedInput) (*pb.AuthResponse, status.Status) {
 	switch input.tokenType {
 	case rawToken:
 		rt, ok, err := s.store.GetAuthToken(ctx, input.token)
 		if err != nil {
-			return nil, status.Newf(codes.Internal, "find raw token: %s", err)
+			return nil, *status.Newf(codes.Internal, "find raw token: %s", err)
 		}
 		if !ok {
-			return nil, status.Newf(codes.Unauthenticated, "raw token doesn't exist")
+			return nil, *status.Newf(codes.Unauthenticated, "raw token doesn't exist")
 		}
 		log.Debugf("successful raw authentication identity %s, origin %s", rt.Identity, rt.Origin)
 		return &pb.AuthResponse{
 			Identity: rt.Identity,
 			Origin:   rt.Origin,
-		}, &status.Status{}
+		}, status.Status{}
 	case chainToken:
 		// Validate the JWT token.
 		token, err := validateToken(input.token)
 		if err != nil {
-			return nil, status.Newf(codes.Unauthenticated, "invalid JWT: %v", err)
+			return nil, *status.Newf(codes.Unauthenticated, "invalid JWT: %v", err)
 		}
 		// TODO: On NEAR, check that the account is indeed associated with the given public key
 		var chainAPI chainapi.ChainAPI
@@ -300,31 +300,31 @@ func (s *Service) doAuth(ctx context.Context, input *detectedInput) (*pb.AuthRes
 		case polyOrigin:
 			chainAPI = s.Deps.PolyAPI
 		default:
-			return nil, status.Newf(codes.Unauthenticated, "unknown origin %s", token.Origin)
+			return nil, *status.Newf(codes.Unauthenticated, "unknown origin %s", token.Origin)
 		}
 
 		fundsOk, err := validateDepositedFunds(ctx, token.Iss, token.Suborigin, chainAPI)
 		if err != nil {
-			return nil, status.Newf(codes.Internal, "validating deposited funds: %v", err)
+			return nil, *status.Newf(codes.Internal, "validating deposited funds: %v", err)
 		}
 		if !fundsOk {
-			return nil, status.Newf(codes.Unauthenticated, "locked funds: %v", err)
+			return nil, *status.Newf(codes.Unauthenticated, "locked funds: %v", err)
 		}
 
 		ownsKey, err := validateOwnsKey(ctx, token.Iss, token.PublicID, token.Suborigin, chainAPI)
 		if err != nil {
-			return nil, status.Newf(codes.Internal, "validating owns key: %v", err)
+			return nil, *status.Newf(codes.Internal, "validating owns key: %v", err)
 		}
 		if !ownsKey {
-			return nil, status.Newf(codes.Unauthenticated, "doesn't own key: %v", err)
+			return nil, *status.Newf(codes.Unauthenticated, "doesn't own key: %v", err)
 		}
 
 		log.Debugf("successful chain authentication: %s", token.Iss)
 		return &pb.AuthResponse{
 			Identity: token.Sub,
 			Origin:   fmt.Sprintf("%s-%s", token.Origin, token.Suborigin),
-		}, nil
+		}, status.Status{}
 	default:
-		return nil, status.Newf(codes.InvalidArgument, "unknown token type")
+		return nil, *status.Newf(codes.InvalidArgument, "unknown token type")
 	}
 }

@@ -11,7 +11,6 @@ var prefix = "piecerd"
 
 func (p *Piecer) initMetrics() {
 	p.metricNewPrepare = metrics.Meter.NewInt64Counter(prefix + ".prepared_total")
-	p.metricPreparationErrors = metrics.Meter.NewInt64Counter(prefix + ".preparation_errors_total")
 	p.metricLastPrepared = metrics.Meter.NewInt64ValueObserver(prefix+".last_prepared_epoch", p.lastPreparedCb)
 	p.metricLastSize = metrics.Meter.NewInt64ValueObserver(prefix+".last_size", p.lastSizeCb)
 	p.metricLastDurationSeconds = metrics.Meter.NewInt64ValueObserver(

@@ -185,27 +185,24 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(
 // PublishMsg publishes a payload to a topic.
 // If the topic doesn't exist, it's created. The topic name is the same as described in
 // RegisterTopicHandler method documentation.
-func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, tname mbroker.TopicName, data []byte) error {
-	err := func() error {
-		topicName := p.topicPrefix + string(tname)
-		topic, err := p.getTopic(ctx, topicName)
-		if err != nil {
-			return fmt.Errorf("get topic: %s", err)
-		}
-		msg := pubsub.Message{
-			Data: data,
-		}
-		pr := topic.Publish(ctx, &msg)
+func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, tname mbroker.TopicName, data []byte) (err error) {
+	defer func() { p.metrics.onPublish(ctx, string(tname), err) }()
+	topicName := p.topicPrefix + string(tname)
+	topic, err := p.getTopic(ctx, topicName)
+	if err != nil {
+		return fmt.Errorf("get topic: %s", err)
+	}
+	msg := pubsub.Message{
+		Data: data,
+	}
+	pr := topic.Publish(ctx, &msg)
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-		if _, err := pr.Get(ctx); err != nil {
-			return fmt.Errorf("publishing to pubsub: %s", err)
-		}
-		return nil
-	}()
-	p.metrics.onPublish(ctx, string(tname), err)
-	return err
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	if _, err := pr.Get(ctx); err != nil {
+		return fmt.Errorf("publishing to pubsub: %s", err)
+	}
+	return nil
 }
 
 func (p *PubsubMsgBroker) getTopic(ctx context.Context, name string) (*pubsub.Topic, error) {

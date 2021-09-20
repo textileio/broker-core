@@ -18,6 +18,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	store "github.com/textileio/broker-core/cmd/piecerd/store"
 	"github.com/textileio/broker-core/ipfsutil"
+	"github.com/textileio/broker-core/metrics"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
@@ -47,7 +48,6 @@ type Piecer struct {
 	statLastDurationSeconds   int64
 	metricLastDurationSeconds metric.Int64ValueObserver
 	metricNewPrepare          metric.Int64Counter
-	metricPreparationErrors   metric.Int64Counter
 	statLastPrepared          time.Time
 	metricLastPrepared        metric.Int64ValueObserver
 }
@@ -162,9 +162,8 @@ func (p *Piecer) daemonPreparer() {
 			}
 
 			err = p.prepare(p.daemonCtx, usd)
-			p.metricNewPrepare.Add(p.daemonCtx, 1)
 			if err != nil {
-				p.metricPreparationErrors.Add(p.daemonCtx, 1)
+				p.metricNewPrepare.Add(p.daemonCtx, 1, metrics.AttrError)
 				log.Errorf("preparing batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
@@ -173,13 +172,14 @@ func (p *Piecer) daemonPreparer() {
 			}
 
 			if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, 0, store.StatusDone); err != nil {
-				p.metricPreparationErrors.Add(p.daemonCtx, 1)
+				p.metricNewPrepare.Add(p.daemonCtx, 1, metrics.AttrError)
 				log.Errorf("deleting batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
+			p.metricNewPrepare.Add(p.daemonCtx, 1, metrics.AttrOK)
 		}
 	}
 }

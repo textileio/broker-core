@@ -20,6 +20,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
 	"github.com/textileio/broker-core/dealer"
+	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/storeutil"
 )
@@ -61,15 +62,14 @@ type Broker struct {
 	lock    sync.Mutex
 	entropy *ulid.MonotonicEntropy
 
-	metricStartedBatches  metric.Int64Counter
-	metricStartedBytes    metric.Int64Counter
-	metricFinishedBatches metric.Int64Counter
-	metricFinishedBytes   metric.Int64Counter
-	metricErroredBatches  metric.Int64Counter
-	metricErroredBytes    metric.Int64Counter
-	metricRebatches       metric.Int64Counter
-	metricRebatchedBytes  metric.Int64Counter
-	metricBatchDuration   metric.Float64ValueRecorder
+	metricStartedAuctions       metric.Int64Counter
+	metricStartedBytes          metric.Int64Counter
+	metricFinishedAuctions      metric.Int64Counter
+	metricFinishedBytes         metric.Int64Counter
+	metricRebatches             metric.Int64Counter
+	metricRebatchedBytes        metric.Int64Counter
+	metricBatchAuctionsDuration metric.Float64ValueRecorder
+	metricReauctions            metric.Int64Counter
 
 	metricUnpinTotal        metric.Int64Counter
 	statTotalRecursivePins  int64
@@ -408,7 +408,7 @@ func (b *Broker) startAuction(ctx context.Context, ba *broker.Batch, pieceSize u
 	); err != nil {
 		return "", fmt.Errorf("publishing ready to create auction msg: %s", err)
 	}
-	b.metricStartedBatches.Add(ctx, 1)
+	b.metricStartedAuctions.Add(ctx, 1)
 	b.metricStartedBytes.Add(ctx, int64(pieceSize))
 	return auction.ID(auctionID), nil
 }
@@ -600,6 +600,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		); err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
+		b.metricReauctions.Add(ctx, 1)
 		return nil
 	}
 
@@ -678,9 +679,9 @@ func (b *Broker) batchSuccess(ctx context.Context, ba *broker.Batch) error {
 	if err := b.store.BatchSuccess(ctx, ba.ID); err != nil {
 		return fmt.Errorf("moving to batch success: %s", err)
 	}
-	b.metricFinishedBatches.Add(ctx, 1)
-	b.metricFinishedBytes.Add(ctx, int64(ba.PieceSize))
-	b.metricBatchDuration.Record(ctx, time.Since(ba.CreatedAt).Seconds())
+	b.metricFinishedAuctions.Add(ctx, 1, metrics.AttrOK)
+	b.metricFinishedBytes.Add(ctx, int64(ba.PieceSize), metrics.AttrOK)
+	b.metricBatchAuctionsDuration.Record(ctx, time.Since(ba.CreatedAt).Seconds())
 	log.Debugf("batch %s success", ba.ID)
 	return nil
 }
@@ -691,8 +692,8 @@ func (b *Broker) batchError(ctx context.Context, ba *broker.Batch, errorCause st
 	if err != nil {
 		return nil, fmt.Errorf("moving batch to error status: %s", err)
 	}
-	b.metricErroredBatches.Add(ctx, 1)
-	b.metricErroredBytes.Add(ctx, int64(ba.PieceSize))
+	b.metricFinishedAuctions.Add(ctx, 1, metrics.AttrError)
+	b.metricFinishedBytes.Add(ctx, int64(ba.PieceSize), metrics.AttrError)
 	if rebatch {
 		b.metricRebatches.Add(ctx, 1)
 		b.metricRebatchedBytes.Add(ctx, int64(ba.PieceSize))

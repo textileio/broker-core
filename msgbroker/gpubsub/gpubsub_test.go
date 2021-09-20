@@ -226,6 +226,6 @@ func TestMetrics(t *testing.T) {
 	defer c.lk.Unlock()
 	// this counts the successful PublishMsg above. The message may also be redelivered, so can > 3.
 	assert.True(t, c.calls >= 3, "onHandle should have been called at least once")
-	assert.Equal(t, c.errors >= 2, "onHandle should have been called with error")
+	assert.True(t, c.errors >= 2, "onHandle should have been called with error")
 	assert.True(t, c.d > 0, "onHandle should have been called with duration")
 }
