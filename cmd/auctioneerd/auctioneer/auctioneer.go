@@ -79,7 +79,7 @@ type Auctioneer struct {
 	metricNewAuction          metric.Int64Counter
 	metricNewFinalizedAuction metric.Int64Counter
 	metricNewBid              metric.Int64Counter
-	metricAcceptedBid         metric.Int64Counter
+	metricWinningBid          metric.Int64Counter
 	metricLastCreatedAuction  metric.Int64ValueObserver
 	metricPubsubPeers         metric.Int64ValueObserver
 
@@ -349,7 +349,6 @@ func (a *Auctioneer) processAuction(
 		mu.Lock()
 		bids = append(bids, bid)
 		mu.Unlock()
-		a.metricAcceptedBid.Add(ctx, 1, label)
 
 		return []byte(bid.ID), nil
 	}
@@ -558,6 +557,7 @@ func (a *Auctioneer) selectWinners(
 			// continue to the next replica.
 			continue
 		}
+		a.metricWinningBid.Add(ctx, 1, attribute.String("storage-provider-id", b.StorageProviderID))
 		winners[b.ID] = auctioneer.WinningBid{
 			BidderID: b.BidderID,
 		}

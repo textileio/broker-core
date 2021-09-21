@@ -8,6 +8,7 @@ import (
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/cmd/brokerd/metrics"
 	"github.com/textileio/broker-core/cmd/brokerd/service"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
@@ -77,7 +78,7 @@ var rootCmd = &cobra.Command{
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "brokerd")
+		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "brokerd", metrics.Meter)
 		common.CheckErr(err)
 
 		serv, err := service.New(mb, serviceConfig)

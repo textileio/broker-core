@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/apid/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./apid"]
     environment:
       - API_LOG_DEBUG=true
@@ -30,7 +30,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/storaged/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     environment:
       - STORAGE_LOG_DEBUG=true
       - STORAGE_LOG_JSON=false
@@ -52,7 +52,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/auctioneerd/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./start_auctioneer", "daemon"]
     volumes:
       - auctioneerd_data:/data/auctioneerd
@@ -75,6 +75,9 @@ services:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
+    depends_on:
+      - postgres
+      - gpubsub
     restart: unless-stopped
   bidbot:
     image: textile/bidbot:latest
@@ -88,7 +91,7 @@ services:
       - BIDBOT_MINER_ADDR=f0001
       - BIDBOT_WALLET_ADDR_SIG=66616B655F7369676E6174757265
       - BIDBOT_ASK_PRICE=100000000000
-      - BIDBOT_VERIFIED_ASK_PRICE=100000000000
+      - BIDBOT_VERIFIED_ASK_PRICE=0
       - BIDBOT_FAST_RETRIEVAL=true
       - BIDBOT_DEAL_START_WINDOW=2880
       - BIDBOT_DEAL_DURATION_MIN=525600
@@ -110,7 +113,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/brokerd/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./brokerd"]
     environment:
       - BROKER_LOG_DEBUG=true
@@ -140,7 +143,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/packerd/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./packerd"]
     environment:
       - PACKER_LOG_DEBUG=true
@@ -171,7 +174,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/piecerd/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./piecerd"]
     environment:
       - PIECER_LOG_DEBUG=true
@@ -198,7 +201,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/dealerd/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./dealerd"]
     environment:
       - DEALER_LOG_DEBUG=true

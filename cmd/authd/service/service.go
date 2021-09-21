@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	eth "github.com/ethereum/go-ethereum/common"
 	jwt "github.com/golang-jwt/jwt"
@@ -17,6 +18,8 @@ import (
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	// These imports run init functions, which register each algo with jwt-go.
 	_ "github.com/textileio/broker-core/cmd/authd/eth"
@@ -42,6 +45,9 @@ type Service struct {
 	Deps
 	server *grpc.Server
 	store  *store.Store
+
+	metricGrpcRequests        metric.Int64Counter
+	metricGrpcRequestDuration metric.Float64ValueRecorder
 }
 
 // Config is the service config.
@@ -71,6 +77,7 @@ func New(config Config, deps Deps) (*Service, error) {
 		Deps:   deps,
 		store:  store,
 	}
+	s.initMetrics()
 	go func() {
 		pb.RegisterAuthAPIServiceServer(s.server, s)
 		if err := s.server.Serve(config.Listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
@@ -254,27 +261,34 @@ func validateOwnsKey(
 // 3. Validates that the user has locked funds on-chain using a service provided by neard.
 // It returns the key DID.
 func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
+	start := time.Now()
 	input := detectInput(req.Token)
+	resp, status := s.doAuth(ctx, input)
+	s.metricGrpcRequests.Add(ctx, 1, attribute.Int("status_code", int(status.Code())))
+	s.metricGrpcRequestDuration.Record(ctx, time.Since(start).Seconds())
+	return resp, status.Err()
+}
 
+func (s *Service) doAuth(ctx context.Context, input *detectedInput) (*pb.AuthResponse, status.Status) {
 	switch input.tokenType {
 	case rawToken:
 		rt, ok, err := s.store.GetAuthToken(ctx, input.token)
 		if err != nil {
-			return nil, fmt.Errorf("find raw token: %s", err)
+			return nil, *status.Newf(codes.Internal, "find raw token: %s", err)
 		}
 		if !ok {
-			return nil, fmt.Errorf("raw token doesn't exist")
+			return nil, *status.Newf(codes.Unauthenticated, "raw token doesn't exist")
 		}
 		log.Debugf("successful raw authentication identity %s, origin %s", rt.Identity, rt.Origin)
 		return &pb.AuthResponse{
 			Identity: rt.Identity,
 			Origin:   rt.Origin,
-		}, nil
+		}, status.Status{}
 	case chainToken:
 		// Validate the JWT token.
 		token, err := validateToken(input.token)
 		if err != nil {
-			return nil, status.Errorf(codes.Unauthenticated, "invalid JWT: %v", err)
+			return nil, *status.Newf(codes.Unauthenticated, "invalid JWT: %v", err)
 		}
 		// TODO: On NEAR, check that the account is indeed associated with the given public key
 		var chainAPI chainapi.ChainAPI
@@ -286,31 +300,31 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 		case polyOrigin:
 			chainAPI = s.Deps.PolyAPI
 		default:
-			return nil, fmt.Errorf("unknown origin %s", token.Origin)
+			return nil, *status.Newf(codes.Unauthenticated, "unknown origin %s", token.Origin)
 		}
 
 		fundsOk, err := validateDepositedFunds(ctx, token.Iss, token.Suborigin, chainAPI)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "validating deposited funds: %v", err)
+			return nil, *status.Newf(codes.Internal, "validating deposited funds: %v", err)
 		}
 		if !fundsOk {
-			return nil, status.Errorf(codes.Unauthenticated, "locked funds: %v", err)
+			return nil, *status.Newf(codes.Unauthenticated, "locked funds: %v", err)
 		}
 
 		ownsKey, err := validateOwnsKey(ctx, token.Iss, token.PublicID, token.Suborigin, chainAPI)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "validating owns key: %v", err)
+			return nil, *status.Newf(codes.Internal, "validating owns key: %v", err)
 		}
 		if !ownsKey {
-			return nil, status.Errorf(codes.Unauthenticated, "doesn't own key: %v", err)
+			return nil, *status.Newf(codes.Unauthenticated, "doesn't own key: %v", err)
 		}
 
 		log.Debugf("successful chain authentication: %s", token.Iss)
 		return &pb.AuthResponse{
 			Identity: token.Sub,
 			Origin:   fmt.Sprintf("%s-%s", token.Origin, token.Suborigin),
-		}, nil
+		}, status.Status{}
 	default:
-		return nil, status.Errorf(codes.InvalidArgument, "unknown token type")
+		return nil, *status.Newf(codes.InvalidArgument, "unknown token type")
 	}
 }

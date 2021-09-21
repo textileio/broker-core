@@ -10,6 +10,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -31,6 +32,7 @@ type PubsubMsgBroker struct {
 	topicCache     map[string]*pubsub.Topic
 
 	receivingHandlersWg sync.WaitGroup
+	metrics             metricsCollector
 }
 
 var _ mbroker.MsgBroker = (*PubsubMsgBroker)(nil)
@@ -64,7 +66,18 @@ func New(projectID, apiKey, topicPrefix, subsName string) (*PubsubMsgBroker, err
 		clientCtxCancel: cancel,
 
 		topicCache: map[string]*pubsub.Topic{},
+
+		metrics: noopMetricsCollector{},
 	}, nil
+}
+
+// NewMetered is the same as New but exporting some metrics.
+func NewMetered(projectID, apiKey, topicPrefix, subsName string, meter metric.MeterMust) (*PubsubMsgBroker, error) {
+	p, err := New(projectID, apiKey, topicPrefix, subsName)
+	if err == nil {
+		p.initMetrics(meter)
+	}
+	return p, err
 }
 
 // RegisterTopicHandler registers a handler for a topic.
@@ -81,17 +94,17 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(
 		return fmt.Errorf("applying options: %s", err)
 	}
 
-	topicName := p.topicPrefix + string(tname)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
 
-	topic, err := p.getTopic(topicName)
+	topicName := p.topicPrefix + string(tname)
+	topic, err := p.getTopic(ctx, topicName)
 	if err != nil {
 		return fmt.Errorf("get topic: %s", err)
 	}
 
 	subName := topicName + "-" + p.subsName
 	var sub *pubsub.Subscription
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
 	it := topic.Subscriptions(ctx)
 	for {
 		subi, err := it.Next()
@@ -146,14 +159,17 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(
 	go func() {
 		defer p.receivingHandlersWg.Done()
 		err := sub.Receive(p.clientCtx, func(ctx context.Context, m *pubsub.Message) {
-			ctx, cancel := context.WithTimeout(ctx, config.AckDeadline)
+			start := time.Now()
+			tctx, cancel := context.WithTimeout(ctx, config.AckDeadline)
 			defer cancel()
-			if err := handler(ctx, m.Data); err != nil {
+			if err := handler(tctx, m.Data); err != nil {
 				log.Errorf("handling %s message: %v", topicName, err)
 				m.Nack()
+				p.metrics.onHandle(ctx, topicName, time.Since(start), err)
 				return
 			}
 			m.Ack()
+			p.metrics.onHandle(ctx, topicName, time.Since(start), nil)
 		})
 		if err != nil {
 			log.Errorf("receive handler subscription %s, topic %s: %s", subName, topicName, err)
@@ -169,10 +185,10 @@ func (p *PubsubMsgBroker) RegisterTopicHandler(
 // PublishMsg publishes a payload to a topic.
 // If the topic doesn't exist, it's created. The topic name is the same as described in
 // RegisterTopicHandler method documentation.
-func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, tname mbroker.TopicName, data []byte) error {
+func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, tname mbroker.TopicName, data []byte) (err error) {
+	defer func() { p.metrics.onPublish(ctx, string(tname), err) }()
 	topicName := p.topicPrefix + string(tname)
-
-	topic, err := p.getTopic(topicName)
+	topic, err := p.getTopic(ctx, topicName)
 	if err != nil {
 		return fmt.Errorf("get topic: %s", err)
 	}
@@ -186,11 +202,10 @@ func (p *PubsubMsgBroker) PublishMsg(ctx context.Context, tname mbroker.TopicNam
 	if _, err := pr.Get(ctx); err != nil {
 		return fmt.Errorf("publishing to pubsub: %s", err)
 	}
-
 	return nil
 }
 
-func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
+func (p *PubsubMsgBroker) getTopic(ctx context.Context, name string) (*pubsub.Topic, error) {
 	p.topicCacheLock.Lock()
 	defer p.topicCacheLock.Unlock()
 	topic, ok := p.topicCache[name]
@@ -199,7 +214,7 @@ func (p *PubsubMsgBroker) getTopic(name string) (*pubsub.Topic, error) {
 	}
 
 	topic = p.client.Topic(name)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 	exist, err := topic.Exists(ctx)
 	if err != nil {

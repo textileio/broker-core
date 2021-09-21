@@ -15,6 +15,7 @@ import (
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/bidbot/lib/peerflags"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
+	"github.com/textileio/broker-core/cmd/auctioneerd/metrics"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
@@ -144,7 +145,7 @@ var daemonCmd = &cobra.Command{
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "auctioneerd")
+		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "auctioneerd", metrics.Meter)
 		common.CheckErrf("creating google pubsub client: %s", err)
 
 		serv, err := service.New(config, mb, fc)

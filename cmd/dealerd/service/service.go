@@ -57,18 +57,21 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating host: %s", err)
 	}
-	pinfo, err := peer.AddrInfoFromString(conf.RelayMaddr)
-	if err != nil {
-		return nil, fmt.Errorf("get addrinfo from relay multiaddr: %s", err)
+
+	if conf.RelayMaddr != "" {
+		pinfo, err := peer.AddrInfoFromString(conf.RelayMaddr)
+		if err != nil {
+			return nil, fmt.Errorf("get addrinfo from relay multiaddr: %s", err)
+		}
+		ctx, cls := context.WithTimeout(context.Background(), time.Second*20)
+		defer cls()
+		if err := h.Connect(ctx, *pinfo); err != nil {
+			cls()
+			return nil, fmt.Errorf("connecting with relay: %s", err)
+		}
+		h.ConnManager().Protect(pinfo.ID, "relay")
+		log.Debugf("connected with relay")
 	}
-	ctx, cls := context.WithTimeout(context.Background(), time.Second*20)
-	defer cls()
-	if err := h.Connect(ctx, *pinfo); err != nil {
-		cls()
-		return nil, fmt.Errorf("connecting with relay: %s", err)
-	}
-	h.ConnManager().Protect(pinfo.ID, "relay")
-	log.Debugf("connected with relay")
 
 	var lib dealeri.Dealer
 	if conf.Mock {
