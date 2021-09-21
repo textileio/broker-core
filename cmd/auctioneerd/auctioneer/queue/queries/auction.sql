@@ -13,7 +13,8 @@ INSERT INTO auctions(
     car_ipfs_cid,
     car_ipfs_addrs,
     status,
-    duration
+    duration,
+    client_address
     ) VALUES (
       $1,
       $2,
@@ -28,7 +29,8 @@ INSERT INTO auctions(
       $11,
       $12,
       $13,
-      $14);
+      $14,
+      $15);
 
 -- name: GetAuction :one
 SELECT * FROM auctions

@@ -12,7 +12,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/dealer"
@@ -26,7 +25,7 @@ import (
 )
 
 func init() {
-	if err := logging.SetLogLevels(map[string]golog.LogLevel{"dealer": golog.LevelDebug}); err != nil {
+	if err := golog.SetLogLevels(map[string]golog.LogLevel{"dealer": golog.LevelDebug}); err != nil {
 		panic(err)
 	}
 }

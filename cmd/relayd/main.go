@@ -12,8 +12,8 @@ import (
 	mbase "github.com/multiformats/go-multibase"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/relayd/metrics"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/cli"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	logging "github.com/textileio/go-log/v2"
@@ -89,7 +89,7 @@ var rootCmd = &cobra.Command{
 		log.Info("relay open to accept connections...")
 
 		cli.HandleInterrupt(func() {
-			common.CheckErr(fin.Cleanup(nil))
+			cli.CheckErr(fin.Cleanup(nil))
 		})
 	},
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
-	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/store"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
@@ -35,7 +34,7 @@ import (
 )
 
 func init() {
-	if err := logging.SetLogLevels(map[string]golog.LogLevel{
+	if err := golog.SetLogLevels(map[string]golog.LogLevel{
 		"packer": golog.LevelDebug,
 		"store":  golog.LevelDebug,
 	}); err != nil {

@@ -7,10 +7,11 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/piecerd/metrics"
 	"github.com/textileio/broker-core/cmd/piecerd/service"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
+	"github.com/textileio/cli"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -21,7 +22,7 @@ var (
 )
 
 func init() {
-	flags := []common.Flag{
+	flags := []cli.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "ipfs-multiaddrs", DefValue: []string{}, Description: "IPFS multiaddresses"},
 		{Name: "daemon-frequency", DefValue: time.Second * 30, Description: "Daemon frequency to process pending data"},
@@ -36,7 +37,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, "PIECER", flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, "PIECER", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
@@ -44,13 +45,13 @@ var rootCmd = &cobra.Command{
 	Short: "piecerd handles prepares batched data for Filecoin",
 	Long:  "piecerd handles prepares batched data for Filecoin",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		common.ExpandEnvVars(v, v.AllSettings())
-		err := common.ConfigureLogging(v, nil)
-		common.CheckErrf("setting log levels: %v", err)
+		cli.ExpandEnvVars(v, v.AllSettings())
+		err := cli.ConfigureLogging(v, nil)
+		cli.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "postgres-uri")
-		common.CheckErr(err)
+		settings, err := cli.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "postgres-uri")
+		cli.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
@@ -61,11 +62,11 @@ var rootCmd = &cobra.Command{
 		daemonFrequency := v.GetDuration("daemon-frequency")
 		retryDelay := v.GetDuration("retry-delay")
 
-		ipfsMultiaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
+		ipfsMultiaddrsStr := cli.ParseStringSlice(v, "ipfs-multiaddrs")
 		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
 		for i, maStr := range ipfsMultiaddrsStr {
 			ma, err := multiaddr.NewMultiaddr(maStr)
-			common.CheckErrf("parsing multiaddress %s: %s", err)
+			cli.CheckErrf("parsing multiaddress %s: %s", err)
 			ipfsMultiaddrs[i] = ma
 		}
 
@@ -73,7 +74,7 @@ var rootCmd = &cobra.Command{
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
 		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "piecerd", metrics.Meter)
-		common.CheckErrf("creating google pubsub client: %s", err)
+		cli.CheckErrf("creating google pubsub client: %s", err)
 
 		config := service.Config{
 			IpfsMultiaddrs:  ipfsMultiaddrs,
@@ -83,9 +84,9 @@ var rootCmd = &cobra.Command{
 			PostgresURI:     v.GetString("postgres-uri"),
 		}
 		serv, err := service.New(mb, config)
-		common.CheckErr(err)
+		cli.CheckErr(err)
 
-		common.HandleInterrupt(func() {
+		cli.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
 			}
@@ -97,5 +98,5 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	common.CheckErr(rootCmd.Execute())
+	cli.CheckErr(rootCmd.Execute())
 }

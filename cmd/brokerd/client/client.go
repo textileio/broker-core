@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
@@ -98,10 +99,12 @@ func (c *Client) CreatePrepared(
 		for _, maddr := range rw.Multiaddrs {
 			rwStrMultiaddrs = append(rwStrMultiaddrs, maddr.String())
 		}
+		// UGLY HACK: address.String() always returns as if the address is for testnet. Force replacing it to be mainnet.
+		walletAddr := address.MainnetPrefix + rw.WalletAddr.String()[len(address.MainnetPrefix):]
 		req.RemoteWallet = &pb.RemoteWallet{
 			PeerId:     rw.PeerID.String(),
 			AuthToken:  rw.AuthToken,
-			WalletAddr: rw.WalletAddr.String(),
+			WalletAddr: walletAddr,
 			Multiaddrs: rwStrMultiaddrs,
 		}
 	}

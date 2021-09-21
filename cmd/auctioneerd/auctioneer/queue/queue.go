@@ -127,6 +127,7 @@ func (q *Queue) CreateAuction(ctx context.Context, a auctioneer.Auction) error {
 		PayloadCid:               a.PayloadCid.String(),
 		Status:                   broker.AuctionStatusQueued,
 		Duration:                 int64(a.Duration),
+		ClientAddress:            a.ClientAddress,
 	}
 	if len(a.ExcludedStorageProviders) == 0 {
 		params.ExcludedStorageProviders = []string{}
@@ -552,6 +553,7 @@ func auctionFromDb(a db.Auction) (*auctioneer.Auction, error) {
 		ExcludedStorageProviders: a.ExcludedStorageProviders,
 		PayloadCid:               payloadCid,
 		Sources:                  sources,
+		ClientAddress:            a.ClientAddress,
 		Status:                   a.Status,
 		StartedAt:                a.StartedAt,
 		UpdatedAt:                a.UpdatedAt,

@@ -28,6 +28,7 @@ type Auction struct {
 	Duration                 int64                `json:"duration"`
 	StartedAt                time.Time            `json:"startedAt"`
 	UpdatedAt                time.Time            `json:"updatedAt"`
+	ClientAddress            string               `json:"clientAddress"`
 }
 
 type Bid struct {

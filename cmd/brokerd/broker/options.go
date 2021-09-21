@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 )
@@ -22,9 +23,10 @@ var defaultConfig = config{
 }
 
 type config struct {
-	dealDuration    uint64
-	dealReplication uint32
-	verifiedDeals   bool
+	dealDuration      uint64
+	dealReplication   uint32
+	defaultWalletAddr address.Address
+	verifiedDeals     bool
 
 	unpinnerFrequency       time.Duration
 	unpinnerRetryDelay      time.Duration
@@ -55,6 +57,14 @@ func WithDealReplication(repFactor uint32) Option {
 			return errors.New("rep factor must be positive")
 		}
 		c.dealReplication = repFactor
+		return nil
+	}
+}
+
+// WithDefaultWalletAddress configures the default wallet address of new auctions.
+func WithDefaultWalletAddress(walletAddress address.Address) Option {
+	return func(c *config) error {
+		c.defaultWalletAddr = walletAddress
 		return nil
 	}
 }

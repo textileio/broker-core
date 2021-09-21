@@ -4,6 +4,7 @@
 // migrations/001_init.down.sql
 // migrations/001_init.up.sql
 // migrations/002_bids_support_calculating_rates.up.sql
+// migrations/003_auctions_add_client_address.up.sql
 package migrations
 
 import (
@@ -95,7 +96,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 38, mode: os.FileMode(436), modTime: time.Unix(1630327856, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 38, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -115,7 +116,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1526, mode: os.FileMode(436), modTime: time.Unix(1630327856, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1526, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -135,7 +136,27 @@ func _002_bids_support_calculating_ratesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_bids_support_calculating_rates.up.sql", size: 123, mode: os.FileMode(436), modTime: time.Unix(1631615050, 0)}
+	info := bindataFileInfo{name: "002_bids_support_calculating_rates.up.sql", size: 123, mode: os.FileMode(420), modTime: time.Unix(1631305441, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_auctions_add_client_addressUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x2c\x4d\x2e\xc9\xcc\xcf\x2b\x56\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x48\xce\xc9\x4c\xcd\x2b\x89\x4f\x4c\x49\x29\x4a\x2d\x2e\x56\x08\x71\x8d\x08\x51\xf0\xf3\x0f\x51\xf0\x0b\xf5\xf1\xb1\xe6\xe2\x02\x04\x00\x00\xff\xff\x23\x87\x50\x9c\x3f\x00\x00\x00")
+
+func _003_auctions_add_client_addressUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_auctions_add_client_addressUpSql,
+		"003_auctions_add_client_address.up.sql",
+	)
+}
+
+func _003_auctions_add_client_addressUpSql() (*asset, error) {
+	bytes, err := _003_auctions_add_client_addressUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_auctions_add_client_address.up.sql", size: 63, mode: os.FileMode(420), modTime: time.Unix(1632260451, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -195,6 +216,7 @@ var _bindata = map[string]func() (*asset, error){
 	"001_init.down.sql":                         _001_initDownSql,
 	"001_init.up.sql":                           _001_initUpSql,
 	"002_bids_support_calculating_rates.up.sql": _002_bids_support_calculating_ratesUpSql,
+	"003_auctions_add_client_address.up.sql":    _003_auctions_add_client_addressUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -241,6 +263,7 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"001_init.down.sql":                         &bintree{_001_initDownSql, map[string]*bintree{}},
 	"001_init.up.sql":                           &bintree{_001_initUpSql, map[string]*bintree{}},
 	"002_bids_support_calculating_rates.up.sql": &bintree{_002_bids_support_calculating_ratesUpSql, map[string]*bintree{}},
+	"003_auctions_add_client_address.up.sql":    &bintree{_003_auctions_add_client_addressUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

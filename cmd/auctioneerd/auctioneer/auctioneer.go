@@ -361,6 +361,7 @@ func (a *Auctioneer) processAuction(
 		PayloadCid:       auction.PayloadCid.String(),
 		DealSize:         auction.DealSize,
 		DealDuration:     auction.DealDuration,
+		ClientAddress:    auction.ClientAddress,
 		FilEpochDeadline: auction.FilEpochDeadline,
 		Sources:          cast.SourcesToPb(auction.Sources),
 		EndsAt:           timestamppb.New(deadline),

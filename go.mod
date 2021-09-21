@@ -53,7 +53,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.0.8
+	github.com/textileio/bidbot v0.0.11-0.20210922134644-91d866b47a35
 	github.com/textileio/cli v1.0.1
 	github.com/textileio/go-auctions-client v0.0.0-20210914093526-52fac6d8b09f
 	github.com/textileio/go-datastore-extensions v1.0.1
@@ -63,8 +63,12 @@ require (
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.22.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC2
+	go.opentelemetry.io/otel/exporters/prometheus v0.21.0
 	go.opentelemetry.io/otel/metric v0.22.0
+	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
+	go.opentelemetry.io/otel/sdk/metric v0.21.0
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	google.golang.org/api v0.56.0
