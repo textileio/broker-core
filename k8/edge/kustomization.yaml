@@ -44,6 +44,9 @@ configMapGenerator:
   - configPiecer.env
   name: configmap-piecer
 - envs:
+  - configRelay.env
+  name: configmap-relay
+- envs:
   - configStorage.env
   name: configmap-storage
 - envs:

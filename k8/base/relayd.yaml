@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: relay
+  labels:
+    app: relay
+spec:
+  selector:
+    app: relay-v1
+  ports:
+    - port: 4001
+      name: relay
+    - port: 9090
+      name: metrics
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: relay-swarm-0
+spec:
+  externalTrafficPolicy: Local
+  selector:
+    app: relay-v1
+  ports:
+    - port: 4001
+      name: swarm
+  type: LoadBalancer
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: relay
+  labels:
+    app: relay
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: relay
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: relay-01
+  labels:
+    app: relay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: relay-v1
+  template:
+    metadata:
+      labels:
+        app: relay-v1
+    spec:
+      containers:
+        - name: relay
+          image: textile/relay
+          imagePullPolicy: Always
+          ports:
+            - name: relay
+              containerPort: 4001
+            - name: metrics
+              containerPort: 9090
+          env:
+            - name: RELAY_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: broker-secret
+                  key: relay-private-key
+          envFrom:
+            - configMapRef:
+                name: configmap-relay
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: relay
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: relay
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3

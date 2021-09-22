@@ -1,7 +1,6 @@
 package auctioneer
 
 import (
-	"container/heap"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -34,14 +33,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	log = golog.Logger("auctioneer")
+const (
+	// NotifyTimeout is the max duration the auctioneer will wait for a response from bidders.
+	NotifyTimeout = time.Second * 30
 
 	// maxAuctionDuration is the max duration an auction can run for.
 	maxAuctionDuration = time.Minute * 10
 
-	// NotifyTimeout is the max duration the auctioneer will wait for a response from bidders.
-	NotifyTimeout = time.Second * 30
+	filecoinGenesisUnixEpoch = 1598306400
+)
+
+var (
+	log = golog.Logger("auctioneer")
 
 	// ErrAuctionNotFound indicates the requested auction was not found.
 	ErrAuctionNotFound = errors.New("auction not found")
@@ -61,6 +64,7 @@ type Auctioneer struct {
 	mb          mbroker.MsgBroker
 	queue       *q.Queue
 	started     bool
+	ctx         context.Context
 	auctionConf AuctionConfig
 
 	peer     *rpcpeer.Peer
@@ -75,13 +79,19 @@ type Auctioneer struct {
 	metricNewAuction          metric.Int64Counter
 	metricNewFinalizedAuction metric.Int64Counter
 	metricNewBid              metric.Int64Counter
-	metricAcceptedBid         metric.Int64Counter
+	metricWinningBid          metric.Int64Counter
 	metricLastCreatedAuction  metric.Int64ValueObserver
 	metricPubsubPeers         metric.Int64ValueObserver
 
+	// this is just an alias of the method publishWin, used here so we can mock out libp2p rpc in tests.
+	winsPublisher  func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error
 	winsTopics     map[peer.ID]*rpc.Topic
 	proposalTopics map[peer.ID]*rpc.Topic
 	lkTopics       sync.Mutex
+
+	providerFailureRates   atomic.Value // map[string]int
+	providerOnChainEpoches atomic.Value // map[string]uint64
+	providerWinningRates   atomic.Value // map[string]int
 }
 
 // New returns a new Auctioneer.
@@ -105,6 +115,7 @@ func New(
 		winsTopics:     make(map[peer.ID]*rpc.Topic),
 		proposalTopics: make(map[peer.ID]*rpc.Topic),
 	}
+	a.winsPublisher = a.publishWin
 	a.initMetrics()
 
 	queue, err := q.NewQueue(postgresURI, a.processAuction, a.finalizeAuction)
@@ -113,6 +124,10 @@ func New(
 	}
 	a.finalizer.Add(queue)
 	a.queue = queue
+
+	ctx, cancel := context.WithCancel(context.Background())
+	a.finalizer.Add(finalizer.NewContextCloser(cancel))
+	a.ctx = ctx
 
 	return a, nil
 }
@@ -145,20 +160,17 @@ func (a *Auctioneer) Start(bootstrap bool) error {
 		a.peer.Bootstrap()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	a.finalizer.Add(finalizer.NewContextCloser(cancel))
-
 	// Create the global auctions topic
-	auctions, err := a.peer.NewTopic(ctx, core.Topic, false)
+	auctions, err := a.peer.NewTopic(a.ctx, core.Topic, false)
 	if err != nil {
 		return fmt.Errorf("creating auctions topic: %v", err)
 	}
 	auctions.SetEventHandler(a.eventHandler)
 	a.auctions = auctions
 	a.finalizer.Add(auctions)
-
 	log.Info("created the deal auction feed")
 
+	go a.refreshProviderRates()
 	a.started = true
 	return nil
 }
@@ -232,9 +244,17 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 	return publishErr
 }
 
+// MarkFinalizedDeal marks the deal as confirmed if it has no error.
+func (a *Auctioneer) MarkFinalizedDeal(ctx context.Context, fad broker.FinalizedDeal) error {
+	if fad.ErrorCause != "" {
+		return nil
+	}
+	return a.queue.MarkDealAsConfirmed(ctx, fad.AuctionID, fad.BidID)
+}
+
 // processAuction handles the next auction in the queue.
 // An auction involves the following steps:
-// 1. Publish the auction to the deal feel.
+// 1. Publish the auction to the deal feed.
 // 2. Wait for bids to come in from bidders.
 // 3. Close the auction after the configured duration has passed.
 // 4. Select winners, during which winners are notified. If this notification fails, the winner is
@@ -263,7 +283,7 @@ func (a *Auctioneer) processAuction(
 	topic.SetEventHandler(a.eventHandler)
 
 	var (
-		bids    = make(map[core.BidID]auctioneer.Bid)
+		bids    []auctioneer.Bid
 		bidders = make(map[peer.ID]struct{})
 		mu      sync.Mutex
 	)
@@ -327,9 +347,8 @@ func (a *Auctioneer) processAuction(
 			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
 		}
 		mu.Lock()
-		bids[bid.ID] = bid
+		bids = append(bids, bid)
 		mu.Unlock()
-		a.metricAcceptedBid.Add(ctx, 1, label)
 
 		return []byte(bid.ID), nil
 	}
@@ -357,19 +376,18 @@ func (a *Auctioneer) processAuction(
 	<-actx.Done()
 	topic.SetMessageHandler(nil)
 
-	log.Infof(
-		"auction %s ended; total bids: %d; num required: %d",
-		auction.ID,
-		len(bids),
-		auction.DealReplication,
-	)
+	// lock to the end to make sure bids are unchanged hereafter. It doesn't matter if some bidsHandler handler
+	// being blocked - the results are discarded anyway.
+	mu.Lock()
+	defer mu.Unlock()
+	log.Infof("auction %s ended; total bids: %d; num required: %d",
+		auction.ID, len(bids), auction.DealReplication)
 
 	winners, err := a.selectWinners(ctx, auction, bids)
 	if err != nil {
 		log.Warnf("auction %s failed: %v", auction.ID, err)
 		return nil, fmt.Errorf("selecting winners: %v", err)
 	}
-
 	var info []string
 	for id, wb := range winners {
 		info = append(info, fmt.Sprintf("bid: %s; bidder: %s", id, wb.BidderID))
@@ -486,99 +504,117 @@ func acceptBid(auction *auctioneer.Auction, bid *auctioneer.Bid) bool {
 	return true
 }
 
-type rankedBid struct {
-	ID  core.BidID
-	Bid auctioneer.Bid
-}
-
-func heapifyBids(bids map[core.BidID]auctioneer.Bid, dealVerified bool) *BidHeap {
-	h := &BidHeap{dealVerified: dealVerified}
-	heap.Init(h)
-	for id, b := range bids {
-		heap.Push(h, rankedBid{ID: id, Bid: b})
-	}
-	return h
-}
-
-// BidHeap is used to efficiently select auction winners.
-type BidHeap struct {
-	h            []rankedBid
-	dealVerified bool
-}
-
-// Len returns the length of h.
-func (bh *BidHeap) Len() int {
-	return len(bh.h)
-}
-
-// Less returns true if the value at j is less than the value at i.
-func (bh *BidHeap) Less(i, j int) bool {
-	if bh.dealVerified {
-		return bh.h[i].Bid.VerifiedAskPrice < bh.h[j].Bid.VerifiedAskPrice
-	}
-	return bh.h[i].Bid.AskPrice < bh.h[j].Bid.AskPrice
-}
-
-// Swap index i and j.
-func (bh *BidHeap) Swap(i, j int) {
-	bh.h[i], bh.h[j] = bh.h[j], bh.h[i]
-}
-
-// Push adds x to h.
-func (bh *BidHeap) Push(x interface{}) {
-	bh.h = append(bh.h, x.(rankedBid))
-}
-
-// Pop removes and returns the last element in h.
-func (bh *BidHeap) Pop() (x interface{}) {
-	x, bh.h = bh.h[len(bh.h)-1], bh.h[:len(bh.h)-1]
-	return x
-}
-
 func (a *Auctioneer) selectWinners(
 	ctx context.Context,
 	auction auctioneer.Auction,
-	bids map[core.BidID]auctioneer.Bid,
+	bids []auctioneer.Bid,
 ) (map[core.BidID]auctioneer.WinningBid, error) {
-	if len(bids) == 0 {
-		return nil, ErrInsufficientBids
+	winners := make(map[core.BidID]auctioneer.WinningBid)
+	sorter := BidsSorter(&auction, bids).Select(func(b *auctioneer.Bid) bool {
+		// consider only bids with zero price for now.
+		return !auction.DealVerified && b.AskPrice == 0 || auction.DealVerified && b.VerifiedAskPrice == 0
+	})
+	if auction.FilEpochDeadline > 0 {
+		// select providers historically (the recent week) confirmed deals sooner than the auction requires.
+		current := currentFilEpoch()
+		if auction.FilEpochDeadline <= current {
+			return winners, ErrInsufficientBids
+		}
+		minWindow := auction.FilEpochDeadline - current
+		epoches := a.getProviderOnChainEpoches()
+		sorter = sorter.Select(func(b *auctioneer.Bid) bool {
+			return minWindow > epoches[b.StorageProviderID]
+		})
 	}
 
-	var (
-		bh          = heapifyBids(bids, auction.DealVerified)
-		winners     = make(map[core.BidID]auctioneer.WinningBid)
-		selectCount = int(auction.DealReplication)
-		i           = 0
-	)
-
-	// Select lowest bids until deal replication is met
-	for i < selectCount {
-		if bh.Len() == 0 {
-			break
+	log.Debugf("selecting %d winners from %d eligible bids", auction.DealReplication, sorter.Len())
+	topN := sorter.Len() / 5
+	if topN < 5 {
+		topN = 5
+	}
+	for i := 0; len(winners) < int(auction.DealReplication); i++ {
+		var b auctioneer.Bid
+		var win bool
+		switch i {
+		case 0:
+			// for the first replica, leaning toward the providers with less recent failures (can not make a
+			// winning deal on chain for some reason).
+			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(topN, LowerProviderRate(a.getProviderFailureRates())))
+		case 1:
+			// the second replica, leaning toward those who have less winning bids recently. The order
+			// changes very often. If they can not handle the throughput, the deals will fail eventually.
+			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(topN, LowerProviderRate(a.getProviderWinningRates())))
+		default:
+			// the rest of replicas, just randomly choose the rest of miners, but with low price (0).
+			b, win = a.selectOneWinner(ctx, &auction, sorter.Random())
+			if !win {
+				// exhausted all bids
+				return winners, ErrInsufficientBids
+			}
 		}
-		b := heap.Pop(bh).(rankedBid)
-		if err := mbroker.PublishMsgAuctionWinnerSelected(ctx, a.mb,
-			mbroker.AuctionToPbSummary(&auction), &b.Bid); err != nil {
-			log.Warn(err) // error is annotated
-		}
-
-		if err := a.publishWin(ctx, auction.ID, b.ID, b.Bid.BidderID); err != nil {
-			log.Warn(err) // error is annotated in publishWin
+		if !win {
+			// can not get a winning bid satisfying the requirement of the current replica,
+			// continue to the next replica.
 			continue
 		}
+		a.metricWinningBid.Add(ctx, 1, attribute.String("storage-provider-id", b.StorageProviderID))
 		winners[b.ID] = auctioneer.WinningBid{
-			BidderID: b.Bid.BidderID,
+			BidderID: b.BidderID,
 		}
-		i++
-		if err := mbroker.PublishMsgAuctionWinnerAcked(ctx, a.mb, mbroker.AuctionToPbSummary(&auction), &b.Bid); err != nil {
+		if err := mbroker.PublishMsgAuctionWinnerAcked(ctx, a.mb, mbroker.AuctionToPbSummary(&auction), &b); err != nil {
 			log.Warn(err) // error is annotated
 		}
 	}
-	if len(winners) < selectCount {
-		return winners, ErrInsufficientBids
-	}
-
 	return winners, nil
+}
+
+func (a *Auctioneer) selectOneWinner(
+	ctx context.Context,
+	auction *auctioneer.Auction,
+	it BidsIter) (auctioneer.Bid, bool) {
+	for {
+		b, exists := it.Next()
+		if !exists {
+			return auctioneer.Bid{}, false
+		}
+		if err := mbroker.PublishMsgAuctionWinnerSelected(ctx, a.mb,
+			mbroker.AuctionToPbSummary(auction), &b); err != nil {
+			log.Warn(err) // error is annotated
+		}
+
+		if err := a.winsPublisher(ctx, auction.ID, b.ID, b.BidderID); err != nil {
+			// skip this intended error from bidder which signals auctioneer to silently move on
+			if !strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
+				log.Warn(err) // error is annotated in publishWin
+			}
+			continue
+		}
+		return b, true
+	}
+}
+
+func (a *Auctioneer) getProviderFailureRates() map[string]int {
+	rates := a.providerFailureRates.Load()
+	if rates != nil {
+		return rates.(map[string]int)
+	}
+	return map[string]int{}
+}
+
+func (a *Auctioneer) getProviderOnChainEpoches() map[string]uint64 {
+	rates := a.providerOnChainEpoches.Load()
+	if rates != nil {
+		return rates.(map[string]uint64)
+	}
+	return map[string]uint64{}
+}
+
+func (a *Auctioneer) getProviderWinningRates() map[string]int {
+	rates := a.providerWinningRates.Load()
+	if rates != nil {
+		return rates.(map[string]int)
+	}
+	return map[string]int{}
 }
 
 func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error {
@@ -696,4 +732,36 @@ func (a *Auctioneer) newID() (auction.BidID, error) {
 	}
 	a.lkEntropy.Unlock()
 	return auction.BidID(strings.ToLower(id.String())), nil
+}
+
+func (a *Auctioneer) refreshProviderRates() {
+	tk := time.NewTicker(10 * time.Minute)
+	for {
+		if rates, err := a.queue.GetProviderOnChainEpoches(a.ctx); err != nil {
+			log.Errorf("getting storage provider recent on chain epoches: %v", err)
+		} else {
+			a.providerOnChainEpoches.Store(rates)
+		}
+		if rates, err := a.queue.GetProviderFailureRates(a.ctx); err != nil {
+			log.Errorf("getting storage provider recent failure rates: %v", err)
+		} else {
+			a.providerFailureRates.Store(rates)
+		}
+		if rates, err := a.queue.GetProviderWinningRates(a.ctx); err != nil {
+			log.Errorf("getting storage provider recent winning rates: %v", err)
+		} else {
+			a.providerWinningRates.Store(rates)
+		}
+
+		select {
+		case <-tk.C:
+			// continue
+		case <-a.ctx.Done():
+			return
+		}
+	}
+}
+
+func currentFilEpoch() uint64 {
+	return uint64((time.Now().Unix() - filecoinGenesisUnixEpoch) / 30)
 }

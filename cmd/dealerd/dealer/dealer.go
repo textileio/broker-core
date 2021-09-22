@@ -90,7 +90,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 		auctionDeals[i] = auctionDeal
 		log.Debugf("%s auction deal: %s", auctionData.BatchID, logging.MustJSONIndent(auctionDeal))
 	}
-	if err := d.store.Create(ctx, auctionData, auctionDeals); err != nil {
+	if err := d.store.Create(ctx, auctionData, auctionDeals, ad.RemoteWallet); err != nil {
 		return fmt.Errorf("creating auction deals: %w", err)
 	}
 

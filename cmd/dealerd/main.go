@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/broker-core/cmd/dealerd/metrics"
 	"github.com/textileio/broker-core/cmd/dealerd/service"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
 	logging "github.com/textileio/go-log/v2"
@@ -37,6 +38,7 @@ func init() {
 			DefValue:    int64(0),
 			Description: "Maximum price accepted for unverified deals",
 		},
+		{Name: "relay-maddr", DefValue: "", Description: "Relay multiaddress for remote wallets"},
 		{Name: "mock", DefValue: false, Description: "Provides a mocked behavior"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
@@ -83,13 +85,14 @@ var rootCmd = &cobra.Command{
 			AllowUnverifiedDeals:             v.GetBool("allow-unverified-deals"),
 			MaxVerifiedPricePerGiBPerEpoch:   v.GetInt64("max-verified-price-per-gib-per-epoch"),
 			MaxUnverifiedPricePerGiBPerEpoch: v.GetInt64("max-unverified-price-per-gib-per-epoch"),
+			RelayMaddr:                       v.GetString("relay-maddr"),
 
 			Mock: v.GetBool("mock"),
 		}
 		projectID := v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "dealerd")
+		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "dealerd", metrics.Meter)
 		common.CheckErrf("creating google pubsub client: %s", err)
 
 		serv, err := service.New(mb, config)

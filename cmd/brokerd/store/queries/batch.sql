@@ -73,3 +73,21 @@ INSERT INTO batch_tags (batch_id,key,value) VALUES ($1,$2,$3);
 -- name: GetBatchTags :many
 SELECT * FROM batch_tags
 WHERE batch_id=$1;
+
+-- name: GetBatchRemoteWallet :one
+SELECT * FROM batch_remote_wallet
+WHERE batch_id=$1;
+
+-- name: CreateBatchRemoteWallet :exec
+INSERT INTO batch_remote_wallet (
+	batch_id,
+	peer_id,
+	auth_token,
+	wallet_addr,
+	multiaddrs
+        ) VALUES (
+	$1,
+	$2,
+	$3,
+	$4,
+	$5);

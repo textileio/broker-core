@@ -17,6 +17,7 @@ message CreatePreparedStorageRequestRequest {
   string cid = 1;
   PreparedCAR prepared_car = 2;
   Metadata metadata = 3;
+  RemoteWallet remote_wallet = 4;
 
   message Metadata {
     string origin = 1;
@@ -87,6 +88,7 @@ message ReadyToAuction {
     uint64 fil_epoch_deadline = 9;
     Sources sources = 10;
 }
+
 message ReadyToCreateDeals {
   string id = 1;
   string batch_id = 2;
@@ -95,6 +97,7 @@ message ReadyToCreateDeals {
   uint64 piece_size = 5;
   uint64 duration = 6;
   repeated Proposal proposals = 7;
+  RemoteWallet remote_wallet = 8;
 
   message Proposal {
     string storage_provider_id = 1;
@@ -104,8 +107,15 @@ message ReadyToCreateDeals {
     bool fast_retrieval = 5;
     string auction_id = 6;
     string bid_id = 7;
-  }
+  } 
 }
+
+message RemoteWallet {
+    string peer_id = 1;
+    string auth_token = 2;
+    string wallet_addr = 3;
+    repeated string multiaddrs = 4;
+  }
 
 message ReadyToBatch {
   string operation_id = 1;

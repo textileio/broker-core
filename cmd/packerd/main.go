@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/bidbot/lib/common"
+	"github.com/textileio/broker-core/cmd/packerd/metrics"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	"github.com/textileio/broker-core/cmd/packerd/packer/gcpblob"
 	"github.com/textileio/broker-core/cmd/packerd/service"
@@ -93,7 +94,7 @@ var rootCmd = &cobra.Command{
 		projectID = v.GetString("gpubsub-project-id")
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
-		mb, err := gpubsub.New(projectID, apiKey, topicPrefix, "packerd")
+		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "packerd", metrics.Meter)
 		common.CheckErr(err)
 
 		serv, err := service.New(mb, config)

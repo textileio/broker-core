@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
@@ -341,6 +343,39 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 					BidID:               auction.BidID(t.BidId),
 				}
 			}
+			if r.RemoteWallet != nil {
+				peerID, err := peer.Decode(r.RemoteWallet.PeerId)
+				if err != nil {
+					return fmt.Errorf("decoding peer-id: %s", err)
+				}
+				if err := peerID.Validate(); err != nil {
+					return fmt.Errorf("peer id is invalid: %s", err)
+				}
+				if r.RemoteWallet.AuthToken == "" {
+					return errors.New("remote wallet auth token is empty")
+				}
+				waddr, err := address.NewFromString(r.RemoteWallet.WalletAddr)
+				if err != nil {
+					return fmt.Errorf("decoding wallet addr %s: %s", r.RemoteWallet.WalletAddr, err)
+				}
+				if waddr.Empty() {
+					return errors.New("remote wallet wallet addr is empty")
+				}
+				maddrs := make([]multiaddr.Multiaddr, len(r.RemoteWallet.Multiaddrs))
+				for i, strmaddr := range r.RemoteWallet.Multiaddrs {
+					maddr, err := multiaddr.NewMultiaddr(strmaddr)
+					if err != nil {
+						return fmt.Errorf("parsing multiaddr %s: %s", strmaddr, err)
+					}
+					maddrs[i] = maddr
+				}
+				ads.RemoteWallet = &broker.RemoteWallet{
+					PeerID:     peerID,
+					AuthToken:  r.RemoteWallet.AuthToken,
+					WalletAddr: waddr,
+					Multiaddrs: maddrs,
+				}
+			}
 			if err := l.OnReadyToCreateDeals(ctx, ads); err != nil {
 				return fmt.Errorf("calling ready-to-create-deals handler: %s", err)
 			}
@@ -656,6 +691,29 @@ func PublishMsgReadyToCreateDeals(
 			BidId:               string(t.BidID),
 		}
 	}
+	if ads.RemoteWallet != nil {
+		if err := ads.RemoteWallet.PeerID.Validate(); err != nil {
+			return fmt.Errorf("remote wallet peer-id is invalid: %s", err)
+		}
+		if ads.RemoteWallet.AuthToken == "" {
+			return errors.New("remote wallet auth-token is empty")
+		}
+		if ads.RemoteWallet.WalletAddr.Empty() {
+			return errors.New("remote wallet wallet address is empty")
+		}
+		maddrs := make([]string, len(ads.RemoteWallet.Multiaddrs))
+		for i, maddr := range ads.RemoteWallet.Multiaddrs {
+			maddrs[i] = maddr.String()
+		}
+
+		msg.RemoteWallet = &pb.RemoteWallet{
+			PeerId:     ads.RemoteWallet.PeerID.String(),
+			AuthToken:  ads.RemoteWallet.AuthToken,
+			WalletAddr: ads.RemoteWallet.WalletAddr.String(),
+			Multiaddrs: maddrs,
+		}
+	}
+
 	return marshalAndPublish(ctx, mb, ReadyToCreateDealsTopic, msg)
 }
 

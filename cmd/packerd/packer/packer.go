@@ -18,6 +18,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/packerd/store"
 	"github.com/textileio/broker-core/ipfsutil"
+	"github.com/textileio/broker-core/metrics"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/storeutil"
 	logger "github.com/textileio/go-log/v2"
@@ -195,11 +196,13 @@ func (p *Packer) daemon() {
 				count, err := p.pack(p.daemonCtx)
 				if err != nil {
 					log.Errorf("packing: %s", err)
+					p.metricNewBatch.Add(p.daemonCtx, 1, metrics.AttrOK)
 					break
 				}
 				if count == 0 {
 					break
 				}
+				p.metricNewBatch.Add(p.daemonCtx, 1, metrics.AttrError)
 			}
 		}
 	}
@@ -215,8 +218,8 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	if !ok {
 		return 0, nil
 	}
-	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 
+	log.Debugf("preparing ready batch-id %s with %d storage-request", batchID, len(srs))
 	start := time.Now()
 	batchCid, manifest, carURL, err := p.createDAGForBatch(ctx, srs)
 	if err != nil {
@@ -244,7 +247,6 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 	}
 
 	label := attribute.String("origin", origin)
-	p.metricNewBatch.Add(ctx, 1, label)
 	p.metricBatchSizeTotal.Add(ctx, batchSize, label)
 	p.statLastBatch = time.Now()
 	p.statLastBatchCount = int64(len(srIDs))

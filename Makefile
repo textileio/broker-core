@@ -3,6 +3,7 @@ include .bingo/Variables.mk
 .DEFAULT_GOAL=build
 
 HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
+PLATFORM ?= $(shell uname -m)
 
 BIN_BUILD_FLAGS?=CGO_ENABLED=0
 BIN_VERSION?="git"
@@ -60,6 +61,10 @@ build-dealerd: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/dealerd
 .PHONY: build-dealerd
 
+build-relayd: $(GOVVV)
+	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/relayd
+.PHONY: build-relayd
+
 install: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go install -ldflags="${GOVVV_FLAGS}" ./...
 .PHONY: install
@@ -80,12 +85,11 @@ define gen_release_files
 endef
 
 up:
-	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build
+	sed "s/{{platform}}/$(PLATFORM)/g" docker-compose-dev.yml | COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f - up --build
 .PHONY: up
 
 up-patched:
-	./tests/buildx_patch.sh
-	COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose-dev.yml up --build -V
+	./tests/buildx_patch.sh && make up
 .PHONY: up-patched
 
 down:
@@ -152,5 +156,5 @@ define docker_push_daemon_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneer auth broker dealer chainapis/near chainapis/eth chainapis/poly packer piecer storage gql);
+	$(call docker_push_daemon_head,auctioneer auth broker dealer chainapis/near chainapis/eth chainapis/poly packer piecer storage relay gql);
 .PHONY: docker-push-head

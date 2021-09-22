@@ -11,10 +11,84 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/ipfs/go-cid"
+	"github.com/jsign/go-filsigner/wallet"
+	"github.com/libp2p/go-libp2p"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p-core/peer"
+	swarmt "github.com/libp2p/go-libp2p-swarm/testing"
+	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
+	"github.com/textileio/go-auctions-client/localwallet"
+	"github.com/textileio/go-auctions-client/propsigner"
 )
+
+func TestRemoteSigning(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Libp2p hosts wiring.
+	h1 := bhost.New(swarmt.GenSwarm(t, ctx)) // dealer
+	h2 := bhost.New(swarmt.GenSwarm(t, ctx)) // remote wallet
+	err := h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
+	require.NoError(t, err)
+
+	// Remote wallet config.
+	walletKeys := []string{
+		// Secp256k1 exported private key in Lotus format.
+		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
+	}
+	authToken := "veryhardtokentoguess"
+	lwallet, err := localwallet.New(walletKeys)
+	require.NoError(t, err)
+
+	err = propsigner.NewDealSignerService(h2, authToken, lwallet)
+	require.NoError(t, err)
+
+	// Dealer filclient.
+	client, err := New(createFilClient(t), h1, WithMaxPriceLimits(10, 10))
+	require.NoError(t, err)
+
+	// Create proposal targeting remote wallet.
+	pieceCid, err := cid.Decode("baga6ea4seaqmj45fgnl36bep72gnf4ib5degrslzuq6zyk2hjbhakt6cas464pi")
+	require.NoError(t, err)
+	payloadCid, err := cid.Decode("uAXASIFxC4XOlV43b01pJO6ptOSxf8E_JjXhQXdgW-oMQxkUF")
+	require.NoError(t, err)
+	ad := store.AuctionData{
+		PayloadCid: payloadCid,
+		PieceCid:   pieceCid,
+		PieceSize:  34359738368,
+		Duration:   525600,
+	}
+	aud := store.AuctionDeal{
+		StorageProviderID:   "f01278",
+		PricePerGibPerEpoch: 0,
+		StartEpoch:          754395,
+		Verified:            true,
+		FastRetrieval:       true,
+		AuctionID:           "auction-1",
+		BidID:               "bid-1",
+	}
+	maddrs := make([]string, len(h2.Addrs()))
+	for i, maddr := range h2.Addrs() {
+		maddrs[i] = maddr.String()
+	}
+	waddrPubKey, err := wallet.PublicKey(walletKeys[0])
+	require.NoError(t, err)
+	rw := &store.RemoteWallet{
+		PeerID:     h2.ID().String(),
+		AuthToken:  authToken,
+		WalletAddr: waddrPubKey.String(),
+		Multiaddrs: maddrs,
+	}
+	sp, err := client.createDealProposal(ctx, ad, aud, rw)
+	require.NoError(t, err)
+
+	// Validate signature.
+	err = validateSignature(sp.DealProposal.Proposal, &sp.DealProposal.ClientSignature)
+	require.NoError(t, err)
+}
 
 func TestExecuteAuctionDeal(t *testing.T) {
 	t.Parallel()
@@ -43,7 +117,7 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	propCid, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud)
+	propCid, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
 	require.NoError(t, err)
 	require.False(t, retry)
 	fmt.Printf("propCid: %s", propCid)
@@ -80,9 +154,9 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proposalCid, err := cid.Decode("bafyreibru2chqj7wanixo6m5qnmamovvgby7672ws3yojzyttimu7fl72q")
+	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f01278", proposalCid)
+	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid)
 	require.NoError(t, err)
 	fmt.Printf("%s\n", logging.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])
@@ -100,11 +174,12 @@ func TestGetChainHeight(t *testing.T) {
 	require.Greater(t, height, uint64(0))
 }
 
-func create(t *testing.T) *FilClient {
+func createFilClient(t *testing.T) *v0api.FullNodeStruct {
 	var api v0api.FullNodeStruct
 	closer, err := jsonrpc.NewMergeClient(context.Background(), "https://api.node.glif.io", "Filecoin",
 		[]interface{}{
 			&api.CommonStruct.Internal,
+			&api.NetStruct.Internal,
 			&api.Internal,
 		},
 		http.Header{},
@@ -112,10 +187,18 @@ func create(t *testing.T) *FilClient {
 	require.NoError(t, err)
 	t.Cleanup(closer)
 
+	return &api
+}
+
+func create(t *testing.T) *FilClient {
+	api := createFilClient(t)
 	exportedKey := "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349" +
 		"586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d"
+	h, err := libp2p.New(context.Background(),
+		libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
+	)
 	require.NoError(t, err)
-	client, err := New(&api, WithExportedKey(exportedKey))
+	client, err := New(api, h, WithExportedKey(exportedKey))
 	require.NoError(t, err)
 
 	return client

@@ -18,6 +18,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	store "github.com/textileio/broker-core/cmd/piecerd/store"
 	"github.com/textileio/broker-core/ipfsutil"
+	"github.com/textileio/broker-core/metrics"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/metric"
@@ -160,7 +161,9 @@ func (p *Piecer) daemonPreparer() {
 				break
 			}
 
-			if err := p.prepare(p.daemonCtx, usd); err != nil {
+			err = p.prepare(p.daemonCtx, usd)
+			if err != nil {
+				p.metricNewPrepare.Add(p.daemonCtx, 1, metrics.AttrError)
 				log.Errorf("preparing batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
@@ -169,12 +172,14 @@ func (p *Piecer) daemonPreparer() {
 			}
 
 			if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, 0, store.StatusDone); err != nil {
+				p.metricNewPrepare.Add(p.daemonCtx, 1, metrics.AttrError)
 				log.Errorf("deleting batch %s, data-cid %s: %s", usd.BatchID, usd.DataCid, err)
 				if err := p.store.MoveToStatus(p.daemonCtx, usd.BatchID, p.retryDelay, store.StatusPending); err != nil {
 					log.Errorf("moving again to pending: %s", err)
 				}
 				break
 			}
+			p.metricNewPrepare.Add(p.daemonCtx, 1, metrics.AttrOK)
 		}
 	}
 }
@@ -258,7 +263,6 @@ func (p *Piecer) prepare(ctx context.Context, usd store.UnpreparedBatch) error {
 		return fmt.Errorf("publish message to message broker: %s", err)
 	}
 
-	p.metricNewPrepare.Add(ctx, 1)
 	p.statLastPrepared = time.Now()
 	p.statLastSize = int64(dpr.PieceSize)
 	p.statLastDurationSeconds = int64(duration)

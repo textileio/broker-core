@@ -76,10 +76,11 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 
 func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.AuctionDeal,
 	currentChainHeight uint64) error {
-	dealID, status, stillHaveTime := d.tryResolvingDealID(aud, currentChainHeight)
+	dealID, status := d.tryResolvingDealID(aud)
 	if status != storagemarket.StorageDealUnknown {
 		aud.DealMarketStatus = status
 	}
+	stillHaveTime := aud.StartEpoch >= currentChainHeight
 
 	if aud.DealID == 0 {
 		log.Debugf("%s deal without deal-id, trying resolving with storage-provider %s",
@@ -176,20 +177,18 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 // It asks the storage-provider for the message Cid that published the deal. If a DealID is returned,
 // we can be sure is the correct one for AuctionDeal, since this method checks that the storage-provider
 // isn't playing tricks reporting a DealID from other data.
-func (d *Dealer) tryResolvingDealID(
-	aud store.AuctionDeal,
-	currentChainEpoch uint64) (int64, storagemarket.StorageDealStatus, bool) {
+func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal) (int64, storagemarket.StorageDealStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	proposalCid, err := cid.Parse(aud.ProposalCid)
 	if err != nil {
 		log.Errorf("parsing proposal cid: %s", err)
-		return 0, 0, true
+		return 0, 0
 	}
 	pds, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid)
 	if err != nil {
 		log.Infof("checking deal status with storage-provider: %s", err)
-		return 0, 0, true
+		return 0, 0
 	}
 	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[pds.State])
 
@@ -201,15 +200,14 @@ func (d *Dealer) tryResolvingDealID(
 		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, proposalCid, *pds.PublishCid)
 		if err != nil {
 			log.Errorf("trying to resolve deal-id from message %s: %s", pds.PublishCid, err)
-			return 0, pds.State, true
+			return 0, pds.State
 		}
 		// Could we resolve by looking to the chain?, if yes, save it.
 		// If no, no problem... we'll try again later when it might get confirmed.
 		if dealID > 0 {
-			return dealID, pds.State, true
+			return dealID, pds.State
 		}
 	}
 
-	// Try our best but still can't know about the deal-id, return if there's still time to find out.
-	return 0, pds.State, aud.StartEpoch > currentChainEpoch
+	return 0, pds.State
 }

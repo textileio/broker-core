@@ -1,18 +1,19 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- apid.yaml
-- auctioneerd.yaml
-- auctioneerd-service.yaml
-- authd.yaml
-- brokerd.yaml
-- dealerd.yaml
-- gqld.yaml
-- ingress.yaml
-- postgres.yaml
-- neard.yaml
-- ethd.yaml
-- polyd.yaml
-- packerd.yaml
-- storaged.yaml
-- piecer.yaml
+  - apid.yaml
+  - auctioneerd-service.yaml
+  - auctioneerd.yaml
+  - authd.yaml
+  - brokerd.yaml
+  - dealerd.yaml
+  - gqld.yaml
+  - ethd.yaml
+  - ingress.yaml
+  - neard.yaml
+  - packerd.yaml
+  - piecer.yaml
+  - polyd.yaml
+  - postgres.yaml
+  - relayd.yaml
+  - storaged.yaml

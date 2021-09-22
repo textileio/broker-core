@@ -43,3 +43,5 @@ overrides:
   - column: "batch_tags.batch_id"
     go_type: "github.com/textileio/broker-core/broker.BatchID"
 
+  - column: "batch_remote_wallet.batch_id"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"

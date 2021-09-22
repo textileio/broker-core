@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
@@ -128,9 +130,7 @@ func TestCreateBatch(t *testing.T) {
 func TestCreatePrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	b, mb, _ := createBroker(t)
 
-	// 1- Create some prepared data setup.
 	deadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
 	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 	carURLStr := "https://duke.dog/car/" + payloadCid.String()
@@ -152,66 +152,102 @@ func TestCreatePrepared(t *testing.T) {
 			},
 		},
 	}
-	expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
-	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta)
-	require.NoError(t, err)
 
-	// 2- Check that the created StorageRequest moved directly to Auctioning.
-	br, err := b.store.GetStorageRequest(ctx, createdBr.ID)
-	require.NoError(t, err)
-	require.Equal(t, broker.RequestAuctioning, br.Status)
-	require.NotEmpty(t, br.BatchID)
-
-	// 3- Check that the batch was created correctly, in particular:
-	//    - The download sources URL and IPFS.
-	//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
-	//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
-	sd, err := b.GetBatch(ctx, br.BatchID)
-	require.NoError(t, err)
-	require.Equal(t, pc.RepFactor, sd.RepFactor)
-	require.True(t, sd.DisallowRebatching)
-	require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
-	require.Equal(t, broker.BatchStatusAuctioning, sd.Status)
-	brs, err := b.store.GetStorageRequestIDs(ctx, br.BatchID)
-	require.NoError(t, err)
-	require.Len(t, brs, 1)
-	require.Contains(t, brs, br.ID)
-	require.NotNil(t, sd.Sources.CARURL)
-	require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
-	require.NotNil(t, sd.Sources.CARIPFS)
-	require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
-	require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
-	require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
-	deadlineEpoch, _ := timeToFilEpoch(deadline)
-	require.Equal(t, deadlineEpoch, sd.FilEpochDeadline)
-	require.Equal(t, payloadCid, sd.PayloadCid)
-	require.Equal(t, pc.PieceCid, sd.PieceCid)
-	require.Equal(t, pc.PieceSize, sd.PieceSize)
-	require.Len(t, sd.Tags, len(meta.Tags))
-	for k, v := range meta.Tags {
-		v2, ok := sd.Tags[k]
-		require.True(t, ok)
-		require.Equal(t, v, v2)
+	tests := []struct {
+		name string
+		rw   *broker.RemoteWallet
+	}{
+		{
+			name: "without remote wallet",
+			rw:   nil,
+		},
+		{
+			name: "with wallet",
+			rw:   makeRemoteWalletConfig(t),
+		},
 	}
 
-	// 4- Check that we made the call to create the auction.
-	require.Equal(t, 1, mb.TotalPublished())
-	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
-	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
-	require.NoError(t, err)
-	rda := &pb.ReadyToAuction{}
-	err = proto.Unmarshal(data, rda)
-	require.NoError(t, err)
-	require.Equal(t, b.conf.dealDuration, rda.DealDuration)
-	require.Equal(t, payloadCid.Bytes(), rda.PayloadCid)
-	require.Equal(t, sd.PieceSize, rda.DealSize)
-	require.Equal(t, string(sd.ID), rda.BatchId)
-	require.Equal(t, pc.RepFactor, int(rda.DealReplication))
-	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-	require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
-	require.NotNil(t, rda.Sources.CarUrl)
-	require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
-	require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			b, mb, _ := createBroker(t)
+
+			expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
+			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta, test.rw)
+			require.NoError(t, err)
+
+			// 2- Check that the created StorageRequest moved directly to Auctioning.
+			br, err := b.store.GetStorageRequest(ctx, createdBr.ID)
+			require.NoError(t, err)
+			require.Equal(t, broker.RequestAuctioning, br.Status)
+			require.NotEmpty(t, br.BatchID)
+
+			// 3- Check that the batch was created correctly, in particular:
+			//    - The download sources URL and IPFS.
+			//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
+			//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
+			sd, err := b.GetBatch(ctx, br.BatchID)
+			require.NoError(t, err)
+			require.Equal(t, pc.RepFactor, sd.RepFactor)
+			require.True(t, sd.DisallowRebatching)
+			require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
+			require.Equal(t, broker.BatchStatusAuctioning, sd.Status)
+			brs, err := b.store.GetStorageRequestIDs(ctx, br.BatchID)
+			require.NoError(t, err)
+			require.Len(t, brs, 1)
+			require.Contains(t, brs, br.ID)
+			require.NotNil(t, sd.Sources.CARURL)
+			require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
+			require.NotNil(t, sd.Sources.CARIPFS)
+			require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
+			require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
+			require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
+			deadlineEpoch, _ := timeToFilEpoch(deadline)
+			require.Equal(t, deadlineEpoch, sd.FilEpochDeadline)
+			require.Equal(t, payloadCid, sd.PayloadCid)
+			require.Equal(t, pc.PieceCid, sd.PieceCid)
+			require.Equal(t, pc.PieceSize, sd.PieceSize)
+			require.Len(t, sd.Tags, len(meta.Tags))
+			for k, v := range meta.Tags {
+				v2, ok := sd.Tags[k]
+				require.True(t, ok)
+				require.Equal(t, v, v2)
+			}
+			rw, err := b.store.GetRemoteWalletConfig(ctx, br.BatchID)
+			require.NoError(t, err)
+			if test.rw == nil {
+				// Check that we don't have stored information.
+				require.Nil(t, rw)
+			} else {
+				require.NotNil(t, rw)
+				// If used remote wallet, check that we persisted its information.
+				require.Equal(t, test.rw.PeerID, rw.PeerID)
+				require.Equal(t, test.rw.AuthToken, rw.AuthToken)
+				require.Equal(t, test.rw.WalletAddr, rw.WalletAddr)
+				require.Equal(t, test.rw.Multiaddrs, rw.Multiaddrs)
+			}
+
+			// 4- Check that we made the call to create the auction.
+			require.Equal(t, 1, mb.TotalPublished())
+			require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+			data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+			require.NoError(t, err)
+			rda := &pb.ReadyToAuction{}
+			err = proto.Unmarshal(data, rda)
+			require.NoError(t, err)
+			require.Equal(t, b.conf.dealDuration, rda.DealDuration)
+			require.Equal(t, payloadCid.Bytes(), rda.PayloadCid)
+			require.Equal(t, sd.PieceSize, rda.DealSize)
+			require.Equal(t, string(sd.ID), rda.BatchId)
+			require.Equal(t, pc.RepFactor, int(rda.DealReplication))
+			require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
+			require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
+			require.NotNil(t, rda.Sources.CarUrl)
+			require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
+			require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
+		})
+	}
 }
 
 func TestCreateBatchFail(t *testing.T) {
@@ -283,6 +319,8 @@ func TestBatchPrepared(t *testing.T) {
 	sd2, err := b.GetBatch(ctx, sd)
 	require.NoError(t, err)
 	require.Equal(t, broker.BatchStatusAuctioning, sd2.Status)
+	require.Equal(t, dpr.PieceCid, sd2.PieceCid)
+	require.Equal(t, dpr.PieceSize, sd2.PieceSize)
 
 	// 4- Verify that Auctioneer was called to auction the data.
 	require.Equal(t, 3, mb.TotalPublished())
@@ -312,32 +350,92 @@ func TestBatchPrepared(t *testing.T) {
 	require.Equal(t, broker.RequestAuctioning, mbr2.StorageRequest.Status)
 }
 
-func TestBatchAuctionedExactRepFactor(t *testing.T) {
+func TestBatchAuctionedSuccess(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
+
 	b, mb, _ := createBroker(t)
 	b.conf.dealReplication = 2
 
-	// 1- Create two storage requests and a corresponding batch, and
-	//    pass through prepared.
+	// Create two storage requests and a corresponding batch, and
+	// pass through prepared.
 	c := createCidFromString("StorageRequest1")
 	br1, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
 	c = createCidFromString("StorageRequest2")
 	br2, err := b.Create(ctx, c, "OR")
 	require.NoError(t, err)
-	brgCid := createCidFromString("Batch")
-	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
+	batchCid := createCidFromString("Batch")
+	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + batchCid.String())
+	batchID, err := b.CreateNewBatch(ctx, "BATCH1", batchCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.NewBatchPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, batchID, dpr)
 	require.NoError(t, err)
 
-	// 2- Call BatchAuctioned as if the auctioneer did.
+	// Close the auction and assert results.
+	closeSuccessfulAuctionAndAssert(t, b, mb, batchID, batchCid, dpr, []broker.StorageRequestID{br1.ID, br2.ID}, nil)
+}
+
+func TestBatchAuctionedRemoteWalletSuccess(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	b, mb, _ := createBroker(t)
+	b.conf.dealReplication = 2
+
+	deadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+	carURLStr := "https://duke.dog/car/" + payloadCid.String()
+	carURL, _ := url.Parse(carURLStr)
+	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	require.NoError(t, err)
+	pc := broker.PreparedCAR{
+		PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize: 1024,
+		RepFactor: 2,
+		Deadline:  deadline,
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
+				URL: *carURL,
+			},
+			CARIPFS: &auction.CARIPFS{
+				Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+				Multiaddrs: []multiaddr.Multiaddr{maddr},
+			},
+		},
+	}
+
+	dpr := broker.DataPreparationResult{
+		PieceCid:  pc.PieceCid,
+		PieceSize: pc.PieceSize,
+	}
+
+	rw := makeRemoteWalletConfig(t)
+	sr, err := b.CreatePrepared(ctx, payloadCid, pc, meta, rw)
+	require.NoError(t, err)
+
+	// Close the auction and assert results.
+	closeSuccessfulAuctionAndAssert(t, b, mb, sr.BatchID, sr.DataCid, dpr, []broker.StorageRequestID{sr.ID}, rw)
+}
+
+func closeSuccessfulAuctionAndAssert(
+	t *testing.T,
+	b *Broker,
+	mb *fakemsgbroker.FakeMsgBroker,
+	batchID broker.BatchID,
+	batchCid cid.Cid,
+	dpr broker.DataPreparationResult,
+	sdIDs []broker.StorageRequestID,
+	rw *broker.RemoteWallet,
+) {
+	t.Helper()
+	ctx := context.Background()
+
+	// 1- Call BatchAuctioned as if the auctioneer did.
 	winningBids := map[auction.BidID]broker.WinningBid{
 		auction.BidID("Bid1"): {
 			StorageProviderID: "f01111",
@@ -355,39 +453,39 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 
 	a := broker.ClosedAuction{
 		ID:              auction.ID("AUCTION1"),
-		BatchID:         sd,
+		BatchID:         batchID,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		DealVerified:    true,
 		Status:          broker.AuctionStatusFinalized,
 		WinningBids:     winningBids,
 	}
-	err = b.BatchAuctioned(ctx, "op-1", a)
+	err := b.BatchAuctioned(ctx, "op-1", a)
 	require.NoError(t, err)
 	err = b.BatchAuctioned(ctx, "op-1", a)
 	require.ErrorIs(t, err, ErrOperationIDExists)
 
-	// 3- Verify the batch moved to the correct status
-	sd2, err := b.GetBatch(ctx, sd)
+	// 2- Verify the batch moved to the correct status
+	sd2, err := b.GetBatch(ctx, batchID)
 	require.NoError(t, err)
 	require.Equal(t, broker.BatchStatusDealMaking, sd2.Status)
 	require.NotEmpty(t, sd2.ID)
-	deals, err := b.store.GetDeals(ctx, sd)
+	deals, err := b.store.GetDeals(ctx, batchID)
 	require.NoError(t, err)
-	require.Len(t, deals, 2)
+	require.Len(t, deals, len(winningBids))
 	require.Equal(t, int(a.DealReplication), sd2.RepFactor)
 	require.Greater(t, sd2.DealDuration, 0)
 	require.Greater(t, sd2.CreatedAt.Unix(), int64(0))
 	require.Greater(t, sd2.UpdatedAt.Unix(), int64(0))
 	require.Empty(t, sd2.Error)
-	require.Equal(t, brgCid, sd2.PayloadCid)
+	require.Equal(t, batchCid, sd2.PayloadCid)
 	require.Equal(t, dpr.PieceCid, sd2.PieceCid)
 	require.Equal(t, dpr.PieceSize, sd2.PieceSize)
 	for bidID, wb := range winningBids {
 		var found bool
 		for _, deal := range deals {
 			if deal.BidID == bidID {
-				require.Equal(t, sd, deal.BatchID)
+				require.Equal(t, batchID, deal.BatchID)
 				require.Equal(t, a.ID, deal.AuctionID)
 				require.Greater(t, deal.CreatedAt.Unix(), int64(0))
 				require.Greater(t, deal.UpdatedAt.Unix(), int64(0))
@@ -402,7 +500,7 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 		require.True(t, found)
 	}
 
-	// 4- Verify that Dealer was called to execute the winning bids.
+	// 3.a- Verify that Dealer was called to execute the winning bids.
 	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToCreateDealsTopic))
 	msg, err := mb.GetMsg(mbroker.ReadyToCreateDealsTopic, 0)
 	require.NoError(t, err)
@@ -410,8 +508,8 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 	err = proto.Unmarshal(msg, r)
 	require.NoError(t, err)
 
-	require.Equal(t, string(sd), r.BatchId)
-	require.Equal(t, brgCid.Bytes(), r.PayloadCid)
+	require.Equal(t, string(batchID), r.BatchId)
+	require.Equal(t, batchCid.Bytes(), r.PayloadCid)
 	require.Equal(t, dpr.PieceCid.Bytes(), r.PieceCid)
 	require.Equal(t, dpr.PieceSize, r.PieceSize)
 	require.Equal(t, auction.MaxDealDuration, r.Duration)
@@ -434,16 +532,28 @@ func TestBatchAuctionedExactRepFactor(t *testing.T) {
 		require.Equal(t, bid.FastRetrieval, tr.FastRetrieval)
 	}
 
-	// 5- Verify that the underlying storage requests also moved to
-	//    their correct statuses.
-	mbr1, err := b.GetStorageRequestInfo(ctx, br1.ID)
-	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr1.StorageRequest.Status)
-	mbr2, err := b.GetStorageRequestInfo(ctx, br2.ID)
-	require.NoError(t, err)
-	require.Equal(t, broker.RequestDealMaking, mbr2.StorageRequest.Status)
+	// 3.b - If the batch had a remote wallet configured, assert the information
+	//       was included for dealerd.
+	if rw != nil {
+		require.NotNil(t, r.RemoteWallet)
+		require.Equal(t, rw.PeerID.String(), r.RemoteWallet.PeerId)
+		require.Equal(t, rw.AuthToken, r.RemoteWallet.AuthToken)
+		require.Equal(t, rw.WalletAddr.String(), r.RemoteWallet.WalletAddr)
+		require.Len(t, r.RemoteWallet.Multiaddrs, len(rw.Multiaddrs))
+		for _, maddr := range rw.Multiaddrs {
+			require.Contains(t, r.RemoteWallet.Multiaddrs, maddr.String())
+		}
+	}
 
-	// 6- Verify that the auctioneer wasn't called again for a new auction.
+	// 4- Verify that the underlying storage requests also moved to
+	//    their correct statuses.
+	for _, sdID := range sdIDs {
+		sd, err := b.GetStorageRequestInfo(ctx, sdID)
+		require.NoError(t, err)
+		require.Equal(t, broker.RequestDealMaking, sd.StorageRequest.Status)
+	}
+
+	// 5- Verify that the auctioneer wasn't called again for a new auction.
 	//    The replication factor was 2, and we had 2 winning bids so a new auction
 	//    isn't necessary.
 	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
@@ -683,7 +793,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 				},
 			},
 		}
-		br, err := b.CreatePrepared(ctx, payloadCid, pc, meta)
+		br, err := b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
 		require.NoError(t, err)
 
 		winningBids := map[auction.BidID]broker.WinningBid{
@@ -875,6 +985,27 @@ func (dr *dumbChainAPI) clean() {
 func castCid(cidStr string) cid.Cid {
 	c, _ := cid.Decode(cidStr)
 	return c
+}
+
+func makeRemoteWalletConfig(t *testing.T) *broker.RemoteWallet {
+	waddr, err := address.NewFromString(
+		"f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
+	require.NoError(t, err)
+
+	maddr1, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1234")
+	require.NoError(t, err)
+	maddr2, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1235")
+	require.NoError(t, err)
+
+	peerID, err := peer.Decode("Qmf12XE1bSB8SbngTc4Yy8KLNGKT2Nhp2xuj2DFEWX3N5H")
+	require.NoError(t, err)
+
+	return &broker.RemoteWallet{
+		PeerID:     peerID,
+		WalletAddr: waddr,
+		AuthToken:  "auth-token-1",
+		Multiaddrs: []multiaddr.Multiaddr{maddr1, maddr2},
+	}
 }
 
 var meta = broker.BatchMetadata{

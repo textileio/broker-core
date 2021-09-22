@@ -273,6 +273,46 @@ func (q *Queue) GetFinalizedAuctionBid(
 	return matched, nil
 }
 
+// GetProviderFailureRates gets the recent failure rate (wins the auction but
+// fails to make the deal) of storage providers.
+func (q *Queue) GetProviderFailureRates(ctx context.Context) (map[string]int, error) {
+	rows, err := q.db.GetRecentWeekFailureRate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]int, len(rows))
+	for _, row := range rows {
+		ret[row.StorageProviderID] = int(row.FailureRatePpm)
+	}
+	return ret, nil
+}
+
+// GetProviderOnChainEpoches gets the maximum epoches taken to make a deal on chain for storage providers.
+func (q *Queue) GetProviderOnChainEpoches(ctx context.Context) (map[string]uint64, error) {
+	rows, err := q.db.GetRecentWeekMaxOnChainSeconds(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]uint64, len(rows))
+	for _, row := range rows {
+		ret[row.StorageProviderID] = uint64(row.MaxOnChainSeconds) / 30
+	}
+	return ret, nil
+}
+
+// GetProviderWinningRates gets the recent winning rate of storage providers.
+func (q *Queue) GetProviderWinningRates(ctx context.Context) (map[string]int, error) {
+	rows, err := q.db.GetRecentWeekWinningRate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]int, len(rows))
+	for _, row := range rows {
+		ret[row.StorageProviderID] = int(row.WinningRatePpm)
+	}
+	return ret, nil
+}
+
 // SetProposalCidDelivered saves the proposal CID for the bid.
 func (q *Queue) SetProposalCidDelivered(
 	ctx context.Context,
@@ -297,6 +337,17 @@ func (q *Queue) SetProposalCidDeliveryError(
 		ID:                       bidID,
 		AuctionID:                auctionID,
 		ProposalCidDeliveryError: sql.NullString{String: errCause, Valid: true},
+	})
+}
+
+// MarkDealAsConfirmed marks the deal as confirmed by recording its confirmation time.
+func (q *Queue) MarkDealAsConfirmed(
+	ctx context.Context,
+	auctionID auction.ID,
+	bidID auction.BidID) error {
+	return q.db.UpdateDealConfirmedAt(ctx, db.UpdateDealConfirmedAtParams{
+		ID:        bidID,
+		AuctionID: auctionID,
 	})
 }
 

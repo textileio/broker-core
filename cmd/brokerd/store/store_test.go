@@ -77,7 +77,7 @@ func TestCreateBatch(t *testing.T) {
 		Origin:     "ORIGIN-1",
 	}
 	brIDs := []broker.StorageRequestID{br1.ID, br2.ID}
-	err = s.CreateBatch(ctx, &ba, brIDs, []byte("manifest-fake"))
+	err = s.CreateBatch(ctx, &ba, brIDs, []byte("manifest-fake"), nil)
 	require.NoError(t, err)
 
 	// 3- Get the created batch by id, and check that fields are coherent.
@@ -134,7 +134,7 @@ func TestCreateBatchWithoutManifest(t *testing.T) {
 		Origin:     "ORIGIN-1",
 	}
 	brIDs := []broker.StorageRequestID{br1.ID}
-	err = s.CreateBatch(ctx, &ba, brIDs, nil)
+	err = s.CreateBatch(ctx, &ba, brIDs, nil, nil)
 	require.NoError(t, err)
 
 	_, err = s.GetBatchManifest(ctx, ba.ID)
