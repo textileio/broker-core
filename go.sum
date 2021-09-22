@@ -2123,8 +2123,8 @@ github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpP
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954 h1:xQdMZ1WLrgkkvOZ/LDQxjVxMLdby7osSh4ZEVa5sIjs=
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954/go.mod h1:u2MKkTVTVJWe5D1rCvame8WqhBd88EuIwODJZ1VHCPM=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
-github.com/textileio/bidbot v0.0.11-0.20210922134644-91d866b47a35 h1:TFjTPkjE8nGtg9Q26Yz+z7Cldsr8NUoVoT5sUFg7tQc=
-github.com/textileio/bidbot v0.0.11-0.20210922134644-91d866b47a35/go.mod h1:ZtnmMqlURIlgWpVFxaG+TT0B47ZZZVJ/5e2WU4cB/Vo=
+github.com/textileio/bidbot v0.1.0 h1:WMl+jO3LaN5wg129HYt3TEalpIny/leKuyfPxNACALo=
+github.com/textileio/bidbot v0.1.0/go.mod h1:ZtnmMqlURIlgWpVFxaG+TT0B47ZZZVJ/5e2WU4cB/Vo=
 github.com/textileio/cli v1.0.0/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
 github.com/textileio/cli v1.0.1 h1:Ta7QEb6Tb7Ftm9vw9Gx+d6ZaQ8CABE7tb6cLgEUKMHk=
 github.com/textileio/cli v1.0.1/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
