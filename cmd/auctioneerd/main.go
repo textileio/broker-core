@@ -11,14 +11,15 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/filclient"
 	"github.com/textileio/bidbot/lib/peerflags"
 	"github.com/textileio/broker-core/cmd/auctioneerd/auctioneer"
 	"github.com/textileio/broker-core/cmd/auctioneerd/metrics"
 	"github.com/textileio/broker-core/cmd/auctioneerd/service"
 	"github.com/textileio/broker-core/cmd/brokerd/client"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
+	"github.com/textileio/cli"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	golog "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
@@ -41,7 +42,7 @@ func init() {
 
 	rootCmd.AddCommand(initCmd, daemonCmd)
 
-	flags := []common.Flag{
+	flags := []cli.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "Postgres database URI"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "auction-duration", DefValue: time.Second * 30, Description: "Auction duration"},
@@ -64,7 +65,7 @@ func init() {
 		_ = v.ReadInConfig()
 	})
 
-	common.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd.PersistentFlags())
+	cli.ConfigureCLI(v, "AUCTIONEER", flags, rootCmd.PersistentFlags())
 }
 
 var rootCmd = &cobra.Command{
@@ -91,7 +92,7 @@ environment variable:
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		path, err := peerflags.WriteConfig(v, "AUCTIONEER_PATH", defaultConfigPath)
-		common.CheckErrf("writing config: %v", err)
+		cli.CheckErrf("writing config: %v", err)
 		fmt.Printf("Initialized configuration file: %s\n", path)
 	},
 }
@@ -101,8 +102,8 @@ var daemonCmd = &cobra.Command{
 	Short: "Run a network-connected storage deal auctioneer for a broker",
 	Long:  "Run a network-connected storage deal auctioneer for a broker.",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		common.ExpandEnvVars(v, v.AllSettings())
-		err := common.ConfigureLogging(v, []string{
+		cli.ExpandEnvVars(v, v.AllSettings())
+		err := cli.ConfigureLogging(v, []string{
 			daemonName,
 			"auctioneer",
 			"auctioneer/queue",
@@ -111,27 +112,27 @@ var daemonCmd = &cobra.Command{
 			"psrpc/mdns",
 			"psrpc/peer",
 		})
-		common.CheckErrf("setting log levels: %v", err)
+		cli.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
 		pconfig, err := peerflags.GetConfig(v, "AUCTIONEER_PATH", defaultConfigPath, true)
-		common.CheckErrf("getting peer config: %v", err)
+		cli.CheckErrf("getting peer config: %v", err)
 
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"),
+		settings, err := cli.MarshalConfig(v, !v.GetBool("log-json"),
 			"private-key", "wallet-addr-sig", "gpubsub-api-key", "postgres-uri")
-		common.CheckErrf("marshaling config: %v", err)
+		cli.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
 		err = common.SetupInstrumentation(v.GetString("metrics-addr"))
-		common.CheckErrf("booting instrumentation: %v", err)
+		cli.CheckErrf("booting instrumentation: %v", err)
 
 		fin := finalizer.NewFinalizer()
 		broker, err := client.New(v.GetString("broker-addr"), grpc.WithInsecure())
-		common.CheckErrf("dialing broker: %v", err)
+		cli.CheckErrf("dialing broker: %v", err)
 		fin.Add(broker)
 
 		fc, err := filclient.New(v.GetString("lotus-gateway-url"), v.GetBool("fake-mode"))
-		common.CheckErrf("creating chain client: %v", err)
+		cli.CheckErrf("creating chain client: %v", err)
 		fin.Add(fc)
 
 		config := service.Config{
@@ -146,28 +147,28 @@ var daemonCmd = &cobra.Command{
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
 		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "auctioneerd", metrics.Meter)
-		common.CheckErrf("creating google pubsub client: %s", err)
+		cli.CheckErrf("creating google pubsub client: %s", err)
 
 		serv, err := service.New(config, mb, fc)
-		common.CheckErrf("starting service: %v", err)
+		cli.CheckErrf("starting service: %v", err)
 		fin.Add(serv)
 		err = serv.Start(true)
-		common.CheckErrf("creating deal auction feed: %v", err)
+		cli.CheckErrf("creating deal auction feed: %v", err)
 
 		info, err := serv.PeerInfo()
-		common.CheckErrf("getting peer information: %v", err)
+		cli.CheckErrf("getting peer information: %v", err)
 		b, err := json.MarshalIndent(info, "", "\t")
-		common.CheckErrf("marshaling peer information: %v", err)
+		cli.CheckErrf("marshaling peer information: %v", err)
 		log.Infof("peer information:: %s", string(b))
 
 		fin.Add(mb)
 
-		common.HandleInterrupt(func() {
-			common.CheckErr(fin.Cleanupf("closing service: %v", nil))
+		cli.HandleInterrupt(func() {
+			cli.CheckErr(fin.Cleanupf("closing service: %v", nil))
 		})
 	},
 }
 
 func main() {
-	common.CheckErr(rootCmd.Execute())
+	cli.CheckErr(rootCmd.Execute())
 }

@@ -18,7 +18,6 @@ import (
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/datauri/apitest"
 	"github.com/textileio/bidbot/lib/dshelper"
-	"github.com/textileio/bidbot/lib/logging"
 	filclientmocks "github.com/textileio/bidbot/mocks/lib/filclient"
 	lotusclientmocks "github.com/textileio/bidbot/mocks/service/lotusclient"
 	bidbotsrv "github.com/textileio/bidbot/service"
@@ -48,7 +47,7 @@ const (
 )
 
 func init() {
-	if err := logging.SetLogLevels(map[string]golog.LogLevel{
+	if err := golog.SetLogLevels(map[string]golog.LogLevel{
 		"auctioneer":         golog.LevelDebug,
 		"auctioneer/queue":   golog.LevelDebug,
 		"auctioneer/service": golog.LevelDebug,
@@ -84,6 +83,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 		nil,
 		0,
 		sources,
+		"wallet-addr",
 	)
 	require.NoError(t, err)
 }
@@ -113,6 +113,7 @@ func TestClient_GetAuction(t *testing.T) {
 		nil,
 		0,
 		sources,
+		"wallet-addr",
 	)
 	require.NoError(t, err)
 
@@ -134,7 +135,7 @@ func TestClient_RunAuction(t *testing.T) {
 		t.Skip()
 	}
 	s, mb := newClient(t)
-	bots := addBidbots(t, 10)
+	bots := addBidbots(t, 5)
 	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
 	t.Cleanup(gw.Close)
 
@@ -157,6 +158,7 @@ func TestClient_RunAuction(t *testing.T) {
 		nil,
 		0,
 		sources,
+		"wallet-addr",
 	)
 	require.NoError(t, err)
 
@@ -167,7 +169,7 @@ func TestClient_RunAuction(t *testing.T) {
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
 	assert.Empty(t, got.ErrorCause)
-	assert.Len(t, got.Bids, 10)
+	assert.Len(t, got.Bids, 5)
 	require.Len(t, got.WinningBids, 2)
 
 	for id := range got.WinningBids {
@@ -203,10 +205,10 @@ func TestClient_RunAuction(t *testing.T) {
 
 	// Because of libp2p-pubsub-rpc republishing, message can be delivered
 	// more than once.
-	assert.True(t, mb.TotalPublished() >= 18)
+	assert.True(t, mb.TotalPublished() >= 13)
 	for topic, n := range map[msgbroker.TopicName]int{
 		msgbroker.AuctionStartedTopic:              1,
-		msgbroker.AuctionBidReceivedTopic:          10,
+		msgbroker.AuctionBidReceivedTopic:          5,
 		msgbroker.AuctionWinnerSelectedTopic:       2,
 		msgbroker.AuctionWinnerAckedTopic:          2,
 		msgbroker.AuctionProposalCidDeliveredTopic: 2,

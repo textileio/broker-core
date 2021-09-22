@@ -6,8 +6,9 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/storaged/service"
+	"github.com/textileio/broker-core/common"
+	"github.com/textileio/cli"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -18,7 +19,7 @@ var (
 )
 
 func init() {
-	flags := []common.Flag{
+	flags := []cli.Flag{
 		{Name: "http-addr", DefValue: ":8888", Description: "HTTP API listen address"},
 		{Name: "uploader-ipfs-multiaddr", DefValue: "/ip4/127.0.0.1/tcp/5001", Description: "Uploader IPFS API pool"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
@@ -34,7 +35,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, "STORAGE", flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, "STORAGE", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
@@ -42,24 +43,24 @@ var rootCmd = &cobra.Command{
 	Short: "storaged provides a synchronous data uploader endpoint to store data in a Broker",
 	Long:  `storaged provides a synchronous data uploader endpoint to store data in a Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		common.ExpandEnvVars(v, v.AllSettings())
-		err := common.ConfigureLogging(v, nil)
-		common.CheckErrf("setting log levels: %v", err)
+		cli.ExpandEnvVars(v, v.AllSettings())
+		err := cli.ConfigureLogging(v, nil)
+		cli.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"))
-		common.CheckErr(err)
+		settings, err := cli.MarshalConfig(v, !v.GetBool("log-json"))
+		cli.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		ipfsMultiaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
+		ipfsMultiaddrsStr := cli.ParseStringSlice(v, "ipfs-multiaddrs")
 		ipfsMultiaddrs := make([]multiaddr.Multiaddr, len(ipfsMultiaddrsStr))
 		for i, maStr := range ipfsMultiaddrsStr {
 			ma, err := multiaddr.NewMultiaddr(maStr)
-			common.CheckErrf("parsing multiaddress %s: %s", err)
+			cli.CheckErrf("parsing multiaddress %s: %s", err)
 			ipfsMultiaddrs[i] = ma
 		}
 		serviceConfig := service.Config{
@@ -74,11 +75,11 @@ var rootCmd = &cobra.Command{
 			RelayMaddr:            v.GetString("relay-maddr"),
 		}
 		serv, err := service.New(serviceConfig)
-		common.CheckErr(err)
+		cli.CheckErr(err)
 
 		log.Info("listening to requests...")
 
-		common.HandleInterrupt(func() {
+		cli.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing http endpoint: %s", err)
 			}
@@ -87,5 +88,5 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	common.CheckErr(rootCmd.Execute())
+	cli.CheckErr(rootCmd.Execute())
 }

@@ -115,6 +115,7 @@ func (s *Service) OnReadyToAuction(
 	excludedStorageProviders []string,
 	filEpochDeadline uint64,
 	sources auction.Sources,
+	clientAddress string,
 ) error {
 	_, err := s.lib.GetAuction(ctx, id)
 	if err == nil {
@@ -134,6 +135,7 @@ func (s *Service) OnReadyToAuction(
 		ExcludedStorageProviders: excludedStorageProviders,
 		FilEpochDeadline:         filEpochDeadline,
 		Sources:                  sources,
+		ClientAddress:            clientAddress,
 	})
 	if err != nil {
 		return fmt.Errorf("processing ready-to-auction msg: %s", err)

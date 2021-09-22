@@ -11,7 +11,7 @@ import (
 )
 
 // SigningMethodEth implements the ETH signing method.
-// Expects *ecdsa.PrivateKey for signing and common.Address for validation.
+// Expects *ecdsa.PrivateKey for signing and cli.Address for validation.
 type SigningMethodEth struct {
 	Name string
 }
@@ -44,7 +44,7 @@ func (m *SigningMethodEth) Alg() string {
 }
 
 // Verify implements the Verify method from SigningMethod.
-// For this signing method, must be a common.Address.
+// For this signing method, must be a cli.Address.
 func (m *SigningMethodEth) Verify(signingString, signature string, address interface{}) error {
 	// Decode the signature
 	sig, err := jwt.DecodeSegment(signature)

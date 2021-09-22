@@ -9,12 +9,13 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/metrics"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/registryclient"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/releaser"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/service"
+	"github.com/textileio/broker-core/common"
+	"github.com/textileio/cli"
 	logging "github.com/textileio/go-log/v2"
 	api "github.com/textileio/near-api-go"
 	"github.com/textileio/near-api-go/keys"
@@ -28,7 +29,7 @@ var (
 	cv         = viper.New()
 )
 
-var flags = []common.Flag{
+var flags = []cli.Flag{
 	{Name: "config-path", DefValue: "./neard.yaml", Description: "Path to the config file"},
 	{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 	{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
@@ -36,7 +37,7 @@ var flags = []common.Flag{
 }
 
 func init() {
-	common.ConfigureCLI(v, "NEAR", flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, "NEAR", flags, rootCmd.Flags())
 
 	_ = cv.BindPFlag("listen-addr", rootCmd.Flags().Lookup("listen-addr"))
 	_ = cv.BindPFlag("log-debug", rootCmd.Flags().Lookup("log-debug"))
@@ -48,19 +49,19 @@ var rootCmd = &cobra.Command{
 	Short: "neard provides an api to the near blockchain",
 	Long:  `neard provides an api to the near blockchain`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		common.ExpandEnvVars(v, v.AllSettings())
-		err := common.ConfigureLogging(v, nil)
-		common.CheckErrf("setting log levels: %v", err)
+		cli.ExpandEnvVars(v, v.AllSettings())
+		err := cli.ConfigureLogging(v, nil)
+		cli.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
 		cv.SetConfigFile(v.GetString("config-path"))
 
 		err := cv.ReadInConfig()
-		common.CheckErrf("reading config: %v", err)
+		cli.CheckErrf("reading config: %v", err)
 
 		// Obfuscating chain-apis since the nested map values contain private keys
-		settings, err := common.MarshalConfig(cv, !cv.GetBool("log-json"), "chain-apis")
-		common.CheckErrf("marshaling config: %v", err)
+		settings, err := cli.MarshalConfig(cv, !cv.GetBool("log-json"), "chain-apis")
+		cli.CheckErrf("marshaling config: %v", err)
 		log.Infof("loaded config: %s", string(settings))
 
 		listenAddr := cv.GetString("listen-addr")
@@ -68,7 +69,7 @@ var rootCmd = &cobra.Command{
 		chainApisMap := cv.GetStringMap("chain-apis")
 
 		err = common.SetupInstrumentation(metricsAddr)
-		common.CheckErrf("booting instrumentation: %v", err)
+		cli.CheckErrf("booting instrumentation: %v", err)
 
 		rpcClients := []*rpc.Client{}
 		registryClients := make(map[string]*registryclient.Client)
@@ -88,13 +89,13 @@ var rootCmd = &cobra.Command{
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			rpcClient, err := rpc.DialContext(ctx, endpoint)
 			cancel()
-			common.CheckErrf("dialing endpoint: %v", err)
+			cli.CheckErrf("dialing endpoint: %v", err)
 
 			var signer keys.KeyPair
 			if clientPrivateKey != "" {
 				var err error
 				signer, err = keys.NewKeyPairFromString(clientPrivateKey)
-				common.CheckErrf("parsing private key: %v", err)
+				cli.CheckErrf("parsing private key: %v", err)
 			}
 
 			nearClient, err := api.NewClient(&types.Config{
@@ -102,16 +103,16 @@ var rootCmd = &cobra.Command{
 				RPCClient: rpcClient,
 				Signer:    signer,
 			})
-			common.CheckErrf("creating near client: %v", err)
+			cli.CheckErrf("creating near client: %v", err)
 
 			registryClient, err := registryclient.NewClient(nearClient, registryContractAddress, clientAddress)
-			common.CheckErrf("creating registry contract client: %v", err)
+			cli.CheckErrf("creating registry contract client: %v", err)
 
 			providerClient, err := providerclient.NewClient(nearClient, providerContractAddress, clientAddress)
-			common.CheckErrf("creating provider contract client: %v", err)
+			cli.CheckErrf("creating provider contract client: %v", err)
 
 			releaser, err := releaser.New(providerClient, chainID, releaseDepositsFreq, timeout)
-			common.CheckErrf("creating releaser: %v", err)
+			cli.CheckErrf("creating releaser: %v", err)
 
 			m := metrics.New(registryClient, providerClient, chainID)
 
@@ -123,10 +124,10 @@ var rootCmd = &cobra.Command{
 		}
 
 		if len(registryClients) == 0 {
-			common.CheckErr(errors.New("no registry contract clients resolved"))
+			cli.CheckErr(errors.New("no registry contract clients resolved"))
 		}
 		if len(providerClients) == 0 {
-			common.CheckErr(errors.New("no provider contract clients resolved"))
+			cli.CheckErr(errors.New("no provider contract clients resolved"))
 		}
 
 		// Keep the linter happy
@@ -135,12 +136,12 @@ var rootCmd = &cobra.Command{
 
 		log.Info("Starting service...")
 		listener, err := net.Listen("tcp", listenAddr)
-		common.CheckErrf("creating listener: %v", err)
+		cli.CheckErrf("creating listener: %v", err)
 
 		service, err := service.NewService(listener, providerClients)
-		common.CheckErrf("creating service: %v", err)
+		cli.CheckErrf("creating service: %v", err)
 
-		common.HandleInterrupt(func() {
+		cli.HandleInterrupt(func() {
 			for _, rpcClient := range rpcClients {
 				rpcClient.Close()
 			}
@@ -157,5 +158,5 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	common.CheckErrf("executing root cmd: %v", rootCmd.Execute())
+	cli.CheckErrf("executing root cmd: %v", rootCmd.Execute())
 }

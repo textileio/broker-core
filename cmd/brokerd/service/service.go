@@ -14,12 +14,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/bidbot/lib/datauri"
 	"github.com/textileio/broker-core/broker"
 	brokeri "github.com/textileio/broker-core/cmd/brokerd/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/msgbroker"
 	logger "github.com/textileio/go-log/v2"
 
@@ -41,9 +41,10 @@ type Config struct {
 
 	IPFSAPIMultiaddr string
 
-	DealDuration    uint64
-	DealReplication uint32
-	VerifiedDeals   bool
+	DealDuration         uint64
+	DealReplication      uint32
+	DefaultWalletAddress string
+	VerifiedDeals        bool
 
 	AuctionMaxRetries int
 	AuctionDuration   time.Duration
@@ -75,6 +76,10 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getting net listener: %v", err)
 	}
+	defaultWalletAddress, err := address.NewFromString(config.DefaultWalletAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid default wallet address: %v", err)
+	}
 
 	ma, err := multiaddr.NewMultiaddr(config.IPFSAPIMultiaddr)
 	if err != nil {
@@ -91,6 +96,7 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		mb,
 		brokeri.WithDealDuration(config.DealDuration),
 		brokeri.WithDealReplication(config.DealReplication),
+		brokeri.WithDefaultWalletAddress(defaultWalletAddress),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
 		brokeri.WithAuctionDuration(config.AuctionDuration),

@@ -6,12 +6,13 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/packerd/metrics"
 	"github.com/textileio/broker-core/cmd/packerd/packer"
 	"github.com/textileio/broker-core/cmd/packerd/packer/gcpblob"
 	"github.com/textileio/broker-core/cmd/packerd/service"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
+	"github.com/textileio/cli"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -22,7 +23,7 @@ var (
 )
 
 func init() {
-	flags := []common.Flag{
+	flags := []cli.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "broker-addr", DefValue: "", Description: "Broker API address"},
 		{Name: "pinner-multiaddr", DefValue: "", Description: "IPFS cluster pinner multiaddr"},
@@ -41,7 +42,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, "PACKER", flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, "PACKER", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
@@ -49,24 +50,24 @@ var rootCmd = &cobra.Command{
 	Short: "packerd handles deal auctions for the Broker",
 	Long:  "packerd handles deal auctions for the Broker",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		common.ExpandEnvVars(v, v.AllSettings())
-		err := common.ConfigureLogging(v, nil)
-		common.CheckErrf("setting log levels: %v", err)
+		cli.ExpandEnvVars(v, v.AllSettings())
+		err := cli.ConfigureLogging(v, nil)
+		cli.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "postgres-uri")
-		common.CheckErr(err)
+		settings, err := cli.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key", "postgres-uri")
+		cli.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
 			log.Fatalf("booting instrumentation: %s", err)
 		}
 
-		ipfsMaddrsStr := common.ParseStringSlice(v, "ipfs-multiaddrs")
+		ipfsMaddrsStr := cli.ParseStringSlice(v, "ipfs-multiaddrs")
 		ipfsMaddrs := make([]multiaddr.Multiaddr, len(ipfsMaddrsStr))
 		for i, maStr := range ipfsMaddrsStr {
 			ma, err := multiaddr.NewMultiaddr(maStr)
-			common.CheckErrf("parsing multiaddress %s: %s", err)
+			cli.CheckErrf("parsing multiaddress %s: %s", err)
 			ipfsMaddrs[i] = ma
 		}
 
@@ -74,7 +75,7 @@ var rootCmd = &cobra.Command{
 		var carUploader packer.CARUploader
 		if projectID != "" {
 			carUploader, err = gcpblob.New(projectID)
-			common.CheckErr(err)
+			cli.CheckErr(err)
 		}
 
 		config := service.Config{
@@ -95,12 +96,12 @@ var rootCmd = &cobra.Command{
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
 		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "packerd", metrics.Meter)
-		common.CheckErr(err)
+		cli.CheckErr(err)
 
 		serv, err := service.New(mb, config)
-		common.CheckErr(err)
+		cli.CheckErr(err)
 
-		common.HandleInterrupt(func() {
+		cli.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
 			}
@@ -112,5 +113,5 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	common.CheckErr(rootCmd.Execute())
+	cli.CheckErr(rootCmd.Execute())
 }
