@@ -63,15 +63,15 @@ type Broker struct {
 	lock    sync.Mutex
 	entropy *ulid.MonotonicEntropy
 
-	metricStartedAuctions              metric.Int64Counter
-	metricStartedBytes                 metric.Int64Counter
-	metricFinishedAuctions             metric.Int64Counter
-	metricFinishedBytes                metric.Int64Counter
-	metricRebatches                    metric.Int64Counter
-	metricRebatchedBytes               metric.Int64Counter
-	metricBatchAuctionsDurationMinutes metric.Int64ValueRecorder
-	metricReauctions                   metric.Int64Counter
-	metricReauctionedBytes             metric.Int64Counter
+	metricStartedAuctions      metric.Int64Counter
+	metricStartedBytes         metric.Int64Counter
+	metricFinishedAuctions     metric.Int64Counter
+	metricFinishedBytes        metric.Int64Counter
+	metricRebatches            metric.Int64Counter
+	metricRebatchedBytes       metric.Int64Counter
+	metricBatchFinalityMinutes metric.Int64ValueRecorder
+	metricReauctions           metric.Int64Counter
+	metricReauctionedBytes     metric.Int64Counter
 
 	metricUnpinTotal        metric.Int64Counter
 	statTotalRecursivePins  int64
@@ -686,7 +686,7 @@ func (b *Broker) batchSuccess(ctx context.Context, ba *broker.Batch) error {
 	}
 	b.metricFinishedAuctions.Add(ctx, 1, metrics.AttrOK)
 	b.metricFinishedBytes.Add(ctx, int64(ba.PieceSize), metrics.AttrOK)
-	b.metricBatchAuctionsDurationMinutes.Record(ctx, int64(time.Since(ba.CreatedAt).Minutes()))
+	b.metricBatchFinalityMinutes.Record(ctx, int64(time.Since(ba.CreatedAt).Minutes()))
 	log.Debugf("batch %s success", ba.ID)
 	return nil
 }
