@@ -22,8 +22,8 @@ func (p *Packer) initMetrics() {
 		metrics.Prefix+".last_batch_size",
 		p.lastSizeCb,
 	)
-	p.metricLastBatchDuration = metrics.Meter.NewInt64ValueObserver(
-		metrics.Prefix+".last_batch_duration",
+	p.metricLastBatchDurationMillis = metrics.Meter.NewInt64ValueObserver(
+		metrics.Prefix+".last_batch_duration_millis",
 		p.lastDurationCb,
 	)
 }

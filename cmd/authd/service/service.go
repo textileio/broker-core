@@ -46,8 +46,8 @@ type Service struct {
 	server *grpc.Server
 	store  *store.Store
 
-	metricGrpcRequests        metric.Int64Counter
-	metricGrpcRequestDuration metric.Float64ValueRecorder
+	metricGrpcRequests              metric.Int64Counter
+	metricGrpcRequestDurationMillis metric.Int64ValueRecorder
 }
 
 // Config is the service config.
@@ -265,7 +265,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	input := detectInput(req.Token)
 	resp, status := s.doAuth(ctx, input)
 	s.metricGrpcRequests.Add(ctx, 1, attribute.Int("status_code", int(status.Code())))
-	s.metricGrpcRequestDuration.Record(ctx, time.Since(start).Seconds())
+	s.metricGrpcRequestDurationMillis.Record(ctx, int64(time.Since(start).Seconds()))
 	return resp, status.Err()
 }
 

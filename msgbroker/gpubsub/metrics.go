@@ -20,11 +20,11 @@ func (noopMetricsCollector) onHandle(context.Context, string, time.Duration, err
 }
 
 type otelMetricsCollector struct {
-	metricPublishedMessages     metric.Int64Counter
-	metricPublishMessageErrors  metric.Int64Counter
-	metricHandledMessages       metric.Int64Counter
-	metricHandleMessageErrors   metric.Int64Counter
-	metricHandleMessageDuration metric.Float64ValueRecorder
+	metricPublishedMessages           metric.Int64Counter
+	metricPublishMessageErrors        metric.Int64Counter
+	metricHandledMessages             metric.Int64Counter
+	metricHandleMessageErrors         metric.Int64Counter
+	metricHandleMessageDurationMillis metric.Int64ValueRecorder
 }
 
 func (c *otelMetricsCollector) onPublish(ctx context.Context, topicName string, err error) {
@@ -38,7 +38,7 @@ func (c *otelMetricsCollector) onPublish(ctx context.Context, topicName string, 
 func (c *otelMetricsCollector) onHandle(ctx context.Context, topicName string, timeTaken time.Duration, err error) {
 	label := attribute.String("topic", topicName)
 	c.metricHandledMessages.Add(ctx, 1, label)
-	c.metricHandleMessageDuration.Record(ctx, timeTaken.Seconds(), label)
+	c.metricHandleMessageDurationMillis.Record(ctx, timeTaken.Milliseconds(), label)
 	if err != nil {
 		c.metricHandleMessageErrors.Add(ctx, 1, label)
 	}
@@ -46,10 +46,10 @@ func (c *otelMetricsCollector) onHandle(ctx context.Context, topicName string, t
 
 func (p *PubsubMsgBroker) initMetrics(meter metric.MeterMust) {
 	p.metrics = &otelMetricsCollector{
-		metricPublishedMessages:     meter.NewInt64Counter("gpubsub_published_messages_total"),
-		metricPublishMessageErrors:  meter.NewInt64Counter("gpubsub_publish_message_errors_total"),
-		metricHandledMessages:       meter.NewInt64Counter("gpubsub_handled_messages_total"),
-		metricHandleMessageErrors:   meter.NewInt64Counter("gpubsub_handle_message_errors_total"),
-		metricHandleMessageDuration: meter.NewFloat64ValueRecorder("gpubsub_handle_message_duration"),
+		metricPublishedMessages:           meter.NewInt64Counter("gpubsub_published_messages_total"),
+		metricPublishMessageErrors:        meter.NewInt64Counter("gpubsub_publish_message_errors_total"),
+		metricHandledMessages:             meter.NewInt64Counter("gpubsub_handled_messages_total"),
+		metricHandleMessageErrors:         meter.NewInt64Counter("gpubsub_handle_message_errors_total"),
+		metricHandleMessageDurationMillis: meter.NewInt64ValueRecorder("gpubsub_handle_message_duration_millis"),
 	}
 }

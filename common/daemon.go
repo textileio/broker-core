@@ -23,7 +23,8 @@ import (
 // SetupInstrumentation starts a metrics endpoint.
 func SetupInstrumentation(prometheusAddr string) error {
 	config := prometheus.Config{
-		DefaultHistogramBoundaries: []float64{1e-3, 1e-2, 1e-1, 1},
+		// 0.25 is for near deposit, others for duration in either millis, seconds, or minutes
+		DefaultHistogramBoundaries: []float64{0.25, 1, 10, 100, 1000, 10000},
 	}
 	c := controller.New(
 		processor.New(
