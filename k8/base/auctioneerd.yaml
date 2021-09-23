@@ -19,6 +19,9 @@ spec:
         runAsUser: 1000
         runAsGroup: 2000
         fsGroup: 2000
+        sysctls:
+          - name: net.core.rmem_max
+            value: "2097152"
       serviceAccountName: postgres-cloud-sql
       terminationGracePeriodSeconds: 10
       initContainers:
