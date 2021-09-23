@@ -5,6 +5,7 @@
 // migrations/001_init.up.sql
 // migrations/002_rw.down.sql
 // migrations/002_rw.up.sql
+// migrations/003_deals_pk.up.sql
 package migrations
 
 import (
@@ -96,7 +97,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -116,7 +117,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -136,7 +137,7 @@ func _002_rwDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(420), modTime: time.Unix(1631886677, 0)}
+	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -156,7 +157,27 @@ func _002_rwUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(420), modTime: time.Unix(1631886677, 0)}
+	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_deals_pkUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xd2\xa5\x08\x70\xe9\xea\x2a\xa4\xa4\x26\xe6\x14\x73\x51\x68\x8e\x02\xc8\xa4\xc4\x94\x14\x85\x44\x85\x82\xa2\xcc\xdc\xc4\xa2\x4a\x85\xec\xd4\x4a\x2e\x47\x9f\x10\xd7\x20\x85\x10\x47\x27\x1f\x57\xa8\x3d\x8e\x2e\x2e\x0a\xce\xfe\x7e\xc1\x21\x41\x8e\x9e\x7e\x21\x10\xc1\xf8\x02\x90\xda\x80\x20\x4f\x5f\xc7\xa0\x48\x05\x6f\xd7\x48\x05\x8d\xe2\x92\xfc\xa2\xc4\xf4\xd4\xf8\x82\xa2\xfc\xb2\xcc\x94\xd4\xa2\xf8\xcc\x14\x1d\x85\xc4\xd2\xe4\x92\xcc\xfc\xbc\xf8\xcc\x14\x4d\x6b\x2e\x40\x00\x00\x00\xff\xff\x24\xe1\xb9\x5b\xf9\x00\x00\x00")
+
+func _003_deals_pkUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_deals_pkUpSql,
+		"003_deals_pk.up.sql",
+	)
+}
+
+func _003_deals_pkUpSql() (*asset, error) {
+	bytes, err := _003_deals_pkUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_deals_pk.up.sql", size: 249, mode: os.FileMode(420), modTime: time.Unix(1632427408, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -213,10 +234,11 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql": _001_initDownSql,
-	"001_init.up.sql":   _001_initUpSql,
-	"002_rw.down.sql":   _002_rwDownSql,
-	"002_rw.up.sql":     _002_rwUpSql,
+	"001_init.down.sql":   _001_initDownSql,
+	"001_init.up.sql":     _001_initUpSql,
+	"002_rw.down.sql":     _002_rwDownSql,
+	"002_rw.up.sql":       _002_rwUpSql,
+	"003_deals_pk.up.sql": _003_deals_pkUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -260,10 +282,11 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql": &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":   &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_rw.down.sql":   &bintree{_002_rwDownSql, map[string]*bintree{}},
-	"002_rw.up.sql":     &bintree{_002_rwUpSql, map[string]*bintree{}},
+	"001_init.down.sql":   &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":     &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_rw.down.sql":     &bintree{_002_rwDownSql, map[string]*bintree{}},
+	"002_rw.up.sql":       &bintree{_002_rwUpSql, map[string]*bintree{}},
+	"003_deals_pk.up.sql": &bintree{_003_deals_pkUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

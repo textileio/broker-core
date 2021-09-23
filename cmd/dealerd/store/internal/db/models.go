@@ -31,7 +31,6 @@ func (e *Status) Scan(src interface{}) error {
 }
 
 type AuctionDatum struct {
-	ID         string         `json:"id"`
 	BatchID    broker.BatchID `json:"batchID"`
 	PayloadCid string         `json:"payloadCid"`
 	PieceCid   string         `json:"pieceCid"`
@@ -41,26 +40,25 @@ type AuctionDatum struct {
 }
 
 type AuctionDeal struct {
-	ID                  string        `json:"id"`
-	AuctionDataID       string        `json:"auctionDataID"`
-	StorageProviderID   string        `json:"storageProviderID"`
-	PricePerGibPerEpoch int64         `json:"pricePerGibPerEpoch"`
-	StartEpoch          uint64        `json:"startEpoch"`
-	Verified            bool          `json:"verified"`
-	FastRetrieval       bool          `json:"fastRetrieval"`
-	AuctionID           auction.ID    `json:"auctionID"`
-	BidID               auction.BidID `json:"bidID"`
-	Status              Status        `json:"status"`
-	Executing           bool          `json:"executing"`
-	ErrorCause          string        `json:"errorCause"`
-	Retries             int           `json:"retries"`
-	ProposalCid         string        `json:"proposalCid"`
-	DealID              int64         `json:"dealID"`
-	DealExpiration      uint64        `json:"dealExpiration"`
-	DealMarketStatus    uint64        `json:"dealMarketStatus"`
-	ReadyAt             time.Time     `json:"readyAt"`
-	CreatedAt           time.Time     `json:"createdAt"`
-	UpdatedAt           time.Time     `json:"updatedAt"`
+	StorageProviderID   string         `json:"storageProviderID"`
+	PricePerGibPerEpoch int64          `json:"pricePerGibPerEpoch"`
+	StartEpoch          uint64         `json:"startEpoch"`
+	Verified            bool           `json:"verified"`
+	FastRetrieval       bool           `json:"fastRetrieval"`
+	AuctionID           auction.ID     `json:"auctionID"`
+	BidID               auction.BidID  `json:"bidID"`
+	Status              Status         `json:"status"`
+	Executing           bool           `json:"executing"`
+	ErrorCause          string         `json:"errorCause"`
+	Retries             int            `json:"retries"`
+	ProposalCid         string         `json:"proposalCid"`
+	DealID              int64          `json:"dealID"`
+	DealExpiration      uint64         `json:"dealExpiration"`
+	DealMarketStatus    uint64         `json:"dealMarketStatus"`
+	ReadyAt             time.Time      `json:"readyAt"`
+	CreatedAt           time.Time      `json:"createdAt"`
+	UpdatedAt           time.Time      `json:"updatedAt"`
+	BatchID             broker.BatchID `json:"batchID"`
 }
 
 type MarketDealStatus struct {
@@ -69,11 +67,11 @@ type MarketDealStatus struct {
 }
 
 type RemoteWallet struct {
-	AuctionDataID string    `json:"auctionDataID"`
-	PeerID        string    `json:"peerID"`
-	AuthToken     string    `json:"authToken"`
-	WalletAddr    string    `json:"walletAddr"`
-	Multiaddrs    []string  `json:"multiaddrs"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	PeerID     string         `json:"peerID"`
+	AuthToken  string         `json:"authToken"`
+	WalletAddr string         `json:"walletAddr"`
+	Multiaddrs []string       `json:"multiaddrs"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	UpdatedAt  time.Time      `json:"updatedAt"`
+	BatchID    broker.BatchID `json:"batchID"`
 }

@@ -9,7 +9,6 @@ import (
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgconn"
 	"github.com/textileio/broker-core/broker"
@@ -45,7 +44,6 @@ type AuctionDealStatus db.Status
 
 // AuctionData contains information of data to be stored in Filecoin.
 type AuctionData struct {
-	ID         string
 	BatchID    broker.BatchID
 	PayloadCid cid.Cid
 	PieceCid   cid.Cid
@@ -97,7 +95,6 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
 		txn := s.db.WithTx(tx)
 		if err := txn.CreateAuctionData(ctx, db.CreateAuctionDataParams{
-			ID:         ad.ID,
 			BatchID:    ad.BatchID,
 			PayloadCid: ad.PayloadCid.String(),
 			PieceCid:   ad.PieceCid.String(),
@@ -113,13 +110,11 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 			return fmt.Errorf("saving auction data in db: %s", err)
 		}
 		for _, aud := range ads {
-			aud.ID = uuid.New().String()
-			aud.AuctionDataID = ad.ID
+			aud.BatchID = ad.BatchID
 			aud.Status = db.StatusDealMaking
 			aud.ReadyAt = time.Unix(0, 0)
 			if err := txn.CreateAuctionDeal(ctx, db.CreateAuctionDealParams{
-				ID:                  aud.ID,
-				AuctionDataID:       aud.AuctionDataID,
+				BatchID:             aud.BatchID,
 				StorageProviderID:   aud.StorageProviderID,
 				PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
 				StartEpoch:          aud.StartEpoch,
@@ -146,11 +141,11 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 				maddrs[i] = maddr.String()
 			}
 			if err := txn.CreateRemoteWallet(ctx, db.CreateRemoteWalletParams{
-				AuctionDataID: ad.ID,
-				PeerID:        rw.PeerID.String(),
-				AuthToken:     rw.AuthToken,
-				WalletAddr:    rw.WalletAddr.String(),
-				Multiaddrs:    maddrs,
+				BatchID:    ad.BatchID,
+				PeerID:     rw.PeerID.String(),
+				AuthToken:  rw.AuthToken,
+				WalletAddr: rw.WalletAddr.String(),
+				Multiaddrs: maddrs,
 			}); err != nil {
 				return fmt.Errorf("saving remote wallet config in datastore: %s", err)
 			}
@@ -171,7 +166,7 @@ func (s *Store) GetNextPending(ctx context.Context, status AuctionDealStatus) (a
 		deal, err := q.NextPendingAuctionDeal(ctx, params)
 		if err == nil {
 			if int64(time.Since(deal.ReadyAt).Seconds()) > stuckSeconds {
-				log.Warnf("re-executing stuck auction deal %s", deal.ID)
+				log.Warnf("re-executing stuck auction deal with batch %s and storage provider %s", deal.BatchID, deal.StorageProviderID)
 			}
 			ad = AuctionDeal(deal)
 		}
@@ -193,8 +188,6 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 	}
 	return s.useTxFromCtx(ctx, func(q *db.Queries) error {
 		rows, err := q.UpdateAuctionDeal(ctx, db.UpdateAuctionDealParams{
-			ID:                  aud.ID,
-			AuctionDataID:       aud.AuctionDataID,
 			StorageProviderID:   aud.StorageProviderID,
 			PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
 			StartEpoch:          aud.StartEpoch,
@@ -225,9 +218,9 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 }
 
 // GetAuctionData returns an auction data by id.
-func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad AuctionData, err error) {
+func (s *Store) GetAuctionData(ctx context.Context, batchID broker.BatchID) (ad AuctionData, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		datum, err := q.GetAuctionData(ctx, auctionDataID)
+		datum, err := q.GetAuctionData(ctx, batchID)
 		if err == nil {
 			payloadCid, err := cid.Parse(datum.PayloadCid)
 			if err != nil {
@@ -238,7 +231,6 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 				return fmt.Errorf("parsing piece cid from db: %s", err)
 			}
 			ad = AuctionData{
-				ID:         datum.ID,
 				BatchID:    datum.BatchID,
 				PayloadCid: payloadCid,
 				PieceCid:   pieceCid,
@@ -254,9 +246,9 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 
 // GetRemoteWallet returns the remote wallet configuration for an auction if exists.
 // If the auction deal wasn't configured with a remote wallet, *it will return nil without an error*.
-func (s *Store) GetRemoteWallet(ctx context.Context, auctionDataID string) (rw *RemoteWallet, err error) {
+func (s *Store) GetRemoteWallet(ctx context.Context, batchID broker.BatchID) (rw *RemoteWallet, err error) {
 	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
-		remoteWallet, err := q.GetRemoteWallet(ctx, auctionDataID)
+		remoteWallet, err := q.GetRemoteWallet(ctx, batchID)
 		if err == sql.ErrNoRows {
 			return nil
 		}
@@ -278,24 +270,30 @@ func (s *Store) RemoveAuctionDeal(ctx context.Context, aud AuctionDeal) error {
 	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
 		txn := s.db.WithTx(tx)
 		// 1. Remove the auction deal.
-		if err := txn.RemoveAuctionDeal(ctx, aud.ID); err != nil {
+		if err := txn.RemoveAuctionDeal(
+			ctx,
+			db.RemoveAuctionDealParams{
+				AuctionID:         aud.AuctionID,
+				StorageProviderID: aud.StorageProviderID,
+			},
+		); err != nil {
 			return fmt.Errorf("deleting auction deal: %s", err)
 		}
 
 		// 2. Get the related AuctionData. If after decreased the counter of linked AuctionDeals
 		//    we get 0, then proceed to also delete it (since nobody will use it again).
-		ids, err := txn.GetAuctionDealIDs(ctx, aud.AuctionDataID)
+		ids, err := txn.GetAuctionDealIDs(ctx, aud.BatchID)
 		if err != nil {
 			return fmt.Errorf("get linked auction data: %s", err)
 		}
 		if len(ids) == 0 {
 			// Remove wallet config (if exists, if doesn't is a noop).
-			if err := txn.RemoveRemoteWallet(ctx, aud.AuctionDataID); err != nil {
+			if err := txn.RemoveRemoteWallet(ctx, aud.BatchID); err != nil {
 				return fmt.Errorf("deleting remote wallet config: %s", err)
 			}
 
 			// Remove auction data.
-			if err := txn.RemoveAuctionData(ctx, aud.AuctionDataID); err != nil {
+			if err := txn.RemoveAuctionData(ctx, aud.BatchID); err != nil {
 				return fmt.Errorf("deleting orphaned auction data: %s", err)
 			}
 		}
@@ -320,9 +318,6 @@ func (s *Store) GetStatusCounts(ctx context.Context) (map[storagemarket.StorageD
 func validate(ad *AuctionData, ads []*AuctionDeal, rw *broker.RemoteWallet) error {
 	if ad.Duration <= 0 {
 		return fmt.Errorf("invalid duration: %d", ad.Duration)
-	}
-	if ad.ID == "" {
-		return errors.New("id is empty")
 	}
 	if ad.BatchID == "" {
 		return errors.New("batch id is empty")

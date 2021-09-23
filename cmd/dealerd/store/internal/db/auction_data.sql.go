@@ -12,7 +12,6 @@ import (
 
 const createAuctionData = `-- name: CreateAuctionData :exec
 INSERT INTO auction_data(
-    id,
     batch_id,
     payload_cid,
     piece_cid,
@@ -23,13 +22,11 @@ INSERT INTO auction_data(
       $2,
       $3,
       $4,
-      $5,
-      $6
+      $5
       )
 `
 
 type CreateAuctionDataParams struct {
-	ID         string         `json:"id"`
 	BatchID    broker.BatchID `json:"batchID"`
 	PayloadCid string         `json:"payloadCid"`
 	PieceCid   string         `json:"pieceCid"`
@@ -39,7 +36,6 @@ type CreateAuctionDataParams struct {
 
 func (q *Queries) CreateAuctionData(ctx context.Context, arg CreateAuctionDataParams) error {
 	_, err := q.exec(ctx, q.createAuctionDataStmt, createAuctionData,
-		arg.ID,
 		arg.BatchID,
 		arg.PayloadCid,
 		arg.PieceCid,
@@ -51,7 +47,7 @@ func (q *Queries) CreateAuctionData(ctx context.Context, arg CreateAuctionDataPa
 
 const createRemoteWallet = `-- name: CreateRemoteWallet :exec
 INSERT INTO remote_wallet(
-   auction_data_id,
+   batch_id,
    peer_id,
    auth_token,
    wallet_addr,
@@ -65,16 +61,16 @@ INSERT INTO remote_wallet(
 `
 
 type CreateRemoteWalletParams struct {
-	AuctionDataID string   `json:"auctionDataID"`
-	PeerID        string   `json:"peerID"`
-	AuthToken     string   `json:"authToken"`
-	WalletAddr    string   `json:"walletAddr"`
-	Multiaddrs    []string `json:"multiaddrs"`
+	BatchID    broker.BatchID `json:"batchID"`
+	PeerID     string         `json:"peerID"`
+	AuthToken  string         `json:"authToken"`
+	WalletAddr string         `json:"walletAddr"`
+	Multiaddrs []string       `json:"multiaddrs"`
 }
 
 func (q *Queries) CreateRemoteWallet(ctx context.Context, arg CreateRemoteWalletParams) error {
 	_, err := q.exec(ctx, q.createRemoteWalletStmt, createRemoteWallet,
-		arg.AuctionDataID,
+		arg.BatchID,
 		arg.PeerID,
 		arg.AuthToken,
 		arg.WalletAddr,
@@ -84,15 +80,14 @@ func (q *Queries) CreateRemoteWallet(ctx context.Context, arg CreateRemoteWallet
 }
 
 const getAuctionData = `-- name: GetAuctionData :one
-SELECT id, batch_id, payload_cid, piece_cid, piece_size, duration, created_at FROM auction_data
-WHERE id = $1
+SELECT batch_id, payload_cid, piece_cid, piece_size, duration, created_at FROM auction_data
+WHERE batch_id = $1
 `
 
-func (q *Queries) GetAuctionData(ctx context.Context, id string) (AuctionDatum, error) {
-	row := q.queryRow(ctx, q.getAuctionDataStmt, getAuctionData, id)
+func (q *Queries) GetAuctionData(ctx context.Context, batchID broker.BatchID) (AuctionDatum, error) {
+	row := q.queryRow(ctx, q.getAuctionDataStmt, getAuctionData, batchID)
 	var i AuctionDatum
 	err := row.Scan(
-		&i.ID,
 		&i.BatchID,
 		&i.PayloadCid,
 		&i.PieceCid,
@@ -104,39 +99,39 @@ func (q *Queries) GetAuctionData(ctx context.Context, id string) (AuctionDatum, 
 }
 
 const getRemoteWallet = `-- name: GetRemoteWallet :one
-SELECT auction_data_id, peer_id, auth_token, wallet_addr, multiaddrs, created_at, updated_at FROM remote_wallet
-where auction_data_id = $1
+SELECT peer_id, auth_token, wallet_addr, multiaddrs, created_at, updated_at, batch_id FROM remote_wallet
+where batch_id = $1
 `
 
-func (q *Queries) GetRemoteWallet(ctx context.Context, auctionDataID string) (RemoteWallet, error) {
-	row := q.queryRow(ctx, q.getRemoteWalletStmt, getRemoteWallet, auctionDataID)
+func (q *Queries) GetRemoteWallet(ctx context.Context, batchID broker.BatchID) (RemoteWallet, error) {
+	row := q.queryRow(ctx, q.getRemoteWalletStmt, getRemoteWallet, batchID)
 	var i RemoteWallet
 	err := row.Scan(
-		&i.AuctionDataID,
 		&i.PeerID,
 		&i.AuthToken,
 		&i.WalletAddr,
 		pq.Array(&i.Multiaddrs),
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BatchID,
 	)
 	return i, err
 }
 
 const removeAuctionData = `-- name: RemoveAuctionData :exec
-DELETE FROM auction_data WHERE id = $1
+DELETE FROM auction_data WHERE batch_id = $1
 `
 
-func (q *Queries) RemoveAuctionData(ctx context.Context, id string) error {
-	_, err := q.exec(ctx, q.removeAuctionDataStmt, removeAuctionData, id)
+func (q *Queries) RemoveAuctionData(ctx context.Context, batchID broker.BatchID) error {
+	_, err := q.exec(ctx, q.removeAuctionDataStmt, removeAuctionData, batchID)
 	return err
 }
 
 const removeRemoteWallet = `-- name: RemoveRemoteWallet :exec
-DELETE FROM remote_wallet WHERE auction_data_id = $1
+DELETE FROM remote_wallet WHERE batch_id = $1
 `
 
-func (q *Queries) RemoveRemoteWallet(ctx context.Context, auctionDataID string) error {
-	_, err := q.exec(ctx, q.removeRemoteWalletStmt, removeRemoteWallet, auctionDataID)
+func (q *Queries) RemoveRemoteWallet(ctx context.Context, batchID broker.BatchID) error {
+	_, err := q.exec(ctx, q.removeRemoteWalletStmt, removeRemoteWallet, batchID)
 	return err
 }

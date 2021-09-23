@@ -33,3 +33,6 @@ overrides:
     go_type: "uint64"
   - column: "auction_deals.start_epoch"
     go_type: "uint64"
+
+  - column: "remote_wallet.batch_id"
+    go_type: "github.com/textileio/broker-core/broker.BatchID"

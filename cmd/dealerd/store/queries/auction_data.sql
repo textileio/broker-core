@@ -1,6 +1,5 @@
 -- name: CreateAuctionData :exec
 INSERT INTO auction_data(
-    id,
     batch_id,
     payload_cid,
     piece_cid,
@@ -11,20 +10,19 @@ INSERT INTO auction_data(
       $2,
       $3,
       $4,
-      $5,
-      $6
+      $5
       );
 
 -- name: GetAuctionData :one
 SELECT * FROM auction_data
-WHERE id = $1;
+WHERE batch_id = $1;
 
 -- name: RemoveAuctionData :exec
-DELETE FROM auction_data WHERE id = $1;
+DELETE FROM auction_data WHERE batch_id = $1;
 
 -- name: CreateRemoteWallet :exec
 INSERT INTO remote_wallet(
-   auction_data_id,
+   batch_id,
    peer_id,
    auth_token,
    wallet_addr,
@@ -38,7 +36,7 @@ INSERT INTO remote_wallet(
 
 -- name: GetRemoteWallet :one
 SELECT * FROM remote_wallet
-where auction_data_id = $1;
+where batch_id = $1;
 
 -- name: RemoveRemoteWallet :exec
-DELETE FROM remote_wallet WHERE auction_data_id = $1;
+DELETE FROM remote_wallet WHERE batch_id = $1;

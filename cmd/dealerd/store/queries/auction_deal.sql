@@ -1,7 +1,6 @@
 -- name: CreateAuctionDeal :exec
 INSERT INTO auction_deals(
-id,
-auction_data_id,
+batch_id,
 storage_provider_id,
 price_per_gib_per_epoch,
 start_epoch,
@@ -35,8 +34,7 @@ ready_at
       $14,
       $15,
       $16,
-      $17,
-      $18
+      $17
       );
 
 -- name: NextPendingAuctionDeal :one
@@ -56,14 +54,11 @@ RETURNING *;
 
 -- name: UpdateAuctionDeal :execrows
 UPDATE auction_deals
-SET 
-    auction_data_id = @auction_data_id,
-    storage_provider_id = @storage_provider_id,
+SET
     price_per_gib_per_epoch = @price_per_gib_per_epoch,
     start_epoch = @start_epoch,
     verified = @verified,
     fast_retrieval = @fast_retrieval,
-    auction_id = @auction_id,
     bid_id = @bid_id,
     status = @status,
     executing = @executing,
@@ -75,16 +70,16 @@ SET
     deal_market_status = @deal_market_status,
     ready_at = @ready_at,
     updated_at = CURRENT_TIMESTAMP
-    WHERE id = @id;
+    WHERE auction_id = @auction_id AND storage_provider_id = @storage_provider_id;
 
 -- name: GetAuctionDeal :one
-SELECT * FROM auction_deals WHERE id = $1;
+SELECT * FROM auction_deals WHERE auction_id = $1 AND storage_provider_id = $2;
 
 -- name: GetAuctionDealIDs :many
-SELECT id FROM auction_deals WHERE auction_data_id = $1;
+SELECT auction_id, storage_provider_id FROM auction_deals WHERE batch_id = $1;
 
 -- name: GetAuctionDealsByStatus :many
 SELECT * FROM auction_deals WHERE status = $1;
 
 -- name: RemoveAuctionDeal :exec
-DELETE FROM auction_deals WHERE id = $1;
+DELETE FROM auction_deals WHERE auction_id = $1 AND storage_provider_id = $2;
