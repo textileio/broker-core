@@ -4,6 +4,9 @@ const tags: JSONPgSmartTags = {
   version: 1,
   config: {
     class: {
+      /*
+      * API
+      */
       "api.schema_migrations": {
         tags: {
           omit: "create,read,update,delete,filter,order,all,many,execute",
@@ -21,13 +24,21 @@ const tags: JSONPgSmartTags = {
       },
 
 
+
       /*
       * Auctioneer
       */
       "auctioneer.auctions": {
         tags: {
-          foreignKey: "(batch_id) references broker.batches (id)"
+          foreignKey: "(batch_id) references broker.batches (id)",
         },
+        attribute: {
+          "batch_id": {
+            tags: {
+              name: "storagePayloadId",
+            }
+          }
+        }
       },
       "auctioneer.bids": {
         attribute: {
@@ -44,9 +55,59 @@ const tags: JSONPgSmartTags = {
         },
       },
 
+
+
       /*
       * Broker
       */
+      "broker.batches": {
+        tags: {
+          name: "storagePayloads"
+        }
+      },
+      "broker.deals": {
+        attribute: {
+          "batch_id": {
+            tags: {
+              name: "storagePayloadId",
+            }
+          }
+        }
+      },
+      "broker.storage_requests": {
+        attribute: {
+          "batch_id": {
+            tags: {
+              name: "storagePayloadId",
+            }
+          }
+        }
+      },
+      "broker.batch_manifests": {
+        tags: {
+          name: "storagePayloadManifests",
+          foreignKey: "(batch_id) references broker.batches (id)",
+        },
+        attribute: {
+          "batch_id": {
+            tags: {
+              name: "storagePayloadId",
+            }
+          }
+        }
+      },
+      "broker.batch_tags": {
+        tags: {
+          name: "storagePayloadTags",
+        },
+        attribute: {
+          "batch_id": {
+            tags: {
+              name: "storagePayloadId",
+            }
+          }
+        }
+      },
       "broker.operations": {
         tags: {
           omit: "create,read,update,delete,filter,order,all,many,execute",
@@ -62,18 +123,58 @@ const tags: JSONPgSmartTags = {
           omit: "create,read,update,delete,filter,order,all,many,execute",
         },
       },
+      "broker.batch_remote_wallet": {
+        tags: {
+          omit: "create,read,update,delete,filter,order,all,many,execute",
+        },
+      },
 
 
+
+
+      /*
+      * Dealer
+      */
       "dealer.schema_migrations": {
         tags: {
           omit: "create,read,update,delete,filter,order,all,many,execute",
         },
+      },
+
+
+
+      /*
+      * Packer
+      */
+      "packer.batches": {
+        tags: {
+          foreignKey: "(batch_id) references broker.batches (id)",
+        },
+        attribute: {
+          "batch_id": {
+            tags: {
+              name: "storagePayloadId",
+            }
+          },
+        }
       },
       "packer.schema_migrations": {
         tags: {
           omit: "create,read,update,delete,filter,order,all,many,execute",
         },
       },
+      "packer.storage_requests": {
+        tags: {
+          name: "packer.storage_requests.ignored",
+          omit: "create,read,update,delete,filter,order,all,many,execute",
+        },
+      },
+
+
+
+      /*
+      * Piecer
+      */
       "piecer.schema_migrations": {
         tags: {
           omit: "create,read,update,delete,filter,order,all,many,execute",

@@ -1,9 +1,11 @@
 import { createServer } from 'http';
 import { postgraphile, PostGraphileOptions } from 'postgraphile'
 import { makeJSONPgSmartTagsPlugin, JSONPgSmartTags } from 'graphile-utils'
+import { PgNodeAliasPostGraphile } from 'graphile-build-pg'
 import tags from './tags'
+import plugin from './plugin'
 
-const plugin = makeJSONPgSmartTagsPlugin(tags)
+const tagsPlugin = makeJSONPgSmartTagsPlugin(tags)
 
 let options: PostGraphileOptions = {
   enableCors: true,
@@ -11,15 +13,16 @@ let options: PostGraphileOptions = {
     setofFunctionsContainNulls: false,
     disableDefaultMutations: true,
     ignoreRBAC: false,
-    ignoreIndexes: false,
+    ignoreIndexes: true,
     watchPg: false,
     graphiql: true,
-    appendPlugins: [plugin],
+    appendPlugins: [tagsPlugin, plugin],
+    skipPlugins: [PgNodeAliasPostGraphile],
+    enhanceGraphiql: true,
     
     // Will be changed in DEV mode
     showErrorStack: false,
     extendedErrors: undefined,
-    enhanceGraphiql: false,
     disableQueryLog: true,
     allowExplain: false,
 }
@@ -27,7 +30,6 @@ let options: PostGraphileOptions = {
 if (process.env.DEV) {
   options.showErrorStack = "json"
   options.extendedErrors = ["hint"]
-  options.enhanceGraphiql = true,
   options.disableQueryLog = false
   options.allowExplain = true
 }
@@ -37,6 +39,7 @@ let p = postgraphile(
   [
     "auctioneer",
     "broker",
+    "packer",
   ],
   options,
 )
