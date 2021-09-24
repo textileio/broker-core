@@ -66,6 +66,14 @@ const tags: JSONPgSmartTags = {
         }
       },
       "broker.deals": {
+        tags: {
+          foreignKey: [
+            "(auction_id) references auctioneer.auctions (id)",
+            "(bid_id) references auctioneer.bids (id)",
+          ],
+          primaryKey: "storage_provider_id,auction_id",
+          unique: ["bid_id,auction_id", "storage_provider_id,bid_id"]
+        },
         attribute: {
           "batch_id": {
             tags: {
@@ -85,6 +93,7 @@ const tags: JSONPgSmartTags = {
       },
       "broker.batch_manifests": {
         tags: {
+          omit: "create,read,update,delete,filter,order,all,many,execute",
           name: "storagePayloadManifests",
           foreignKey: "(batch_id) references broker.batches (id)",
         },
@@ -158,14 +167,14 @@ const tags: JSONPgSmartTags = {
           },
         }
       },
-      "packer.schema_migrations": {
-        tags: {
-          omit: "create,read,update,delete,filter,order,all,many,execute",
-        },
-      },
       "packer.storage_requests": {
         tags: {
           name: "packer.storage_requests.ignored",
+          omit: "create,read,update,delete,filter,order,all,many,execute",
+        },
+      },
+      "packer.schema_migrations": {
+        tags: {
           omit: "create,read,update,delete,filter,order,all,many,execute",
         },
       },
@@ -175,6 +184,12 @@ const tags: JSONPgSmartTags = {
       /*
       * Piecer
       */
+      "piecer.unprepared_batches": {
+        tags: {
+          name: "pieceInfo",
+          foreignKey: "(batch_id) references packer.batches (batch_id)",
+        },
+      },
       "piecer.schema_migrations": {
         tags: {
           omit: "create,read,update,delete,filter,order,all,many,execute",
