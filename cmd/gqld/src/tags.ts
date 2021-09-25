@@ -140,18 +140,6 @@ const tags: JSONPgSmartTags = {
 
 
 
-
-      /*
-      * Dealer
-      */
-      "dealer.schema_migrations": {
-        tags: {
-          omit: "create,read,update,delete,filter,order,all,many,execute",
-        },
-      },
-
-
-
       /*
       * Packer
       */
