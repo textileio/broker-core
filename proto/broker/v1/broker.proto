@@ -22,6 +22,7 @@ message CreatePreparedStorageRequestRequest {
   message Metadata {
     string origin = 1;
     map<string, string> tags = 2;
+    repeated string providers = 3;
   }
 
   message PreparedCAR {

@@ -285,9 +285,20 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	if origin == "" {
 		return storage.Request{}, fmt.Errorf("origin is empty")
 	}
+	providers := make([]address.Address, len(adr.Providers))
+	if len(adr.Providers) > 0 {
+		for i, provider := range adr.Providers {
+			providerAddr, err := address.NewFromString(provider)
+			if err != nil {
+				return storage.Request{}, fmt.Errorf("provider %s format is invalid: %s", provider, err)
+			}
+			providers[i] = providerAddr
+		}
+	}
 	meta := broker.BatchMetadata{
-		Origin: origin,
-		Tags:   adr.Tags,
+		Origin:    origin,
+		Tags:      adr.Tags,
+		Providers: providers,
 	}
 
 	// Remote wallet.

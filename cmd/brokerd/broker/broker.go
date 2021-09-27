@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/oklog/ulid/v2"
@@ -20,6 +19,7 @@ import (
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/broker-core/msgbroker"
@@ -401,12 +401,10 @@ func (b *Broker) startAuction(ctx context.Context,
 	}
 	var clientAddress string
 	if rw != nil {
-		clientAddress = rw.WalletAddr.String()
+		clientAddress = common.StringifyAddr(rw.WalletAddr)
 	} else {
-		clientAddress = b.conf.defaultWalletAddr.String()
+		clientAddress = common.StringifyAddr(b.conf.defaultWalletAddr)
 	}
-	// UGLY HACK: address.String() always returns as if the address is for testnet. Force replacing it to be mainnet.
-	clientAddress = address.MainnetPrefix + clientAddress[len(address.MainnetPrefix):]
 	if err := msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
@@ -426,6 +424,7 @@ func (b *Broker) startAuction(ctx context.Context,
 	}
 	b.metricStartedAuctions.Add(ctx, 1)
 	b.metricStartedBytes.Add(ctx, int64(pieceSize))
+
 	return auction.ID(auctionID), nil
 }
 
