@@ -72,6 +72,7 @@ type AuctionDataRequest struct {
 	CARIPFS      *CARIPFS          `json:"carIPFS"`
 	Tags         map[string]string `json:"tags"`
 	RemoteWallet *RemoteWallet     `json:"remoteWallet"`
+	Providers    []string          `json:"providers"`
 }
 
 // CARURL contains details of a CAR file stored in an HTTP endpoint.
