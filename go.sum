@@ -413,7 +413,6 @@ github.com/filecoin-project/go-bitfield v0.2.4/go.mod h1:CNl9WG8hgR5mttCnUErjcQj
 github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2 h1:av5fw6wmm58FYMgJeoB/lK9XXrgdugYiTqkdxjTy9k8=
 github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2/go.mod h1:pqTiPHobNkOVM5thSRsHYjyQfq7O5QSCMhvuu9JoDlg=
 github.com/filecoin-project/go-commp-utils v0.0.0-20201119054358-b88f7a96a434/go.mod h1:6s95K91mCyHY51RPWECZieD3SGWTqIFLf1mPOes9l5U=
-github.com/filecoin-project/go-commp-utils v0.1.0/go.mod h1:6s95K91mCyHY51RPWECZieD3SGWTqIFLf1mPOes9l5U=
 github.com/filecoin-project/go-commp-utils v0.1.1-0.20210427191551-70bf140d31c7 h1:U9Z+76pHCKBmtdxFV7JFZJj7OVm12I6dEKwtMVbq5p0=
 github.com/filecoin-project/go-commp-utils v0.1.1-0.20210427191551-70bf140d31c7/go.mod h1:6s95K91mCyHY51RPWECZieD3SGWTqIFLf1mPOes9l5U=
 github.com/filecoin-project/go-crypto v0.0.0-20191218222705-effae4ea9f03 h1:2pMXdBnCiXjfCYx/hLqFxccPoqsSveQFxVLvNxy9bus=
@@ -422,7 +421,6 @@ github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0 h1:h6nObyd44KVZNCUdfh
 github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0/go.mod h1:WTuJWgBQY0omnQqa8kRPT9O0Uj5wQOgslVMUuTeHdJ8=
 github.com/filecoin-project/go-data-transfer v1.0.1/go.mod h1:UxvfUAY9v3ub0a21BSK9u3pB2aq30Y0KMsG+w9/ysyo=
 github.com/filecoin-project/go-data-transfer v1.2.7/go.mod h1:mvjZ+C3NkBX10JP4JMu27DCjUouHFjHwUGh+Xc4yvDA=
-github.com/filecoin-project/go-data-transfer v1.4.3/go.mod h1:n8kbDQXWrY1c4UgfMa9KERxNCWbOTDwdNhf2MpN9dpo=
 github.com/filecoin-project/go-data-transfer v1.7.6/go.mod h1:Cbl9lzKOuAyyIxp1tE+VbV5Aix4bxzA7uJGA9wGM4fM=
 github.com/filecoin-project/go-data-transfer v1.7.8 h1:s4cF9nX9sEy7RgZd3NW92YN/hKyIy2fQl+7dVOAS8r8=
 github.com/filecoin-project/go-data-transfer v1.7.8/go.mod h1:Cbl9lzKOuAyyIxp1tE+VbV5Aix4bxzA7uJGA9wGM4fM=
@@ -436,7 +434,6 @@ github.com/filecoin-project/go-fil-commp-hashhash v0.1.0 h1:imrrpZWEHRnNqqv0tN7L
 github.com/filecoin-project/go-fil-commp-hashhash v0.1.0/go.mod h1:73S8WSEWh9vr0fDJVnKADhfIv/d6dCbAGaAGWbdJEI8=
 github.com/filecoin-project/go-fil-markets v1.0.5-0.20201113164554-c5eba40d5335/go.mod h1:AJySOJC00JRWEZzRG2KsfUnqEf5ITXxeX09BE9N4f9c=
 github.com/filecoin-project/go-fil-markets v1.1.9/go.mod h1:0yQu5gvrjFoAIyzPSSJ+xUdCG83vjInAFbTswIB5/hk=
-github.com/filecoin-project/go-fil-markets v1.2.5/go.mod h1:7JIqNBmFvOyBzk/EiPYnweVdQnWhshixb5B9b1653Ag=
 github.com/filecoin-project/go-fil-markets v1.8.1 h1:nNJB5EIp5c6yo/z51DloVaL7T24SslCoxSDOXwNQr9k=
 github.com/filecoin-project/go-fil-markets v1.8.1/go.mod h1:PIPyOhoDLWT5NcciJQeK6Hes7MIeczGLNWVO/2Vy0a4=
 github.com/filecoin-project/go-hamt-ipld v0.1.5 h1:uoXrKbCQZ49OHpsTCkrThPNelC4W3LPEk0OrS/ytIBM=
@@ -472,7 +469,6 @@ github.com/filecoin-project/go-statestore v0.1.1 h1:ufMFq00VqnT2CAuDpcGnwLnCX1I/
 github.com/filecoin-project/go-statestore v0.1.1/go.mod h1:LFc9hD+fRxPqiHiaqUEZOinUJB4WARkRfNl10O7kTnI=
 github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b/go.mod h1:Q0GQOBtKf1oE10eSXSlhN45kDBdGvEcVOqMiffqX+N8=
 github.com/filecoin-project/lotus v1.8.0/go.mod h1:a4vfqKJ2ynqg5TXpcPer/orWZIKBwJAv5TsBUj1PrSQ=
-github.com/filecoin-project/lotus v1.10.0/go.mod h1:GjqPFYGMIy4x+2FLA6m8Oa2+21sqewHRPZv9TcAgHaU=
 github.com/filecoin-project/lotus v1.11.2 h1:DorhieA8MUIXFZNlU3j0eUK2L6RNEBt5T+4V//ssrFw=
 github.com/filecoin-project/lotus v1.11.2/go.mod h1:Ur2KuT1Iz5HF4Y1g6nFEaRpH3lFVQFfZzVHRaCfXiIc=
 github.com/filecoin-project/specs-actors v0.6.1/go.mod h1:dRdy3cURykh2R8O/DKqy8olScl70rmIS7GrB4hB1IDY=
@@ -492,7 +488,6 @@ github.com/filecoin-project/specs-actors/v3 v3.1.1/go.mod h1:mpynccOLlIRy0QnR008
 github.com/filecoin-project/specs-actors/v4 v4.0.0/go.mod h1:TkHXf/l7Wyw4ZejyXIPS2rK8bBO0rdwhTZyQQgaglng=
 github.com/filecoin-project/specs-actors/v4 v4.0.1 h1:AiWrtvJZ63MHGe6rn7tPu4nSUY8bA1KDNszqJaD5+Fg=
 github.com/filecoin-project/specs-actors/v4 v4.0.1/go.mod h1:TkHXf/l7Wyw4ZejyXIPS2rK8bBO0rdwhTZyQQgaglng=
-github.com/filecoin-project/specs-actors/v5 v5.0.1/go.mod h1:74euMDIXorusOBs/QL/LNkYsXZdDpLJwojWw6T03pdE=
 github.com/filecoin-project/specs-actors/v5 v5.0.4 h1:OY7BdxJWlUfUFXWV/kpNBYGXNPasDIedf42T3sGx08s=
 github.com/filecoin-project/specs-actors/v5 v5.0.4/go.mod h1:5BAKRAMsOOlD8+qCw4UvT/lTLInCJ3JwOWZbX8Ipwq4=
 github.com/filecoin-project/specs-storage v0.1.1-0.20201105051918-5188d9774506 h1:Ur/l2+6qN+lQiqjozWWc5p9UDaAMDZKTlDS98oRnlIw=
@@ -598,7 +593,6 @@ github.com/gofrs/uuid v4.0.0+incompatible h1:1SD/1F5pU8p29ybwgQSwpQk+mwdRrXCYuPh
 github.com/gofrs/uuid v4.0.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=
 github.com/gogo/googleapis v0.0.0-20180223154316-0cd9801be74a/go.mod h1:gf4bu3Q80BeJ6H1S1vYPm8/ELATdvryBaNFGgqEef3s=
 github.com/gogo/googleapis v1.1.0/go.mod h1:gf4bu3Q80BeJ6H1S1vYPm8/ELATdvryBaNFGgqEef3s=
-github.com/gogo/googleapis v1.4.0 h1:zgVt4UpGxcqVOw97aRGxT4svlcmdK35fynLNctY32zI=
 github.com/gogo/googleapis v1.4.0/go.mod h1:5YRNX2z1oM5gXdAkurHa942MDgEJyk02w4OecKY87+c=
 github.com/gogo/protobuf v1.1.1/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/gogo/protobuf v1.2.0/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
@@ -608,7 +602,6 @@ github.com/gogo/protobuf v1.3.1/go.mod h1:SlYgWuQ5SjCEi6WLHjHCa1yvBfUnHcTbrrZtXP
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
 github.com/gogo/status v1.0.3/go.mod h1:SavQ51ycCLnc7dGyJxp8YAmudx8xqiVrRf+6IXRsugc=
-github.com/gogo/status v1.1.0 h1:+eIkrewn5q6b30y+g/BJINVVdi2xH7je5MPJ3ZPK3JA=
 github.com/gogo/status v1.1.0/go.mod h1:BFv9nrluPLmrS0EmGVvLaPNmRosr9KapBYd5/hpY1WM=
 github.com/golang-jwt/jwt v3.2.2+incompatible h1:IfV12K8xAKAnZqdXVzCZ+TOjboZ2keLg81eXfW3O+oY=
 github.com/golang-jwt/jwt v3.2.2+incompatible/go.mod h1:8pz2t5EyA70fFQQSrl6XZXzqecmYZeUEB8OUGHkxJ+I=
@@ -2130,8 +2123,9 @@ github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpP
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954 h1:xQdMZ1WLrgkkvOZ/LDQxjVxMLdby7osSh4ZEVa5sIjs=
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954/go.mod h1:u2MKkTVTVJWe5D1rCvame8WqhBd88EuIwODJZ1VHCPM=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
-github.com/textileio/bidbot v0.0.8 h1:wPor3uqOoHEvWQj29SoNnl4DwW2BFV1Qq9SwR81IdKo=
-github.com/textileio/bidbot v0.0.8/go.mod h1:/0KVwp62hLxfop9HXXPi5Vk1EBQ09v/Ab4zDxjEXEH4=
+github.com/textileio/bidbot v0.1.0 h1:WMl+jO3LaN5wg129HYt3TEalpIny/leKuyfPxNACALo=
+github.com/textileio/bidbot v0.1.0/go.mod h1:ZtnmMqlURIlgWpVFxaG+TT0B47ZZZVJ/5e2WU4cB/Vo=
+github.com/textileio/cli v1.0.0/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
 github.com/textileio/cli v1.0.1 h1:Ta7QEb6Tb7Ftm9vw9Gx+d6ZaQ8CABE7tb6cLgEUKMHk=
 github.com/textileio/cli v1.0.1/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
 github.com/textileio/go-auctions-client v0.0.0-20210914093526-52fac6d8b09f h1:Eu2usVq8ImvJ1IwBfl7xtK9KlByrSJeyjIgRQZIuXB4=

@@ -12,9 +12,9 @@ import (
 	eth "github.com/ethereum/go-ethereum/common"
 	jwt "github.com/golang-jwt/jwt"
 	"github.com/mr-tron/base58"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/chainapi"
 	"github.com/textileio/broker-core/cmd/authd/store"
+	"github.com/textileio/broker-core/common"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
 	"github.com/textileio/broker-core/rpc"
 	golog "github.com/textileio/go-log/v2"
@@ -46,8 +46,8 @@ type Service struct {
 	server *grpc.Server
 	store  *store.Store
 
-	metricGrpcRequests        metric.Int64Counter
-	metricGrpcRequestDuration metric.Float64ValueRecorder
+	metricGrpcRequests              metric.Int64Counter
+	metricGrpcRequestDurationMillis metric.Int64ValueRecorder
 }
 
 // Config is the service config.
@@ -265,7 +265,7 @@ func (s *Service) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthRespon
 	input := detectInput(req.Token)
 	resp, status := s.doAuth(ctx, input)
 	s.metricGrpcRequests.Add(ctx, 1, attribute.Int("status_code", int(status.Code())))
-	s.metricGrpcRequestDuration.Record(ctx, time.Since(start).Seconds())
+	s.metricGrpcRequestDurationMillis.Record(ctx, time.Since(start).Milliseconds())
 	return resp, status.Err()
 }
 

@@ -16,8 +16,9 @@ func (b *Broker) initMetrics() {
 	b.metricFinishedBytes = metrics.Meter.NewInt64Counter(prefix + ".finished_bytes_total")
 	b.metricRebatches = metrics.Meter.NewInt64Counter(prefix + ".rebatches_total")
 	b.metricRebatchedBytes = metrics.Meter.NewInt64Counter(prefix + ".rebatched_bytes_total")
-	b.metricBatchAuctionsDuration = metrics.Meter.NewFloat64ValueRecorder(prefix + ".batch_auctions_duration")
+	b.metricBatchFinalityMinutes = metrics.Meter.NewInt64ValueRecorder(prefix + ".batch_finality_minutes")
 	b.metricReauctions = metrics.Meter.NewInt64Counter(prefix + ".reauctions_total")
+	b.metricReauctionedBytes = metrics.Meter.NewInt64Counter(prefix + ".reauctioned_bytes_total")
 
 	b.metricUnpinTotal = metrics.Meter.NewInt64Counter(prefix + ".unpin_total")
 	b.metricRecursivePinCount = metrics.Meter.NewInt64ValueObserver(prefix+".pins_total", b.lastTotalPinCountCb)

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/oklog/ulid/v2"
@@ -62,14 +63,15 @@ type Broker struct {
 	lock    sync.Mutex
 	entropy *ulid.MonotonicEntropy
 
-	metricStartedAuctions       metric.Int64Counter
-	metricStartedBytes          metric.Int64Counter
-	metricFinishedAuctions      metric.Int64Counter
-	metricFinishedBytes         metric.Int64Counter
-	metricRebatches             metric.Int64Counter
-	metricRebatchedBytes        metric.Int64Counter
-	metricBatchAuctionsDuration metric.Float64ValueRecorder
-	metricReauctions            metric.Int64Counter
+	metricStartedAuctions      metric.Int64Counter
+	metricStartedBytes         metric.Int64Counter
+	metricFinishedAuctions     metric.Int64Counter
+	metricFinishedBytes        metric.Int64Counter
+	metricRebatches            metric.Int64Counter
+	metricRebatchedBytes       metric.Int64Counter
+	metricBatchFinalityMinutes metric.Int64ValueRecorder
+	metricReauctions           metric.Int64Counter
+	metricReauctionedBytes     metric.Int64Counter
 
 	metricUnpinTotal        metric.Int64Counter
 	statTotalRecursivePins  int64
@@ -237,7 +239,7 @@ func (b *Broker) CreatePrepared(
 		return broker.StorageRequest{}, fmt.Errorf("calculating auction epoch deadline: %s", err)
 	}
 
-	auctionID, err := b.startAuction(ctx, ba, ba.PieceSize, auctionEpochDeadline)
+	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, nil, auctionEpochDeadline)
 	if err != nil {
 		return broker.StorageRequest{}, err
 	}
@@ -377,7 +379,7 @@ func (b *Broker) NewBatchPrepared(
 		return fmt.Errorf("saving piecer output in batch: %s", err)
 	}
 
-	auctionID, err := b.startAuction(ctx, ba, dpr.PieceSize, ba.FilEpochDeadline)
+	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, nil, ba.FilEpochDeadline)
 	if err != nil {
 		return err
 	}
@@ -386,12 +388,25 @@ func (b *Broker) NewBatchPrepared(
 	return nil
 }
 
-func (b *Broker) startAuction(ctx context.Context, ba *broker.Batch, pieceSize uint64,
+func (b *Broker) startAuction(ctx context.Context,
+	ba *broker.Batch,
+	rw *broker.RemoteWallet,
+	repFactor int,
+	pieceSize uint64,
+	excludedStorageProviders []string,
 	filEpochDeadline uint64) (auction.ID, error) {
 	auctionID, err := b.newID()
 	if err != nil {
 		return "", fmt.Errorf("generating auction id: %s", err)
 	}
+	var clientAddress string
+	if rw != nil {
+		clientAddress = rw.WalletAddr.String()
+	} else {
+		clientAddress = b.conf.defaultWalletAddr.String()
+	}
+	// UGLY HACK: address.String() always returns as if the address is for testnet. Force replacing it to be mainnet.
+	clientAddress = address.MainnetPrefix + clientAddress[len(address.MainnetPrefix):]
 	if err := msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
@@ -400,11 +415,12 @@ func (b *Broker) startAuction(ctx context.Context, ba *broker.Batch, pieceSize u
 		ba.PayloadCid,
 		pieceSize,
 		ba.DealDuration,
-		ba.RepFactor,
+		repFactor,
 		b.conf.verifiedDeals,
-		nil, // excludedStorageProviders,
+		excludedStorageProviders,
 		filEpochDeadline,
 		ba.Sources,
+		clientAddress,
 	); err != nil {
 		return "", fmt.Errorf("publishing ready to create auction msg: %s", err)
 	}
@@ -580,27 +596,16 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 			}
 		}
 
-		auctionID, err := b.newID()
+		rw, err := b.store.GetRemoteWalletConfig(ctx, ba.ID)
 		if err != nil {
-			return fmt.Errorf("generating auction id: %s", err)
+			return fmt.Errorf("get remote wallet config: %s", err)
 		}
-		if err := msgbroker.PublishMsgReadyToAuction(
-			ctx,
-			b.mb,
-			auction.ID(auctionID),
-			ba.ID,
-			ba.PayloadCid,
-			ba.PieceSize,
-			ba.DealDuration,
-			1,
-			b.conf.verifiedDeals,
-			excludedStorageProviders,
-			auctionDeadlineEpoch,
-			ba.Sources,
-		); err != nil {
+		_, err = b.startAuction(ctx, ba, rw, 1, ba.PieceSize, excludedStorageProviders, auctionDeadlineEpoch)
+		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
 		b.metricReauctions.Add(ctx, 1)
+		b.metricReauctionedBytes.Add(ctx, int64(ba.PieceSize))
 		return nil
 	}
 
@@ -681,7 +686,7 @@ func (b *Broker) batchSuccess(ctx context.Context, ba *broker.Batch) error {
 	}
 	b.metricFinishedAuctions.Add(ctx, 1, metrics.AttrOK)
 	b.metricFinishedBytes.Add(ctx, int64(ba.PieceSize), metrics.AttrOK)
-	b.metricBatchAuctionsDuration.Record(ctx, time.Since(ba.CreatedAt).Seconds())
+	b.metricBatchFinalityMinutes.Record(ctx, int64(time.Since(ba.CreatedAt).Minutes()))
 	log.Debugf("batch %s success", ba.ID)
 	return nil
 }

@@ -5,10 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/dealerd/metrics"
 	"github.com/textileio/broker-core/cmd/dealerd/service"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/msgbroker/gpubsub"
+	"github.com/textileio/cli"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -19,7 +20,7 @@ var (
 )
 
 func init() {
-	flags := []common.Flag{
+	flags := []cli.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
 		{
@@ -48,7 +49,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, "DEALER", flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, "DEALER", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
@@ -56,20 +57,20 @@ var rootCmd = &cobra.Command{
 	Short: "dealerd executes deals for winning bids",
 	Long:  "dealerd executes deals for winning bids",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		common.ExpandEnvVars(v, v.AllSettings())
-		err := common.ConfigureLogging(v, []string{
+		cli.ExpandEnvVars(v, v.AllSettings())
+		err := cli.ConfigureLogging(v, []string{
 			daemonName,
 			"dealer/service",
 			"dealer",
 			"dealermock",
 			"dealer/filclient",
 		})
-		common.CheckErrf("setting log levels: %v", err)
+		cli.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key",
+		settings, err := cli.MarshalConfig(v, !v.GetBool("log-json"), "gpubsub-api-key",
 			"lotus-exported-wallet-address", "postgres-uri")
-		common.CheckErr(err)
+		cli.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
@@ -93,12 +94,12 @@ var rootCmd = &cobra.Command{
 		apiKey := v.GetString("gpubsub-api-key")
 		topicPrefix := v.GetString("msgbroker-topic-prefix")
 		mb, err := gpubsub.NewMetered(projectID, apiKey, topicPrefix, "dealerd", metrics.Meter)
-		common.CheckErrf("creating google pubsub client: %s", err)
+		cli.CheckErrf("creating google pubsub client: %s", err)
 
 		serv, err := service.New(mb, config)
-		common.CheckErr(err)
+		cli.CheckErr(err)
 
-		common.HandleInterrupt(func() {
+		cli.HandleInterrupt(func() {
 			if err := serv.Close(); err != nil {
 				log.Errorf("closing service: %s", err)
 			}
@@ -110,5 +111,5 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	common.CheckErr(rootCmd.Execute())
+	cli.CheckErr(rootCmd.Execute())
 }

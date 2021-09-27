@@ -21,6 +21,7 @@ type Auction struct {
 	FilEpochDeadline         uint64
 	ExcludedStorageProviders []string
 	Sources                  auction.Sources
+	ClientAddress            string
 	Status                   broker.AuctionStatus
 	Bids                     map[auction.BidID]Bid
 	WinningBids              map[auction.BidID]WinningBid

@@ -18,10 +18,10 @@ import (
 	swarmt "github.com/libp2p/go-libp2p-swarm/testing"
 	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/go-auctions-client/localwallet"
 	"github.com/textileio/go-auctions-client/propsigner"
+	logger "github.com/textileio/go-log/v2"
 )
 
 func TestRemoteSigning(t *testing.T) {
@@ -158,7 +158,7 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 	require.NoError(t, err)
 	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid)
 	require.NoError(t, err)
-	fmt.Printf("%s\n", logging.MustJSONIndent(status))
+	fmt.Printf("%s\n", logger.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])
 }
 

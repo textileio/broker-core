@@ -26,7 +26,8 @@ INSERT INTO auctions(
     car_ipfs_cid,
     car_ipfs_addrs,
     status,
-    duration
+    duration,
+    client_address
     ) VALUES (
       $1,
       $2,
@@ -41,7 +42,8 @@ INSERT INTO auctions(
       $11,
       $12,
       $13,
-      $14)
+      $14,
+      $15)
 `
 
 type CreateAuctionParams struct {
@@ -59,6 +61,7 @@ type CreateAuctionParams struct {
 	CarIpfsAddrs             []string             `json:"carIpfsAddrs"`
 	Status                   broker.AuctionStatus `json:"status"`
 	Duration                 int64                `json:"duration"`
+	ClientAddress            string               `json:"clientAddress"`
 }
 
 func (q *Queries) CreateAuction(ctx context.Context, arg CreateAuctionParams) error {
@@ -77,12 +80,13 @@ func (q *Queries) CreateAuction(ctx context.Context, arg CreateAuctionParams) er
 		pq.Array(arg.CarIpfsAddrs),
 		arg.Status,
 		arg.Duration,
+		arg.ClientAddress,
 	)
 	return err
 }
 
 const getAuction = `-- name: GetAuction :one
-SELECT id, batch_id, deal_size, deal_duration, deal_replication, deal_verified, fil_epoch_deadline, excluded_storage_providers, payload_cid, car_url, car_ipfs_cid, car_ipfs_addrs, status, error_cause, duration, started_at, updated_at FROM auctions
+SELECT id, batch_id, deal_size, deal_duration, deal_replication, deal_verified, fil_epoch_deadline, excluded_storage_providers, payload_cid, car_url, car_ipfs_cid, car_ipfs_addrs, status, error_cause, duration, started_at, updated_at, client_address FROM auctions
 WHERE id = $1
 `
 
@@ -107,12 +111,13 @@ func (q *Queries) GetAuction(ctx context.Context, id auction.ID) (Auction, error
 		&i.Duration,
 		&i.StartedAt,
 		&i.UpdatedAt,
+		&i.ClientAddress,
 	)
 	return i, err
 }
 
 const getNextReadyToExecute = `-- name: GetNextReadyToExecute :one
-SELECT id, batch_id, deal_size, deal_duration, deal_replication, deal_verified, fil_epoch_deadline, excluded_storage_providers, payload_cid, car_url, car_ipfs_cid, car_ipfs_addrs, status, error_cause, duration, started_at, updated_at FROM auctions
+SELECT id, batch_id, deal_size, deal_duration, deal_replication, deal_verified, fil_epoch_deadline, excluded_storage_providers, payload_cid, car_url, car_ipfs_cid, car_ipfs_addrs, status, error_cause, duration, started_at, updated_at, client_address FROM auctions
 WHERE status = 'queued' OR
 (status = 'started' AND extract(epoch from current_timestamp - updated_at) > $1::bigint)
 ORDER BY fil_epoch_deadline ASC
@@ -141,6 +146,7 @@ func (q *Queries) GetNextReadyToExecute(ctx context.Context, stuckSeconds int64)
 		&i.Duration,
 		&i.StartedAt,
 		&i.UpdatedAt,
+		&i.ClientAddress,
 	)
 	return i, err
 }

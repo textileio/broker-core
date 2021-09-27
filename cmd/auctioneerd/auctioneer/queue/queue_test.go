@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/bidbot/lib/auction"
-	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/tests"
@@ -27,7 +26,7 @@ var testCid cid.Cid
 var testSources auction.Sources
 
 func init() {
-	if err := logging.SetLogLevels(map[string]golog.LogLevel{
+	if err := golog.SetLogLevels(map[string]golog.LogLevel{
 		"auctioneer/queue": golog.LevelDebug,
 	}); err != nil {
 		panic(err)

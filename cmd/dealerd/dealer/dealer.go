@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/textileio/bidbot/lib/logging"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	dealeri "github.com/textileio/broker-core/dealer"
 	mbroker "github.com/textileio/broker-core/msgbroker"
@@ -75,7 +74,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 		PieceSize:  ad.PieceSize,
 		Duration:   ad.Duration,
 	}
-	log.Debugf("ready to create deals auction data: %s", logging.MustJSONIndent(auctionData))
+	log.Debugf("ready to create deals auction data: %s", logger.MustJSONIndent(auctionData))
 	auctionDeals := make([]*store.AuctionDeal, len(ad.Proposals))
 	for i, t := range ad.Proposals {
 		auctionDeal := &store.AuctionDeal{
@@ -88,7 +87,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 			BidID:               t.BidID,
 		}
 		auctionDeals[i] = auctionDeal
-		log.Debugf("%s auction deal: %s", auctionData.BatchID, logging.MustJSONIndent(auctionDeal))
+		log.Debugf("%s auction deal: %s", auctionData.BatchID, logger.MustJSONIndent(auctionDeal))
 	}
 	if err := d.store.Create(ctx, auctionData, auctionDeals, ad.RemoteWallet); err != nil {
 		return fmt.Errorf("creating auction deals: %w", err)

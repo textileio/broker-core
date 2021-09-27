@@ -6,9 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/authd/service"
 	"github.com/textileio/broker-core/cmd/chainapis/client"
+	"github.com/textileio/broker-core/common"
+	"github.com/textileio/cli"
 	logging "github.com/textileio/go-log/v2"
 	"google.golang.org/grpc"
 )
@@ -20,7 +21,7 @@ var (
 )
 
 func init() {
-	flags := []common.Flag{
+	flags := []cli.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
 		{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "near-addr", DefValue: "", Description: "NEAR chain API address"},
@@ -31,7 +32,7 @@ func init() {
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, "AUTH", flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, "AUTH", flags, rootCmd.Flags())
 }
 
 var rootCmd = &cobra.Command{
@@ -39,13 +40,13 @@ var rootCmd = &cobra.Command{
 	Short: "authd provides authentication services for the Broker",
 	Long:  `authd provides authentication services for the Broker`,
 	PersistentPreRun: func(c *cobra.Command, args []string) {
-		common.ExpandEnvVars(v, v.AllSettings())
-		err := common.ConfigureLogging(v, nil)
-		common.CheckErrf("setting log levels: %v", err)
+		cli.ExpandEnvVars(v, v.AllSettings())
+		err := cli.ConfigureLogging(v, nil)
+		cli.CheckErrf("setting log levels: %v", err)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		settings, err := common.MarshalConfig(v, !v.GetBool("log-json"), "postgres-uri")
-		common.CheckErr(err)
+		settings, err := cli.MarshalConfig(v, !v.GetBool("log-json"), "postgres-uri")
+		cli.CheckErr(err)
 		log.Infof("loaded config: %s", string(settings))
 
 		if err := common.SetupInstrumentation(v.GetString("metrics-addr")); err != nil {
@@ -84,9 +85,9 @@ var rootCmd = &cobra.Command{
 			PolyAPI: polyAPIClient,
 		}
 		serv, err := service.New(config, deps)
-		common.CheckErr(err)
+		cli.CheckErr(err)
 
-		common.HandleInterrupt(func() {
+		cli.HandleInterrupt(func() {
 			if err := nearAPIClientConn.Close(); err != nil {
 				log.Errorf("closing near chain api client conn: %v", err)
 			}
@@ -104,5 +105,5 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	common.CheckErr(rootCmd.Execute())
+	cli.CheckErr(rootCmd.Execute())
 }

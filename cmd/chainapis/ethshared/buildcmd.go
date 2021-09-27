@@ -13,10 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/chainapis/ethshared/contractclient"
 	"github.com/textileio/broker-core/cmd/chainapis/ethshared/releaser"
 	"github.com/textileio/broker-core/cmd/chainapis/ethshared/service"
+	"github.com/textileio/cli"
 	logging "github.com/textileio/go-log/v2"
 )
 
@@ -32,14 +32,14 @@ func BuildRootCmd(daemonName, envPrefix, blockchainName string) *cobra.Command {
 
 	rootCmd := buildRootCommand(daemonName, blockchainName)
 
-	flags := []common.Flag{
+	flags := []cli.Flag{
 		{Name: "config-path", DefValue: fmt.Sprintf("./%s.yaml", daemonName), Description: "Path to the config file"},
 		{Name: "listen-addr", DefValue: ":5000", Description: "gRPC listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},
 		{Name: "log-json", DefValue: false, Description: "Enable structured logging"},
 	}
 
-	common.ConfigureCLI(v, envPrefix, flags, rootCmd.Flags())
+	cli.ConfigureCLI(v, envPrefix, flags, rootCmd.Flags())
 
 	_ = cv.BindPFlag("listen-addr", rootCmd.Flags().Lookup("listen-addr"))
 	_ = cv.BindPFlag("log-debug", rootCmd.Flags().Lookup("log-debug"))
@@ -54,19 +54,19 @@ func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 		Short: fmt.Sprintf("%s provides an api to the %s blockchain", daemonName, blockchainName),
 		Long:  fmt.Sprintf("%s provides an api to the %s blockchain", daemonName, blockchainName),
 		PersistentPreRun: func(c *cobra.Command, args []string) {
-			common.ExpandEnvVars(v, v.AllSettings())
-			err := common.ConfigureLogging(v, nil)
-			common.CheckErrf("setting log levels: %v", err)
+			cli.ExpandEnvVars(v, v.AllSettings())
+			err := cli.ConfigureLogging(v, nil)
+			cli.CheckErrf("setting log levels: %v", err)
 		},
 		Run: func(c *cobra.Command, args []string) {
 			cv.SetConfigFile(v.GetString("config-path"))
 
 			err := cv.ReadInConfig()
-			common.CheckErrf("reading config: %v", err)
+			cli.CheckErrf("reading config: %v", err)
 
 			// Obfuscating chain-apis since the nested map values contain private keys
-			settings, err := common.MarshalConfig(cv, !cv.GetBool("log-json"), "chain-apis")
-			common.CheckErrf("marshaling config: %v", err)
+			settings, err := cli.MarshalConfig(cv, !cv.GetBool("log-json"), "chain-apis")
+			cli.CheckErrf("marshaling config: %v", err)
 			log.Infof("loaded config: %s", string(settings))
 
 			listenAddr := cv.GetString("listen-addr")
@@ -87,16 +87,16 @@ func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 				ctx, cancel := context.WithTimeout(context.Background(), timeout)
 				ethClient, err := ethclient.DialContext(ctx, endpoint)
 				cancel()
-				common.CheckErrf("dialing endpoint: %v", err)
+				cli.CheckErrf("dialing endpoint: %v", err)
 
 				contractAddr := ethcommon.HexToAddress(contractAddress)
 				clientAddr := ethcommon.HexToAddress(clientAddress)
 
 				contractClient, err := contractclient.NewBridgeProvider(contractAddr, ethClient)
-				common.CheckErrf("creating contract client: %v", err)
+				cli.CheckErrf("creating contract client: %v", err)
 
 				privateKey, err := crypto.HexToECDSA(clientPrivateKey)
-				common.CheckErrf("parsing private key: %v", err)
+				cli.CheckErrf("parsing private key: %v", err)
 
 				signer := func(a ethcommon.Address, t *types.Transaction) (*types.Transaction, error) {
 					chain, ok := (&big.Int{}).SetString(chainID, 10)
@@ -108,7 +108,7 @@ func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 				}
 
 				releaser, err := releaser.New(contractClient, chainID, clientAddr, signer, releaseDepositsFreq, timeout)
-				common.CheckErrf("creating releaser: %v", err)
+				cli.CheckErrf("creating releaser: %v", err)
 
 				ethClients = append(ethClients, ethClient)
 				contractClients[chainID] = contractClient
@@ -117,17 +117,17 @@ func buildRootCommand(daemonName, blockchainName string) *cobra.Command {
 			_ = releasers
 
 			if len(contractClients) == 0 {
-				common.CheckErr(errors.New("no contract clients resolved"))
+				cli.CheckErr(errors.New("no contract clients resolved"))
 			}
 
 			log.Info("Starting service...")
 			listener, err := net.Listen("tcp", listenAddr)
-			common.CheckErrf("creating listener: %v", err)
+			cli.CheckErrf("creating listener: %v", err)
 
 			service, err := service.NewService(listener, daemonName, contractClients)
-			common.CheckErrf("creating service: %v", err)
+			cli.CheckErrf("creating service: %v", err)
 
-			common.HandleInterrupt(func() {
+			cli.HandleInterrupt(func() {
 				for _, c := range ethClients {
 					c.Close()
 				}

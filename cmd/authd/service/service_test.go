@@ -13,7 +13,6 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/bidbot/lib/logging"
 	ethjwt "github.com/textileio/broker-core/cmd/authd/eth"
 	nearjwt "github.com/textileio/broker-core/cmd/authd/near"
 	pb "github.com/textileio/broker-core/gen/broker/auth/v1"
@@ -27,7 +26,7 @@ import (
 const bufSize = 1024 * 1024
 
 func init() {
-	if err := logging.SetLogLevels(map[string]golog.LogLevel{
+	if err := golog.SetLogLevels(map[string]golog.LogLevel{
 		"auth/service": golog.LevelDebug,
 	}); err != nil {
 		panic(err)

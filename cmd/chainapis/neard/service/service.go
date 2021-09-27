@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/textileio/bidbot/lib/common"
 	"github.com/textileio/broker-core/cmd/chainapis/neard/providerclient"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/gen/broker/chainapi/v1"
 	logging "github.com/textileio/go-log/v2"
 	"github.com/textileio/near-api-go/keys"

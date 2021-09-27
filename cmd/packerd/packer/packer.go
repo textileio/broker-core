@@ -49,16 +49,16 @@ type Packer struct {
 	daemonCancelCtx context.CancelFunc
 	daemonClosed    chan struct{}
 
-	metricNewBatch          metric.Int64Counter
-	metricBatchSizeTotal    metric.Int64Counter
-	statLastBatch           time.Time
-	metricLastBatchCreated  metric.Int64ValueObserver
-	statLastBatchCount      int64
-	metricLastBatchCount    metric.Int64ValueObserver
-	statLastBatchSize       int64
-	metricLastBatchSize     metric.Int64ValueObserver
-	statLastBatchDuration   int64
-	metricLastBatchDuration metric.Int64ValueObserver
+	metricNewBatch                metric.Int64Counter
+	metricBatchSizeTotal          metric.Int64Counter
+	statLastBatch                 time.Time
+	metricLastBatchCreated        metric.Int64ValueObserver
+	statLastBatchCount            int64
+	metricLastBatchCount          metric.Int64ValueObserver
+	statLastBatchSize             int64
+	metricLastBatchSize           metric.Int64ValueObserver
+	statLastBatchDuration         int64
+	metricLastBatchDurationMillis metric.Int64ValueObserver
 }
 
 // CARUploader provides blob storage for CAR files.

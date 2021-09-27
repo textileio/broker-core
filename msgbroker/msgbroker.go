@@ -128,6 +128,7 @@ type ReadyToAuctionListener interface {
 		excludedStorageProviders []string,
 		filEpochDeadline uint64,
 		sources auction.Sources,
+		clientAddress string,
 	) error
 }
 
@@ -524,6 +525,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				req.ExcludedStorageProviders,
 				req.FilEpochDeadline,
 				sources,
+				req.ClientAddress,
 			); err != nil {
 				return fmt.Errorf("calling ready-to-auction handler: %s", err)
 			}
@@ -764,7 +766,8 @@ func PublishMsgReadyToAuction(
 	dealVerified bool,
 	excludedStorageProviders []string,
 	filEpochDeadline uint64,
-	sources auction.Sources) error {
+	sources auction.Sources,
+	clientAddress string) error {
 	msg := &pb.ReadyToAuction{
 		Id:                       string(id),
 		BatchId:                  string(BatchID),
@@ -776,6 +779,7 @@ func PublishMsgReadyToAuction(
 		ExcludedStorageProviders: excludedStorageProviders,
 		FilEpochDeadline:         filEpochDeadline,
 		Sources:                  sourcesToPb(sources),
+		ClientAddress:            clientAddress,
 	}
 	return marshalAndPublish(ctx, mb, ReadyToAuctionTopic, msg)
 }
