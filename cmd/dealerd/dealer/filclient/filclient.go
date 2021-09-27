@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/filecoin-project/go-address"
@@ -25,6 +26,7 @@ import (
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multibase"
+	"github.com/textileio/broker-core/cmd/dealerd/dealer/filapi"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/go-auctions-client/propsigner"
@@ -44,7 +46,7 @@ const dealProtocol = "/fil/storage/mk/1.1.0"
 type FilClient struct {
 	conf config
 
-	api  v0api.FullNode
+	api  filapi.FilAPI
 	host host.Host
 
 	metricExecAuctionDeal                    metric.Int64Counter
@@ -52,6 +54,9 @@ type FilClient struct {
 	metricResolveDealIDFromMessage           metric.Int64Counter
 	metricCheckDealStatusWithStorageProvider metric.Int64Counter
 	metricCheckChainDeal                     metric.Int64Counter
+
+	metricFilAPIRequests       metric.Int64Counter
+	metricFilAPIDurationMillis metric.Int64ValueRecorder
 }
 
 // New returns a new FilClient.
@@ -66,8 +71,8 @@ func New(api v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
 	fc := &FilClient{
 		conf: cfg,
 		host: h,
-		api:  api,
 	}
+	fc.api = filapi.Measured(api, fc.collectAPIMetrics)
 	fc.initMetrics()
 
 	return fc, nil
@@ -525,6 +530,20 @@ func (fc *FilClient) validateProposal(p *market.DealProposal) error {
 	}
 
 	return nil
+}
+
+func (fc *FilClient) collectAPIMetrics(ctx context.Context, methodName string, err error, duration time.Duration) {
+	labels := []attribute.KeyValue{
+		attribute.String("method", methodName),
+	}
+	if err != nil {
+		labels = append(labels, metrics.AttrError)
+	} else {
+		labels = append(labels, metrics.AttrOK)
+	}
+
+	fc.metricFilAPIRequests.Add(ctx, 1, labels...)
+	fc.metricFilAPIDurationMillis.Record(ctx, duration.Milliseconds(), labels...)
 }
 
 func labelField(c cid.Cid) (string, error) {
