@@ -1,4 +1,4 @@
-import { createServer } from 'http';
+import express from "express"
 import { postgraphile, PostGraphileOptions } from 'postgraphile'
 import { makeJSONPgSmartTagsPlugin, JSONPgSmartTags } from 'graphile-utils'
 import { PgNodeAliasPostGraphile } from 'graphile-build-pg'
@@ -44,14 +44,9 @@ let p = postgraphile(
   options,
 )
 
-const s = createServer()
+const app = express()
 
-s.on("request", (request, response) => {
-  if (request.url == "/") {
-    response.end()
-  } else {
-    p(request, response)
-  }
-})
+app.get("/", (_, res) => res.sendStatus(200))
+app.use(p)
 
-s.listen(process.env.PORT || 5000)
+app.listen(process.env.PORT || 5000)
