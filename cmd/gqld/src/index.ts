@@ -44,4 +44,14 @@ let p = postgraphile(
   options,
 )
 
-createServer(p).listen(process.env.PORT || 5000)
+const s = createServer()
+
+s.on("request", (request, response) => {
+  if (request.url == "/") {
+    response.end()
+  } else {
+    p(request, response)
+  }
+})
+
+s.listen(process.env.PORT || 5000)
