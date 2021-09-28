@@ -229,7 +229,7 @@ services:
     build:
       context: .
       dockerfile: ./cmd/gqld/Dockerfile
-    platform: linux/amd64
+    platform: linux/{{platform}}
     entrypoint: ["npm", "start"]
     environment:
       - DEV=true
