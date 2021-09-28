@@ -37,6 +37,20 @@ spec:
                 name: storage
                 port:
                   number: 8888
+          - path: /graphql
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: gql
+                port:
+                  number: 5000
+          - path: /graphiql
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: gql
+                port:
+                  number: 5000
 ---
 apiVersion: cloud.google.com/v1beta1
 kind: BackendConfig
