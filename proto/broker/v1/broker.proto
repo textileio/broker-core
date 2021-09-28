@@ -89,6 +89,7 @@ message ReadyToAuction {
     uint64 fil_epoch_deadline = 9;
     Sources sources = 10;
     string client_address = 11;
+    repeated string providers = 12;
 }
 
 message ReadyToCreateDeals {

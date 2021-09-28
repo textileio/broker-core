@@ -156,13 +156,22 @@ func TestCreatePrepared(t *testing.T) {
 	tests := []struct {
 		name string
 		rw   *broker.RemoteWallet
+		meta broker.BatchMetadata
 	}{
 		{
-			name: "without remote wallet",
+			name: "without remote wallet nor providers",
+			meta: meta,
 			rw:   nil,
 		},
 		{
-			name: "with wallet",
+			name: "with direct providers",
+			meta: metaWithDirectProviders,
+			rw:   nil,
+		},
+
+		{
+			name: "with remote wallet",
+			meta: meta,
 			rw:   makeRemoteWalletConfig(t),
 		},
 	}
@@ -174,7 +183,7 @@ func TestCreatePrepared(t *testing.T) {
 			b, mb, _ := createBroker(t)
 
 			expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
-			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta, test.rw)
+			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, test.meta, test.rw)
 			require.NoError(t, err)
 
 			// 2- Check that the created StorageRequest moved directly to Auctioning.
@@ -215,7 +224,7 @@ func TestCreatePrepared(t *testing.T) {
 				require.True(t, ok)
 				require.Equal(t, v, v2)
 			}
-			require.Len(t, sd.Providers, len(meta.Providers))
+			require.Len(t, sd.Providers, len(test.meta.Providers))
 			for _, metaProvider := range meta.Providers {
 				require.Contains(t, sd.Providers, metaProvider)
 			}
@@ -1013,14 +1022,24 @@ func makeRemoteWalletConfig(t *testing.T) *broker.RemoteWallet {
 	}
 }
 
-var meta = broker.BatchMetadata{
-	Origin: "DUKE",
-	Tags: map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-	},
-	Providers: createTestProviderAddrs(),
-}
+var (
+	meta = broker.BatchMetadata{
+		Origin: "DUKE",
+		Tags: map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		},
+	}
+
+	metaWithDirectProviders = broker.BatchMetadata{
+		Origin: "DUKE",
+		Tags: map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		},
+		Providers: createTestProviderAddrs(),
+	}
+)
 
 func createTestProviderAddrs() []address.Address {
 	addr1, err := address.NewFromString("f001")

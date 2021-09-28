@@ -420,6 +420,7 @@ func (b *Broker) startAuction(ctx context.Context,
 		filEpochDeadline,
 		ba.Sources,
 		clientAddress,
+		ba.Providers,
 	); err != nil {
 		return "", fmt.Errorf("publishing ready to create auction msg: %s", err)
 	}
