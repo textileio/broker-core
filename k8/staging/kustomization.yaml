@@ -73,6 +73,7 @@ patchesStrategicMerge:
 - authd-patch.yaml
 - brokerd-patch.yaml
 - dealerd-patch.yaml
+- gqld-patch.yaml
 - ingress-patch.yaml
 - ipfs-cluster-setup-confmap-patch.yaml
 - ipfs-cluster-statefulset-patch.yaml
