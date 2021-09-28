@@ -209,6 +209,7 @@ func (b *Broker) CreatePrepared(
 		FilEpochDeadline:   batchEpochDeadline,
 		Origin:             meta.Origin,
 		Tags:               meta.Tags,
+		Providers:          meta.Providers,
 
 		PayloadCid: payloadCid,
 		PieceCid:   pc.PieceCid,

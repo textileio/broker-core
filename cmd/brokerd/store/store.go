@@ -22,6 +22,7 @@ import (
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/store/internal/db"
 	"github.com/textileio/broker-core/cmd/brokerd/store/migrations"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/storeutil"
 	logger "github.com/textileio/go-log/v2"
 )
@@ -233,6 +234,7 @@ func (s *Store) CreateBatch(
 		CarIpfsCid:         dsources.ipfsCid,
 		CarIpfsAddrs:       strings.Join(dsources.ipfsMultiaddrs, ","),
 		Origin:             ba.Origin,
+		Providers:          common.StringifyAddrs(ba.Providers...),
 	}
 	ids := make([]string, len(brIDs))
 	for i, id := range brIDs {
@@ -637,6 +639,15 @@ func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 			sources.CARIPFS = carIPFS
 		}
 	}
+	providers := make([]address.Address, len(sd.Providers))
+	for i, strProv := range sd.Providers {
+		providerAddr, err := address.NewFromString(strProv)
+		if err != nil {
+			return nil, fmt.Errorf("parsing provider %s: %s", strProv, err)
+		}
+		providers[i] = providerAddr
+	}
+
 	mtags := make(map[string]string, len(tags))
 	for _, tag := range tags {
 		mtags[tag.Key] = tag.Value
@@ -655,6 +666,7 @@ func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 		FilEpochDeadline:   sd.FilEpochDeadline,
 		Origin:             sd.Origin,
 		Tags:               mtags,
+		Providers:          providers,
 		Error:              sd.Error,
 		CreatedAt:          sd.CreatedAt,
 		UpdatedAt:          sd.UpdatedAt,

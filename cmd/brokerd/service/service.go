@@ -149,9 +149,18 @@ func (s *Service) CreatePreparedStorageRequest(
 	if r.Metadata.Origin == "" {
 		return nil, status.Error(codes.InvalidArgument, "origin is empty")
 	}
+	providers := make([]address.Address, len(r.Metadata.Providers))
+	for i, provStr := range r.Metadata.Providers {
+		provAddr, err := address.NewFromString(provStr)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "provider %s is invalid: %s", provStr, err)
+		}
+		providers[i] = provAddr
+	}
 	meta := broker.BatchMetadata{
-		Origin: r.Metadata.Origin,
-		Tags:   make(map[string]string, len(r.Metadata.Tags)),
+		Origin:    r.Metadata.Origin,
+		Tags:      make(map[string]string, len(r.Metadata.Tags)),
+		Providers: providers,
 	}
 	for k, v := range meta.Tags {
 		meta.Tags[k] = v

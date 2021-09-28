@@ -187,6 +187,7 @@ func TestCreatePrepared(t *testing.T) {
 			//    - The download sources URL and IPFS.
 			//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
 			//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
+			//    - The providers were persisted correctly (if specified).
 			sd, err := b.GetBatch(ctx, br.BatchID)
 			require.NoError(t, err)
 			require.Equal(t, pc.RepFactor, sd.RepFactor)
@@ -213,6 +214,10 @@ func TestCreatePrepared(t *testing.T) {
 				v2, ok := sd.Tags[k]
 				require.True(t, ok)
 				require.Equal(t, v, v2)
+			}
+			require.Len(t, sd.Providers, len(meta.Providers))
+			for _, metaProvider := range meta.Providers {
+				require.Contains(t, sd.Providers, metaProvider)
 			}
 			rw, err := b.store.GetRemoteWalletConfig(ctx, br.BatchID)
 			require.NoError(t, err)
@@ -1014,4 +1019,17 @@ var meta = broker.BatchMetadata{
 		"key1": "value1",
 		"key2": "value2",
 	},
+	Providers: createTestProviderAddrs(),
+}
+
+func createTestProviderAddrs() []address.Address {
+	addr1, err := address.NewFromString("f001")
+	if err != nil {
+		panic(err)
+	}
+	addr2, err := address.NewFromString("f002")
+	if err != nil {
+		panic(err)
+	}
+	return []address.Address{addr1, addr2}
 }
