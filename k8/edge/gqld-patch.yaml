@@ -7,6 +7,10 @@ spec:
   template:
     spec:
       containers:
+        - name: gql
+          env:
+            - name: DEV
+              value: "true"
         - name: cloud-sql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.17
           command:

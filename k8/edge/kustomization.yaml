@@ -26,9 +26,6 @@ configMapGenerator:
   - configDealer.env
   name: configmap-dealer
 - envs:
-  - configGql.env
-  name: configmap-gql
-- envs:
   - configNear.env
   name: configmap-near
 - envs:

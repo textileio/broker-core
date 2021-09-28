@@ -44,9 +44,6 @@ spec:
                 secretKeyRef:
                   name: broker-secret
                   key: gql-database-url
-          envFrom:
-            - configMapRef:
-                name: configmap-gql
           resources:
             requests:
               cpu: 250m
