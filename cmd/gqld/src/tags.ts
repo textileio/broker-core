@@ -5,27 +5,6 @@ const tags: JSONPgSmartTags = {
   config: {
     class: {
       /*
-      * API
-      */
-      "api.schema_migrations": {
-        tags: {
-          omit: "create,read,update,delete,filter,order,all,many,execute",
-        },
-      },
-      "api.auctions": {
-        tags: {
-          name: "apiAuctions",
-        },
-      },
-      "api.bids": {
-        tags: {
-          name: "apiBids",
-        },
-      },
-
-
-
-      /*
       * Auctioneer
       */
       "auctioneer.auctions": {
