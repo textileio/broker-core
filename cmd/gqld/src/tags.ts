@@ -51,7 +51,7 @@ const tags: JSONPgSmartTags = {
             "(bid_id) references auctioneer.bids (id)",
           ],
           primaryKey: "storage_provider_id,auction_id",
-          unique: ["bid_id,auction_id", "storage_provider_id,bid_id"]
+          unique: ["bid_id,auction_id", "storage_provider_id,bid_id", "bid_id"]
         },
         attribute: {
           "batch_id": {
@@ -62,6 +62,9 @@ const tags: JSONPgSmartTags = {
         }
       },
       "broker.storage_requests": {
+        tags: {
+          foreignKey: "(batch_id) references packer.batches (batch_id)",
+        },
         attribute: {
           "batch_id": {
             tags: {

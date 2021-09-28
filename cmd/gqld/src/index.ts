@@ -1,8 +1,8 @@
 import express from "express"
-import { postgraphile, PostGraphileOptions } from 'postgraphile'
-import { makeJSONPgSmartTagsPlugin, JSONPgSmartTags } from 'graphile-utils'
-import { PgNodeAliasPostGraphile } from 'graphile-build-pg'
-import tags from './tags'
+import { postgraphile, PostGraphileOptions } from "postgraphile"
+import { makeJSONPgSmartTagsPlugin, JSONPgSmartTags } from "graphile-utils"
+import { PgNodeAliasPostGraphile } from "graphile-build-pg"
+import tags from "./tags"
 
 const tagsPlugin = makeJSONPgSmartTagsPlugin(tags)
 
@@ -18,6 +18,7 @@ let options: PostGraphileOptions = {
   appendPlugins: [tagsPlugin],
   skipPlugins: [PgNodeAliasPostGraphile],
   enhanceGraphiql: true,
+  legacyRelations: "omit",
 
   // Will be changed in DEV mode
   showErrorStack: false,
