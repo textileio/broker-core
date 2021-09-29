@@ -290,7 +290,6 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	providers := make([]address.Address, len(adr.Providers))
 	sort.Slice(adr.Providers, func(i, j int) bool { return adr.Providers[i] < adr.Providers[j] })
 	for i, provider := range adr.Providers {
-
 		providerAddr, err := address.NewFromString(provider)
 		if err != nil {
 			return storage.Request{}, fmt.Errorf("provider %s format is invalid: %s", provider, err)
@@ -305,6 +304,11 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 
 		providers[i] = providerAddr
 	}
+	if len(providers) > 0 && adr.RepFactor > len(providers) {
+		return storage.Request{},
+			fmt.Errorf("rep factor %d is greater than providers list %d", adr.RepFactor, len(providers))
+	}
+
 	meta := broker.BatchMetadata{
 		Origin:    origin,
 		Tags:      adr.Tags,

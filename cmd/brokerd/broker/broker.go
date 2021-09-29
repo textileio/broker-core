@@ -573,7 +573,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		// miner to have the possibility of closing successfully. If we need to re-auction and don't
 		// have room for any miner to win, then re-auctioning won't make sense and it will fail.
 		if len(ba.Providers) > 0 && len(excludedStorageProviders) == len(ba.Providers) {
-			errCause := fmt.Sprintf("no available miners can be selected for re-auctioning")
+			errCause := "no available miners can be selected for re-auctioning"
 			log.Warn(errCause)
 			_, err := b.batchError(ctx, ba, errCause, false)
 			return err
