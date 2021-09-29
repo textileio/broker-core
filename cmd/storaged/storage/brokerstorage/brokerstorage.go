@@ -292,6 +292,9 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 			if err != nil {
 				return storage.Request{}, fmt.Errorf("provider %s format is invalid: %s", provider, err)
 			}
+			if providerAddr.Protocol() != address.ID {
+				return storage.Request{}, fmt.Errorf("%s should be an identity address", provider)
+			}
 			providers[i] = providerAddr
 		}
 	}

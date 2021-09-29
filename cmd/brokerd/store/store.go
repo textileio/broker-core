@@ -645,6 +645,9 @@ func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 		if err != nil {
 			return nil, fmt.Errorf("parsing provider %s: %s", strProv, err)
 		}
+		if providerAddr.Protocol() != address.ID {
+			return nil, fmt.Errorf("%s should be an identity address", strProv)
+		}
 		providers[i] = providerAddr
 	}
 

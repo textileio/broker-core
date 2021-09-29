@@ -155,6 +155,9 @@ func (s *Service) CreatePreparedStorageRequest(
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "provider %s is invalid: %s", provStr, err)
 		}
+		if provAddr.Protocol() != address.ID {
+			return nil, fmt.Errorf("%s should be an identity address", provStr)
+		}
 		providers[i] = provAddr
 	}
 	meta := broker.BatchMetadata{
