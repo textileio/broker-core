@@ -13,6 +13,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/dealer"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"google.golang.org/protobuf/proto"
@@ -129,6 +130,7 @@ type ReadyToAuctionListener interface {
 		filEpochDeadline uint64,
 		sources auction.Sources,
 		clientAddress string,
+		providers []string,
 	) error
 }
 
@@ -512,7 +514,6 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if err != nil {
 				return fmt.Errorf("decoding sources: %v", err)
 			}
-
 			if err := l.OnReadyToAuction(
 				ctx,
 				auction.ID(req.Id),
@@ -526,6 +527,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				req.FilEpochDeadline,
 				sources,
 				req.ClientAddress,
+				req.Providers,
 			); err != nil {
 				return fmt.Errorf("calling ready-to-auction handler: %s", err)
 			}
@@ -767,7 +769,8 @@ func PublishMsgReadyToAuction(
 	excludedStorageProviders []string,
 	filEpochDeadline uint64,
 	sources auction.Sources,
-	clientAddress string) error {
+	clientAddress string,
+	providers []address.Address) error {
 	msg := &pb.ReadyToAuction{
 		Id:                       string(id),
 		BatchId:                  string(BatchID),
@@ -780,6 +783,7 @@ func PublishMsgReadyToAuction(
 		FilEpochDeadline:         filEpochDeadline,
 		Sources:                  sourcesToPb(sources),
 		ClientAddress:            clientAddress,
+		Providers:                common.StringifyAddrs(providers...),
 	}
 	return marshalAndPublish(ctx, mb, ReadyToAuctionTopic, msg)
 }

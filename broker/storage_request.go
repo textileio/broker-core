@@ -61,8 +61,9 @@ type PreparedCAR struct {
 
 // BatchMetadata is metadata about a batch.
 type BatchMetadata struct {
-	Origin string
-	Tags   map[string]string
+	Origin    string
+	Tags      map[string]string
+	Providers []address.Address
 }
 
 // RemoteWallet contains configuration of a remote wallet.

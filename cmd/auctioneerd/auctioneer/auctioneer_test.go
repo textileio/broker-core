@@ -84,6 +84,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 		0,
 		sources,
 		"wallet-addr",
+		nil,
 	)
 	require.NoError(t, err)
 }
@@ -114,6 +115,7 @@ func TestClient_GetAuction(t *testing.T) {
 		0,
 		sources,
 		"wallet-addr",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -159,6 +161,7 @@ func TestClient_RunAuction(t *testing.T) {
 		0,
 		sources,
 		"wallet-addr",
+		nil,
 	)
 	require.NoError(t, err)
 

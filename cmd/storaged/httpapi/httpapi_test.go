@@ -63,6 +63,7 @@ func TestCreatePreparedSuccess(t *testing.T) {
 	}{
 		{name: "without remote-wallet", pr: makeRequestPrepared(t)},
 		{name: "with remote-wallet", pr: makeRequestRemoteWallet(t)},
+		{name: "with direct providers", pr: makeRequestPreparedWithDirectProviders(t)},
 	}
 
 	for _, test := range tests {
@@ -220,6 +221,32 @@ func makeRequestPrepared(t *testing.T) preparedRequest {
 			Cid:        "QmcCpRyHhCPNaKLVC3eMgS14L5wNfXBM6NyJafD22af5AE",
 			Multiaddrs: []string{"/ip4/127.0.0.1/tcp/9999/p2p/12D3KooWA8o5KiBQew75GKWhZcpJdBKrfWjp2Zhyp7X5thxw41TE"},
 		},
+	}
+	body, err := json.Marshal(adr)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("POST", "/auction-data", bytes.NewReader(body))
+	req.Header.Add("Authorization", "Bearer foo")
+	res := httptest.NewRecorder()
+
+	return preparedRequest{req: req, res: res}
+}
+
+func makeRequestPreparedWithDirectProviders(t *testing.T) preparedRequest {
+	adr := storage.AuctionDataRequest{
+		PayloadCid: "bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq",
+		PieceCid:   "baga6ea4seaqecjuu654vrpfi5ekfiequcfwgeuhiqflxo2e7nq6bfpb4ilxoqci",
+		PieceSize:  64,
+		RepFactor:  3,
+		Deadline:   "2021-06-17",
+		CARURL: &storage.CARURL{
+			URL: "https://hello.com/world.car",
+		},
+		CARIPFS: &storage.CARIPFS{
+			Cid:        "QmcCpRyHhCPNaKLVC3eMgS14L5wNfXBM6NyJafD22af5AE",
+			Multiaddrs: []string{"/ip4/127.0.0.1/tcp/9999/p2p/12D3KooWA8o5KiBQew75GKWhZcpJdBKrfWjp2Zhyp7X5thxw41TE"},
+		},
+		Providers: []string{"f0001", "f0002"},
 	}
 	body, err := json.Marshal(adr)
 	require.NoError(t, err)

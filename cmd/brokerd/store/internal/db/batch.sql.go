@@ -25,7 +25,8 @@ INSERT INTO batches(
     payload_cid,
     piece_cid,
     piece_size,
-    origin
+    origin,
+    providers
     ) VALUES (
       $1,
       $2,
@@ -40,7 +41,8 @@ INSERT INTO batches(
       $11,
       $12,
       $13,
-      $14)
+      $14,
+      $15)
 `
 
 type CreateBatchParams struct {
@@ -58,6 +60,7 @@ type CreateBatchParams struct {
 	PieceCid           string             `json:"pieceCid"`
 	PieceSize          uint64             `json:"pieceSize"`
 	Origin             string             `json:"origin"`
+	Providers          []string           `json:"providers"`
 }
 
 func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error {
@@ -76,6 +79,7 @@ func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error 
 		arg.PieceCid,
 		arg.PieceSize,
 		arg.Origin,
+		pq.Array(arg.Providers),
 	)
 	return err
 }
@@ -149,7 +153,7 @@ func (q *Queries) CreateBatchTag(ctx context.Context, arg CreateBatchTagParams) 
 }
 
 const getBatch = `-- name: GetBatch :one
-SELECT id, status, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at FROM batches
+SELECT id, status, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers FROM batches
 WHERE id = $1
 `
 
@@ -173,6 +177,7 @@ func (q *Queries) GetBatch(ctx context.Context, id broker.BatchID) (Batch, error
 		&i.Origin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		pq.Array(&i.Providers),
 	)
 	return i, err
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/cast"
+	"github.com/textileio/broker-core/common"
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
@@ -90,8 +90,9 @@ func (c *Client) CreatePrepared(
 			CarIpfs:   carIpfs,
 		},
 		Metadata: &pb.CreatePreparedStorageRequestRequest_Metadata{
-			Origin: meta.Origin,
-			Tags:   meta.Tags,
+			Origin:    meta.Origin,
+			Tags:      meta.Tags,
+			Providers: common.StringifyAddrs(meta.Providers...),
 		},
 	}
 	if rw != nil {
@@ -99,8 +100,7 @@ func (c *Client) CreatePrepared(
 		for _, maddr := range rw.Multiaddrs {
 			rwStrMultiaddrs = append(rwStrMultiaddrs, maddr.String())
 		}
-		// UGLY HACK: address.String() always returns as if the address is for testnet. Force replacing it to be mainnet.
-		walletAddr := address.MainnetPrefix + rw.WalletAddr.String()[len(address.MainnetPrefix):]
+		walletAddr := common.StringifyAddr(rw.WalletAddr)
 		req.RemoteWallet = &pb.RemoteWallet{
 			PeerId:     rw.PeerID.String(),
 			AuthToken:  rw.AuthToken,

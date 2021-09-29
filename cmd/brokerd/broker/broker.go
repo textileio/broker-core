@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	httpapi "github.com/ipfs/go-ipfs-http-client"
 	"github.com/oklog/ulid/v2"
@@ -20,6 +19,7 @@ import (
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 	"github.com/textileio/broker-core/cmd/brokerd/store"
+	"github.com/textileio/broker-core/common"
 	"github.com/textileio/broker-core/dealer"
 	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/broker-core/msgbroker"
@@ -209,6 +209,7 @@ func (b *Broker) CreatePrepared(
 		FilEpochDeadline:   batchEpochDeadline,
 		Origin:             meta.Origin,
 		Tags:               meta.Tags,
+		Providers:          meta.Providers,
 
 		PayloadCid: payloadCid,
 		PieceCid:   pc.PieceCid,
@@ -401,12 +402,10 @@ func (b *Broker) startAuction(ctx context.Context,
 	}
 	var clientAddress string
 	if rw != nil {
-		clientAddress = rw.WalletAddr.String()
+		clientAddress = common.StringifyAddr(rw.WalletAddr)
 	} else {
-		clientAddress = b.conf.defaultWalletAddr.String()
+		clientAddress = common.StringifyAddr(b.conf.defaultWalletAddr)
 	}
-	// UGLY HACK: address.String() always returns as if the address is for testnet. Force replacing it to be mainnet.
-	clientAddress = address.MainnetPrefix + clientAddress[len(address.MainnetPrefix):]
 	if err := msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
@@ -421,11 +420,13 @@ func (b *Broker) startAuction(ctx context.Context,
 		filEpochDeadline,
 		ba.Sources,
 		clientAddress,
+		ba.Providers,
 	); err != nil {
 		return "", fmt.Errorf("publishing ready to create auction msg: %s", err)
 	}
 	b.metricStartedAuctions.Add(ctx, 1)
 	b.metricStartedBytes.Add(ctx, int64(pieceSize))
+
 	return auction.ID(auctionID), nil
 }
 
@@ -567,6 +568,17 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		for _, deal := range deals {
 			excludedStorageProviders = append(excludedStorageProviders, deal.StorageProviderID)
 		}
+
+		// If this was a direct2provider auctioned batch, we still need at least 1 non-excluded
+		// miner to have the possibility of closing successfully. If we need to re-auction and don't
+		// have room for any miner to win, then re-auctioning won't make sense and it will fail.
+		if len(ba.Providers) > 0 && len(excludedStorageProviders) == len(ba.Providers) {
+			errCause := "no available miners can be selected for re-auctioning"
+			log.Warn(errCause)
+			_, err := b.batchError(ctx, ba, errCause, false)
+			return err
+		}
+
 		log.Infof("creating new auction for failed deal with storage-provider %s", fad.StorageProviderID)
 
 		isMinerMisconfigured := strings.Contains(fad.ErrorCause, "deal rejected")

@@ -27,6 +27,7 @@ type Batch struct {
 	Origin             string             `json:"origin"`
 	CreatedAt          time.Time          `json:"createdAt"`
 	UpdatedAt          time.Time          `json:"updatedAt"`
+	Providers          []string           `json:"providers"`
 }
 
 type BatchManifest struct {

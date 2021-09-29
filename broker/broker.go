@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/bidbot/lib/auction"
 )
@@ -80,6 +81,7 @@ type Batch struct {
 	Error              string
 	Origin             string
 	Tags               map[string]string
+	Providers          []address.Address
 
 	// Packer calculates this field after batching storage requests.
 	PayloadCid cid.Cid
