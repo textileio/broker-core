@@ -140,11 +140,7 @@ func _002_bids_support_calculating_ratesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "002_bids_support_calculating_rates.down.sql", size: 87, mode: os.FileMode(420), modTime: time.Unix(1632405209, 0)}
-=======
 	info := bindataFileInfo{name: "002_bids_support_calculating_rates.down.sql", size: 87, mode: os.FileMode(436), modTime: time.Unix(1632835254, 0)}
->>>>>>> 24895b5d... broker: add Providers support in store
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -184,11 +180,7 @@ func _003_auctions_add_client_addressDownSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "003_auctions_add_client_address.down.sql", size: 49, mode: os.FileMode(420), modTime: time.Unix(1632405209, 0)}
-=======
 	info := bindataFileInfo{name: "003_auctions_add_client_address.down.sql", size: 49, mode: os.FileMode(436), modTime: time.Unix(1632835254, 0)}
->>>>>>> 24895b5d... broker: add Providers support in store
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -208,8 +200,7 @@ func _003_auctions_add_client_addressUpSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "003_auctions_add_client_address.up.sql", size: 213, mode: os.FileMode(420), modTime: time.Unix(1632405209, 0)}
+	info := bindataFileInfo{name: "003_auctions_add_client_address.up.sql", size: 213, mode: os.FileMode(436), modTime: time.Unix(1632835254, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -229,7 +220,7 @@ func _004_bids_add_won_reasonDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_bids_add_won_reason.down.sql", size: 42, mode: os.FileMode(420), modTime: time.Unix(1632924833, 0)}
+	info := bindataFileInfo{name: "004_bids_add_won_reason.down.sql", size: 42, mode: os.FileMode(436), modTime: time.Unix(1632936811, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -249,10 +240,7 @@ func _004_bids_add_won_reasonUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_bids_add_won_reason.up.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1632929210, 0)}
-=======
-	info := bindataFileInfo{name: "003_auctions_add_client_address.up.sql", size: 213, mode: os.FileMode(436), modTime: time.Unix(1632835254, 0)}
->>>>>>> 24895b5d... broker: add Providers support in store
+	info := bindataFileInfo{name: "004_bids_add_won_reason.up.sql", size: 45, mode: os.FileMode(436), modTime: time.Unix(1632936811, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
