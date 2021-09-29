@@ -388,21 +388,24 @@ func (q *Queue) worker(num int) {
 			}
 
 			// Update winning bids; some bids may have been processed even if there was an error
-			var ids []string
-			for id := range wbs {
-				ids = append(ids, string(id))
-			}
-			updated, err := q.db.UpdateBidsWonAt(q.ctx, db.UpdateBidsWonAtParams{
-				BidIds:    ids,
-				AuctionID: a.ID,
+			_ = storeutil.WithTx(q.ctx, q.conn, func(tx *sql.Tx) error {
+				txn := q.db.WithTx(tx)
+				for bidID, wb := range wbs {
+					updated, err := txn.UpdateWinningBid(q.ctx, db.UpdateWinningBidParams{
+						ID:        bidID,
+						AuctionID: a.ID,
+						WonReason: sql.NullString{String: wb.WinningReason, Valid: true},
+					})
+					// failing to write db is not the end of the world. just move on.
+					if err != nil {
+						log.Errorf("error update winning bid: %v", err)
+					}
+					if updated < 1 {
+						log.Errorf("bid %v not found for auction %v", bidID, a.ID)
+					}
+				}
+				return nil
 			})
-			// failing to write db is not the end of the world. just move on.
-			if err != nil {
-				log.Errorf("error update winning bids: %v", err)
-			}
-			if len(updated) != len(ids) {
-				log.Errorf("should have updated %d winning bids for auction %s, only updated %d", len(wbs), a.ID, len(updated))
-			}
 			a.WinningBids = wbs
 			q.saveAndFinalizeAuction(a)
 			select {

@@ -536,15 +536,18 @@ func (a *Auctioneer) selectWinners(
 	for i := 0; len(winners) < int(auction.DealReplication); i++ {
 		var b auctioneer.Bid
 		var win bool
+		var winningReason string
 		switch i {
 		case 0:
 			// for the first replica, leaning toward the providers with less recent failures (can not make a
 			// winning deal on chain for some reason).
 			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(topN, LowerProviderRate(a.getProviderFailureRates())))
+			winningReason = "low recent failures"
 		case 1:
 			// the second replica, leaning toward those who have less winning bids recently. The order
 			// changes very often. If they can not handle the throughput, the deals will fail eventually.
 			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(topN, LowerProviderRate(a.getProviderWinningRates())))
+			winningReason = "low recent wins"
 		default:
 			// the rest of replicas, just randomly choose the rest of miners, but with low price (0).
 			b, win = a.selectOneWinner(ctx, &auction, sorter.Random())
@@ -552,6 +555,7 @@ func (a *Auctioneer) selectWinners(
 				// exhausted all bids
 				return winners, ErrInsufficientBids
 			}
+			winningReason = "random"
 		}
 		if !win {
 			// can not get a winning bid satisfying the requirement of the current replica,
@@ -560,7 +564,8 @@ func (a *Auctioneer) selectWinners(
 		}
 		a.metricWinningBid.Add(ctx, 1, attribute.String("storage-provider-id", b.StorageProviderID))
 		winners[b.ID] = auctioneer.WinningBid{
-			BidderID: b.BidderID,
+			BidderID:      b.BidderID,
+			WinningReason: winningReason,
 		}
 		if err := mbroker.PublishMsgAuctionWinnerAcked(ctx, a.mb, mbroker.AuctionToPbSummary(&auction), &b); err != nil {
 			log.Warn(err) // error is annotated
