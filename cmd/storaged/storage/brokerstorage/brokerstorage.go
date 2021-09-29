@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"sort"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -285,18 +286,24 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 	if origin == "" {
 		return storage.Request{}, fmt.Errorf("origin is empty")
 	}
+
 	providers := make([]address.Address, len(adr.Providers))
-	if len(adr.Providers) > 0 {
-		for i, provider := range adr.Providers {
-			providerAddr, err := address.NewFromString(provider)
-			if err != nil {
-				return storage.Request{}, fmt.Errorf("provider %s format is invalid: %s", provider, err)
-			}
-			if providerAddr.Protocol() != address.ID {
-				return storage.Request{}, fmt.Errorf("%s should be an identity address", provider)
-			}
-			providers[i] = providerAddr
+	sort.Slice(adr.Providers, func(i, j int) bool { return adr.Providers[i] < adr.Providers[j] })
+	for i, provider := range adr.Providers {
+
+		providerAddr, err := address.NewFromString(provider)
+		if err != nil {
+			return storage.Request{}, fmt.Errorf("provider %s format is invalid: %s", provider, err)
 		}
+		if providerAddr.Protocol() != address.ID {
+			return storage.Request{}, fmt.Errorf("%s should be an identity address", provider)
+		}
+
+		if i > 0 && providers[i] == providers[i-1] {
+			return storage.Request{}, errors.New("the provider list can't have repeated elements")
+		}
+
+		providers[i] = providerAddr
 	}
 	meta := broker.BatchMetadata{
 		Origin:    origin,
