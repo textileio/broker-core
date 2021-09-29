@@ -52,9 +52,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateAuctionStatusAndErrorStmt, err = db.PrepareContext(ctx, updateAuctionStatusAndError); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAuctionStatusAndError: %w", err)
 	}
-	if q.updateBidsWonAtStmt, err = db.PrepareContext(ctx, updateBidsWonAt); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateBidsWonAt: %w", err)
-	}
 	if q.updateDealConfirmedAtStmt, err = db.PrepareContext(ctx, updateDealConfirmedAt); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateDealConfirmedAt: %w", err)
 	}
@@ -63,6 +60,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.updateProposalCidDeliveryErrorStmt, err = db.PrepareContext(ctx, updateProposalCidDeliveryError); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateProposalCidDeliveryError: %w", err)
+	}
+	if q.updateWinningBidStmt, err = db.PrepareContext(ctx, updateWinningBid); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateWinningBid: %w", err)
 	}
 	return &q, nil
 }
@@ -119,11 +119,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateAuctionStatusAndErrorStmt: %w", cerr)
 		}
 	}
-	if q.updateBidsWonAtStmt != nil {
-		if cerr := q.updateBidsWonAtStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateBidsWonAtStmt: %w", cerr)
-		}
-	}
 	if q.updateDealConfirmedAtStmt != nil {
 		if cerr := q.updateDealConfirmedAtStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateDealConfirmedAtStmt: %w", cerr)
@@ -137,6 +132,11 @@ func (q *Queries) Close() error {
 	if q.updateProposalCidDeliveryErrorStmt != nil {
 		if cerr := q.updateProposalCidDeliveryErrorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateProposalCidDeliveryErrorStmt: %w", cerr)
+		}
+	}
+	if q.updateWinningBidStmt != nil {
+		if cerr := q.updateWinningBidStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateWinningBidStmt: %w", cerr)
 		}
 	}
 	return err
@@ -188,10 +188,10 @@ type Queries struct {
 	getRecentWeekMaxOnChainSecondsStmt *sql.Stmt
 	getRecentWeekWinningRateStmt       *sql.Stmt
 	updateAuctionStatusAndErrorStmt    *sql.Stmt
-	updateBidsWonAtStmt                *sql.Stmt
 	updateDealConfirmedAtStmt          *sql.Stmt
 	updateProposalCidStmt              *sql.Stmt
 	updateProposalCidDeliveryErrorStmt *sql.Stmt
+	updateWinningBidStmt               *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -208,9 +208,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getRecentWeekMaxOnChainSecondsStmt: q.getRecentWeekMaxOnChainSecondsStmt,
 		getRecentWeekWinningRateStmt:       q.getRecentWeekWinningRateStmt,
 		updateAuctionStatusAndErrorStmt:    q.updateAuctionStatusAndErrorStmt,
-		updateBidsWonAtStmt:                q.updateBidsWonAtStmt,
 		updateDealConfirmedAtStmt:          q.updateDealConfirmedAtStmt,
 		updateProposalCidStmt:              q.updateProposalCidStmt,
 		updateProposalCidDeliveryErrorStmt: q.updateProposalCidDeliveryErrorStmt,
+		updateWinningBidStmt:               q.updateWinningBidStmt,
 	}
 }

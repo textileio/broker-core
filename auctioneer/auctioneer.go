@@ -50,7 +50,8 @@ type Bid struct {
 
 // WinningBid contains details about a winning bid.
 type WinningBid struct {
-	BidderID    peer.ID
-	ProposalCid cid.Cid
-	ErrorCause  string // an error that may have occurred when delivering the proposal cid
+	BidderID      peer.ID
+	ProposalCid   cid.Cid
+	WinningReason string
+	ErrorCause    string // an error that may have occurred when delivering the proposal cid
 }
