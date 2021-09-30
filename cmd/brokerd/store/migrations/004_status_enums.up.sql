@@ -19,6 +19,7 @@ ALTER TABLE storage_requests RENAME COLUMN status_enum TO status;
 ALTER TABLE storage_requests ALTER COLUMN status SET NOT NULL;
 
 CREATE TYPE batch_status AS ENUM ('unknown', 'preparing', 'auctioning', 'deal_making', 'success', 'error');
+COMMENT ON TYPE batch_status IS E'@enum\n@enumName StoragePayloadStatus';
 
 ALTER TABLE batches ADD COLUMN status_enum batch_status;
 
