@@ -1,3 +1,5 @@
+BEGIN;
+
 ALTER TABLE storage_requests ADD COLUMN status_int smallint;
 
 UPDATE storage_requests SET status_int = 0 WHERE status = 'unknown';
@@ -32,3 +34,5 @@ ALTER TABLE batches RENAME COLUMN status_str TO status;
 ALTER TABLE batches ALTER COLUMN status SET NOT NULL;
 
 DROP TYPE batch_status;
+
+COMMIT;
