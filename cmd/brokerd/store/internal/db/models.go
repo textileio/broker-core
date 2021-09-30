@@ -4,15 +4,62 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 )
 
+type BatchStatus string
+
+const (
+	BatchStatusUnknown    BatchStatus = "unknown"
+	BatchStatusPreparing  BatchStatus = "preparing"
+	BatchStatusAuctioning BatchStatus = "auctioning"
+	BatchStatusDealMaking BatchStatus = "deal_making"
+	BatchStatusSuccess    BatchStatus = "success"
+	BatchStatusError      BatchStatus = "error"
+)
+
+func (e *BatchStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BatchStatus(s)
+	case string:
+		*e = BatchStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BatchStatus: %T", src)
+	}
+	return nil
+}
+
+type StorageRequestStatus string
+
+const (
+	StorageRequestStatusUnknown    StorageRequestStatus = "unknown"
+	StorageRequestStatusBatching   StorageRequestStatus = "batching"
+	StorageRequestStatusPreparing  StorageRequestStatus = "preparing"
+	StorageRequestStatusAuctioning StorageRequestStatus = "auctioning"
+	StorageRequestStatusDealMaking StorageRequestStatus = "deal_making"
+	StorageRequestStatusSuccess    StorageRequestStatus = "success"
+	StorageRequestStatusError      StorageRequestStatus = "error"
+)
+
+func (e *StorageRequestStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StorageRequestStatus(s)
+	case string:
+		*e = StorageRequestStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StorageRequestStatus: %T", src)
+	}
+	return nil
+}
+
 type Batch struct {
 	ID                 broker.BatchID     `json:"id"`
-	Status             broker.BatchStatus `json:"status"`
 	RepFactor          int                `json:"repFactor"`
 	DealDuration       int                `json:"dealDuration"`
 	PayloadCid         string             `json:"payloadCid"`
@@ -28,6 +75,7 @@ type Batch struct {
 	CreatedAt          time.Time          `json:"createdAt"`
 	UpdatedAt          time.Time          `json:"updatedAt"`
 	Providers          []string           `json:"providers"`
+	Status             broker.BatchStatus `json:"status"`
 }
 
 type BatchManifest struct {
@@ -73,12 +121,12 @@ type StorageRequest struct {
 	ID           broker.StorageRequestID     `json:"id"`
 	DataCid      string                      `json:"dataCid"`
 	BatchID      sql.NullString              `json:"batchID"`
-	Status       broker.StorageRequestStatus `json:"status"`
 	Origin       string                      `json:"origin"`
 	RebatchCount int32                       `json:"rebatchCount"`
 	ErrorCause   string                      `json:"errorCause"`
 	CreatedAt    time.Time                   `json:"createdAt"`
 	UpdatedAt    time.Time                   `json:"updatedAt"`
+	Status       broker.StorageRequestStatus `json:"status"`
 }
 
 type UnpinJob struct {
