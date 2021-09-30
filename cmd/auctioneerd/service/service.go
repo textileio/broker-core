@@ -134,6 +134,7 @@ func (s *Service) OnReadyToAuction(
 		DealReplication:          dealReplication,
 		DealVerified:             dealVerified,
 		ExcludedStorageProviders: excludedStorageProviders,
+		Providers:                providers,
 		FilEpochDeadline:         filEpochDeadline,
 		Sources:                  sources,
 		ClientAddress:            clientAddress,
