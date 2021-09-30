@@ -18,6 +18,7 @@ DB_USER=${DAEMON}
 POSTGRES_PASSWORD=$(echo -n $POSTGRES_PASSWORD | tr -d \\n)
 DB_PASSWORD=$(echo -n $DB_PASSWORD | tr -d \\n)
 
+sleep 5
 # when starting the pod, connect to postgres with admin privilege, create user
 # and schema if not exist, and force change password, then starts daemon with
 # the correct postgres URI. The use is restricted to the schema with the same name.
