@@ -48,15 +48,15 @@ spec:
             requests:
               cpu: 250m
               memory: 512Mi
-          readinessProbe:
-            tcpSocket:
-              port: gql
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            failureThreshold: 3
-          livenessProbe:
-            tcpSocket:
-              port: gql
-            initialDelaySeconds: 15
-            periodSeconds: 20
-            failureThreshold: 3
+          # readinessProbe:
+          #   tcpSocket:
+          #     port: gql
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 10
+          #   failureThreshold: 3
+          # livenessProbe:
+          #   tcpSocket:
+          #     port: gql
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 20
+          #   failureThreshold: 3
