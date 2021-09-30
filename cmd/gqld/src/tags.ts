@@ -44,6 +44,11 @@ const tags: JSONPgSmartTags = {
           name: "storagePayloads"
         }
       },
+      "broker.batch_status": {
+        tags: {
+          name: "storagePayloadStatus"
+        }
+      },
       "broker.deals": {
         tags: {
           foreignKey: [
