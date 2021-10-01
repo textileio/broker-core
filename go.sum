@@ -118,6 +118,7 @@ github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5/go.mod h1:SkGFH1ia65gfNATL8TAiHDNxPzPdmEL5uirI2Uyuz6c=
+github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412/go.mod h1:WPjqKcmVOxf0XSf3YxCJs6N6AOSrOx3obionmG7T0y0=
 github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af/go.mod h1:K08gAheRH3/J6wwsYMMT4xOr94bZjxIelGM0+d/wbFw=
 github.com/akavel/rsrc v0.8.0 h1:zjWn7ukO9Kc5Q62DOJCcxGpXC18RawVtYAGdz2aLlfw=
 github.com/akavel/rsrc v0.8.0/go.mod h1:uLoCtb9J+EyAqh+26kdrTgmzRBFPGOolLWKpdxkKq+c=
@@ -417,8 +418,6 @@ github.com/filecoin-project/go-commp-utils v0.1.1-0.20210427191551-70bf140d31c7 
 github.com/filecoin-project/go-commp-utils v0.1.1-0.20210427191551-70bf140d31c7/go.mod h1:6s95K91mCyHY51RPWECZieD3SGWTqIFLf1mPOes9l5U=
 github.com/filecoin-project/go-crypto v0.0.0-20191218222705-effae4ea9f03 h1:2pMXdBnCiXjfCYx/hLqFxccPoqsSveQFxVLvNxy9bus=
 github.com/filecoin-project/go-crypto v0.0.0-20191218222705-effae4ea9f03/go.mod h1:+viYnvGtUTgJRdy6oaeF4MTFKAfatX071MPDPBL11EQ=
-github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0 h1:h6nObyd44KVZNCUdfhPATclKw5Ci3QkOTTpTBCGTfXA=
-github.com/filecoin-project/go-dagaggregator-unixfs v0.2.0/go.mod h1:WTuJWgBQY0omnQqa8kRPT9O0Uj5wQOgslVMUuTeHdJ8=
 github.com/filecoin-project/go-dagaggregator-unixfs v0.3.0 h1:UXLtBUnPa61LkNa2GqhP+aJ53bOnHP/dzg6/wk2rnsA=
 github.com/filecoin-project/go-dagaggregator-unixfs v0.3.0/go.mod h1:UTWmEgyqq7RMx56AeHY/uEoLq1dJTPAirjyBPas4IQQ=
 github.com/filecoin-project/go-data-transfer v1.0.1/go.mod h1:UxvfUAY9v3ub0a21BSK9u3pB2aq30Y0KMsG+w9/ysyo=
@@ -851,7 +850,6 @@ github.com/ipfs/go-blockservice v0.1.2/go.mod h1:t+411r7psEUhLueM8C7aPA7cxCclv4O
 github.com/ipfs/go-blockservice v0.1.3/go.mod h1:OTZhFpkgY48kNzbgyvcexW9cHrpjBYIjSR0KoDOFOLU=
 github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834/go.mod h1:OTZhFpkgY48kNzbgyvcexW9cHrpjBYIjSR0KoDOFOLU=
 github.com/ipfs/go-blockservice v0.1.4/go.mod h1:OTZhFpkgY48kNzbgyvcexW9cHrpjBYIjSR0KoDOFOLU=
-github.com/ipfs/go-blockservice v0.1.5 h1:euqZu96CCbToPyYVwVshu8ENURi8BhFd7FUFfTLi+fQ=
 github.com/ipfs/go-blockservice v0.1.5/go.mod h1:yLk8lBJCBRWRqerqCSVi3cE/Dncdt3vGC/PJMVKhLTY=
 github.com/ipfs/go-blockservice v0.1.7 h1:yVe9te0M7ow8i+PPkx03YFSpxqzXx594d6h+34D6qMg=
 github.com/ipfs/go-blockservice v0.1.7/go.mod h1:GmS+BAt4hrwBKkzE11AFDQUrnvqjwFatGS2MY7wOjEM=
@@ -1772,7 +1770,6 @@ github.com/multiformats/go-multibase v0.0.1/go.mod h1:bja2MqRZ3ggyXtZSEDKpl0uO/g
 github.com/multiformats/go-multibase v0.0.2/go.mod h1:bja2MqRZ3ggyXtZSEDKpl0uO/gviWFaSteVbWT51qgs=
 github.com/multiformats/go-multibase v0.0.3 h1:l/B6bJDQjvQ5G52jw4QGSYeOTZoAwIO77RblWplfIqk=
 github.com/multiformats/go-multibase v0.0.3/go.mod h1:5+1R4eQrT3PkYZ24C3W2Ue2tPwIdYQD509ZjSb5y9Oc=
-github.com/multiformats/go-multicodec v0.2.0/go.mod h1:/y4YVwkfMyry5kFbMTbLJKErhycTIftytRV+llXdyS4=
 github.com/multiformats/go-multicodec v0.2.1-0.20210713081508-b421db6850ae/go.mod h1:qGGaQmioCDh+TeFOnxrbU0DaIPw8yFgAZgFG0V7p1qQ=
 github.com/multiformats/go-multicodec v0.2.1-0.20210714093213-b2b5bd6fe68b/go.mod h1:qGGaQmioCDh+TeFOnxrbU0DaIPw8yFgAZgFG0V7p1qQ=
 github.com/multiformats/go-multicodec v0.3.0 h1:tstDwfIjiHbnIjeM5Lp+pMrSeN+LCMsEwOrkPmWm03A=
@@ -1785,7 +1782,6 @@ github.com/multiformats/go-multihash v0.0.9/go.mod h1:YSLudS+Pi8NHE7o6tb3D8vrpKa
 github.com/multiformats/go-multihash v0.0.10/go.mod h1:YSLudS+Pi8NHE7o6tb3D8vrpKa63epEDmG8nTduyAew=
 github.com/multiformats/go-multihash v0.0.13/go.mod h1:VdAWLKTwram9oKAatUcLxBNUjdtcVwxObEQBtRfuyjc=
 github.com/multiformats/go-multihash v0.0.14/go.mod h1:VdAWLKTwram9oKAatUcLxBNUjdtcVwxObEQBtRfuyjc=
-github.com/multiformats/go-multihash v0.0.15 h1:hWOPdrNqDjwHDx82vsYGSDZNyktOJJ2dzZJzFkOV1jM=
 github.com/multiformats/go-multihash v0.0.15/go.mod h1:D6aZrWNLFTV/ynMpKsNtB40mJzmCl4jb1alC0OvHiHg=
 github.com/multiformats/go-multihash v0.0.16 h1:D2qsyy1WVculJbGv69pWmQ36ehxFoA5NiIUr1OEs6qI=
 github.com/multiformats/go-multihash v0.0.16/go.mod h1:zhfEIgVnB/rPMfxgFw15ZmGoNaKyNUIE4IWHG/kC+Ag=
@@ -2128,11 +2124,13 @@ github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpP
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954 h1:xQdMZ1WLrgkkvOZ/LDQxjVxMLdby7osSh4ZEVa5sIjs=
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954/go.mod h1:u2MKkTVTVJWe5D1rCvame8WqhBd88EuIwODJZ1VHCPM=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
-github.com/textileio/bidbot v0.1.0 h1:WMl+jO3LaN5wg129HYt3TEalpIny/leKuyfPxNACALo=
-github.com/textileio/bidbot v0.1.0/go.mod h1:ZtnmMqlURIlgWpVFxaG+TT0B47ZZZVJ/5e2WU4cB/Vo=
+github.com/textileio/bidbot v0.1.1-0.20211001192524-0dc443db44a5 h1:LaCUmHXs8ia2Sawl88dNPFAnwKE4OwdIvzkB2/iodVs=
+github.com/textileio/bidbot v0.1.1-0.20211001192524-0dc443db44a5/go.mod h1:1RDJzhJqv1RIJsWxlqii8WW5LLa76wlq2UQV7W/8adc=
 github.com/textileio/cli v1.0.0/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
 github.com/textileio/cli v1.0.1 h1:Ta7QEb6Tb7Ftm9vw9Gx+d6ZaQ8CABE7tb6cLgEUKMHk=
 github.com/textileio/cli v1.0.1/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
+github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a h1:ECSeaC+8iE/EmAqsX3JltDebB5q2IsDWy4KQqkl5c+8=
+github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a/go.mod h1:p2BwrUs69ZtGA27KXYYOiToLs1PyPV5etdUFMko3d9c=
 github.com/textileio/go-auctions-client v0.0.0-20210914093526-52fac6d8b09f h1:Eu2usVq8ImvJ1IwBfl7xtK9KlByrSJeyjIgRQZIuXB4=
 github.com/textileio/go-auctions-client v0.0.0-20210914093526-52fac6d8b09f/go.mod h1:4O7Jg+iSXbUk2WzHx6WoqkKIipqk9WIMrqB8peEp7v4=
 github.com/textileio/go-datastore-extensions v1.0.1 h1:qIJGqJaigQ1wD4TdwS/hf73u0HChhXvvUSJuxBEKS+c=
@@ -2420,8 +2418,8 @@ golang.org/x/crypto v0.0.0-20210506145944-38f3c27a63bf/go.mod h1:P+XmwS30IXTQdn5
 golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
 golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
-golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 h1:HWj/xjIHfjYU5nVXpTM0s39J9CbLn7Cc5a7IC5rwsMQ=
-golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 h1:7I4JAnoQBe7ZtJcBaYHi5UtiO8tQHbUSXxL+pnGRANg=
+golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/exp v0.0.0-20180321215751-8460e604b9de/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20180807140117-3d87b88a115f/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=

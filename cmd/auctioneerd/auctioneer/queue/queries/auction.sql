@@ -8,6 +8,7 @@ INSERT INTO auctions(
     deal_verified,
     fil_epoch_deadline,
     excluded_storage_providers,
+    providers,
     payload_cid,
     car_url,
     car_ipfs_cid,
@@ -30,7 +31,8 @@ INSERT INTO auctions(
       $12,
       $13,
       $14,
-      $15);
+      $15,
+      $16);
 
 -- name: GetAuction :one
 SELECT * FROM auctions

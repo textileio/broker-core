@@ -20,6 +20,7 @@ type Auction struct {
 	DealVerified             bool
 	FilEpochDeadline         uint64
 	ExcludedStorageProviders []string
+	Providers                []string
 	Sources                  auction.Sources
 	ClientAddress            string
 	Status                   broker.AuctionStatus
