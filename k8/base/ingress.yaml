@@ -52,10 +52,11 @@ spec:
                 port:
                   number: 5000
 ---
-apiVersion: cloud.google.com/v1beta1
+apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
   name: broker-backendconfig
 spec:
-  timeoutSec: 240
+  healthCheck:
+    timeoutSec: 240
 
