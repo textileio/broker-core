@@ -4,4 +4,4 @@ metadata:
   name: broker-ingress-2
   annotations:
     kubernetes.io/ingress.global-static-ip-name: lb-broker-staging-ipv4-2
-    networking.gke.io/managed-certificates: broker-staging-textile-dev
+    networking.gke.io/managed-certificates: broker-staging-textile-dev-2
