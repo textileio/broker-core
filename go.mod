@@ -38,13 +38,13 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.3.1
 	github.com/lib/pq v1.10.2
-	github.com/libp2p/go-libp2p v0.14.4
+	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-swarm v0.5.3
 	github.com/mr-tron/base58 v1.2.0
-	github.com/multiformats/go-multiaddr v0.3.3
+	github.com/multiformats/go-multiaddr v0.4.0
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.16
 	github.com/oklog/ulid/v2 v2.0.2
