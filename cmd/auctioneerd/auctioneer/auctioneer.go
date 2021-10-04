@@ -579,8 +579,7 @@ func (a *Auctioneer) selectWinners(
 			winningReason = "random"
 		}
 		if !win {
-			// can not get a winning bid satisfying the requirement of the current replica,
-			// continue to the next replica.
+			log.Debugf("can not get a winning bid satisfying the requirement of replica #%d, continue to the next replica.", i)
 			continue
 		}
 		a.metricWinningBid.Add(ctx, 1, attribute.String("storage-provider-id", b.StorageProviderID))
@@ -610,9 +609,11 @@ func (a *Auctioneer) selectOneWinner(
 		}
 
 		if err := a.winsPublisher(ctx, auction.ID, b.ID, b.BidderID, auction.Sources); err != nil {
-			// skip this intended error from bidder which signals auctioneer to silently move on
-			if !strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
-				log.Warn(err) // error is annotated in publishWin
+			if strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
+				// this is expected so just print a debug message. error is annotated in publishWin
+				log.Debug(err)
+			} else {
+				log.Warn(err)
 			}
 			continue
 		}
