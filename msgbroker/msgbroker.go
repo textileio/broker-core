@@ -77,6 +77,7 @@ type NewBatchCreatedListener interface {
 		context.Context,
 		broker.BatchID,
 		cid.Cid,
+		int64,
 		[]broker.StorageRequestID,
 		string,
 		[]byte,
@@ -182,12 +183,15 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if r.CarUrl == "" {
 				return errors.New("car url is empty")
 			}
+			if r.BatchSize <= 0 {
+				return errors.New("batch size must be positive")
+			}
 			carURL, err := url.ParseRequestURI(r.CarUrl)
 			if err != nil {
 				return fmt.Errorf("parsing car url %s: %s", r.CarUrl, err)
 			}
 
-			if err := l.OnNewBatchCreated(ctx, baID, baCid, srIDs, r.Origin, r.Manifest, carURL); err != nil {
+			if err := l.OnNewBatchCreated(ctx, baID, baCid, r.BatchSize, srIDs, r.Origin, r.Manifest, carURL); err != nil {
 				return fmt.Errorf("calling on-new-batch-created handler: %s", err)
 			}
 			return nil
@@ -593,6 +597,7 @@ func PublishMsgNewBatchCreated(
 	mb MsgBroker,
 	batchID broker.BatchID,
 	batchCid cid.Cid,
+	batchSize int64,
 	srIDs []broker.StorageRequestID,
 	origin string,
 	manifest []byte,
@@ -608,6 +613,9 @@ func PublishMsgNewBatchCreated(
 	}
 	if len(manifest) == 0 {
 		return errors.New("manifest is empty")
+	}
+	if batchSize <= 0 {
+		return errors.New("batch size should be positive")
 	}
 	srStrIDs := make([]string, len(srIDs))
 	for i, srID := range srIDs {
@@ -626,6 +634,7 @@ func PublishMsgNewBatchCreated(
 	msg := &pb.NewBatchCreated{
 		Id:                string(batchID),
 		BatchCid:          batchCid.Bytes(),
+		BatchSize:         batchSize,
 		StorageRequestIds: srStrIDs,
 		Origin:            origin,
 		Manifest:          manifest,

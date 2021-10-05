@@ -11,6 +11,7 @@ INSERT INTO batches(
     fil_epoch_deadline,
     error,
     payload_cid,
+    payload_size,
     piece_cid,
     piece_size,
     origin,
@@ -30,7 +31,8 @@ INSERT INTO batches(
       $12,
       $13,
       $14,
-      $15);
+      $15,
+      $16);
 
 -- name: CreateBatchManifest :exec
 INSERT INTO batch_manifests(

@@ -88,12 +88,13 @@ func TestCreateBatch(t *testing.T) {
 		ctx,
 		"SD1",
 		brgCid,
+		1000,
 		[]broker.StorageRequestID{sr1.ID, sr2.ID},
 		"OR",
 		manifest,
 		carURL)
 	require.NoError(t, err)
-	_, err = b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{sr1.ID, sr2.ID}, "OR", manifest, carURL)
+	_, err = b.CreateNewBatch(ctx, "SD1", brgCid, 1000, []broker.StorageRequestID{sr1.ID, sr2.ID}, "OR", manifest, carURL)
 	require.ErrorIs(t, err, store.ErrBatchExists)
 
 	// Check that all storage request:
@@ -113,6 +114,7 @@ func TestCreateBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, batchID, sd2.ID)
 	require.True(t, sd2.PayloadCid.Defined())
+	require.Equal(t, int64(1000), *sd2.PayloadSize)
 	require.Equal(t, broker.BatchStatusPreparing, sd2.Status)
 	brs, err := b.store.GetStorageRequestIDs(ctx, batchID)
 	require.NoError(t, err)
@@ -271,7 +273,7 @@ func TestCreateBatchFail(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
-		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, nil, "DUKEORIGIN", nil, nil)
+		_, err := b.CreateNewBatch(ctx, "SD1", cid.Undef, 100, nil, "DUKEORIGIN", nil, nil)
 		require.Equal(t, ErrInvalidCid, err)
 	})
 
@@ -280,7 +282,7 @@ func TestCreateBatchFail(t *testing.T) {
 		ctx := context.Background()
 		b, _, _ := createBroker(t)
 		brgCid := createCidFromString("Batch")
-		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, nil, "DUKEORIGIN", nil, nil)
+		_, err := b.CreateNewBatch(ctx, "SD1", brgCid, 100, nil, "DUKEORIGIN", nil, nil)
 		require.Equal(t, ErrEmptyGroup, err)
 	})
 
@@ -295,6 +297,7 @@ func TestCreateBatchFail(t *testing.T) {
 			ctx,
 			"SD1",
 			brgCid,
+			100,
 			[]broker.StorageRequestID{broker.StorageRequestID("invented")},
 			"DUKEORIGIN",
 			nil,
@@ -317,7 +320,7 @@ func TestBatchPrepared(t *testing.T) {
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
 	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, 100, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 
 	// 2- Call BatchPrepared as if the piecer did.
@@ -381,7 +384,7 @@ func TestBatchAuctionedSuccess(t *testing.T) {
 	require.NoError(t, err)
 	batchCid := createCidFromString("Batch")
 	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + batchCid.String())
-	batchID, err := b.CreateNewBatch(ctx, "BATCH1", batchCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
+	batchID, err := b.CreateNewBatch(ctx, "BATCH1", batchCid, 100, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -588,7 +591,7 @@ func TestBatchFailedAuction(t *testing.T) {
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
 	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + brgCid.String())
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
+	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, 100, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
@@ -666,13 +669,13 @@ func TestBatchFinalizedDeals(t *testing.T) {
 	require.NoError(t, err)
 	brgCid := createCidFromString("Batch")
 	carURL, _ := url.ParseRequestURI("http://fakeurl.dev/" + brgCid.String())
-	sd, err := b.CreateNewBatch(ctx, "SD1", brgCid, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
+	ba, err := b.CreateNewBatch(ctx, "SD1", brgCid, 100, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),
 		PieceCid:  createCidFromString("piececid1"),
 	}
-	err = b.NewBatchPrepared(ctx, sd, dpr)
+	err = b.NewBatchPrepared(ctx, ba, dpr)
 	require.NoError(t, err)
 
 	winningBids := map[auction.BidID]broker.WinningBid{
@@ -692,7 +695,7 @@ func TestBatchFinalizedDeals(t *testing.T) {
 
 	auction := broker.ClosedAuction{
 		ID:              auction.ID("AUCTION1"),
-		BatchID:         sd,
+		BatchID:         ba,
 		DealDuration:    auction.MaxDealDuration,
 		DealReplication: 2,
 		Status:          broker.AuctionStatusFinalized,
@@ -716,7 +719,7 @@ func TestBatchFinalizedDeals(t *testing.T) {
 
 	// 3- Verify the batch and underlying storage request are still in deal making,
 	//    since there's another pending deal to be reported.
-	sd2, err := b.GetBatch(ctx, sd)
+	sd2, err := b.GetBatch(ctx, ba)
 	require.NoError(t, err)
 	require.Equal(t, broker.BatchStatusDealMaking, sd2.Status)
 	mbr1, err := b.GetStorageRequestInfo(ctx, br1.ID)
@@ -739,7 +742,7 @@ func TestBatchFinalizedDeals(t *testing.T) {
 
 	// 5- Verify that the batch switched to Success, since at least one of the winning bids
 	//    succeeded.
-	sd2, err = b.GetBatch(ctx, sd)
+	sd2, err = b.GetBatch(ctx, ba)
 	require.NoError(t, err)
 	require.Equal(t, broker.BatchStatusSuccess, sd2.Status)
 	mbr1, err = b.GetStorageRequestInfo(ctx, br1.ID)

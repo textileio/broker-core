@@ -87,6 +87,7 @@ func TestPack(t *testing.T) {
 	require.Equal(t, numFiles, numBatchedCids)
 	require.Equal(t, "OR", msg.Origin)
 	require.NotEmpty(t, msg.BatchCid)
+	require.Greater(t, msg.BatchSize, int64(0))
 	bcid, err := cid.Cast(msg.BatchCid)
 	require.NoError(t, err)
 	require.True(t, bcid.Defined())

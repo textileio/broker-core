@@ -7,8 +7,13 @@
 // migrations/002_rw.up.sql
 // migrations/003_providers.down.sql
 // migrations/003_providers.up.sql
+<<<<<<< HEAD
 // migrations/004_status_enums.down.sql
 // migrations/004_status_enums.up.sql
+=======
+// migrations/004_payload_size.down.sql
+// migrations/004_payload_size.up.sql
+>>>>>>> 46b7bb1a... packer/broker: persist batch size
 package migrations
 
 import (
@@ -285,6 +290,46 @@ func _004_status_enumsUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __004_payload_sizeDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x4a\x2c\x49\xce\x48\x2d\x56\x70\x09\xf2\x0f\x50\x70\xf6\xf7\x09\xf5\xf5\x53\x28\x48\xac\xcc\xc9\x4f\x4c\x89\x2f\xce\xac\x4a\xb5\xe6\x02\x04\x00\x00\xff\xff\xb6\x96\xa3\xfc\x2e\x00\x00\x00")
+
+func _004_payload_sizeDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__004_payload_sizeDownSql,
+		"004_payload_size.down.sql",
+	)
+}
+
+func _004_payload_sizeDownSql() (*asset, error) {
+	bytes, err := _004_payload_sizeDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "004_payload_size.down.sql", size: 46, mode: os.FileMode(436), modTime: time.Unix(1633455137, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __004_payload_sizeUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x4a\x2c\x49\xce\x48\x2d\x56\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x28\x48\xac\xcc\xc9\x4f\x4c\x89\x2f\xce\xac\x4a\x55\x48\xca\x4c\xcf\xcc\x2b\xb1\xe6\x02\x04\x00\x00\xff\xff\x99\x48\x68\x88\x34\x00\x00\x00")
+
+func _004_payload_sizeUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__004_payload_sizeUpSql,
+		"004_payload_size.up.sql",
+	)
+}
+
+func _004_payload_sizeUpSql() (*asset, error) {
+	bytes, err := _004_payload_sizeUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "004_payload_size.up.sql", size: 52, mode: os.FileMode(436), modTime: time.Unix(1633455058, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -343,8 +388,13 @@ var _bindata = map[string]func() (*asset, error){
 	"002_rw.up.sql":             _002_rwUpSql,
 	"003_providers.down.sql":    _003_providersDownSql,
 	"003_providers.up.sql":      _003_providersUpSql,
+<<<<<<< HEAD
 	"004_status_enums.down.sql": _004_status_enumsDownSql,
 	"004_status_enums.up.sql":   _004_status_enumsUpSql,
+=======
+	"004_payload_size.down.sql": _004_payload_sizeDownSql,
+	"004_payload_size.up.sql":   _004_payload_sizeUpSql,
+>>>>>>> 46b7bb1a... packer/broker: persist batch size
 }
 
 // AssetDir returns the file names below a certain
@@ -394,8 +444,13 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"002_rw.up.sql":             &bintree{_002_rwUpSql, map[string]*bintree{}},
 	"003_providers.down.sql":    &bintree{_003_providersDownSql, map[string]*bintree{}},
 	"003_providers.up.sql":      &bintree{_003_providersUpSql, map[string]*bintree{}},
+<<<<<<< HEAD
 	"004_status_enums.down.sql": &bintree{_004_status_enumsDownSql, map[string]*bintree{}},
 	"004_status_enums.up.sql":   &bintree{_004_status_enumsUpSql, map[string]*bintree{}},
+=======
+	"004_payload_size.down.sql": &bintree{_004_payload_sizeDownSql, map[string]*bintree{}},
+	"004_payload_size.up.sql":   &bintree{_004_payload_sizeUpSql, map[string]*bintree{}},
+>>>>>>> 46b7bb1a... packer/broker: persist batch size
 }}
 
 // RestoreAsset restores an asset under the given directory

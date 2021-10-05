@@ -77,7 +77,11 @@ type Batch struct {
 	CreatedAt          time.Time          `json:"createdAt"`
 	UpdatedAt          time.Time          `json:"updatedAt"`
 	Providers          []string           `json:"providers"`
+<<<<<<< HEAD
 	Status             broker.BatchStatus `json:"status"`
+=======
+	PayloadSize        sql.NullInt64      `json:"payloadSize"`
+>>>>>>> 46b7bb1a... packer/broker: persist batch size
 }
 
 type BatchManifest struct {

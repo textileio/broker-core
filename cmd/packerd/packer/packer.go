@@ -245,6 +245,7 @@ func (p *Packer) pack(ctx context.Context) (int, error) {
 		p.mb,
 		batchID,
 		batchCid,
+		batchSize,
 		srIDs,
 		origin,
 		manifest,

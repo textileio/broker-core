@@ -138,6 +138,7 @@ message NewBatchCreated {
   string origin = 4;
   bytes manifest = 5;
   string car_url = 6;
+  int64 batch_size = 7;
 }
 
 

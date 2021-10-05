@@ -291,6 +291,7 @@ func (b *Broker) CreateNewBatch(
 	ctx context.Context,
 	batchID broker.BatchID,
 	batchCid cid.Cid,
+	batchSize int64,
 	brIDs []broker.StorageRequestID,
 	origin string,
 	manifest []byte,
@@ -301,6 +302,9 @@ func (b *Broker) CreateNewBatch(
 	if len(brIDs) == 0 {
 		return "", ErrEmptyGroup
 	}
+	if batchSize == 0 {
+		return "", errors.New("batch size can't be empty")
+	}
 	for i := range brIDs {
 		if len(brIDs[i]) == 0 {
 			return "", fmt.Errorf("storage requests id can't be empty")
@@ -310,6 +314,7 @@ func (b *Broker) CreateNewBatch(
 	ba := broker.Batch{
 		ID:                 batchID,
 		PayloadCid:         batchCid,
+		PayloadSize:        &batchSize,
 		RepFactor:          int(b.conf.dealReplication),
 		DealDuration:       int(b.conf.dealDuration),
 		Status:             broker.BatchStatusPreparing,

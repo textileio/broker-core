@@ -75,6 +75,7 @@ func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
 	batchID broker.BatchID,
 	batchCid cid.Cid,
+	_ int64,
 	_ []broker.StorageRequestID,
 	_ string,
 	_ []byte,
