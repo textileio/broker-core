@@ -25,6 +25,14 @@ UPDATE batches
 SET status=$2, ready_at=$3, updated_at=CURRENT_TIMESTAMP
 WHERE batch_id=$1;
 
+-- name: TimeBasedBatchClosing :execrows
+UPDATE batches
+SET status='ready', ready_at=CURRENT_TIMESTAMP
+WHERE total_size >= 65 AND -- Fundamental minimum size for CommP calculation.
+      status='open' AND
+      created_at < $1 AND
+      origin = 'Textile';
+
 -- name: GetNextReadyBatch :one
 UPDATE batches
 SET status='executing', updated_at=CURRENT_TIMESTAMP

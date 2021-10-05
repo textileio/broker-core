@@ -101,12 +101,44 @@ func TestPack(t *testing.T) {
 	require.True(t, pinned)
 }
 
+func TestTimeBasedBatchClosing(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	packer, ipfs, _ := createPackerCustom(t, nil, 200)
+
+	dataCids := addRandomData(t, ipfs, 1)
+
+	for i, dataCid := range dataCids {
+		err := packer.ReadyToBatch(
+			ctx,
+			mbroker.OperationID(strconv.Itoa(i)),
+			[]mbroker.ReadyToBatchData{
+				{StorageRequestID: broker.StorageRequestID(strconv.Itoa(i)),
+					DataCid: dataCid,
+					Origin:  "Textile",
+				}},
+		)
+		require.NoError(t, err)
+	}
+
+	numBatchedCids, err := packer.pack(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, numBatchedCids)
+
+	time.Sleep(time.Second * 6)
+
+	numBatchedCids, err = packer.pack(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, numBatchedCids)
+}
+
 func TestPackWithCARUploader(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
 	fu := &fakeCARUploader{dummyURL: "http://fake.dev/car/jorge.car"}
-	packer, ipfs, mb := createPackerWithUploader(t, fu)
+	packer, ipfs, mb := createPackerCustom(t, fu, 100*100)
 
 	numBatchedCids, err := packer.pack(ctx)
 	require.NoError(t, err)
@@ -278,10 +310,10 @@ func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 }
 
 func createPacker(t *testing.T) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
-	return createPackerWithUploader(t, nil)
+	return createPackerCustom(t, nil, 100*100)
 }
 
-func createPackerWithUploader(t *testing.T, u CARUploader) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
+func createPackerCustom(t *testing.T, u CARUploader, minSize int64) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
 	mb := fakemsgbroker.New()
 	postgresURL, err := tests.PostgresURL()
 	require.NoError(t, err)
@@ -296,7 +328,8 @@ func createPackerWithUploader(t *testing.T, u CARUploader) (*Packer, *httpapi.Ht
 
 	opts := []Option{
 		WithDaemonFrequency(time.Hour),
-		WithBatchMinSize(100 * 100),
+		WithBatchMinSize(minSize),
+		WithBatchMinWaiting(time.Second * 3),
 		WithCARExportURL("http://duke.web3/car/")}
 	if u != nil {
 		opts = append(opts, WithCARUploader(u))

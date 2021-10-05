@@ -23,6 +23,7 @@ var defaultConfig = config{
 	daemonFreq:        time.Second * 20,
 	exportMetricsFreq: time.Minute * 5,
 	retryDelay:        time.Second * 30,
+	batchMinWaiting:   time.Minute * 15,
 
 	sectorSize:   32 << 30,
 	batchMinSize: 10 << 20,

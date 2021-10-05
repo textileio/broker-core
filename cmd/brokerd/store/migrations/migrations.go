@@ -180,7 +180,15 @@ func _003_providersDownSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1632947310, 0)}
+=======
+<<<<<<< HEAD
+	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1632945443, 0)}
+=======
+	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+>>>>>>> 31f80da1... packerd: implement time-closing logic & add tests
+>>>>>>> 2b273d36... packerd: implement time-closing logic & add tests
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -200,6 +208,7 @@ func _003_providersUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(420), modTime: time.Unix(1632947310, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
@@ -241,6 +250,13 @@ func _004_status_enumsUpSql() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "004_status_enums.up.sql", size: 1728, mode: os.FileMode(420), modTime: time.Unix(1633031955, 0)}
+=======
+<<<<<<< HEAD
+	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(420), modTime: time.Unix(1632945443, 0)}
+=======
+	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+>>>>>>> 31f80da1... packerd: implement time-closing logic & add tests
+>>>>>>> 2b273d36... packerd: implement time-closing logic & add tests
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

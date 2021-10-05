@@ -85,7 +85,7 @@ func New(
 	}
 
 	batchMaxSize := calcBatchLimit(cfg.sectorSize)
-	store, err := store.New(postgresURI, batchMaxSize, cfg.batchMinSize)
+	store, err := store.New(postgresURI, batchMaxSize, cfg.batchMinSize, cfg.batchMinWaiting)
 	if err != nil {
 		return nil, fmt.Errorf("init store: %s", err)
 	}
@@ -209,7 +209,13 @@ func (p *Packer) daemon() {
 }
 
 func (p *Packer) pack(ctx context.Context) (int, error) {
-	ctx, cls := context.WithTimeout(ctx, time.Hour)
+	ctx, cls := context.WithTimeout(ctx, time.Second*5)
+	defer cls()
+	if err := p.store.TimeBasedBatchClose(ctx); err != nil {
+		log.Errorf("couldn't time-close potentially pending batches: %s", err)
+	}
+
+	ctx, cls = context.WithTimeout(ctx, time.Hour)
 	defer cls()
 	batchID, batchSize, srs, origin, ok, err := p.store.GetNextReadyBatch(ctx)
 	if err != nil {

@@ -249,6 +249,23 @@ func (q *Queries) OpenBatchStats(ctx context.Context) ([]OpenBatchStatsRow, erro
 	return items, nil
 }
 
+const timeBasedBatchClosing = `-- name: TimeBasedBatchClosing :execrows
+UPDATE batches
+SET status='ready', ready_at=CURRENT_TIMESTAMP
+WHERE total_size >= 65 AND -- Fundamental minimum size for CommP calculation.
+      status='open' AND
+      created_at < $1 AND
+      origin = 'Textile'
+`
+
+func (q *Queries) TimeBasedBatchClosing(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.exec(ctx, q.timeBasedBatchClosingStmt, timeBasedBatchClosing, createdAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateBatchSize = `-- name: UpdateBatchSize :exec
 UPDATE batches
 SET total_size=$2, updated_at=CURRENT_TIMESTAMP
