@@ -384,7 +384,13 @@ func TestBatchAuctionedSuccess(t *testing.T) {
 	require.NoError(t, err)
 	batchCid := createCidFromString("Batch")
 	carURL, _ := url.ParseRequestURI("http://duke.web3/car/" + batchCid.String())
-	batchID, err := b.CreateNewBatch(ctx, "BATCH1", batchCid, 100, []broker.StorageRequestID{br1.ID, br2.ID}, "OR", nil, carURL)
+	batchID, err := b.CreateNewBatch(
+		ctx,
+		"BATCH1",
+		batchCid,
+		100,
+		[]broker.StorageRequestID{br1.ID, br2.ID},
+		"OR", nil, carURL)
 	require.NoError(t, err)
 	dpr := broker.DataPreparationResult{
 		PieceSize: uint64(123456),

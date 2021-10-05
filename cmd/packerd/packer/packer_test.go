@@ -314,7 +314,10 @@ func createPacker(t *testing.T) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeM
 	return createPackerCustom(t, nil, 100*100)
 }
 
-func createPackerCustom(t *testing.T, u CARUploader, minSize int64) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
+func createPackerCustom(
+	t *testing.T,
+	u CARUploader,
+	minSize int64) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
 	mb := fakemsgbroker.New()
 	postgresURL, err := tests.PostgresURL()
 	require.NoError(t, err)
