@@ -100,7 +100,11 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
+=======
+	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -120,7 +124,11 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
+=======
+	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -140,7 +148,11 @@ func _002_rwDownSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+=======
+	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -160,7 +172,11 @@ func _002_rwUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+=======
+	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -181,6 +197,7 @@ func _003_providersDownSql() (*asset, error) {
 	}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1632947310, 0)}
 =======
 <<<<<<< HEAD
@@ -189,6 +206,9 @@ func _003_providersDownSql() (*asset, error) {
 	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
 >>>>>>> 31f80da1... packerd: implement time-closing logic & add tests
 >>>>>>> 2b273d36... packerd: implement time-closing logic & add tests
+=======
+	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -208,6 +228,7 @@ func _003_providersUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(420), modTime: time.Unix(1632947310, 0)}
 	a := &asset{bytes: bytes, info: info}
@@ -257,6 +278,9 @@ func _004_status_enumsUpSql() (*asset, error) {
 	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
 >>>>>>> 31f80da1... packerd: implement time-closing logic & add tests
 >>>>>>> 2b273d36... packerd: implement time-closing logic & add tests
+=======
+	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

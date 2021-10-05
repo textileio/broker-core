@@ -98,7 +98,11 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
+=======
+	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -118,7 +122,11 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
+=======
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -138,7 +146,11 @@ func _002_market_statusDownSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
+=======
+	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -158,7 +170,11 @@ func _002_market_statusUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
+=======
+	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -178,7 +194,11 @@ func _003_remote_walletDownSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+=======
+	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -198,7 +218,11 @@ func _003_remote_walletUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+=======
+	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
+>>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
