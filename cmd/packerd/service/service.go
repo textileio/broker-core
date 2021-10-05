@@ -30,8 +30,10 @@ type Config struct {
 
 	TargetSectorSize int64
 	BatchMinSize     int64
-	CARUploader      packer.CARUploader
-	CARExportURL     string
+	BatchMinWaiting  time.Duration
+
+	CARUploader  packer.CARUploader
+	CARExportURL string
 }
 
 // Service is a gRPC service wrapper around an packer.
@@ -63,6 +65,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		packer.WithSectorSize(conf.TargetSectorSize),
 		packer.WithCARExportURL(conf.CARExportURL),
 		packer.WithBatchMinSize(conf.BatchMinSize),
+		packer.WithBatchMinWaiting(conf.BatchMinWaiting),
 		packer.WithCARUploader(conf.CARUploader),
 	}
 

@@ -11,8 +11,9 @@ type config struct {
 	exportMetricsFreq time.Duration
 	retryDelay        time.Duration
 
-	sectorSize   int64
-	batchMinSize int64
+	sectorSize      int64
+	batchMinSize    int64
+	batchMinWaiting time.Duration
 
 	carUploader  CARUploader
 	carExportURL *url.URL
@@ -85,6 +86,18 @@ func WithBatchMinSize(minSize int64) Option {
 			return fmt.Errorf("batch min size should be positive")
 		}
 		c.batchMinSize = minSize
+		return nil
+	}
+}
+
+// WithBatchMinWaiting configure the minimum waiting duration for a batch t obe considered
+// for preparation.
+func WithBatchMinWaiting(minWaiting time.Duration) Option {
+	return func(c *config) error {
+		if minWaiting == 0 {
+			return fmt.Errorf("batch min duration should be positive")
+		}
+		c.batchMinWaiting = minWaiting
 		return nil
 	}
 }

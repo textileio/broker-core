@@ -31,6 +31,7 @@ func init() {
 		{Name: "daemon-frequency", DefValue: "20s", Description: "Frequency of polling ready batches"},
 		{Name: "export-metrics-frequency", DefValue: "5m", Description: "Frequency of metrics exporting"},
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
+		{Name: "batch-min-waiting", DefValue: "15m", Description: "Minimum batch waiting time before closing"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "gobject-project-id", DefValue: "", Description: "Google Object Storage project id"},
@@ -88,6 +89,7 @@ var rootCmd = &cobra.Command{
 
 			TargetSectorSize: v.GetInt64("target-sector-size"),
 			BatchMinSize:     int64(v.GetSizeInBytes("batch-min-size")),
+			BatchMinWaiting:  v.GetDuration("batch-min-waiting"),
 			CARExportURL:     v.GetString("car-export-url"),
 			CARUploader:      carUploader,
 		}
