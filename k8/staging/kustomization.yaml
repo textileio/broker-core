@@ -75,6 +75,7 @@ patchesStrategicMerge:
 - dealerd-patch.yaml
 - gqld-patch.yaml
 - ingress-patch.yaml
+- ingress-nginx-patch.yaml
 - ipfs-cluster-setup-confmap-patch.yaml
 - ipfs-cluster-statefulset-patch.yaml
 - ipfs-cluster-volumeclaim-patch.yaml
