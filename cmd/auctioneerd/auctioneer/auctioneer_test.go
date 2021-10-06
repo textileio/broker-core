@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
@@ -67,7 +68,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 		t.Skip()
 	}
 	s, _ := newClient(t)
-	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
+	gw := apitest.NewDataURIHTTPGateway(createDagService(t))
 	t.Cleanup(gw.Close)
 
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
@@ -96,7 +97,7 @@ func TestClient_GetAuction(t *testing.T) {
 		t.Skip()
 	}
 	s, _ := newClient(t)
-	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
+	gw := apitest.NewDataURIHTTPGateway(createDagService(t))
 	t.Cleanup(gw.Close)
 
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
@@ -140,7 +141,7 @@ func TestClient_RunAuction(t *testing.T) {
 	}
 	s, mb := newClient(t)
 	bots := addBidbots(t, 5)
-	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
+	gw := apitest.NewDataURIHTTPGateway(createDagService(t))
 	t.Cleanup(gw.Close)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
@@ -345,4 +346,16 @@ func newFilClientMock() *filclientmocks.FilClient {
 	fc.On("GetChainHeight").Return(uint64(0), nil)
 	fc.On("Close").Return(nil)
 	return fc
+}
+
+func createDagService(t *testing.T) format.DAGService {
+	dir := t.TempDir()
+	fin := finalizer.NewFinalizer()
+	t.Cleanup(func() {
+		require.NoError(t, fin.Cleanup(nil))
+	})
+	p, err := rpcpeer.New(rpcpeer.Config{RepoPath: dir})
+	require.NoError(t, err)
+	fin.Add(p)
+	return p.DAGService()
 }

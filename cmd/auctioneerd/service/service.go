@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/filclient"
 	core "github.com/textileio/broker-core/auctioneer"
@@ -28,10 +27,8 @@ type Config struct {
 
 // Service is a gRPC service wrapper around an Auctioneer.
 type Service struct {
-	mb   mbroker.MsgBroker
-	peer *rpcpeer.Peer
-	lib  *auctioneer.Auctioneer
-
+	mb        mbroker.MsgBroker
+	lib       *auctioneer.Auctioneer
 	finalizer *finalizer.Finalizer
 }
 
@@ -43,15 +40,8 @@ var _ mbroker.FinalizedDealListener = (*Service)(nil)
 func New(conf Config, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
-	// Create auctioneer peer
-	p, err := rpcpeer.New(conf.Peer)
-	if err != nil {
-		return nil, fin.Cleanupf("creating peer: %v", err)
-	}
-	fin.Add(p)
-
 	// Create auctioneer
-	lib, err := auctioneer.New(p, conf.PostgresURI, mb, fc, conf.Auction)
+	lib, err := auctioneer.New(conf.Peer, conf.PostgresURI, mb, fc, conf.Auction)
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctioneer: %v", err)
 	}
@@ -59,7 +49,6 @@ func New(conf Config, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, e
 
 	s := &Service{
 		mb:        mb,
-		peer:      p,
 		lib:       lib,
 		finalizer: fin,
 	}
@@ -87,14 +76,9 @@ func (s *Service) Start(bootstrap bool) error {
 	return s.lib.Start(bootstrap)
 }
 
-// DAGService returns the underlying peer's format.DAGService.
-func (s *Service) DAGService() format.DAGService {
-	return s.peer.DAGService()
-}
-
 // PeerInfo returns the peer's public information.
 func (s *Service) PeerInfo() (*rpcpeer.Info, error) {
-	return s.peer.Info()
+	return s.lib.PeerInfo()
 }
 
 // GetAuction gets the state of an auction by id. Mostly for test purpose.

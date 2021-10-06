@@ -28,6 +28,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createBidStmt, err = db.PrepareContext(ctx, createBid); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateBid: %w", err)
 	}
+	if q.createBidEventStmt, err = db.PrepareContext(ctx, createBidEvent); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBidEvent: %w", err)
+	}
+	if q.createOrUpdateStorageProviderStmt, err = db.PrepareContext(ctx, createOrUpdateStorageProvider); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateOrUpdateStorageProvider: %w", err)
+	}
 	if q.getAuctionStmt, err = db.PrepareContext(ctx, getAuction); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAuction: %w", err)
 	}
@@ -48,6 +54,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getRecentWeekWinningRateStmt, err = db.PrepareContext(ctx, getRecentWeekWinningRate); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRecentWeekWinningRate: %w", err)
+	}
+	if q.setStorageProviderUnhealthyStmt, err = db.PrepareContext(ctx, setStorageProviderUnhealthy); err != nil {
+		return nil, fmt.Errorf("error preparing query SetStorageProviderUnhealthy: %w", err)
 	}
 	if q.updateAuctionStatusAndErrorStmt, err = db.PrepareContext(ctx, updateAuctionStatusAndError); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAuctionStatusAndError: %w", err)
@@ -77,6 +86,16 @@ func (q *Queries) Close() error {
 	if q.createBidStmt != nil {
 		if cerr := q.createBidStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createBidStmt: %w", cerr)
+		}
+	}
+	if q.createBidEventStmt != nil {
+		if cerr := q.createBidEventStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBidEventStmt: %w", cerr)
+		}
+	}
+	if q.createOrUpdateStorageProviderStmt != nil {
+		if cerr := q.createOrUpdateStorageProviderStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createOrUpdateStorageProviderStmt: %w", cerr)
 		}
 	}
 	if q.getAuctionStmt != nil {
@@ -112,6 +131,11 @@ func (q *Queries) Close() error {
 	if q.getRecentWeekWinningRateStmt != nil {
 		if cerr := q.getRecentWeekWinningRateStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getRecentWeekWinningRateStmt: %w", cerr)
+		}
+	}
+	if q.setStorageProviderUnhealthyStmt != nil {
+		if cerr := q.setStorageProviderUnhealthyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setStorageProviderUnhealthyStmt: %w", cerr)
 		}
 	}
 	if q.updateAuctionStatusAndErrorStmt != nil {
@@ -180,6 +204,8 @@ type Queries struct {
 	tx                                 *sql.Tx
 	createAuctionStmt                  *sql.Stmt
 	createBidStmt                      *sql.Stmt
+	createBidEventStmt                 *sql.Stmt
+	createOrUpdateStorageProviderStmt  *sql.Stmt
 	getAuctionStmt                     *sql.Stmt
 	getAuctionBidsStmt                 *sql.Stmt
 	getAuctionWinningBidsStmt          *sql.Stmt
@@ -187,6 +213,7 @@ type Queries struct {
 	getRecentWeekFailureRateStmt       *sql.Stmt
 	getRecentWeekMaxOnChainSecondsStmt *sql.Stmt
 	getRecentWeekWinningRateStmt       *sql.Stmt
+	setStorageProviderUnhealthyStmt    *sql.Stmt
 	updateAuctionStatusAndErrorStmt    *sql.Stmt
 	updateDealConfirmedAtStmt          *sql.Stmt
 	updateProposalCidStmt              *sql.Stmt
@@ -200,6 +227,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                                 tx,
 		createAuctionStmt:                  q.createAuctionStmt,
 		createBidStmt:                      q.createBidStmt,
+		createBidEventStmt:                 q.createBidEventStmt,
+		createOrUpdateStorageProviderStmt:  q.createOrUpdateStorageProviderStmt,
 		getAuctionStmt:                     q.getAuctionStmt,
 		getAuctionBidsStmt:                 q.getAuctionBidsStmt,
 		getAuctionWinningBidsStmt:          q.getAuctionWinningBidsStmt,
@@ -207,6 +236,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getRecentWeekFailureRateStmt:       q.getRecentWeekFailureRateStmt,
 		getRecentWeekMaxOnChainSecondsStmt: q.getRecentWeekMaxOnChainSecondsStmt,
 		getRecentWeekWinningRateStmt:       q.getRecentWeekWinningRateStmt,
+		setStorageProviderUnhealthyStmt:    q.setStorageProviderUnhealthyStmt,
 		updateAuctionStatusAndErrorStmt:    q.updateAuctionStatusAndErrorStmt,
 		updateDealConfirmedAtStmt:          q.updateDealConfirmedAtStmt,
 		updateProposalCidStmt:              q.updateProposalCidStmt,

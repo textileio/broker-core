@@ -24,14 +24,11 @@ import (
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
 	mbroker "github.com/textileio/broker-core/msgbroker"
-	"github.com/textileio/crypto/asymmetric"
-	rpc "github.com/textileio/go-libp2p-pubsub-rpc"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
 	golog "github.com/textileio/go-log/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -65,13 +62,11 @@ type AuctionConfig struct {
 type Auctioneer struct {
 	mb          mbroker.MsgBroker
 	queue       *q.Queue
-	started     bool
 	ctx         context.Context
 	auctionConf AuctionConfig
 
-	peer     *rpcpeer.Peer
-	fc       filclient.FilClient
-	auctions *rpc.Topic
+	commChannel CommChannel
+	fc          filclient.FilClient
 
 	finalizer *finalizer.Finalizer
 	lkEntropy sync.Mutex
@@ -85,12 +80,6 @@ type Auctioneer struct {
 	metricLastCreatedAuction  metric.Int64ValueObserver
 	metricPubsubPeers         metric.Int64ValueObserver
 
-	// this is just an alias of the method publishWin, used here so we can mock out libp2p rpc in tests.
-	winsPublisher  func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID, sources auction.Sources) error
-	winsTopics     map[peer.ID]*rpc.Topic
-	proposalTopics map[peer.ID]*rpc.Topic
-	lkTopics       sync.Mutex
-
 	providerFailureRates   atomic.Value // map[string]int
 	providerOnChainEpoches atomic.Value // map[string]uint64
 	providerWinningRates   atomic.Value // map[string]int
@@ -98,7 +87,7 @@ type Auctioneer struct {
 
 // New returns a new Auctioneer.
 func New(
-	p *rpcpeer.Peer,
+	conf rpcpeer.Config,
 	postgresURI string,
 	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
@@ -108,28 +97,32 @@ func New(
 		return nil, fmt.Errorf("validating config: %v", err)
 	}
 
+	fin := finalizer.NewFinalizer()
+	ctx, cancel := context.WithCancel(context.Background())
+	fin.Add(finalizer.NewContextCloser(cancel))
+
 	a := &Auctioneer{
-		mb:             mb,
-		peer:           p,
-		fc:             fc,
-		auctionConf:    auctionConf,
-		finalizer:      finalizer.NewFinalizer(),
-		winsTopics:     make(map[peer.ID]*rpc.Topic),
-		proposalTopics: make(map[peer.ID]*rpc.Topic),
+		ctx:         ctx,
+		mb:          mb,
+		fc:          fc,
+		auctionConf: auctionConf,
+		finalizer:   fin,
 	}
-	a.winsPublisher = a.publishWin
 	a.initMetrics()
+
+	commChannel, err := NewLibp2pPubsub(ctx, conf, a.handleBidbotEvents)
+	if err != nil {
+		return nil, fin.Cleanupf("creating comm: %v", err)
+	}
+	fin.Add(commChannel)
+	a.commChannel = commChannel
 
 	queue, err := q.NewQueue(postgresURI, a.processAuction, a.finalizeAuction)
 	if err != nil {
-		return nil, fmt.Errorf("creating queue: %v", err)
+		return nil, fin.Cleanupf("creating queue: %v", err)
 	}
-	a.finalizer.Add(queue)
+	fin.Add(queue)
 	a.queue = queue
-
-	ctx, cancel := context.WithCancel(context.Background())
-	a.finalizer.Add(finalizer.NewContextCloser(cancel))
-	a.ctx = ctx
 
 	return a, nil
 }
@@ -153,28 +146,13 @@ func (a *Auctioneer) Close() error {
 // If bootstrap is true, the peer will dial the configured bootstrap addresses
 // before creating the deal auction feed.
 func (a *Auctioneer) Start(bootstrap bool) error {
-	if a.started {
-		return nil
-	}
-
-	// Bootstrap against configured addresses
-	if bootstrap {
-		a.peer.Bootstrap()
-	}
-
-	// Create the global auctions topic
-	auctions, err := a.peer.NewTopic(a.ctx, core.Topic, false)
-	if err != nil {
-		return fmt.Errorf("creating auctions topic: %v", err)
-	}
-	auctions.SetEventHandler(a.eventHandler)
-	a.auctions = auctions
-	a.finalizer.Add(auctions)
-	log.Info("created the deal auction feed")
-
 	go a.refreshProviderRates()
-	a.started = true
-	return nil
+	return a.commChannel.Start(bootstrap)
+}
+
+// PeerInfo returns the peer info of the auctioneer.
+func (a *Auctioneer) PeerInfo() (*rpcpeer.Info, error) {
+	return a.commChannel.Info()
 }
 
 // CreateAuction creates a new auction.
@@ -225,8 +203,11 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 		log.Warnf("proposal cid %s is already published, duplicated message?", pcid)
 		return nil
 	}
+
+	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
+	defer cancel()
 	var errCause string
-	publishErr := a.publishProposal(ctx, auctionID, bidID, bid.BidderID, pcid)
+	publishErr := a.commChannel.PublishProposal(tctx, auctionID, bidID, bid.BidderID, pcid)
 	if publishErr != nil {
 		errCause = publishErr.Error()
 		if err := a.queue.SetProposalCidDeliveryError(ctx, auctionID, bidID, errCause); err != nil {
@@ -272,32 +253,13 @@ func (a *Auctioneer) processAuction(
 		log.Warn(err) // error is annotated
 	}
 
-	// Subscribe to bids topic
-	topic, err := a.peer.NewTopic(ctx, core.BidsTopic(auction.ID), true)
-	if err != nil {
-		return nil, fmt.Errorf("creating bids topic: %v", err)
-	}
-	defer func() {
-		if err := topic.Close(); err != nil {
-			log.Errorf("closing bids topic: %v", err)
-		}
-	}()
-	topic.SetEventHandler(a.eventHandler)
-
 	var (
 		bids    []auctioneer.Bid
 		bidders = make(map[peer.ID]struct{})
 		mu      sync.Mutex
 	)
 
-	bidsHandler := func(from peer.ID, _ string, msg []byte) ([]byte, error) {
-		if err := from.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid bidder: %v", err)
-		}
-		pbid := &pb.Bid{}
-		if err := proto.Unmarshal(msg, pbid); err != nil {
-			return nil, fmt.Errorf("unmarshaling message: %v", err)
-		}
+	bidsHandler := func(from peer.ID, pbid *pb.Bid) ([]byte, error) {
 		id, err := a.newID()
 		if err != nil {
 			return nil, fmt.Errorf("generating bid id: %v", err)
@@ -354,7 +316,6 @@ func (a *Auctioneer) processAuction(
 
 		return []byte(bid.ID), nil
 	}
-	topic.SetMessageHandler(bidsHandler)
 
 	deadline := time.Now().Add(auction.Duration)
 	auctionPb := &pb.Auction{
@@ -372,19 +333,12 @@ func (a *Auctioneer) processAuction(
 	if len(auction.Providers) == 0 {
 		auctionPb.Sources = cast.SourcesToPb(auction.Sources)
 	}
-	// Publish the auction
-	msg, err := proto.Marshal(auctionPb)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling message: %v", err)
-	}
+
 	actx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	if _, err := a.auctions.Publish(actx, msg, rpc.WithRepublishing(true), rpc.WithIgnoreResponse(true)); err != nil {
+	if err := a.commChannel.PublishAuction(actx, auction.ID, auctionPb, bidsHandler); err != nil {
 		return nil, fmt.Errorf("publishing auction: %v", err)
 	}
-	<-actx.Done()
-	topic.SetMessageHandler(nil)
-
 	// lock to the end to make sure bids are unchanged hereafter. It doesn't matter if some bidsHandler handler
 	// being blocked - the results are discarded anyway.
 	mu.Lock()
@@ -488,13 +442,6 @@ func toClosedAuction(a *auctioneer.Auction) broker.ClosedAuction {
 		Status:          a.Status,
 		WinningBids:     wbids,
 		ErrorCause:      a.ErrorCause,
-	}
-}
-
-func (a *Auctioneer) eventHandler(from peer.ID, topic string, msg []byte) {
-	log.Debugf("%s peer event: %s %s", topic, from, msg)
-	if topic == core.Topic && string(msg) == "JOINED" {
-		a.peer.Host().ConnManager().Protect(from, "auctioneer:<bidder>")
 	}
 }
 
@@ -607,8 +554,10 @@ func (a *Auctioneer) selectOneWinner(
 			mbroker.AuctionToPbSummary(auction), &b); err != nil {
 			log.Warn(err) // error is annotated
 		}
-
-		if err := a.winsPublisher(ctx, auction.ID, b.ID, b.BidderID, auction.Sources); err != nil {
+		tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
+		// cancel at the end of the function
+		defer cancel()
+		if err := a.commChannel.PublishWin(tctx, auction.ID, b.ID, b.BidderID, auction.Sources); err != nil {
 			if strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
 				// this is expected so just print a debug message. error is annotated in publishWin
 				log.Debug(err)
@@ -643,123 +592,6 @@ func (a *Auctioneer) getProviderWinningRates() map[string]int {
 		return rates.(map[string]int)
 	}
 	return map[string]int{}
-}
-
-func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID,
-	bidder peer.ID, sources core.Sources) error {
-	topic, err := a.winsTopicFor(ctx, bidder)
-	if err != nil {
-		return fmt.Errorf("creating win topic: %v", err)
-	}
-	confidential, err := proto.Marshal(&pb.WinningBidConfidential{
-		Sources: cast.SourcesToPb(sources),
-	})
-	if err != nil {
-		return fmt.Errorf("marshaling message: %v", err)
-	}
-	pk, err := bidder.ExtractPublicKey()
-	if err != nil {
-		return fmt.Errorf("extracting public key from bidder ID: %v", err)
-	}
-	encryptKey, err := asymmetric.FromPubKey(pk)
-	if err != nil {
-		return fmt.Errorf("encryption key from public key: %v", err)
-	}
-	encrypted, err := encryptKey.Encrypt(confidential)
-	if err != nil {
-		return fmt.Errorf("encrypting: %v", err)
-	}
-	msg, err := proto.Marshal(&pb.WinningBid{
-		AuctionId: string(id),
-		BidId:     string(bid),
-		Encrypted: encrypted,
-	})
-	if err != nil {
-		return fmt.Errorf("marshaling message: %v", err)
-	}
-	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
-	defer cancel()
-	res, err := topic.Publish(tctx, msg)
-	if err != nil {
-		return fmt.Errorf("publishing win to %s in auction %s: %v", bidder, id, err)
-	}
-	r := <-res
-	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
-		return fmt.Errorf("publishing win to %s in auction %s: %v", bidder, id, r.Err)
-	} else if r.Err != nil {
-		return fmt.Errorf("publishing win in auction %s; bidder %s returned error: %v", id, bidder, r.Err)
-	}
-	return nil
-}
-
-func (a *Auctioneer) publishProposal(
-	ctx context.Context,
-	id core.ID,
-	bid core.BidID,
-	bidder peer.ID,
-	pcid cid.Cid,
-) error {
-	topic, err := a.proposalTopicFor(ctx, bidder)
-	if err != nil {
-		return fmt.Errorf("creating proposals topic: %v", err)
-	}
-	msg, err := proto.Marshal(&pb.WinningBidProposal{
-		AuctionId:   string(id),
-		BidId:       string(bid),
-		ProposalCid: pcid.String(),
-	})
-	if err != nil {
-		return fmt.Errorf("marshaling message: %v", err)
-	}
-	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
-	defer cancel()
-	res, err := topic.Publish(tctx, msg, rpc.WithRepublishing(true))
-	if err != nil {
-		return err
-	}
-	r := <-res
-	if errors.Is(r.Err, rpc.ErrResponseNotReceived) {
-		return err
-	} else if r.Err != nil {
-		return fmt.Errorf("bidder returned error: %v", r.Err)
-	}
-	return nil
-}
-
-func (a *Auctioneer) winsTopicFor(ctx context.Context, peer peer.ID) (*rpc.Topic, error) {
-	a.lkTopics.Lock()
-	topic, exists := a.winsTopics[peer]
-	if exists {
-		a.lkTopics.Unlock()
-		return topic, nil
-	}
-	defer a.lkTopics.Unlock()
-	topic, err := a.peer.NewTopic(ctx, core.WinsTopic(peer), false)
-	if err != nil {
-		return nil, err
-	}
-	topic.SetEventHandler(a.eventHandler)
-	a.winsTopics[peer] = topic
-	a.finalizer.Add(topic)
-	return topic, nil
-}
-
-func (a *Auctioneer) proposalTopicFor(ctx context.Context, peer peer.ID) (*rpc.Topic, error) {
-	a.lkTopics.Lock()
-	topic, exists := a.proposalTopics[peer]
-	if exists {
-		a.lkTopics.Unlock()
-		return topic, nil
-	}
-	defer a.lkTopics.Unlock()
-	topic, err := a.peer.NewTopic(ctx, core.ProposalsTopic(peer), false)
-	if err != nil {
-		return nil, err
-	}
-	topic.SetEventHandler(a.eventHandler)
-	a.proposalTopics[peer] = topic
-	a.finalizer.Add(topic)
-	return topic, nil
 }
 
 // newID returns new monotonically increasing bid ids.
@@ -807,6 +639,40 @@ func (a *Auctioneer) refreshProviderRates() {
 		case <-a.ctx.Done():
 			return
 		}
+	}
+}
+
+func (a *Auctioneer) handleBidbotEvents(from peer.ID, event *pb.BidbotEvent) {
+	var err error
+	ts := event.Ts.AsTime().UTC()
+	switch e := event.Type.(type) {
+	case *pb.BidbotEvent_Startup_:
+		v := e.Startup
+		err = a.queue.SaveStorageProvider(a.ctx, v.StorageProviderId, v.SemanticVersion, v.DealStartWindow,
+			v.CidGravityConfigured, v.CidGravityStrict)
+	case *pb.BidbotEvent_Unhealthy_:
+		err = a.queue.SetStorageProviderUnhealthy(a.ctx, e.Unhealthy.StorageProviderId, e.Unhealthy.Error)
+	case *pb.BidbotEvent_StartFetching_:
+		v := e.StartFetching
+		err = a.queue.SaveBidEvent(a.ctx, q.BidEventTypeStartFetching, v.BidId, v.Attempts, "", ts)
+	case *pb.BidbotEvent_ErrorFetching_:
+		v := e.ErrorFetching
+		err = a.queue.SaveBidEvent(a.ctx, q.BidEventTypeErrorFetching, v.BidId, v.Attempts, v.Error, ts)
+	case *pb.BidbotEvent_StartImporting_:
+		v := e.StartImporting
+		err = a.queue.SaveBidEvent(a.ctx, q.BidEventTypeStartImporting, v.BidId, v.Attempts, "", ts)
+	case *pb.BidbotEvent_EndImporting_:
+		v := e.EndImporting
+		err = a.queue.SaveBidEvent(a.ctx, q.BidEventTypeEndImporting, v.BidId, v.Attempts, "", ts)
+	case *pb.BidbotEvent_Finalized_:
+		err = a.queue.SaveBidEvent(a.ctx, q.BidEventTypeFinalized, e.Finalized.BidId, 0, "", ts)
+	case *pb.BidbotEvent_Errored_:
+		err = a.queue.SaveBidEvent(a.ctx, q.BidEventTypeErrored, e.Errored.BidId, 0, e.Errored.ErrorCause, ts)
+	default:
+		log.Errorf("unexpected bidbot event type %T", e)
+	}
+	if err != nil {
+		log.Errorf("handling bidbot events %v: %v", event.Type, err)
 	}
 }
 

@@ -4,11 +4,35 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/broker"
 )
+
+type BidEventType string
+
+const (
+	BidEventTypeStartFetching  BidEventType = "start_fetching"
+	BidEventTypeErrorFetching  BidEventType = "error_fetching"
+	BidEventTypeStartImporting BidEventType = "start_importing"
+	BidEventTypeEndImporting   BidEventType = "end_importing"
+	BidEventTypeFinalized      BidEventType = "finalized"
+	BidEventTypeErrored        BidEventType = "errored"
+)
+
+func (e *BidEventType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BidEventType(s)
+	case string:
+		*e = BidEventType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BidEventType: %T", src)
+	}
+	return nil
+}
 
 type Auction struct {
 	ID                       auction.ID           `json:"id"`
@@ -49,4 +73,25 @@ type Bid struct {
 	ProposalCidDeliveryError sql.NullString `json:"proposalCidDeliveryError"`
 	DealConfirmedAt          sql.NullTime   `json:"dealConfirmedAt"`
 	WonReason                sql.NullString `json:"wonReason"`
+}
+
+type BidEvent struct {
+	BidID      string         `json:"bidID"`
+	EventType  BidEventType   `json:"eventType"`
+	Attempts   sql.NullInt32  `json:"attempts"`
+	Error      sql.NullString `json:"error"`
+	HappenedAt time.Time      `json:"happenedAt"`
+	ReceivedAt time.Time      `json:"receivedAt"`
+}
+
+type StorageProvider struct {
+	ID                   string         `json:"id"`
+	BidbotVersion        string         `json:"bidbotVersion"`
+	DealStartWindow      int64          `json:"dealStartWindow"`
+	CidGravityConfigured bool           `json:"cidGravityConfigured"`
+	CidGravityStrict     bool           `json:"cidGravityStrict"`
+	FirstSeenAt          time.Time      `json:"firstSeenAt"`
+	LastSeenAt           time.Time      `json:"lastSeenAt"`
+	LastUnhealthyAt      sql.NullTime   `json:"lastUnhealthyAt"`
+	LastUnhealthyError   sql.NullString `json:"lastUnhealthyError"`
 }
