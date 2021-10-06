@@ -1,0 +1,2 @@
+ALTER TABLE deals
+DROP CONSTRAINT deals_pkey;

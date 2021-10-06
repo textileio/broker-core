@@ -5,11 +5,12 @@
 // migrations/001_init.up.sql
 // migrations/002_rw.down.sql
 // migrations/002_rw.up.sql
-// migrations/003_deals_pk.up.sql
 // migrations/003_providers.down.sql
 // migrations/003_providers.up.sql
 // migrations/004_status_enums.down.sql
 // migrations/004_status_enums.up.sql
+// migrations/005_deals_pk.down.sql
+// migrations/005_deals_pk.up.sql
 package migrations
 
 import (
@@ -166,26 +167,6 @@ func _002_rwUpSql() (*asset, error) {
 	return a, nil
 }
 
-var __003_deals_pkUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xd2\xa5\x08\x70\xe9\xea\x2a\xa4\xa4\x26\xe6\x14\x73\x51\x68\x8e\x02\xc8\xa4\xc4\x94\x14\x85\x44\x85\x82\xa2\xcc\xdc\xc4\xa2\x4a\x85\xec\xd4\x4a\x2e\x47\x9f\x10\xd7\x20\x85\x10\x47\x27\x1f\x57\xa8\x3d\x8e\x2e\x2e\x0a\xce\xfe\x7e\xc1\x21\x41\x8e\x9e\x7e\x21\x10\xc1\xf8\x02\x90\xda\x80\x20\x4f\x5f\xc7\xa0\x48\x05\x6f\xd7\x48\x05\x8d\xe2\x92\xfc\xa2\xc4\xf4\xd4\xf8\x82\xa2\xfc\xb2\xcc\x94\xd4\xa2\xf8\xcc\x14\x1d\x85\xc4\xd2\xe4\x92\xcc\xfc\xbc\xf8\xcc\x14\x4d\x6b\x2e\x40\x00\x00\x00\xff\xff\x24\xe1\xb9\x5b\xf9\x00\x00\x00")
-
-func _003_deals_pkUpSqlBytes() ([]byte, error) {
-	return bindataRead(
-		__003_deals_pkUpSql,
-		"003_deals_pk.up.sql",
-	)
-}
-
-func _003_deals_pkUpSql() (*asset, error) {
-	bytes, err := _003_deals_pkUpSqlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "003_deals_pk.up.sql", size: 249, mode: os.FileMode(420), modTime: time.Unix(1633542735, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
 var __003_providersDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x4a\x2c\x49\xce\x48\x2d\x56\x70\x09\xf2\x0f\x50\x70\xf6\xf7\x09\xf5\xf5\x53\x28\x28\xca\x2f\xcb\x4c\x49\x2d\x2a\xb6\xe6\x02\x04\x00\x00\xff\xff\x21\xd6\x22\x59\x2b\x00\x00\x00")
 
 func _003_providersDownSqlBytes() ([]byte, error) {
@@ -266,6 +247,46 @@ func _004_status_enumsUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __005_deals_pkDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x49\x4d\xcc\x29\xe6\x72\x09\xf2\x0f\x50\x70\xf6\xf7\x0b\x0e\x09\x72\xf4\xf4\x0b\x81\x88\xc6\x17\x64\xa7\x56\x5a\x73\x01\x02\x00\x00\xff\xff\x9a\x2e\xa2\x1d\x2e\x00\x00\x00")
+
+func _005_deals_pkDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_deals_pkDownSql,
+		"005_deals_pk.down.sql",
+	)
+}
+
+func _005_deals_pkDownSql() (*asset, error) {
+	bytes, err := _005_deals_pkDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_deals_pk.down.sql", size: 46, mode: os.FileMode(420), modTime: time.Unix(1633551781, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __005_deals_pkUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x49\x4d\xcc\x29\xe6\x72\x74\x71\x51\x70\xf6\xf7\x0b\x0e\x09\x72\xf4\xf4\x0b\x81\x08\xc6\x17\x64\xa7\x56\x72\x05\x04\x79\xfa\x3a\x06\x45\x2a\x78\xbb\x46\x2a\x68\x14\x97\xe4\x17\x25\xa6\xa7\xc6\x17\x14\xe5\x97\x65\xa6\xa4\x16\xc5\x67\xa6\xe8\x28\x24\x96\x26\x97\x64\xe6\xe7\xc5\x67\xa6\x68\x5a\x73\x01\x02\x00\x00\xff\xff\x55\x6f\x5b\x37\x5b\x00\x00\x00")
+
+func _005_deals_pkUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_deals_pkUpSql,
+		"005_deals_pk.up.sql",
+	)
+}
+
+func _005_deals_pkUpSql() (*asset, error) {
+	bytes, err := _005_deals_pkUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_deals_pk.up.sql", size: 91, mode: os.FileMode(420), modTime: time.Unix(1633551796, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -322,11 +343,12 @@ var _bindata = map[string]func() (*asset, error){
 	"001_init.up.sql":           _001_initUpSql,
 	"002_rw.down.sql":           _002_rwDownSql,
 	"002_rw.up.sql":             _002_rwUpSql,
-	"003_deals_pk.up.sql":       _003_deals_pkUpSql,
 	"003_providers.down.sql":    _003_providersDownSql,
 	"003_providers.up.sql":      _003_providersUpSql,
 	"004_status_enums.down.sql": _004_status_enumsDownSql,
 	"004_status_enums.up.sql":   _004_status_enumsUpSql,
+	"005_deals_pk.down.sql":     _005_deals_pkDownSql,
+	"005_deals_pk.up.sql":       _005_deals_pkUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -374,11 +396,12 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"001_init.up.sql":           &bintree{_001_initUpSql, map[string]*bintree{}},
 	"002_rw.down.sql":           &bintree{_002_rwDownSql, map[string]*bintree{}},
 	"002_rw.up.sql":             &bintree{_002_rwUpSql, map[string]*bintree{}},
-	"003_deals_pk.up.sql":       &bintree{_003_deals_pkUpSql, map[string]*bintree{}},
 	"003_providers.down.sql":    &bintree{_003_providersDownSql, map[string]*bintree{}},
 	"003_providers.up.sql":      &bintree{_003_providersUpSql, map[string]*bintree{}},
 	"004_status_enums.down.sql": &bintree{_004_status_enumsDownSql, map[string]*bintree{}},
 	"004_status_enums.up.sql":   &bintree{_004_status_enumsUpSql, map[string]*bintree{}},
+	"005_deals_pk.down.sql":     &bintree{_005_deals_pkDownSql, map[string]*bintree{}},
+	"005_deals_pk.up.sql":       &bintree{_005_deals_pkUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
