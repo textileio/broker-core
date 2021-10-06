@@ -158,11 +158,7 @@ func (q *Queries) CreateBatchTag(ctx context.Context, arg CreateBatchTagParams) 
 }
 
 const getBatch = `-- name: GetBatch :one
-<<<<<<< HEAD
-SELECT id, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers, status FROM batches
-=======
-SELECT id, status, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers, payload_size FROM batches
->>>>>>> 46b7bb1a... packer/broker: persist batch size
+SELECT id, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers, status, payload_size FROM batches
 WHERE id = $1
 `
 
@@ -186,11 +182,8 @@ func (q *Queries) GetBatch(ctx context.Context, id broker.BatchID) (Batch, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		pq.Array(&i.Providers),
-<<<<<<< HEAD
 		&i.Status,
-=======
 		&i.PayloadSize,
->>>>>>> 46b7bb1a... packer/broker: persist batch size
 	)
 	return i, err
 }

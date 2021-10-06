@@ -94,11 +94,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "001_init.down.sql", size: 68, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
-=======
 	info := bindataFileInfo{name: "001_init.down.sql", size: 68, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
->>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -118,11 +114,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "001_init.up.sql", size: 984, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
-=======
 	info := bindataFileInfo{name: "001_init.up.sql", size: 984, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
->>>>>>> f9455cc7... rebase changes
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
