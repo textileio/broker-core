@@ -229,7 +229,9 @@ func (s *Store) TimeBasedBatchClose(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("time based closing: %s", err)
 		}
-		fmt.Printf("HAHAHAHA: %d\n", closed)
+		if closed > 0 {
+			log.Debugf("%s batches have been auto-closed", closed)
+		}
 		return nil
 	})
 }
