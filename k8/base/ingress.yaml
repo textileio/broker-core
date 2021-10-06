@@ -30,13 +30,6 @@ spec:
                 name: storage
                 port:
                   number: 8888
-          - path: /testiy
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: storage
-                port:
-                  number: 8888
           - path: /storagerequest/*
             pathType: ImplementationSpecific
             backend:
