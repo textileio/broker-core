@@ -178,7 +178,9 @@ func TestGetNext(t *testing.T) {
 	testsCases := []AuctionDealStatus{
 		StatusDealMaking,
 		StatusConfirmation,
-		StatusReportFinalized}
+		StatusReportFinalized,
+		StatusFinalized,
+	}
 
 	for _, tt := range testsCases {
 		err = s.SaveAndMoveAuctionDeal(context.Background(), aud, tt)

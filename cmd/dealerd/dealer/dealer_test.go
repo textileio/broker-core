@@ -234,14 +234,18 @@ func TestStateMachineExecReporting(t *testing.T) {
 	err = dealer.daemonDealReporterTick()
 	require.NoError(t, err)
 
-	// There shouldn't be ANY auction deal, since
-	// things get removed from the datastore after being reported.
+	// There shouldn't be ANY auction deals in a state other than Finalized.
 	statuses := []store.AuctionDealStatus{store.StatusDealMaking, store.StatusConfirmation, store.StatusReportFinalized}
 	for _, ss := range statuses {
 		_, ok, err := dealer.store.GetNextPending(ctx, ss)
 		require.NoError(t, err)
 		require.False(t, ok)
 	}
+
+	// There should be Finalized auction deals.
+	_, ok, err := dealer.store.GetNextPending(ctx, store.StatusFinalized)
+	require.NoError(t, err)
+	require.True(t, ok)
 
 	// Msg 1: Proposal accepted, Msg 2: report finalized.
 	require.Equal(t, 2, mb.TotalPublished())
