@@ -116,6 +116,7 @@ func (s *Service) OnReadyToAuction(
 	filEpochDeadline uint64,
 	sources auction.Sources,
 	clientAddress string,
+	providers []string,
 ) error {
 	_, err := s.lib.GetAuction(ctx, id)
 	if err == nil {
@@ -133,6 +134,7 @@ func (s *Service) OnReadyToAuction(
 		DealReplication:          dealReplication,
 		DealVerified:             dealVerified,
 		ExcludedStorageProviders: excludedStorageProviders,
+		Providers:                providers,
 		FilEpochDeadline:         filEpochDeadline,
 		Sources:                  sources,
 		ClientAddress:            clientAddress,

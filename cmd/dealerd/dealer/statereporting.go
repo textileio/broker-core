@@ -52,7 +52,7 @@ func (d *Dealer) daemonDealReporterTick() error {
 }
 
 func (d *Dealer) reportFinalizedAuctionDeal(ctx context.Context, aud store.AuctionDeal) error {
-	ad, err := d.store.GetAuctionData(ctx, aud.AuctionDataID)
+	ad, err := d.store.GetAuctionData(ctx, aud.BatchID)
 	if err != nil {
 		return fmt.Errorf("get auction data: %s", err)
 	}

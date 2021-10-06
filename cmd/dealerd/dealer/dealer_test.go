@@ -81,8 +81,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 			require.True(t, ok)
 
 			// Check that the corresponding AuctionDeal has correct values.
-			require.NotEmpty(t, aud.ID)
-			require.NotEmpty(t, aud.AuctionDataID)
+			require.NotEmpty(t, aud.BatchID)
 			require.Equal(t, test.auds.Proposals[0].StorageProviderID, aud.StorageProviderID)
 			require.Equal(t, test.auds.Proposals[0].PricePerGiBPerEpoch, aud.PricePerGibPerEpoch)
 			require.Equal(t, test.auds.Proposals[0].StartEpoch, aud.StartEpoch)
@@ -98,7 +97,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 			require.Equal(t, int64(0), aud.DealID)
 			require.Equal(t, uint64(0), aud.DealExpiration)
 
-			rw, err := dealer.store.GetRemoteWallet(ctx, aud.AuctionDataID)
+			rw, err := dealer.store.GetRemoteWallet(ctx, aud.BatchID)
 			if test.auds.RemoteWallet == nil {
 				require.Nil(t, rw)
 			} else {
@@ -113,9 +112,8 @@ func TestReadyToCreateDeals(t *testing.T) {
 			}
 
 			// Check that the corresponding AuctionData has correct values.
-			ad, err := dealer.store.GetAuctionData(ctx, aud.AuctionDataID)
+			ad, err := dealer.store.GetAuctionData(ctx, aud.BatchID)
 			require.NoError(t, err)
-			require.Equal(t, aud.AuctionDataID, ad.ID)
 			require.Equal(t, auds.BatchID, ad.BatchID)
 			require.Equal(t, auds.PayloadCid, ad.PayloadCid)
 			require.Equal(t, auds.PieceCid, ad.PieceCid)

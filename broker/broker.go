@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/bidbot/lib/auction"
 )
@@ -80,6 +81,7 @@ type Batch struct {
 	Error              string
 	Origin             string
 	Tags               map[string]string
+	Providers          []address.Address
 
 	// Packer calculates this field after batching storage requests.
 	PayloadCid cid.Cid
@@ -105,7 +107,7 @@ const (
 	// BatchStatusAuctioning indicates that the storage deal is being auctioned.
 	BatchStatusAuctioning BatchStatus = "auctioning"
 	// BatchStatusDealMaking indicates that the storage deal deals are being executed.
-	BatchStatusDealMaking BatchStatus = "deal making"
+	BatchStatusDealMaking BatchStatus = "deal_making"
 	// BatchStatusSuccess indicates that the storage deal was successfully stored in Filecoin.
 	BatchStatusSuccess BatchStatus = "success"
 	// BatchStatusError indicates that the storage deal has errored.

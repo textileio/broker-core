@@ -41,7 +41,7 @@ ready_at
 UPDATE auction_deals
 SET executing = TRUE,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = (SELECT id FROM auction_deals
+WHERE (storage_provider_id, auction_id) = (SELECT storage_provider_id, auction_id FROM auction_deals
     WHERE auction_deals.status = @status AND
           (
             (auction_deals.ready_at < CURRENT_TIMESTAMP AND NOT auction_deals.executing) OR

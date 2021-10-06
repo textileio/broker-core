@@ -61,8 +61,9 @@ type PreparedCAR struct {
 
 // BatchMetadata is metadata about a batch.
 type BatchMetadata struct {
-	Origin string
-	Tags   map[string]string
+	Origin    string
+	Tags      map[string]string
+	Providers []address.Address
 }
 
 // RemoteWallet contains configuration of a remote wallet.
@@ -75,23 +76,23 @@ type RemoteWallet struct {
 
 // StorageRequestStatus describe the current status of a
 // StorageRequest.
-type StorageRequestStatus int
+type StorageRequestStatus string
 
 const (
 	// RequestUnknown is an invalid status value. Defined for safety.
-	RequestUnknown StorageRequestStatus = iota
+	RequestUnknown StorageRequestStatus = "unknown"
 	// RequestBatching indicates that a storage request is being batched.
-	RequestBatching
+	RequestBatching StorageRequestStatus = "batching"
 	// RequestPreparing indicates that a storage request is being prepared.
-	RequestPreparing
+	RequestPreparing StorageRequestStatus = "preparing"
 	// RequestAuctioning indicates that a storage request is in bidding stage.
-	RequestAuctioning
+	RequestAuctioning StorageRequestStatus = "auctioning"
 	// RequestDealMaking indicates that the storage request deals are being executed.
-	RequestDealMaking
+	RequestDealMaking StorageRequestStatus = "deal_making"
 	// RequestSuccess indicates that the storage request was successfully stored in Filecoin.
-	RequestSuccess
+	RequestSuccess StorageRequestStatus = "success"
 	// RequestError indicates that the storage request storage errored.
-	RequestError
+	RequestError StorageRequestStatus = "error"
 )
 
 // String returns a string-encoded status.

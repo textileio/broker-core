@@ -219,7 +219,7 @@ func _004_batch_id_keyUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_batch_id_key.up.sql", size: 2976, mode: os.FileMode(420), modTime: time.Unix(1632427392, 0)}
+	info := bindataFileInfo{name: "004_batch_id_key.up.sql", size: 2976, mode: os.FileMode(420), modTime: time.Unix(1633542735, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

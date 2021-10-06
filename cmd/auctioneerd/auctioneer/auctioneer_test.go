@@ -2,6 +2,7 @@ package auctioneer_test
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -84,6 +86,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 		0,
 		sources,
 		"wallet-addr",
+		nil,
 	)
 	require.NoError(t, err)
 }
@@ -114,6 +117,7 @@ func TestClient_GetAuction(t *testing.T) {
 		0,
 		sources,
 		"wallet-addr",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -159,6 +163,7 @@ func TestClient_RunAuction(t *testing.T) {
 		0,
 		sources,
 		"wallet-addr",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -268,11 +273,13 @@ func addBidbots(t *testing.T, n int) map[peer.ID]*bidbotsrv.Service {
 		store, err := dshelper.NewBadgerTxnDatastore(filepath.Join(dir, "bidstore"))
 		require.NoError(t, err)
 		fin.Add(store)
-
+		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		require.NoError(t, err)
 		config := bidbotsrv.Config{
 			Peer: rpcpeer.Config{
-				RepoPath:   dir,
 				EnableMDNS: true,
+				PrivKey:    priv,
+				RepoPath:   dir,
 			},
 			BidParams: bidbotsrv.BidParams{
 				StorageProviderID:     "foo",

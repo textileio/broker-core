@@ -8,5 +8,5 @@ var prefix = "authd"
 
 func (s *Service) initMetrics() {
 	s.metricGrpcRequests = metrics.Meter.NewInt64Counter(prefix + ".grpc_requests_total")
-	s.metricGrpcRequestDuration = metrics.Meter.NewFloat64ValueRecorder(prefix + ".grpc_request_duration")
+	s.metricGrpcRequestDurationMillis = metrics.Meter.NewInt64ValueRecorder(prefix + ".grpc_request_duration_millis")
 }

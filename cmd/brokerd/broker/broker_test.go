@@ -156,13 +156,22 @@ func TestCreatePrepared(t *testing.T) {
 	tests := []struct {
 		name string
 		rw   *broker.RemoteWallet
+		meta broker.BatchMetadata
 	}{
 		{
-			name: "without remote wallet",
+			name: "without remote wallet nor providers",
+			meta: meta,
 			rw:   nil,
 		},
 		{
-			name: "with wallet",
+			name: "with direct providers",
+			meta: metaWithDirectProviders,
+			rw:   nil,
+		},
+
+		{
+			name: "with remote wallet",
+			meta: meta,
 			rw:   makeRemoteWalletConfig(t),
 		},
 	}
@@ -174,7 +183,7 @@ func TestCreatePrepared(t *testing.T) {
 			b, mb, _ := createBroker(t)
 
 			expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
-			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta, test.rw)
+			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, test.meta, test.rw)
 			require.NoError(t, err)
 
 			// 2- Check that the created StorageRequest moved directly to Auctioning.
@@ -187,6 +196,7 @@ func TestCreatePrepared(t *testing.T) {
 			//    - The download sources URL and IPFS.
 			//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
 			//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
+			//    - The providers were persisted correctly (if specified).
 			sd, err := b.GetBatch(ctx, br.BatchID)
 			require.NoError(t, err)
 			require.Equal(t, pc.RepFactor, sd.RepFactor)
@@ -213,6 +223,10 @@ func TestCreatePrepared(t *testing.T) {
 				v2, ok := sd.Tags[k]
 				require.True(t, ok)
 				require.Equal(t, v, v2)
+			}
+			require.Len(t, sd.Providers, len(test.meta.Providers))
+			for _, metaProvider := range meta.Providers {
+				require.Contains(t, sd.Providers, metaProvider)
 			}
 			rw, err := b.store.GetRemoteWalletConfig(ctx, br.BatchID)
 			require.NoError(t, err)
@@ -1008,10 +1022,33 @@ func makeRemoteWalletConfig(t *testing.T) *broker.RemoteWallet {
 	}
 }
 
-var meta = broker.BatchMetadata{
-	Origin: "DUKE",
-	Tags: map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-	},
+var (
+	meta = broker.BatchMetadata{
+		Origin: "DUKE",
+		Tags: map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		},
+	}
+
+	metaWithDirectProviders = broker.BatchMetadata{
+		Origin: "DUKE",
+		Tags: map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		},
+		Providers: createTestProviderAddrs(),
+	}
+)
+
+func createTestProviderAddrs() []address.Address {
+	addr1, err := address.NewFromString("f001")
+	if err != nil {
+		panic(err)
+	}
+	addr2, err := address.NewFromString("f002")
+	if err != nil {
+		panic(err)
+	}
+	return []address.Address{addr1, addr2}
 }

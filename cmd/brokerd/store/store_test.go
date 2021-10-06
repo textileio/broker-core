@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/assert"
@@ -39,8 +38,6 @@ func TestSaveAndGetStorageRequest(t *testing.T) {
 	require.Equal(t, br.DataCid, br2.DataCid)
 	require.Equal(t, br.Status, br2.Status)
 	require.Equal(t, br.Origin, br2.Origin)
-	assert.True(t, time.Since(br2.CreatedAt) < 100*time.Millisecond, time.Since(br2.CreatedAt))
-	assert.True(t, time.Since(br2.UpdatedAt) < 100*time.Millisecond, time.Since(br2.UpdatedAt))
 }
 
 func TestCreateBatch(t *testing.T) {
@@ -86,8 +83,6 @@ func TestCreateBatch(t *testing.T) {
 	assert.Equal(t, ba.ID, ba2.ID)
 	assert.Equal(t, ba.Status, ba2.Status)
 	assert.Equal(t, "ORIGIN-1", ba2.Origin)
-	assert.True(t, time.Since(ba2.CreatedAt) < 100*time.Millisecond, time.Since(ba2.CreatedAt))
-	assert.True(t, time.Since(ba2.UpdatedAt) < 100*time.Millisecond, time.Since(ba2.CreatedAt))
 
 	manifest, err := s.GetBatchManifest(ctx, ba.ID)
 	require.NoError(t, err)
@@ -104,12 +99,10 @@ func TestCreateBatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, broker.RequestPreparing, gbr1.Status)
 	assert.Equal(t, ba.ID, gbr1.BatchID)
-	assert.True(t, time.Since(gbr1.UpdatedAt) < 100*time.Millisecond, time.Since(gbr1.UpdatedAt))
 	gbr2, err := s.GetStorageRequest(ctx, br2.ID)
 	require.NoError(t, err)
 	assert.Equal(t, broker.RequestPreparing, gbr2.Status)
 	assert.Equal(t, ba.ID, gbr2.BatchID)
-	assert.True(t, time.Since(gbr2.UpdatedAt) < 100*time.Millisecond, time.Since(gbr2.UpdatedAt))
 }
 
 func TestCreateBatchWithoutManifest(t *testing.T) {

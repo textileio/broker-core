@@ -19,4 +19,7 @@ func (fc *FilClient) initMetrics() {
 	fc.metricCheckDealStatusWithStorageProvider =
 		metrics.Meter.NewInt64Counter("dealer.filclient.checkdealstatuswithstorageprovider")
 	fc.metricCheckChainDeal = metrics.Meter.NewInt64Counter("dealer.filclient.checkchaindeal")
+
+	fc.metricFilAPIRequests = metrics.Meter.NewInt64Counter("dealer.filclient.filapi.requests")
+	fc.metricFilAPIDurationMillis = metrics.Meter.NewInt64ValueRecorder("dealer.filclient.filapi.duration.millis")
 }

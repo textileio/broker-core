@@ -140,6 +140,24 @@ func TestSelectWinners(t *testing.T) {
 				chance float64
 			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid9"}, 0.2}},
 		},
+		{
+			"targeted auctions, only the specified providers are chosen",
+			auctioneer.Auction{DealReplication: 4, Providers: []string{"sp1", "sp3", "sp5", "sp7"},
+				FilEpochDeadline: currentFilEpoch() + 10},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid3", "bid5", "bid7"}, 1.0}},
+		},
+		{
+			"targeted auctions with more bids, still follow the replica rules",
+			auctioneer.Auction{DealReplication: 1, Providers: []string{"sp1", "sp2", "sp3", "sp4", "sp5", "sp7"},
+				FilEpochDeadline: currentFilEpoch() + 10},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid2", "bid3", "bid4", "bid5"}, 0.2}},
+		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			rounds := 1000
@@ -150,7 +168,7 @@ func TestSelectWinners(t *testing.T) {
 				}
 			}
 			a := &Auctioneer{mb: fakemsgbroker.New(),
-				winsPublisher: func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error { return nil },
+				winsPublisher: func(context.Context, core.ID, core.BidID, peer.ID, core.Sources) error { return nil },
 			}
 			a.initMetrics()
 			a.providerFailureRates.Store(failureRates)

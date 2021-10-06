@@ -88,7 +88,7 @@ services:
       - BIDBOT_LOG_DEBUG=true
       - BIDBOT_LOG_JSON=false
       - BIDBOT_HTTP_PORT=9999
-      - BIDBOT_MINER_ADDR=f0001
+      - BIDBOT_MINER_ADDR=f0111
       - BIDBOT_WALLET_ADDR_SIG=66616B655F7369676E6174757265
       - BIDBOT_ASK_PRICE=100000000000
       - BIDBOT_VERIFIED_ASK_PRICE=0
@@ -224,6 +224,27 @@ services:
     depends_on:
       - postgres
       - gpubsub
+    restart: unless-stopped
+  gqld:
+    build:
+      context: .
+      dockerfile: ./cmd/gqld/Dockerfile
+    platform: linux/{{platform}}
+    entrypoint: ["npm", "start"]
+    environment:
+      - DEV=true
+      - PORT=5000
+      - DATABASE_URL=postgres://dev_user:dev_password@postgres:5432/postgres
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE
+    depends_on:
+      - postgres
+      - brokerd
+      - auctioneerd
+      - packerd
+      - piecerd
     restart: unless-stopped
   postgres:
     image: postgres:latest

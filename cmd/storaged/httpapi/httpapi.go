@@ -47,8 +47,6 @@ func createMux(s storage.Requester, maxUploadSize uint, skipAuth bool) *http.Ser
 	}
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", healthHandler)
-
 	uploadHandler := wrapMiddlewares(uploadHandler(reqAuth, s, maxUploadSize), "upload")
 	mux.Handle("/upload", uploadHandler)
 
@@ -59,6 +57,10 @@ func createMux(s storage.Requester, maxUploadSize uint, skipAuth bool) *http.Ser
 	mux.Handle("/auction-data", auctionDataHandler)
 
 	mux.HandleFunc("/car/", carDownloadHandler(s))
+
+	mux.HandleFunc("/healthz", healthHandler)
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/", healthHandler)
 
 	return mux
 }

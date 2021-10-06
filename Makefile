@@ -156,5 +156,5 @@ define docker_push_daemon_head
 endef
 
 docker-push-head:
-	$(call docker_push_daemon_head,auctioneer auth broker dealer chainapis/near chainapis/eth chainapis/poly packer piecer storage relay);
+	$(call docker_push_daemon_head,auctioneer auth broker dealer chainapis/near chainapis/eth chainapis/poly packer piecer storage relay gql);
 .PHONY: docker-push-head

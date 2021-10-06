@@ -66,10 +66,9 @@ SELECT b.storage_provider_id, (SUM(b.freshness*b.winning)*1000000/COUNT(*))::big
 FROM b
 GROUP BY storage_provider_id;
 
--- name: UpdateBidsWonAt :many
-UPDATE bids SET won_at = CURRENT_TIMESTAMP
-WHERE id = ANY(@bid_ids::text[]) AND auction_id = @auction_id
-RETURNING id;
+-- name: UpdateWinningBid :execrows
+UPDATE bids SET won_reason = $3, won_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND auction_id = $2;
 
 -- name: UpdateProposalCid :exec
 UPDATE bids

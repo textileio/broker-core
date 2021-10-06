@@ -93,7 +93,7 @@ func StorageRequestToProto(br broker.StorageRequest) (*pb.StorageRequest, error)
 	case broker.RequestError:
 		pbStatus = pb.StorageRequest_STATUS_ERROR
 	default:
-		return nil, fmt.Errorf("unknown status: %d", br.Status)
+		return nil, fmt.Errorf("unknown status: %s", br.Status)
 	}
 
 	return &pb.StorageRequest{

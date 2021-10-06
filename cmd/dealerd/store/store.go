@@ -166,7 +166,11 @@ func (s *Store) GetNextPending(ctx context.Context, status AuctionDealStatus) (a
 		deal, err := q.NextPendingAuctionDeal(ctx, params)
 		if err == nil {
 			if int64(time.Since(deal.ReadyAt).Seconds()) > stuckSeconds {
-				log.Warnf("re-executing stuck auction deal with batch %s and storage provider %s", deal.BatchID, deal.StorageProviderID)
+				log.Warnf(
+					"re-executing stuck auction deal with batch %s and storage provider %s",
+					deal.BatchID,
+					deal.StorageProviderID,
+				)
 			}
 			ad = AuctionDeal(deal)
 		}

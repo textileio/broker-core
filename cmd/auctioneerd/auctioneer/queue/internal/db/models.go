@@ -29,6 +29,7 @@ type Auction struct {
 	StartedAt                time.Time            `json:"startedAt"`
 	UpdatedAt                time.Time            `json:"updatedAt"`
 	ClientAddress            string               `json:"clientAddress"`
+	Providers                []string             `json:"providers"`
 }
 
 type Bid struct {
@@ -47,4 +48,5 @@ type Bid struct {
 	ProposalCidDeliveredAt   sql.NullTime   `json:"proposalCidDeliveredAt"`
 	ProposalCidDeliveryError sql.NullString `json:"proposalCidDeliveryError"`
 	DealConfirmedAt          sql.NullTime   `json:"dealConfirmedAt"`
+	WonReason                sql.NullString `json:"wonReason"`
 }

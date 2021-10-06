@@ -190,11 +190,11 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal) (int64, storagemarket
 		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0
 	}
-	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[pds.State])
+	log.Debugf("%s check-deal-status: %s", aud.BatchID, storagemarket.DealStates[pds.State])
 
 	if pds.PublishCid != nil {
 		log.Debugf("%s storage-provider published the deal in message %s, trying to resolve on-chain...",
-			aud.ID, pds.PublishCid)
+			aud.BatchID, pds.PublishCid)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
 		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, proposalCid, *pds.PublishCid)

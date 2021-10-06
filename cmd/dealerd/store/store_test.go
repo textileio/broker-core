@@ -44,14 +44,6 @@ func TestCreateFail(t *testing.T) {
 		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
 		require.Error(t, err)
 	})
-	t.Run("auction-data undef id", func(t *testing.T) {
-		t.Parallel()
-		ad := gad1
-		ad.ID = ""
-		aud := gaud1
-		err := s.Create(context.Background(), &ad, []*AuctionDeal{&aud}, nil)
-		require.Error(t, err)
-	})
 	t.Run("auction-data undef batch id", func(t *testing.T) {
 		t.Parallel()
 		ad := gad1
@@ -147,7 +139,7 @@ func TestSaveAuctionDealFail(t *testing.T) {
 		s, err := New(u)
 		require.NoError(t, err)
 		aud := gaud1
-		aud.ID = "invented"
+		aud.BatchID = "invented"
 		aud.Status = db.StatusDealMaking
 		err = s.SaveAndMoveAuctionDeal(context.Background(), aud, StatusDealMaking)
 		require.Equal(t, ErrNotFound, err)
@@ -199,7 +191,7 @@ func TestGetNext(t *testing.T) {
 
 		// 1. Verify that we have a result.
 		require.True(t, ok)
-		require.Equal(t, aud.ID, aud2.ID)
+		require.Equal(t, aud.BatchID, aud2.BatchID)
 
 		// 2. Verify that the returned element changed status
 		//    to the next appropriate status.
@@ -251,7 +243,7 @@ func TestGetAuctionData(t *testing.T) {
 	auds, err := s.getAllPending()
 	require.NoError(t, err)
 
-	ad2, err := s.GetAuctionData(context.Background(), auds[0].AuctionDataID)
+	ad2, err := s.GetAuctionData(context.Background(), auds[0].BatchID)
 	require.NoError(t, err)
 	cmpAuctionData(t, ad, ad2)
 }
@@ -327,7 +319,7 @@ func TestRemoveAuctionDeals(t *testing.T) {
 
 			// Check the corresponding AuctionData wasn't removed from the store,
 			// since the second auction data is still linking to it.
-			_, err = s.GetAuctionData(ctx, test.ad.ID)
+			_, err = s.GetAuctionData(ctx, test.ad.BatchID)
 			require.NoError(t, err)
 
 			// Remove the second.
@@ -339,7 +331,7 @@ func TestRemoveAuctionDeals(t *testing.T) {
 
 			// Check the corresponding AuctionData was also removed.
 			// No more auction datas linked to it.
-			_, err = s.GetAuctionData(ctx, test.ad.ID)
+			_, err = s.GetAuctionData(ctx, test.ad.BatchID)
 			require.Equal(t, sql.ErrNoRows, err)
 		})
 	}
@@ -357,7 +349,7 @@ func deepCheckAuctionData(t *testing.T, s *Store, ad AuctionData) {
 	t.Helper()
 
 	// Check value in datastore.
-	dsAd, err := s.GetAuctionData(context.Background(), ad.ID)
+	dsAd, err := s.GetAuctionData(context.Background(), ad.BatchID)
 	require.NoError(t, err)
 	cmpAuctionData(t, ad, dsAd)
 }
@@ -375,11 +367,15 @@ func deepCheckAuctionDeals(t *testing.T, s *Store, auds ...AuctionDeal) {
 
 	for _, aud := range auds {
 		// Check value in datastore.
-		dsAud, err := s.db.GetAuctionDeal(context.Background(), aud.ID)
+		dsAud, err := s.db.GetAuctionDeal(context.Background(), db.GetAuctionDealParams{
+			AuctionID:         aud.AuctionID,
+			StorageProviderID: aud.StorageProviderID,
+		})
 		require.NoError(t, err)
-		require.NotEmpty(t, dsAud.ID)
+		require.NotEmpty(t, dsAud.AuctionID)
+		require.NotEmpty(t, dsAud.StorageProviderID)
 		require.NotEmpty(t, dsAud.CreatedAt)
-		require.NotEmpty(t, dsAud.AuctionDataID)
+		require.NotEmpty(t, dsAud.BatchID)
 		cmpAuctionDeals(t, aud, AuctionDeal(dsAud))
 	}
 }
@@ -400,7 +396,6 @@ func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
 
 var (
 	gad1 = AuctionData{
-		ID:         "id-1",
 		BatchID:    broker.BatchID("1"),
 		PayloadCid: castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jP1"),
 		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),

@@ -13,7 +13,8 @@ INSERT INTO batches(
     payload_cid,
     piece_cid,
     piece_size,
-    origin
+    origin,
+    providers
     ) VALUES (
       $1,
       $2,
@@ -28,7 +29,8 @@ INSERT INTO batches(
       $11,
       $12,
       $13,
-      $14);
+      $14,
+      $15);
 
 -- name: CreateBatchManifest :exec
 INSERT INTO batch_manifests(

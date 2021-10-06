@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -23,6 +24,7 @@ import (
 	q "github.com/textileio/broker-core/cmd/auctioneerd/auctioneer/queue"
 	"github.com/textileio/broker-core/metrics"
 	mbroker "github.com/textileio/broker-core/msgbroker"
+	"github.com/textileio/crypto/asymmetric"
 	rpc "github.com/textileio/go-libp2p-pubsub-rpc"
 	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
@@ -84,7 +86,7 @@ type Auctioneer struct {
 	metricPubsubPeers         metric.Int64ValueObserver
 
 	// this is just an alias of the method publishWin, used here so we can mock out libp2p rpc in tests.
-	winsPublisher  func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error
+	winsPublisher  func(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID, sources auction.Sources) error
 	winsTopics     map[peer.ID]*rpc.Topic
 	proposalTopics map[peer.ID]*rpc.Topic
 	lkTopics       sync.Mutex
@@ -355,17 +357,23 @@ func (a *Auctioneer) processAuction(
 	topic.SetMessageHandler(bidsHandler)
 
 	deadline := time.Now().Add(auction.Duration)
-	// Publish the auction
-	msg, err := proto.Marshal(&pb.Auction{
+	auctionPb := &pb.Auction{
 		Id:               string(auction.ID),
 		PayloadCid:       auction.PayloadCid.String(),
 		DealSize:         auction.DealSize,
 		DealDuration:     auction.DealDuration,
 		ClientAddress:    auction.ClientAddress,
 		FilEpochDeadline: auction.FilEpochDeadline,
-		Sources:          cast.SourcesToPb(auction.Sources),
+		Sources:          &pb.Sources{},
 		EndsAt:           timestamppb.New(deadline),
-	})
+	}
+	// if the auction is not targeting specific providers, we add the sources to the auction message so old bidbots
+	// can still participate. TODO: remove once most bidbots are upgraded to 0.2.0+
+	if len(auction.Providers) == 0 {
+		auctionPb.Sources = cast.SourcesToPb(auction.Sources)
+	}
+	// Publish the auction
+	msg, err := proto.Marshal(auctionPb)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message: %v", err)
 	}
@@ -511,7 +519,7 @@ func (a *Auctioneer) selectWinners(
 	bids []auctioneer.Bid,
 ) (map[core.BidID]auctioneer.WinningBid, error) {
 	winners := make(map[core.BidID]auctioneer.WinningBid)
-	sorter := BidsSorter(&auction, bids).Select(func(b *auctioneer.Bid) bool {
+	candidates := BidsSorter(&auction, bids).Select(func(b *auctioneer.Bid) bool {
 		// consider only bids with zero price for now.
 		return !auction.DealVerified && b.AskPrice == 0 || auction.DealVerified && b.VerifiedAskPrice == 0
 	})
@@ -523,44 +531,61 @@ func (a *Auctioneer) selectWinners(
 		}
 		minWindow := auction.FilEpochDeadline - current
 		epoches := a.getProviderOnChainEpoches()
-		sorter = sorter.Select(func(b *auctioneer.Bid) bool {
+		candidates = candidates.Select(func(b *auctioneer.Bid) bool {
 			return minWindow > epoches[b.StorageProviderID]
 		})
 	}
+	if len(auction.Providers) > 0 {
+		log.Debugf("auction %s is targeting these providers: %+v", auction.ID, auction.Providers)
+		// select only from the specified providers.
+		sort.Strings(auction.Providers)
+		candidates = candidates.Select(func(b *auctioneer.Bid) bool {
+			idx := sort.Search(len(auction.Providers), func(i int) bool {
+				return auction.Providers[i] >= b.StorageProviderID
+			})
+			return idx < len(auction.Providers) && auction.Providers[idx] == b.StorageProviderID
+		})
+	}
 
-	log.Debugf("selecting %d winners from %d eligible bids", auction.DealReplication, sorter.Len())
-	topN := sorter.Len() / 5
+	log.Debugf("selecting %d winners from %d eligible bids", auction.DealReplication, candidates.Len())
+	topN := candidates.Len() / 5
 	if topN < 5 {
 		topN = 5
 	}
 	for i := 0; len(winners) < int(auction.DealReplication); i++ {
 		var b auctioneer.Bid
 		var win bool
+		var winningReason string
 		switch i {
 		case 0:
 			// for the first replica, leaning toward the providers with less recent failures (can not make a
 			// winning deal on chain for some reason).
-			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(topN, LowerProviderRate(a.getProviderFailureRates())))
+			b, win = a.selectOneWinner(ctx, &auction,
+				candidates.RandomTopN(topN, LowerProviderRate(a.getProviderFailureRates())))
+			winningReason = "low recent failures"
 		case 1:
 			// the second replica, leaning toward those who have less winning bids recently. The order
 			// changes very often. If they can not handle the throughput, the deals will fail eventually.
-			b, win = a.selectOneWinner(ctx, &auction, sorter.RandomTopN(topN, LowerProviderRate(a.getProviderWinningRates())))
+			b, win = a.selectOneWinner(ctx, &auction,
+				candidates.RandomTopN(topN, LowerProviderRate(a.getProviderWinningRates())))
+			winningReason = "low recent wins"
 		default:
 			// the rest of replicas, just randomly choose the rest of miners, but with low price (0).
-			b, win = a.selectOneWinner(ctx, &auction, sorter.Random())
+			b, win = a.selectOneWinner(ctx, &auction, candidates.Random())
 			if !win {
 				// exhausted all bids
 				return winners, ErrInsufficientBids
 			}
+			winningReason = "random"
 		}
 		if !win {
-			// can not get a winning bid satisfying the requirement of the current replica,
-			// continue to the next replica.
+			log.Debugf("can not get a winning bid satisfying the requirement of replica #%d, continue to the next replica.", i)
 			continue
 		}
 		a.metricWinningBid.Add(ctx, 1, attribute.String("storage-provider-id", b.StorageProviderID))
 		winners[b.ID] = auctioneer.WinningBid{
-			BidderID: b.BidderID,
+			BidderID:      b.BidderID,
+			WinningReason: winningReason,
 		}
 		if err := mbroker.PublishMsgAuctionWinnerAcked(ctx, a.mb, mbroker.AuctionToPbSummary(&auction), &b); err != nil {
 			log.Warn(err) // error is annotated
@@ -583,10 +608,12 @@ func (a *Auctioneer) selectOneWinner(
 			log.Warn(err) // error is annotated
 		}
 
-		if err := a.winsPublisher(ctx, auction.ID, b.ID, b.BidderID); err != nil {
-			// skip this intended error from bidder which signals auctioneer to silently move on
-			if !strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
-				log.Warn(err) // error is annotated in publishWin
+		if err := a.winsPublisher(ctx, auction.ID, b.ID, b.BidderID, auction.Sources); err != nil {
+			if strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
+				// this is expected so just print a debug message. error is annotated in publishWin
+				log.Debug(err)
+			} else {
+				log.Warn(err)
 			}
 			continue
 		}
@@ -618,14 +645,34 @@ func (a *Auctioneer) getProviderWinningRates() map[string]int {
 	return map[string]int{}
 }
 
-func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID, bidder peer.ID) error {
+func (a *Auctioneer) publishWin(ctx context.Context, id core.ID, bid core.BidID,
+	bidder peer.ID, sources core.Sources) error {
 	topic, err := a.winsTopicFor(ctx, bidder)
 	if err != nil {
 		return fmt.Errorf("creating win topic: %v", err)
 	}
+	confidential, err := proto.Marshal(&pb.WinningBidConfidential{
+		Sources: cast.SourcesToPb(sources),
+	})
+	if err != nil {
+		return fmt.Errorf("marshaling message: %v", err)
+	}
+	pk, err := bidder.ExtractPublicKey()
+	if err != nil {
+		return fmt.Errorf("extracting public key from bidder ID: %v", err)
+	}
+	encryptKey, err := asymmetric.FromPubKey(pk)
+	if err != nil {
+		return fmt.Errorf("encryption key from public key: %v", err)
+	}
+	encrypted, err := encryptKey.Encrypt(confidential)
+	if err != nil {
+		return fmt.Errorf("encrypting: %v", err)
+	}
 	msg, err := proto.Marshal(&pb.WinningBid{
 		AuctionId: string(id),
 		BidId:     string(bid),
+		Encrypted: encrypted,
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
