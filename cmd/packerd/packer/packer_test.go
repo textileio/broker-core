@@ -106,7 +106,8 @@ func TestTimeBasedBatchClosing(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	packer, ipfs, _ := createPackerCustom(t, nil, 200)
+	closingTime := time.Second * 3
+	packer, ipfs, _ := createPackerCustom(t, nil, 200, closingTime)
 
 	dataCids := addRandomData(t, ipfs, 1)
 
@@ -127,7 +128,7 @@ func TestTimeBasedBatchClosing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, numBatchedCids)
 
-	time.Sleep(time.Second * 6)
+	time.Sleep(closingTime * 2)
 
 	numBatchedCids, err = packer.pack(ctx)
 	require.NoError(t, err)
@@ -139,7 +140,7 @@ func TestPackWithCARUploader(t *testing.T) {
 	ctx := context.Background()
 
 	fu := &fakeCARUploader{dummyURL: "http://fake.dev/car/jorge.car"}
-	packer, ipfs, mb := createPackerCustom(t, fu, 100*100)
+	packer, ipfs, mb := createPackerCustom(t, fu, 100*100, time.Second*3)
 
 	numBatchedCids, err := packer.pack(ctx)
 	require.NoError(t, err)
@@ -311,13 +312,14 @@ func TestMultipleStorageRequestWithSameCid(t *testing.T) {
 }
 
 func createPacker(t *testing.T) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
-	return createPackerCustom(t, nil, 100*100)
+	return createPackerCustom(t, nil, 100*100, time.Second*3)
 }
 
 func createPackerCustom(
 	t *testing.T,
 	u CARUploader,
-	minSize int64) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
+	minSize int64,
+	closingTime time.Duration) (*Packer, *httpapi.HttpApi, *fakemsgbroker.FakeMsgBroker) {
 	mb := fakemsgbroker.New()
 	postgresURL, err := tests.PostgresURL()
 	require.NoError(t, err)
@@ -333,7 +335,7 @@ func createPackerCustom(
 	opts := []Option{
 		WithDaemonFrequency(time.Hour),
 		WithBatchMinSize(minSize),
-		WithBatchMinWaiting(time.Second * 3),
+		WithBatchMinWaiting(closingTime),
 		WithCARExportURL("http://duke.web3/car/")}
 	if u != nil {
 		opts = append(opts, WithCARUploader(u))
