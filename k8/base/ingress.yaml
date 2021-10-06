@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: broker-ingress
+  name: broker-ingress-2
   annotations:
     kubernetes.io/ingress.class: "gce"
     kubernetes.io/ingress.allow-http: "false"
@@ -24,13 +24,6 @@ spec:
                 port:
                   number: 8888
           - path: /auction-data
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: storage
-                port:
-                  number: 8888
-          - path: /testy
             pathType: ImplementationSpecific
             backend:
               service:
