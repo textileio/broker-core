@@ -209,14 +209,12 @@ func (p *Packer) daemon() {
 }
 
 func (p *Packer) pack(ctx context.Context) (int, error) {
-	ctx, cls := context.WithTimeout(ctx, time.Second*5)
+	ctx, cls := context.WithTimeout(ctx, time.Hour)
 	defer cls()
 	if err := p.store.TimeBasedBatchClose(ctx); err != nil {
 		log.Errorf("couldn't time-close potentially pending batches: %s", err)
 	}
 
-	ctx, cls = context.WithTimeout(ctx, time.Hour)
-	defer cls()
 	batchID, batchSize, srs, origin, ok, err := p.store.GetNextReadyBatch(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("get next ready batch: %s", err)
