@@ -30,6 +30,13 @@ spec:
                 name: storage
                 port:
                   number: 8888
+          - path: /testiy
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: storage
+                port:
+                  number: 8888
           - path: /storagerequest/*
             pathType: ImplementationSpecific
             backend:
@@ -58,6 +65,7 @@ metadata:
   name: broker-backendconfig
 spec:
   healthCheck:
-    timeoutSec: 241
+    checkIntervalSec: 60
+    timeoutSec: 20
     requestPath: '/health'
 
