@@ -211,9 +211,10 @@ func (b *Broker) CreatePrepared(
 		Tags:               meta.Tags,
 		Providers:          meta.Providers,
 
-		PayloadCid: payloadCid,
-		PieceCid:   pc.PieceCid,
-		PieceSize:  pc.PieceSize,
+		PayloadCid:  payloadCid,
+		PayloadSize: nil, // On prepared CARs this information isn't provided.
+		PieceCid:    pc.PieceCid,
+		PieceSize:   pc.PieceSize,
 	}
 
 	ctx, err = b.store.CtxWithTx(ctx)
