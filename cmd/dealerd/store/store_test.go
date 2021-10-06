@@ -404,6 +404,7 @@ var (
 	}
 
 	gaud1 = AuctionDeal{
+		AuctionID:           "gaud1",
 		StorageProviderID:   "f011001",
 		PricePerGibPerEpoch: 10,
 		StartEpoch:          20,
@@ -411,6 +412,7 @@ var (
 		FastRetrieval:       true,
 	}
 	gaud2 = AuctionDeal{
+		AuctionID:           "gaud2",
 		StorageProviderID:   "f011002",
 		PricePerGibPerEpoch: 11,
 		StartEpoch:          21,
