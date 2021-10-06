@@ -85,7 +85,7 @@ func New(
 	}
 
 	batchMaxSize := calcBatchLimit(cfg.sectorSize)
-	store, err := store.New(postgresURI, batchMaxSize, cfg.batchMinSize, cfg.batchMinWaiting)
+	store, err := store.New(postgresURI, batchMaxSize, cfg.batchMinSize, cfg.batchMinWaiting, cfg.batchWaitScalingFactor)
 	if err != nil {
 		return nil, fmt.Errorf("init store: %s", err)
 	}

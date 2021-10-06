@@ -55,16 +55,21 @@ type Store struct {
 	conn *sql.DB
 	db   *db.Queries
 
-	batchMaxSize    int64
-	batchMinSize    int64
-	batchMinWaiting time.Duration
+	batchMaxSize           int64
+	batchMinSize           int64
+	batchMinWaiting        time.Duration
+	batchWaitScalingFactor int64
 
 	lock    sync.Mutex
 	entropy *ulid.MonotonicEntropy
 }
 
 // New returns a new Store.
-func New(postgresURI string, batchMaxSize, batchMinSize int64, batchMinWaiting time.Duration) (*Store, error) {
+func New(postgresURI string,
+	batchMaxSize,
+	batchMinSize int64,
+	batchMinWaiting time.Duration,
+	batchWaitScalingFactor int64) (*Store, error) {
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
@@ -75,11 +80,12 @@ func New(postgresURI string, batchMaxSize, batchMinSize int64, batchMinWaiting t
 	}
 
 	s := &Store{
-		conn:            conn,
-		db:              db.New(conn),
-		batchMaxSize:    batchMaxSize,
-		batchMinSize:    batchMinSize,
-		batchMinWaiting: batchMinWaiting,
+		conn:                   conn,
+		db:                     db.New(conn),
+		batchMaxSize:           batchMaxSize,
+		batchMinSize:           batchMinSize,
+		batchMinWaiting:        batchMinWaiting,
+		batchWaitScalingFactor: batchWaitScalingFactor,
 	}
 
 	return s, nil
@@ -225,7 +231,17 @@ func (s *Store) MoveBatchToStatus(
 func (s *Store) TimeBasedBatchClose(ctx context.Context) error {
 	return storeutil.WithTx(ctx, s.conn, func(txn *sql.Tx) error {
 		q := s.db.WithTx(txn)
-		closed, err := q.TimeBasedBatchClosing(ctx, time.Now().Add(-s.batchMinWaiting).UTC())
+
+		now := time.Now()
+		waiting1GiB := now.Add(-s.batchMinWaiting)
+		waiting100MiB := now.Add(-s.batchMinWaiting * time.Duration(s.batchWaitScalingFactor))
+		waiting1MiB := now.Add(-s.batchMinWaiting * time.Duration(s.batchWaitScalingFactor*s.batchWaitScalingFactor))
+		params := db.TimeBasedBatchClosingParams{
+			Waiting1mib:   waiting1MiB.UTC(),
+			Waiting100mib: waiting100MiB.UTC(),
+			Waiting1gib:   waiting1GiB.UTC(),
+		}
+		closed, err := q.TimeBasedBatchClosing(ctx, params)
 		if err != nil {
 			return fmt.Errorf("time based closing: %s", err)
 		}

@@ -107,9 +107,9 @@ func TestTimeBasedBatchClosing(t *testing.T) {
 	ctx := context.Background()
 
 	closingTime := time.Second * 3
-	packer, ipfs, _ := createPackerCustom(t, nil, 200, closingTime)
+	packer, ipfs, _ := createPackerCustom(t, nil, 1<<30, closingTime)
 
-	dataCids := addRandomData(t, ipfs, 1)
+	dataCids := addRandomDataWithSize(t, ipfs, 1, 1<<20)
 
 	for i, dataCid := range dataCids {
 		err := packer.ReadyToBatch(
@@ -336,6 +336,7 @@ func createPackerCustom(
 		WithDaemonFrequency(time.Hour),
 		WithBatchMinSize(minSize),
 		WithBatchMinWaiting(closingTime),
+		WithBatchWaitScalingFactor(1),
 		WithCARExportURL("http://duke.web3/car/")}
 	if u != nil {
 		opts = append(opts, WithCARUploader(u))
@@ -348,11 +349,16 @@ func createPackerCustom(
 
 func addRandomData(t *testing.T, ipfs *httpapi.HttpApi, count int) []cid.Cid {
 	t.Helper()
+	return addRandomDataWithSize(t, ipfs, count, 100)
+}
+
+func addRandomDataWithSize(t *testing.T, ipfs *httpapi.HttpApi, count int, size int) []cid.Cid {
+	t.Helper()
 	r := rand.New(rand.NewSource(22))
 
 	cids := make([]cid.Cid, count)
 	for i := 0; i < count; i++ {
-		data := make([]byte, 100)
+		data := make([]byte, size)
 		_, _ = r.Read(data)
 
 		node, err := ipfs.Unixfs().Add(

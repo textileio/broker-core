@@ -11,19 +11,21 @@ type config struct {
 	exportMetricsFreq time.Duration
 	retryDelay        time.Duration
 
-	sectorSize      int64
-	batchMinSize    int64
-	batchMinWaiting time.Duration
+	sectorSize             int64
+	batchMinSize           int64
+	batchMinWaiting        time.Duration
+	batchWaitScalingFactor int64
 
 	carUploader  CARUploader
 	carExportURL *url.URL
 }
 
 var defaultConfig = config{
-	daemonFreq:        time.Second * 20,
-	exportMetricsFreq: time.Minute * 5,
-	retryDelay:        time.Second * 30,
-	batchMinWaiting:   time.Minute * 15,
+	daemonFreq:             time.Second * 20,
+	exportMetricsFreq:      time.Minute * 5,
+	retryDelay:             time.Second * 30,
+	batchMinWaiting:        time.Minute,
+	batchWaitScalingFactor: 5,
 
 	sectorSize:   32 << 30,
 	batchMinSize: 10 << 20,
@@ -99,6 +101,21 @@ func WithBatchMinWaiting(minWaiting time.Duration) Option {
 			return fmt.Errorf("batch min duration should be positive")
 		}
 		c.batchMinWaiting = minWaiting
+		return nil
+	}
+}
+
+// WithBatchWaitScalingFactor is used to scale waiting duration through 1MiB, 100MiB and 1GiB
+// size ranges:
+// - [1MiB, 100MiB] = minWaitingTime * scalingFactor^2 (default: 1m * 5^2 = 25m)
+// - [100MiB, 1GiB] = minWaitingTime * scalingFactor (default: 1m * 5 = 5m)
+// - [1GiB, inf]    = minWaitingTime (default: 1m).
+func WithBatchWaitScalingFactor(scalingFactor int64) Option {
+	return func(c *config) error {
+		if scalingFactor == 0 {
+			return fmt.Errorf("scaling factor should be positive")
+		}
+		c.batchWaitScalingFactor = scalingFactor
 		return nil
 	}
 }

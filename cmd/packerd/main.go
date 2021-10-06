@@ -31,7 +31,9 @@ func init() {
 		{Name: "daemon-frequency", DefValue: "20s", Description: "Frequency of polling ready batches"},
 		{Name: "export-metrics-frequency", DefValue: "5m", Description: "Frequency of metrics exporting"},
 		{Name: "batch-min-size", DefValue: "10MB", Description: "Minimum batch size"},
-		{Name: "batch-min-waiting", DefValue: "15m", Description: "Minimum batch waiting time before closing"},
+		{Name: "batch-min-waiting", DefValue: "1m", Description: "Base batch auto-closing time for >=1GiB."},
+		{Name: "batch-wait-scaling-factor", DefValue: "5",
+			Description: "Scaling factor applied to min waiting for 1MiB, 100MiB and 1GiB ranges"},
 		{Name: "target-sector-size", DefValue: "34359738368", Description: "Target sector-sizes"},
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "gobject-project-id", DefValue: "", Description: "Google Object Storage project id"},
@@ -87,11 +89,13 @@ var rootCmd = &cobra.Command{
 			DaemonFrequency:        v.GetDuration("daemon-frequency"),
 			ExportMetricsFrequency: v.GetDuration("export-metrics-frequency"),
 
-			TargetSectorSize: v.GetInt64("target-sector-size"),
-			BatchMinSize:     int64(v.GetSizeInBytes("batch-min-size")),
-			BatchMinWaiting:  v.GetDuration("batch-min-waiting"),
-			CARExportURL:     v.GetString("car-export-url"),
-			CARUploader:      carUploader,
+			TargetSectorSize:       v.GetInt64("target-sector-size"),
+			BatchMinSize:           int64(v.GetSizeInBytes("batch-min-size")),
+			BatchMinWaiting:        v.GetDuration("batch-min-waiting"),
+			BatchWaitScalingFactor: v.GetInt64("batch-wait-scaling-factor"),
+
+			CARExportURL: v.GetString("car-export-url"),
+			CARUploader:  carUploader,
 		}
 
 		projectID = v.GetString("gpubsub-project-id")

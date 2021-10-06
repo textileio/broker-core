@@ -28,9 +28,10 @@ type Config struct {
 	DaemonFrequency        time.Duration
 	ExportMetricsFrequency time.Duration
 
-	TargetSectorSize int64
-	BatchMinSize     int64
-	BatchMinWaiting  time.Duration
+	TargetSectorSize       int64
+	BatchMinSize           int64
+	BatchMinWaiting        time.Duration
+	BatchWaitScalingFactor int64
 
 	CARUploader  packer.CARUploader
 	CARExportURL string
@@ -66,6 +67,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		packer.WithCARExportURL(conf.CARExportURL),
 		packer.WithBatchMinSize(conf.BatchMinSize),
 		packer.WithBatchMinWaiting(conf.BatchMinWaiting),
+		packer.WithBatchWaitScalingFactor(conf.BatchWaitScalingFactor),
 		packer.WithCARUploader(conf.CARUploader),
 	}
 

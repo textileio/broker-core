@@ -254,12 +254,21 @@ UPDATE batches
 SET status='ready', ready_at=CURRENT_TIMESTAMP
 WHERE total_size >= 65 AND -- Fundamental minimum size for CommP calculation.
       status='open' AND
-      created_at < $1 AND
+      ( (total_size  > 1024 * 1048576 AND created_at < $1) OR -- [1GiB, inf]
+	(total_size BETWEEN 100 * 1048576 AND 1024 * 1048576 AND created_at < $2) OR -- [100 MiB, 1GiB]
+	(total_size BETWEEN 1048576 AND 100 * 1048576 AND created_at < $3) -- [1MiB, 100MiB]
+      ) AND
       origin = 'Textile'
 `
 
-func (q *Queries) TimeBasedBatchClosing(ctx context.Context, createdAt time.Time) (int64, error) {
-	result, err := q.exec(ctx, q.timeBasedBatchClosingStmt, timeBasedBatchClosing, createdAt)
+type TimeBasedBatchClosingParams struct {
+	Waiting1gib   time.Time `json:"waiting1gib"`
+	Waiting100mib time.Time `json:"waiting100mib"`
+	Waiting1mib   time.Time `json:"waiting1mib"`
+}
+
+func (q *Queries) TimeBasedBatchClosing(ctx context.Context, arg TimeBasedBatchClosingParams) (int64, error) {
+	result, err := q.exec(ctx, q.timeBasedBatchClosingStmt, timeBasedBatchClosing, arg.Waiting1gib, arg.Waiting100mib, arg.Waiting1mib)
 	if err != nil {
 		return 0, err
 	}
