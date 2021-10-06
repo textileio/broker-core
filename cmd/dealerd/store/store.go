@@ -25,6 +25,8 @@ const (
 	StatusConfirmation = AuctionDealStatus(db.StatusConfirmation)
 	// StatusReportFinalized indicates that a deal result is pending to be reported.
 	StatusReportFinalized = AuctionDealStatus(db.StatusReportFinalized)
+	// StatusFinalized indicates that a deal result has been reported and all processing is done.
+	StatusFinalized = AuctionDealStatus(db.StatusFinalized)
 
 	stuckSeconds = int64(300)
 )
@@ -263,46 +265,6 @@ func (s *Store) GetRemoteWallet(ctx context.Context, batchID broker.BatchID) (rw
 		return nil
 	})
 	return
-}
-
-// RemoveAuctionDeal removes the provided auction deal. If the corresponding auction data isn't linked
-// with any remaining auction deals, then is also removed.
-func (s *Store) RemoveAuctionDeal(ctx context.Context, aud AuctionDeal) error {
-	if aud.Status != db.StatusReportFinalized || !aud.Executing {
-		return fmt.Errorf("only auction deals in final status can be removed")
-	}
-	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
-		txn := s.db.WithTx(tx)
-		// 1. Remove the auction deal.
-		if err := txn.RemoveAuctionDeal(
-			ctx,
-			db.RemoveAuctionDealParams{
-				AuctionID:         aud.AuctionID,
-				StorageProviderID: aud.StorageProviderID,
-			},
-		); err != nil {
-			return fmt.Errorf("deleting auction deal: %s", err)
-		}
-
-		// 2. Get the related AuctionData. If after decreased the counter of linked AuctionDeals
-		//    we get 0, then proceed to also delete it (since nobody will use it again).
-		ids, err := txn.GetAuctionDealIDs(ctx, aud.BatchID)
-		if err != nil {
-			return fmt.Errorf("get linked auction data: %s", err)
-		}
-		if len(ids) == 0 {
-			// Remove wallet config (if exists, if doesn't is a noop).
-			if err := txn.RemoveRemoteWallet(ctx, aud.BatchID); err != nil {
-				return fmt.Errorf("deleting remote wallet config: %s", err)
-			}
-
-			// Remove auction data.
-			if err := txn.RemoveAuctionData(ctx, aud.BatchID); err != nil {
-				return fmt.Errorf("deleting orphaned auction data: %s", err)
-			}
-		}
-		return nil
-	})
 }
 
 // GetStatusCounts returns a summary of in which deal statuses are watched deals.

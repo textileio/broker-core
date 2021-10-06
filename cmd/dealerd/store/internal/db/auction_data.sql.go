@@ -117,21 +117,3 @@ func (q *Queries) GetRemoteWallet(ctx context.Context, batchID broker.BatchID) (
 	)
 	return i, err
 }
-
-const removeAuctionData = `-- name: RemoveAuctionData :exec
-DELETE FROM auction_data WHERE batch_id = $1
-`
-
-func (q *Queries) RemoveAuctionData(ctx context.Context, batchID broker.BatchID) error {
-	_, err := q.exec(ctx, q.removeAuctionDataStmt, removeAuctionData, batchID)
-	return err
-}
-
-const removeRemoteWallet = `-- name: RemoveRemoteWallet :exec
-DELETE FROM remote_wallet WHERE batch_id = $1
-`
-
-func (q *Queries) RemoveRemoteWallet(ctx context.Context, batchID broker.BatchID) error {
-	_, err := q.exec(ctx, q.removeRemoteWalletStmt, removeRemoteWallet, batchID)
-	return err
-}

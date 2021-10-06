@@ -16,6 +16,7 @@ const (
 	StatusDealMaking      Status = "deal-making"
 	StatusConfirmation    Status = "confirmation"
 	StatusReportFinalized Status = "report-finalized"
+	StatusFinalized       Status = "finalized"
 )
 
 func (e *Status) Scan(src interface{}) error {

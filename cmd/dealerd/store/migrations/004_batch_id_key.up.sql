@@ -114,3 +114,9 @@ DROP COLUMN auction_data_id;
 -- remove old useless column
 ALTER TABLE auction_data
 DROP COLUMN id;
+
+
+--------------------------------------------------------------
+-- add a new status
+--------------------------------------------------------------
+ALTER TYPE status ADD VALUE 'finalized';

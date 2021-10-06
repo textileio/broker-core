@@ -80,6 +80,3 @@ SELECT auction_id, storage_provider_id FROM auction_deals WHERE batch_id = $1;
 
 -- name: GetAuctionDealsByStatus :many
 SELECT * FROM auction_deals WHERE status = $1;
-
--- name: RemoveAuctionDeal :exec
-DELETE FROM auction_deals WHERE auction_id = $1 AND storage_provider_id = $2;

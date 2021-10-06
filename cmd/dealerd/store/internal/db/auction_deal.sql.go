@@ -257,20 +257,6 @@ func (q *Queries) NextPendingAuctionDeal(ctx context.Context, arg NextPendingAuc
 	return i, err
 }
 
-const removeAuctionDeal = `-- name: RemoveAuctionDeal :exec
-DELETE FROM auction_deals WHERE auction_id = $1 AND storage_provider_id = $2
-`
-
-type RemoveAuctionDealParams struct {
-	AuctionID         auction.ID `json:"auctionID"`
-	StorageProviderID string     `json:"storageProviderID"`
-}
-
-func (q *Queries) RemoveAuctionDeal(ctx context.Context, arg RemoveAuctionDealParams) error {
-	_, err := q.exec(ctx, q.removeAuctionDealStmt, removeAuctionDeal, arg.AuctionID, arg.StorageProviderID)
-	return err
-}
-
 const updateAuctionDeal = `-- name: UpdateAuctionDeal :execrows
 UPDATE auction_deals
 SET

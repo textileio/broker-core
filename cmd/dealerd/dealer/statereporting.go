@@ -74,10 +74,9 @@ func (d *Dealer) reportFinalizedAuctionDeal(ctx context.Context, aud store.Aucti
 		return fmt.Errorf("publishing finalized-deal msg to msgbroker: %s", err)
 	}
 
-	// We are safe to remove it from our store. This will indirectly remove also the linked
-	// AuctionData, if no pending/in-progress AuctionDeals exist for them.
-	if err := d.store.RemoveAuctionDeal(ctx, aud); err != nil {
-		return fmt.Errorf("removing deals: %s", err)
+	// We mark the deal as Finalized so it no longer gets picked up by daemonDealReporterTick().
+	if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusFinalized); err != nil {
+		return fmt.Errorf("finalizing deal: %s", err)
 	}
 
 	return nil
