@@ -76,7 +76,7 @@ func (q *Queries) CreateStorageRequest(ctx context.Context, arg CreateStorageReq
 }
 
 const getStorageRequest = `-- name: GetStorageRequest :one
-SELECT id, data_cid, batch_id, status, origin, rebatch_count, error_cause, created_at, updated_at FROM storage_requests
+SELECT id, data_cid, batch_id, origin, rebatch_count, error_cause, created_at, updated_at, status FROM storage_requests
 WHERE id = $1
 `
 
@@ -87,12 +87,12 @@ func (q *Queries) GetStorageRequest(ctx context.Context, id broker.StorageReques
 		&i.ID,
 		&i.DataCid,
 		&i.BatchID,
-		&i.Status,
 		&i.Origin,
 		&i.RebatchCount,
 		&i.ErrorCause,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Status,
 	)
 	return i, err
 }
@@ -126,7 +126,7 @@ func (q *Queries) GetStorageRequestIDs(ctx context.Context, batchID sql.NullStri
 }
 
 const getStorageRequests = `-- name: GetStorageRequests :many
-SELECT id, data_cid, batch_id, status, origin, rebatch_count, error_cause, created_at, updated_at FROM storage_requests
+SELECT id, data_cid, batch_id, origin, rebatch_count, error_cause, created_at, updated_at, status FROM storage_requests
 WHERE batch_id = $1
 `
 
@@ -143,12 +143,12 @@ func (q *Queries) GetStorageRequests(ctx context.Context, batchID sql.NullString
 			&i.ID,
 			&i.DataCid,
 			&i.BatchID,
-			&i.Status,
 			&i.Origin,
 			&i.RebatchCount,
 			&i.ErrorCause,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}

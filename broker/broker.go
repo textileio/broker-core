@@ -107,7 +107,7 @@ const (
 	// BatchStatusAuctioning indicates that the storage deal is being auctioned.
 	BatchStatusAuctioning BatchStatus = "auctioning"
 	// BatchStatusDealMaking indicates that the storage deal deals are being executed.
-	BatchStatusDealMaking BatchStatus = "deal making"
+	BatchStatusDealMaking BatchStatus = "deal_making"
 	// BatchStatusSuccess indicates that the storage deal was successfully stored in Filecoin.
 	BatchStatusSuccess BatchStatus = "success"
 	// BatchStatusError indicates that the storage deal has errored.
