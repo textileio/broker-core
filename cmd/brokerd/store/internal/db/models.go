@@ -11,6 +11,8 @@ import (
 	"github.com/textileio/broker-core/broker"
 )
 
+// @enum
+// @enumName StoragePayloadStatus
 type BatchStatus string
 
 const (

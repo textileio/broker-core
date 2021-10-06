@@ -124,6 +124,7 @@ func (q *Queue) CreateAuction(ctx context.Context, a auctioneer.Auction) error {
 		DealVerified:             a.DealVerified,
 		FilEpochDeadline:         a.FilEpochDeadline,
 		ExcludedStorageProviders: a.ExcludedStorageProviders,
+		Providers:                a.Providers,
 		PayloadCid:               a.PayloadCid.String(),
 		Status:                   broker.AuctionStatusQueued,
 		Duration:                 int64(a.Duration),
@@ -131,6 +132,9 @@ func (q *Queue) CreateAuction(ctx context.Context, a auctioneer.Auction) error {
 	}
 	if len(a.ExcludedStorageProviders) == 0 {
 		params.ExcludedStorageProviders = []string{}
+	}
+	if len(a.Providers) == 0 {
+		params.Providers = []string{}
 	}
 	if a.Sources.CARURL != nil {
 		params.CarUrl = a.Sources.CARURL.URL.String()

@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: broker-ingress
+  name: broker-ingress-2
   annotations:
     kubernetes.io/ingress.class: "gce"
     kubernetes.io/ingress.allow-http: "false"
@@ -52,10 +52,13 @@ spec:
                 port:
                   number: 5000
 ---
-apiVersion: cloud.google.com/v1beta1
+apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
   name: broker-backendconfig
 spec:
-  timeoutSec: 240
+  healthCheck:
+    checkIntervalSec: 60
+    timeoutSec: 20
+    requestPath: '/health'
 

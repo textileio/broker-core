@@ -37,7 +37,7 @@ if [ ! -z "$PROVIDERS" ]; then
 	PROVIDER_IDS=($(echo "$PROVIDERS" | tr ',' '\n'))
 
 	PROVIDERS_TEMPLATE=',"providers":%s'
-	PROVIDERS_JSON=$(printf "$PROVIDERS_TEMPLATE" "$(jq --compact-output --null-input '$ARGS.positional' --args \"${PROVIDER_IDS[@]})\"")
+	PROVIDERS_JSON=$(printf "$PROVIDERS_TEMPLATE" "$(jq --compact-output --null-input '$ARGS.positional' --args ${PROVIDER_IDS[@]})")
 fi
 
 JSON_TEMPLATE='{"payloadCid":"%s","pieceCid":"%s","pieceSize":%s, "repFactor":%s, "deadline":"%s", "carURL":{"url":"%s"} %s %s}\n'
