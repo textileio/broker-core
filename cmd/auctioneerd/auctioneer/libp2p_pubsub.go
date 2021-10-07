@@ -276,4 +276,7 @@ func (ps *Libp2pPubsub) proposalTopicFor(ctx context.Context, peer peer.ID) (*rp
 
 func (ps *Libp2pPubsub) eventHandler(from peer.ID, topic string, msg []byte) {
 	log.Debugf("%s peer event: %s %s", topic, from, msg)
+	if topic == core.Topic && string(msg) == "JOINED" {
+		ps.peer.Host().ConnManager().Protect(from, "auctioneer:<bidder>")
+	}
 }
