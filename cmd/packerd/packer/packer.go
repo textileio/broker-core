@@ -196,13 +196,13 @@ func (p *Packer) daemon() {
 				count, err := p.pack(p.daemonCtx)
 				if err != nil {
 					log.Errorf("packing: %s", err)
-					p.metricNewBatch.Add(p.daemonCtx, 1, metrics.AttrOK)
+					p.metricNewBatch.Add(p.daemonCtx, 1, metrics.AttrError)
 					break
 				}
 				if count == 0 {
 					break
 				}
-				p.metricNewBatch.Add(p.daemonCtx, 1, metrics.AttrError)
+				p.metricNewBatch.Add(p.daemonCtx, 1, metrics.AttrOK)
 			}
 		}
 	}

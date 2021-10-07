@@ -68,6 +68,27 @@ func (p *Packer) daemonExportMetrics() {
 		lock.Lock()
 		lastOpenBatchesStats = openStats
 		lastDoneBatchesStats = doneStats
+
+		// We override all done origins with non-open batches to produce zero
+		// values for prometheus.
+		for _, doneOrigin := range doneStats {
+			var foundOpen bool
+			for _, openOrigin := range openStats {
+				if openOrigin.Origin == doneOrigin.Origin {
+					foundOpen = true
+					break
+				}
+			}
+			if !foundOpen {
+				lastOpenBatchesStats = append(lastOpenBatchesStats,
+					store.OpenBatchStats{
+						Origin:   doneOrigin.Origin,
+						CidCount: 0,
+						Bytes:    0,
+						Count:    0,
+					})
+			}
+		}
 		lock.Unlock()
 
 		<-time.After(p.exportMetricsFreq)
