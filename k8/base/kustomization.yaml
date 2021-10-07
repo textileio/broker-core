@@ -10,6 +10,7 @@ resources:
   - gqld.yaml
   - ethd.yaml
   - ingress.yaml
+  - ingress-nginx.yaml
   - neard.yaml
   - packerd.yaml
   - piecer.yaml

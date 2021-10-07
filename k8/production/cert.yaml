@@ -1,7 +1,0 @@
-apiVersion: networking.gke.io/v1
-kind: ManagedCertificate
-metadata:
-  name: broker-production-textile-dev
-spec:
-  domains:
-    - broker.textile.dev
