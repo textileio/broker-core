@@ -20,7 +20,11 @@ REMOTE_WALLET=${10:-""}
 echo "Creating storage-request with $CAR_URL [$PAYLOAD_CID, $PIECE_CID, $PIECE_SIZE bytes] with rep-factor $REP_FACTOR and deadline $DEADLINE..."
 
 if [ -z "$DEADLINE" ]; then
-        DEADLINE=$(date --date="(date --rfc-3339=seconds) + 10 days" --rfc-3339=second | sed 's/ /T/g')
+	if [ "$(uname)" == "Darwin" ]; then
+           DEADLINE=$(date -v +10d '+%Y-%m-%dT%H:%M:%SZ')
+	else
+           DEADLINE=$(date --date="(date --rfc-3339=seconds) + 10 days" --rfc-3339=second | sed 's/ /T/g')
+	fi
 fi
 
 RW_JSON=""
