@@ -43,7 +43,7 @@ WHERE auction_deals.auction_data_id = auction_data.id;
 ALTER TABLE auction_deals
 ALTER COLUMN batch_id SET NOT NULL;
 
--- add foreign key to action_data for batch_id
+-- add foreign key to auction_data for batch_id
 ALTER TABLE auction_deals
 ADD CONSTRAINT fk_auction_deals_batch_id FOREIGN KEY (batch_id)
 REFERENCES auction_data (batch_id) MATCH SIMPLE
@@ -86,7 +86,7 @@ WHERE remote_wallet.auction_data_id = auction_data.id;
 ALTER TABLE remote_wallet
 ALTER COLUMN batch_id SET NOT NULL;
 
--- add foreign key to action_data for batch_id
+-- add foreign key to auction_data for batch_id
 ALTER TABLE remote_wallet
 ADD CONSTRAINT fk_remote_wallet_batch_id FOREIGN KEY (batch_id)
 REFERENCES auction_data (batch_id) MATCH SIMPLE
