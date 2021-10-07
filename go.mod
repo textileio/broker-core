@@ -63,7 +63,7 @@ require (
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.22.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.25.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.21.0
 	go.opentelemetry.io/otel v1.0.0-RC2
 	go.opentelemetry.io/otel/exporters/prometheus v0.21.0
