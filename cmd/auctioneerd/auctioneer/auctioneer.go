@@ -204,10 +204,8 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 		return nil
 	}
 
-	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
-	defer cancel()
 	var errCause string
-	publishErr := a.commChannel.PublishProposal(tctx, auctionID, bidID, bid.BidderID, pcid)
+	publishErr := a.commChannel.PublishProposal(ctx, auctionID, bidID, bid.BidderID, pcid)
 	if publishErr != nil {
 		errCause = publishErr.Error()
 		if err := a.queue.SetProposalCidDeliveryError(ctx, auctionID, bidID, errCause); err != nil {
@@ -554,10 +552,7 @@ func (a *Auctioneer) selectOneWinner(
 			mbroker.AuctionToPbSummary(auction), &b); err != nil {
 			log.Warn(err) // error is annotated
 		}
-		tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
-		// cancel at the end of the function
-		defer cancel()
-		if err := a.commChannel.PublishWin(tctx, auction.ID, b.ID, b.BidderID, auction.Sources); err != nil {
+		if err := a.commChannel.PublishWin(ctx, auction.ID, b.ID, b.BidderID, auction.Sources); err != nil {
 			if strings.Contains(err.Error(), core.ErrStringWouldExceedRunningBytesLimit) {
 				// this is expected so just print a debug message. error is annotated in publishWin
 				log.Debug(err)

@@ -197,7 +197,9 @@ func (ps *Libp2pPubsub) PublishWin(ctx context.Context, id core.ID, bid core.Bid
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	res, err := topic.Publish(ctx, msg)
+	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
+	defer cancel()
+	res, err := topic.Publish(tctx, msg)
 	if err != nil {
 		return fmt.Errorf("publishing win to %s in auction %s: %v", bidder, id, err)
 	}
@@ -225,7 +227,9 @@ func (ps *Libp2pPubsub) PublishProposal(ctx context.Context, id core.ID, bid cor
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)
 	}
-	res, err := topic.Publish(ctx, msg, rpc.WithRepublishing(true))
+	tctx, cancel := context.WithTimeout(ctx, NotifyTimeout)
+	defer cancel()
+	res, err := topic.Publish(tctx, msg, rpc.WithRepublishing(true))
 	if err != nil {
 		return err
 	}
