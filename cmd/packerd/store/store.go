@@ -55,15 +55,21 @@ type Store struct {
 	conn *sql.DB
 	db   *db.Queries
 
-	batchMaxSize int64
-	batchMinSize int64
+	batchMaxSize           int64
+	batchMinSize           int64
+	batchMinWaiting        time.Duration
+	batchWaitScalingFactor int64
 
 	lock    sync.Mutex
 	entropy *ulid.MonotonicEntropy
 }
 
 // New returns a new Store.
-func New(postgresURI string, batchMaxSize, batchMinSize int64) (*Store, error) {
+func New(postgresURI string,
+	batchMaxSize,
+	batchMinSize int64,
+	batchMinWaiting time.Duration,
+	batchWaitScalingFactor int64) (*Store, error) {
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
@@ -74,10 +80,12 @@ func New(postgresURI string, batchMaxSize, batchMinSize int64) (*Store, error) {
 	}
 
 	s := &Store{
-		conn:         conn,
-		db:           db.New(conn),
-		batchMaxSize: batchMaxSize,
-		batchMinSize: batchMinSize,
+		conn:                   conn,
+		db:                     db.New(conn),
+		batchMaxSize:           batchMaxSize,
+		batchMinSize:           batchMinSize,
+		batchMinWaiting:        batchMinWaiting,
+		batchWaitScalingFactor: batchWaitScalingFactor,
 	}
 
 	return s, nil
@@ -202,8 +210,9 @@ func (s *Store) MoveBatchToStatus(
 		ReadyAt: time.Now().Add(delay),
 	}
 
-	if err := s.withCtxTx(ctx, func(q *db.Queries) error {
-		count, err := s.db.MoveBatchToStatus(ctx, params)
+	if err := storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
+		q := s.db.WithTx(tx)
+		count, err := q.MoveBatchToStatus(ctx, params)
 		if err != nil {
 			return fmt.Errorf("move batch to status: %s", err)
 		}
@@ -218,6 +227,31 @@ func (s *Store) MoveBatchToStatus(
 	return nil
 }
 
+// TimeBasedBatchClose closes all batches that satisfy the time-based closing criteria.
+func (s *Store) TimeBasedBatchClose(ctx context.Context) error {
+	return storeutil.WithTx(ctx, s.conn, func(txn *sql.Tx) error {
+		q := s.db.WithTx(txn)
+
+		now := time.Now()
+		waiting1GiB := now.Add(-s.batchMinWaiting)
+		waiting100MiB := now.Add(-s.batchMinWaiting * time.Duration(s.batchWaitScalingFactor))
+		waiting1MiB := now.Add(-s.batchMinWaiting * time.Duration(s.batchWaitScalingFactor*s.batchWaitScalingFactor))
+		params := db.TimeBasedBatchClosingParams{
+			Waiting1mib:   waiting1MiB.UTC(),
+			Waiting100mib: waiting100MiB.UTC(),
+			Waiting1gib:   waiting1GiB.UTC(),
+		}
+		closed, err := q.TimeBasedBatchClosing(ctx, params)
+		if err != nil {
+			return fmt.Errorf("time based closing: %s", err)
+		}
+		if closed > 0 {
+			log.Debugf("%s batches have been auto-closed", closed)
+		}
+		return nil
+	})
+}
+
 // GetNextReadyBatch returns the next ready batch to be processed batch and changes the
 // status to Executing.
 // The caller is responsible for updating the status later to Ready on error, or Done on success.
@@ -229,9 +263,11 @@ func (s *Store) GetNextReadyBatch(
 	origin string,
 	exists bool,
 	err error) {
-	if err = s.withCtxTx(ctx, func(q *db.Queries) error {
+	if err = storeutil.WithTx(ctx, s.conn, func(txn *sql.Tx) error {
+		q := s.db.WithTx(txn)
+
 		var rb db.GetNextReadyBatchRow
-		rb, err = s.db.GetNextReadyBatch(ctx, stuckSeconds)
+		rb, err = q.GetNextReadyBatch(ctx, stuckSeconds)
 		if err == sql.ErrNoRows {
 			return nil
 		}
@@ -242,7 +278,7 @@ func (s *Store) GetNextReadyBatch(
 			log.Warnf("re-packing stuck batch %s", rb.BatchID)
 		}
 
-		srs, err = s.db.GetStorageRequestsFromBatch(ctx, rb.BatchID)
+		srs, err = q.GetStorageRequestsFromBatch(ctx, rb.BatchID)
 		if err != nil {
 			return fmt.Errorf("get storage requests from batch: %s", err)
 		}
@@ -332,12 +368,6 @@ func (s *Store) newID() (string, error) {
 	}
 	s.lock.Unlock()
 	return strings.ToLower(id.String()), nil
-}
-
-func (s *Store) withCtxTx(ctx context.Context, f func(*db.Queries) error) error {
-	return storeutil.WithCtxTx(ctx,
-		func(tx *sql.Tx) error { return f(s.db.WithTx(tx)) },
-		func() error { return f(s.db) })
 }
 
 func statusToDB(status BatchStatus) (db.BatchStatus, error) {

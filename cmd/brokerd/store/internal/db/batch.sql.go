@@ -5,6 +5,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/lib/pq"
 	"github.com/textileio/broker-core/broker"
@@ -23,6 +24,7 @@ INSERT INTO batches(
     fil_epoch_deadline,
     error,
     payload_cid,
+    payload_size,
     piece_cid,
     piece_size,
     origin,
@@ -42,7 +44,8 @@ INSERT INTO batches(
       $12,
       $13,
       $14,
-      $15)
+      $15,
+      $16)
 `
 
 type CreateBatchParams struct {
@@ -57,6 +60,7 @@ type CreateBatchParams struct {
 	FilEpochDeadline   uint64             `json:"filEpochDeadline"`
 	Error              string             `json:"error"`
 	PayloadCid         string             `json:"payloadCid"`
+	PayloadSize        sql.NullInt64      `json:"payloadSize"`
 	PieceCid           string             `json:"pieceCid"`
 	PieceSize          uint64             `json:"pieceSize"`
 	Origin             string             `json:"origin"`
@@ -76,6 +80,7 @@ func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error 
 		arg.FilEpochDeadline,
 		arg.Error,
 		arg.PayloadCid,
+		arg.PayloadSize,
 		arg.PieceCid,
 		arg.PieceSize,
 		arg.Origin,
@@ -153,7 +158,7 @@ func (q *Queries) CreateBatchTag(ctx context.Context, arg CreateBatchTagParams) 
 }
 
 const getBatch = `-- name: GetBatch :one
-SELECT id, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers, status FROM batches
+SELECT id, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers, status, payload_size FROM batches
 WHERE id = $1
 `
 
@@ -178,6 +183,7 @@ func (q *Queries) GetBatch(ctx context.Context, id broker.BatchID) (Batch, error
 		&i.UpdatedAt,
 		pq.Array(&i.Providers),
 		&i.Status,
+		&i.PayloadSize,
 	)
 	return i, err
 }

@@ -46,6 +46,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.openBatchStatsStmt, err = db.PrepareContext(ctx, openBatchStats); err != nil {
 		return nil, fmt.Errorf("error preparing query OpenBatchStats: %w", err)
 	}
+	if q.timeBasedBatchClosingStmt, err = db.PrepareContext(ctx, timeBasedBatchClosing); err != nil {
+		return nil, fmt.Errorf("error preparing query TimeBasedBatchClosing: %w", err)
+	}
 	if q.updateBatchSizeStmt, err = db.PrepareContext(ctx, updateBatchSize); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateBatchSize: %w", err)
 	}
@@ -92,6 +95,11 @@ func (q *Queries) Close() error {
 	if q.openBatchStatsStmt != nil {
 		if cerr := q.openBatchStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing openBatchStatsStmt: %w", cerr)
+		}
+	}
+	if q.timeBasedBatchClosingStmt != nil {
+		if cerr := q.timeBasedBatchClosingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing timeBasedBatchClosingStmt: %w", cerr)
 		}
 	}
 	if q.updateBatchSizeStmt != nil {
@@ -146,6 +154,7 @@ type Queries struct {
 	getStorageRequestsFromBatchStmt *sql.Stmt
 	moveBatchToStatusStmt           *sql.Stmt
 	openBatchStatsStmt              *sql.Stmt
+	timeBasedBatchClosingStmt       *sql.Stmt
 	updateBatchSizeStmt             *sql.Stmt
 }
 
@@ -161,6 +170,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getStorageRequestsFromBatchStmt: q.getStorageRequestsFromBatchStmt,
 		moveBatchToStatusStmt:           q.moveBatchToStatusStmt,
 		openBatchStatsStmt:              q.openBatchStatsStmt,
+		timeBasedBatchClosingStmt:       q.timeBasedBatchClosingStmt,
 		updateBatchSizeStmt:             q.updateBatchSizeStmt,
 	}
 }

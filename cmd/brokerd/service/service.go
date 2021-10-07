@@ -248,11 +248,12 @@ func (s *Service) OnNewBatchCreated(
 	ctx context.Context,
 	id broker.BatchID,
 	batchCid cid.Cid,
+	batchSize int64,
 	brids []broker.StorageRequestID,
 	origin string,
 	manifest []byte,
 	carURL *url.URL) error {
-	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, brids, origin, manifest, carURL); err != nil {
+	if _, err := s.broker.CreateNewBatch(ctx, id, batchCid, batchSize, brids, origin, manifest, carURL); err != nil {
 		if errors.Is(err, store.ErrBatchExists) {
 			log.Warnf("batch ID %s already created, acking", id)
 			return nil

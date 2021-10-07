@@ -78,6 +78,7 @@ type Batch struct {
 	UpdatedAt          time.Time          `json:"updatedAt"`
 	Providers          []string           `json:"providers"`
 	Status             broker.BatchStatus `json:"status"`
+	PayloadSize        sql.NullInt64      `json:"payloadSize"`
 }
 
 type BatchManifest struct {

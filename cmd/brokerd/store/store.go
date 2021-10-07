@@ -220,12 +220,18 @@ func (s *Store) CreateBatch(
 	if ba.PieceCid.Defined() {
 		pieceCid = ba.PieceCid.String()
 	}
+	var payloadSize sql.NullInt64
+	if ba.PayloadSize != nil {
+		payloadSize.Valid = true
+		payloadSize.Int64 = *ba.PayloadSize
+	}
 	isd := db.CreateBatchParams{
 		ID:                 ba.ID,
 		Status:             ba.Status,
 		RepFactor:          ba.RepFactor,
 		DealDuration:       ba.DealDuration,
 		PayloadCid:         ba.PayloadCid.String(),
+		PayloadSize:        payloadSize,
 		PieceCid:           pieceCid,
 		PieceSize:          ba.PieceSize,
 		DisallowRebatching: ba.DisallowRebatching,
@@ -336,22 +342,22 @@ func (s *Store) BatchError(
 	errorCause string,
 	rebatch bool) (brIDs []broker.StorageRequestID, err error) {
 	err = s.withTx(ctx, func(txn *db.Queries) error {
-		sd, err := txn.GetBatch(ctx, id)
+		ba, err := txn.GetBatch(ctx, id)
 		if err != nil {
 			return fmt.Errorf("get batch: %s", err)
 		}
 
 		// 1. Verify some pre-state conditions.
-		switch sd.Status {
+		switch ba.Status {
 		case broker.BatchStatusAuctioning, broker.BatchStatusDealMaking:
-			if sd.Error != "" {
-				return fmt.Errorf("error cause should be empty: %s", sd.Error)
+			if ba.Error != "" {
+				return fmt.Errorf("error cause should be empty: %s", ba.Error)
 			}
 		case broker.BatchStatusError:
 			brIDs, err = txn.GetStorageRequestIDs(ctx, batchIDToSQL(id))
 			return err
 		default:
-			return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+			return fmt.Errorf("wrong storage request status transition, tried moving to %s", ba.Status)
 		}
 
 		// 2. Move the Batch to BatchError with the error cause.
@@ -384,7 +390,7 @@ func (s *Store) BatchError(
 		}
 
 		if err := txn.CreateUnpinJob(ctx, db.CreateUnpinJobParams{
-			ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
+			ID: unpinID, Cid: ba.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
 			return fmt.Errorf("saving unpin job: %s", err)
 		}
 
@@ -495,8 +501,8 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 // ErrNotFound.
 func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Batch, err error) {
 	err = s.withCtxTx(ctx, func(q *db.Queries) error {
-		var dbSD db.Batch
-		dbSD, err = q.GetBatch(ctx, id)
+		var dbBatch db.Batch
+		dbBatch, err = q.GetBatch(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -504,7 +510,7 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 		if err != nil {
 			return err
 		}
-		sd, err = batchFromDB(&dbSD, tags)
+		sd, err = batchFromDB(&dbBatch, tags)
 		return err
 	})
 	return
@@ -606,29 +612,29 @@ func (s *Store) newID() (string, error) {
 	return strings.ToLower(id.String()), nil
 }
 
-func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error) {
+func batchFromDB(ba *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error) {
 	var payloadCid cid.Cid
-	if sd.PayloadCid != "" {
-		payloadCid, err = cid.Parse(sd.PayloadCid)
+	if ba.PayloadCid != "" {
+		payloadCid, err = cid.Parse(ba.PayloadCid)
 		if err != nil {
 			return nil, fmt.Errorf("parsing payload CID: %s", err)
 		}
 	}
 	var pieceCid cid.Cid
-	if sd.PieceCid != "" {
-		pieceCid, err = cid.Parse(sd.PieceCid)
+	if ba.PieceCid != "" {
+		pieceCid, err = cid.Parse(ba.PieceCid)
 		if err != nil {
 			return nil, fmt.Errorf("parsing piece CID: %s", err)
 		}
 	}
 	var sources auction.Sources
-	if u, err := url.ParseRequestURI(sd.CarUrl); err == nil {
+	if u, err := url.ParseRequestURI(ba.CarUrl); err == nil {
 		sources.CARURL = &auction.CARURL{URL: *u}
 	}
-	if sd.CarIpfsCid != "" {
-		if id, err := cid.Parse(sd.CarIpfsCid); err == nil {
+	if ba.CarIpfsCid != "" {
+		if id, err := cid.Parse(ba.CarIpfsCid); err == nil {
 			carIPFS := &auction.CARIPFS{Cid: id}
-			addrs := strings.Split(sd.CarIpfsAddrs, ",")
+			addrs := strings.Split(ba.CarIpfsAddrs, ",")
 			for _, addr := range addrs {
 				if ma, err := multiaddr.NewMultiaddr(addr); err == nil {
 					carIPFS.Multiaddrs = append(carIPFS.Multiaddrs, ma)
@@ -639,8 +645,8 @@ func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 			sources.CARIPFS = carIPFS
 		}
 	}
-	providers := make([]address.Address, len(sd.Providers))
-	for i, strProv := range sd.Providers {
+	providers := make([]address.Address, len(ba.Providers))
+	for i, strProv := range ba.Providers {
 		providerAddr, err := address.NewFromString(strProv)
 		if err != nil {
 			return nil, fmt.Errorf("parsing provider %s: %s", strProv, err)
@@ -656,23 +662,29 @@ func batchFromDB(sd *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 		mtags[tag.Key] = tag.Value
 	}
 
+	var payloadSize *int64
+	if ba.PayloadSize.Valid {
+		payloadSize = &ba.PayloadSize.Int64
+	}
+
 	return &broker.Batch{
-		ID:                 sd.ID,
-		Status:             sd.Status,
-		RepFactor:          sd.RepFactor,
-		DealDuration:       sd.DealDuration,
+		ID:                 ba.ID,
+		Status:             ba.Status,
+		RepFactor:          ba.RepFactor,
+		DealDuration:       ba.DealDuration,
 		PayloadCid:         payloadCid,
+		PayloadSize:        payloadSize,
 		PieceCid:           pieceCid,
-		PieceSize:          sd.PieceSize,
+		PieceSize:          ba.PieceSize,
 		Sources:            sources,
-		DisallowRebatching: sd.DisallowRebatching,
-		FilEpochDeadline:   sd.FilEpochDeadline,
-		Origin:             sd.Origin,
+		DisallowRebatching: ba.DisallowRebatching,
+		FilEpochDeadline:   ba.FilEpochDeadline,
+		Origin:             ba.Origin,
 		Tags:               mtags,
 		Providers:          providers,
-		Error:              sd.Error,
-		CreatedAt:          sd.CreatedAt,
-		UpdatedAt:          sd.UpdatedAt,
+		Error:              ba.Error,
+		CreatedAt:          ba.CreatedAt,
+		UpdatedAt:          ba.UpdatedAt,
 	}, nil
 }
 

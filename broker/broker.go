@@ -84,7 +84,8 @@ type Batch struct {
 	Providers          []address.Address
 
 	// Packer calculates this field after batching storage requests.
-	PayloadCid cid.Cid
+	PayloadCid  cid.Cid
+	PayloadSize *int64
 
 	// Piecer calculates these fields after preparing the batched DAG.
 	PieceCid  cid.Cid

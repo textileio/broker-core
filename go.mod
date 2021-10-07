@@ -3,7 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
-	cloud.google.com/go/pubsub v1.16.0
+	cloud.google.com/go/pubsub v1.17.0
 	cloud.google.com/go/storage v1.16.1
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
@@ -21,7 +21,7 @@ require (
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/golang-migrate/migrate/v4 v4.14.1
+	github.com/golang-migrate/migrate/v4 v4.15.0
 	github.com/google/uuid v1.3.0
 	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-datastore v0.4.6
@@ -51,7 +51,7 @@ require (
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/shirou/gopsutil v3.21.7+incompatible // indirect
 	github.com/spf13/cobra v1.2.1
-	github.com/spf13/viper v1.8.1
+	github.com/spf13/viper v1.9.0
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/bidbot v0.1.1-0.20211001192524-0dc443db44a5
 	github.com/textileio/cli v1.0.1
