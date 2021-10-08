@@ -228,7 +228,7 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 // MarkFinalizedDeal marks the deal as confirmed if it has no error.
 func (a *Auctioneer) MarkFinalizedDeal(ctx context.Context, fad broker.FinalizedDeal) error {
 	if fad.ErrorCause != "" {
-		return nil
+		return a.queue.MarkDealAsFailed(ctx, fad.AuctionID, fad.BidID)
 	}
 	return a.queue.MarkDealAsConfirmed(ctx, fad.AuctionID, fad.BidID)
 }

@@ -66,7 +66,7 @@ func (q *Queries) CreateBid(ctx context.Context, arg CreateBidParams) error {
 }
 
 const getAuctionBids = `-- name: GetAuctionBids :many
-SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason FROM bids
+SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason, deal_failed_at FROM bids
 WHERE auction_id = $1
 `
 
@@ -96,6 +96,7 @@ func (q *Queries) GetAuctionBids(ctx context.Context, auctionID auction.ID) ([]B
 			&i.ProposalCidDeliveryError,
 			&i.DealConfirmedAt,
 			&i.WonReason,
+			&i.DealFailedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -111,7 +112,7 @@ func (q *Queries) GetAuctionBids(ctx context.Context, auctionID auction.ID) ([]B
 }
 
 const getAuctionWinningBids = `-- name: GetAuctionWinningBids :many
-SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason FROM bids
+SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason, deal_failed_at FROM bids
 WHERE auction_id = $1 and won_at IS NOT NULL
 `
 
@@ -141,6 +142,7 @@ func (q *Queries) GetAuctionWinningBids(ctx context.Context, auctionID auction.I
 			&i.ProposalCidDeliveryError,
 			&i.DealConfirmedAt,
 			&i.WonReason,
+			&i.DealFailedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -160,7 +162,8 @@ WITH b AS (SELECT storage_provider_id,
       extract(epoch from interval '1 weeks') / extract(epoch from current_timestamp - received_at) AS freshness,
       CASE WHEN deal_confirmed_at IS NULL THEN 1 ELSE 0 END failed
     FROM bids
-    WHERE received_at < current_timestamp - interval '1 days' AND received_at > current_timestamp - interval '1 weeks' AND won_at IS NOT NULL)
+    WHERE received_at > current_timestamp - interval '1 weeks' AND won_at IS NOT NULL
+    AND (deal_failed_at IS NOT NULL OR received_at < current_timestamp - interval '1 days'))
 SELECT b.storage_provider_id, (SUM(b.freshness*b.failed)*1000000/COUNT(*))::bigint AS failure_rate_ppm
 FROM b
 GROUP BY storage_provider_id
@@ -172,7 +175,8 @@ type GetRecentWeekFailureRateRow struct {
 }
 
 // here's the logic:
-// 1. take all winning bids happened in the recent week until 1 day ago (to exclude the deals waiting to be on-chain).
+// 1. take all winning bids happened in the recent week until 1 day ago (to exclude the deals waiting to be on-chain), or
+// if their deals failed.
 // 2. calculate the freshness of each bid, ranging from 1 (1 week ago) to 7 (1 day ago).
 // 3. sum up the failed bids (not be able to make a deal), weighed by their freshness, then divide by the number of wins.
 func (q *Queries) GetRecentWeekFailureRate(ctx context.Context) ([]GetRecentWeekFailureRateRow, error) {
@@ -291,6 +295,22 @@ type UpdateDealConfirmedAtParams struct {
 
 func (q *Queries) UpdateDealConfirmedAt(ctx context.Context, arg UpdateDealConfirmedAtParams) error {
 	_, err := q.exec(ctx, q.updateDealConfirmedAtStmt, updateDealConfirmedAt, arg.ID, arg.AuctionID)
+	return err
+}
+
+const updateDealFailedAt = `-- name: UpdateDealFailedAt :exec
+UPDATE bids
+SET deal_failed_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND auction_id = $2
+`
+
+type UpdateDealFailedAtParams struct {
+	ID        auction.BidID `json:"id"`
+	AuctionID auction.ID    `json:"auctionID"`
+}
+
+func (q *Queries) UpdateDealFailedAt(ctx context.Context, arg UpdateDealFailedAtParams) error {
+	_, err := q.exec(ctx, q.updateDealFailedAtStmt, updateDealFailedAt, arg.ID, arg.AuctionID)
 	return err
 }
 
