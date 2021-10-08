@@ -199,6 +199,7 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 		rows, err := q.UpdateAuctionDeal(ctx, db.UpdateAuctionDealParams{
 			ID:                  aud.ID,
 			AuctionDataID:       aud.AuctionDataID,
+			BatchID:             aud.BatchID,
 			StorageProviderID:   aud.StorageProviderID,
 			PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
 			StartEpoch:          aud.StartEpoch,
