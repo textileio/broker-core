@@ -30,5 +30,5 @@ func (a *Auctioneer) lastCreatedAuctionCb(_ context.Context, r metric.Int64Obser
 }
 
 func (a *Auctioneer) lastPubsubPeersCb(_ context.Context, r metric.Int64ObserverResult) {
-	r.Observe(int64(len(a.peer.ListPeers())))
+	r.Observe(int64(len(a.commChannel.ListPeers())))
 }

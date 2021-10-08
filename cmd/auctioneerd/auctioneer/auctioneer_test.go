@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	util "github.com/ipfs/go-ipfs-util"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
@@ -67,7 +68,7 @@ func TestClient_ReadyToAuction(t *testing.T) {
 		t.Skip()
 	}
 	s, _ := newClient(t)
-	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
+	gw := apitest.NewDataURIHTTPGateway(createDagService(t))
 	t.Cleanup(gw.Close)
 
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
@@ -96,7 +97,7 @@ func TestClient_GetAuction(t *testing.T) {
 		t.Skip()
 	}
 	s, _ := newClient(t)
-	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
+	gw := apitest.NewDataURIHTTPGateway(createDagService(t))
 	t.Cleanup(gw.Close)
 
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
@@ -140,7 +141,7 @@ func TestClient_RunAuction(t *testing.T) {
 	}
 	s, mb := newClient(t)
 	bots := addBidbots(t, 5)
-	gw := apitest.NewDataURIHTTPGateway(s.DAGService())
+	gw := apitest.NewDataURIHTTPGateway(createDagService(t))
 	t.Cleanup(gw.Close)
 
 	time.Sleep(time.Second * 5) // Allow peers to boot
@@ -148,79 +149,90 @@ func TestClient_RunAuction(t *testing.T) {
 	payloadCid, sources, err := gw.CreateHTTPSources(true)
 	require.NoError(t, err)
 
-	ctx := context.Background()
-	id := auction.ID("ID1")
-	err = s.OnReadyToAuction(
-		ctx,
-		id,
-		newBatchID(),
-		payloadCid,
-		oneGiB,
-		sixMonthsEpochs,
-		2,
-		true,
-		nil,
-		0,
-		sources,
-		"wallet-addr",
-		nil,
-	)
-	require.NoError(t, err)
+	for i := 0; i < 3; i++ {
+		round := fmt.Sprintf("round %d", i)
+		t.Run(round, func(t *testing.T) {
+			// t.Parallel()
+			ctx := context.Background()
+			id := auction.ID(round)
+			err := s.OnReadyToAuction(
+				ctx,
+				id,
+				newBatchID(),
+				payloadCid,
+				oneGiB,
+				sixMonthsEpochs,
+				2,
+				true,
+				nil,
+				0,
+				sources,
+				"wallet-addr",
+				nil,
+			)
+			require.NoError(t, err)
 
-	time.Sleep(auctionDuration * 3) // Allow to finish
+			time.Sleep(auctionDuration * 3) // Allow to finish
 
-	got, err := s.GetAuction(ctx, id)
-	require.NoError(t, err)
-	assert.Equal(t, id, got.ID)
-	assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
-	assert.Empty(t, got.ErrorCause)
-	assert.Len(t, got.Bids, 5)
-	require.Len(t, got.WinningBids, 2)
+			got, err := s.GetAuction(ctx, id)
+			require.NoError(t, err)
+			assert.Equal(t, id, got.ID)
+			assert.Equal(t, broker.AuctionStatusFinalized, got.Status)
+			assert.Empty(t, got.ErrorCause)
+			assert.Len(t, got.Bids, 5)
+			require.Len(t, got.WinningBids, 2)
 
-	for id := range got.WinningBids {
-		assert.NotNil(t, got.Bids[id])
+			for id := range got.WinningBids {
+				assert.NotNil(t, got.Bids[id])
 
-		// Set the proposal as accepted
-		pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
-		err = s.OnDealProposalAccepted(ctx, got.ID, id, pcid)
-		require.NoError(t, err)
-	}
+				// Set the proposal as accepted
+				pcid := cid.NewCidV1(cid.Raw, util.Hash([]byte("howdy")))
+				err = s.OnDealProposalAccepted(ctx, got.ID, id, pcid)
+				require.NoError(t, err)
+			}
 
-	time.Sleep(time.Second * 5) // Allow to deliver proposals
+			time.Sleep(time.Second * 5) // Allow to deliver proposals
 
-	// Re-get auction so we can check proposal cids
-	got, err = s.GetAuction(ctx, id)
-	require.NoError(t, err)
+			// Re-get auction so we can check proposal cids
+			got, err = s.GetAuction(ctx, id)
+			require.NoError(t, err)
 
-	for _, wb := range got.WinningBids {
-		// Check if proposal cid was delivered without error
-		assert.True(t, wb.ProposalCid.Defined())
-		assert.Empty(t, wb.ErrorCause)
+			for bidID, wb := range got.WinningBids {
+				// Check if proposal cid was delivered without error
+				assert.True(t, wb.ProposalCid.Defined())
+				assert.Empty(t, wb.ErrorCause)
 
-		// Check if the winning bids were able to fetch the data cid
-		bot := bots[wb.BidderID]
-		require.NotNil(t, bot)
+				// Check if the winning bids were able to fetch the data cid
+				bot := bots[wb.BidderID]
+				require.NotNil(t, bot)
 
-		bids, err := bot.ListBids(bidstore.Query{})
-		require.NoError(t, err)
-		require.Len(t, bids, 1)
-		assert.Equal(t, bidstore.BidStatusFinalized, bids[0].Status)
-		assert.Empty(t, bids[0].ErrorCause)
-	}
+				bids, err := bot.ListBids(bidstore.Query{})
+				require.NoError(t, err)
+				var found *bidstore.Bid
+				for _, bid := range bids {
+					if bid.ID == bidID {
+						found = bid
+					}
+				}
+				assert.Equal(t, bidstore.BidStatusFinalized, found.Status)
+				assert.Empty(t, found.ErrorCause)
+			}
 
-	// Because of libp2p-pubsub-rpc republishing, message can be delivered
-	// more than once.
-	assert.True(t, mb.TotalPublished() >= 13)
-	for topic, n := range map[msgbroker.TopicName]int{
-		msgbroker.AuctionStartedTopic:              1,
-		msgbroker.AuctionBidReceivedTopic:          5,
-		msgbroker.AuctionWinnerSelectedTopic:       2,
-		msgbroker.AuctionWinnerAckedTopic:          2,
-		msgbroker.AuctionProposalCidDeliveredTopic: 2,
-		msgbroker.AuctionClosedTopic:               1,
-	} {
-		assert.True(t, mb.TotalPublishedTopic(topic) >= n,
-			fmt.Sprintf("should have received at least %d %s events", n, topic))
+			// Because of libp2p-pubsub-rpc republishing, message can be delivered
+			// more than once.
+			assert.True(t, mb.TotalPublished() >= 13)
+			for topic, n := range map[msgbroker.TopicName]int{
+				msgbroker.AuctionStartedTopic:              1,
+				msgbroker.AuctionBidReceivedTopic:          5,
+				msgbroker.AuctionWinnerSelectedTopic:       2,
+				msgbroker.AuctionWinnerAckedTopic:          2,
+				msgbroker.AuctionProposalCidDeliveredTopic: 2,
+				msgbroker.AuctionClosedTopic:               1,
+			} {
+				assert.True(t, mb.TotalPublishedTopic(topic) >= n,
+					fmt.Sprintf("should have received at least %d %s events", n, topic))
+			}
+		})
 	}
 }
 
@@ -345,4 +357,16 @@ func newFilClientMock() *filclientmocks.FilClient {
 	fc.On("GetChainHeight").Return(uint64(0), nil)
 	fc.On("Close").Return(nil)
 	return fc
+}
+
+func createDagService(t *testing.T) format.DAGService {
+	dir := t.TempDir()
+	fin := finalizer.NewFinalizer()
+	t.Cleanup(func() {
+		require.NoError(t, fin.Cleanup(nil))
+	})
+	p, err := rpcpeer.New(rpcpeer.Config{RepoPath: dir})
+	require.NoError(t, err)
+	fin.Add(p)
+	return p.DAGService()
 }

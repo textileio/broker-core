@@ -42,6 +42,24 @@ var (
 	ErrBidNotFound = errors.New("bid not found")
 )
 
+// BidEventType is an alias.
+type BidEventType = db.BidEventType
+
+const (
+	// BidEventTypeStartFetching is an alias.
+	BidEventTypeStartFetching = db.BidEventTypeStartFetching
+	// BidEventTypeErrorFetching is an alias.
+	BidEventTypeErrorFetching = db.BidEventTypeErrorFetching
+	// BidEventTypeStartImporting is an alias.
+	BidEventTypeStartImporting = db.BidEventTypeStartImporting
+	// BidEventTypeEndImporting is an alias.
+	BidEventTypeEndImporting = db.BidEventTypeEndImporting
+	// BidEventTypeFinalized is an alias.
+	BidEventTypeFinalized = db.BidEventTypeFinalized
+	// BidEventTypeErrored is an alias.
+	BidEventTypeErrored = db.BidEventTypeErrored
+)
+
 // Handler is called when an auction moves from "queued" to "started".
 type Handler func(
 	ctx context.Context,
@@ -353,6 +371,39 @@ func (q *Queue) MarkDealAsConfirmed(
 	return q.db.UpdateDealConfirmedAt(ctx, db.UpdateDealConfirmedAtParams{
 		ID:        bidID,
 		AuctionID: auctionID,
+	})
+}
+
+// SaveStorageProvider saves the storage provider info.
+func (q *Queue) SaveStorageProvider(ctx context.Context, id string, version string, dealStartWindow uint64,
+	cidGravityConfigured, cidGravityStrict bool) error {
+	return q.db.CreateOrUpdateStorageProvider(ctx, db.CreateOrUpdateStorageProviderParams{
+		ID:                   id,
+		BidbotVersion:        version,
+		DealStartWindow:      int64(dealStartWindow),
+		CidGravityConfigured: cidGravityConfigured,
+		CidGravityStrict:     cidGravityStrict,
+	})
+}
+
+// SetStorageProviderUnhealthy sets the storage provider to be unhealthy at the current point.
+func (q *Queue) SetStorageProviderUnhealthy(ctx context.Context, id string, err string) error {
+	return q.db.SetStorageProviderUnhealthy(ctx, db.SetStorageProviderUnhealthyParams{
+		ID:                 id,
+		LastUnhealthyError: sql.NullString{Valid: true, String: err},
+	})
+}
+
+// SaveBidEvent saves bid events.
+func (q *Queue) SaveBidEvent(ctx context.Context, eventType BidEventType, bidID string,
+	attempts uint32, err string, ts time.Time) error {
+	return q.db.CreateBidEvent(ctx, db.CreateBidEventParams{
+		BidID:      bidID,
+		EventType:  eventType,
+		Attempts:   sql.NullInt32{Valid: attempts == 0, Int32: int32(attempts)},
+		Error:      sql.NullString{Valid: err != "", String: err},
+		HappenedAt: ts,
+		ReceivedAt: time.Now().UTC(),
 	})
 }
 

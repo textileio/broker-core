@@ -4,12 +4,16 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	pb "github.com/textileio/bidbot/gen/v1"
+	"github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/broker-core/auctioneer"
 	"github.com/textileio/broker-core/msgbroker/fakemsgbroker"
+	rpcpeer "github.com/textileio/go-libp2p-pubsub-rpc/peer"
 )
 
 func TestNewID(t *testing.T) {
@@ -167,9 +171,7 @@ func TestSelectWinners(t *testing.T) {
 					expectedWins[id] += int(winningChance.chance * float64(rounds))
 				}
 			}
-			a := &Auctioneer{mb: fakemsgbroker.New(),
-				winsPublisher: func(context.Context, core.ID, core.BidID, peer.ID, core.Sources) error { return nil },
-			}
+			a := &Auctioneer{mb: fakemsgbroker.New(), commChannel: nullChannel{}}
 			a.initMetrics()
 			a.providerFailureRates.Store(failureRates)
 			a.providerOnChainEpoches.Store(onChainEpoches)
@@ -191,3 +193,22 @@ func TestSelectWinners(t *testing.T) {
 		})
 	}
 }
+
+type nullChannel struct{}
+
+func (nc nullChannel) PublishAuction(ctx context.Context, id auction.ID, auctionPb *pb.Auction,
+	bidsHandler BidsHandler) error {
+	return nil
+}
+func (nc nullChannel) PublishWin(ctx context.Context, id auction.ID, bid auction.BidID, bidder peer.ID,
+	sources auction.Sources) error {
+	return nil
+}
+func (nc nullChannel) PublishProposal(ctx context.Context, id auction.ID, bid auction.BidID, bidder peer.ID,
+	pcid cid.Cid) error {
+	return nil
+}
+func (nc nullChannel) Start(bootstrap bool) error   { return nil }
+func (nc nullChannel) Info() (*rpcpeer.Info, error) { return nil, nil }
+func (nc nullChannel) ListPeers() []peer.ID         { return nil }
+func (nc nullChannel) Close() error                 { return nil }

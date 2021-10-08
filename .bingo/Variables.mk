@@ -95,9 +95,9 @@ $(PROTOC_GEN_GO): $(BINGO_DIR)/protoc-gen-go.mod
 	@echo "(re)installing $(GOBIN)/protoc-gen-go-v1.26.0"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=protoc-gen-go.mod -o=$(GOBIN)/protoc-gen-go-v1.26.0 "google.golang.org/protobuf/cmd/protoc-gen-go"
 
-SQLC := $(GOBIN)/sqlc-v1.8.0
+SQLC := $(GOBIN)/sqlc-v1.10.0
 $(SQLC): $(BINGO_DIR)/sqlc.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/sqlc-v1.8.0"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=sqlc.mod -o=$(GOBIN)/sqlc-v1.8.0 "github.com/kyleconroy/sqlc/cmd/sqlc"
+	@echo "(re)installing $(GOBIN)/sqlc-v1.10.0"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=sqlc.mod -o=$(GOBIN)/sqlc-v1.10.0 "github.com/kyleconroy/sqlc/cmd/sqlc"
 
