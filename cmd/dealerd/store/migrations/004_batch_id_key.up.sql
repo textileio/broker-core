@@ -1,3 +1,5 @@
+BEGIN;
+
 --------------------------------------------------------------
 -- remove all foreign keys that reference auction_data.id
 --------------------------------------------------------------
@@ -120,3 +122,5 @@ DROP COLUMN id;
 -- add a new status
 --------------------------------------------------------------
 ALTER TYPE status ADD VALUE 'finalized';
+
+COMMIT;
