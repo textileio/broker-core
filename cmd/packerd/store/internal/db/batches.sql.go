@@ -257,8 +257,7 @@ WHERE total_size >= 65 AND -- Fundamental minimum size for CommP calculation.
       ( (total_size  > 1024 * 1048576 AND created_at < $1) OR -- [1GiB, inf]
 	(total_size BETWEEN 100 * 1048576 AND 1024 * 1048576 AND created_at < $2) OR -- [100 MiB, 1GiB]
 	(total_size BETWEEN 1048576 AND 100 * 1048576 AND created_at < $3) -- [1MiB, 100MiB]
-      ) AND
-      origin = 'Textile'
+      )
 `
 
 type TimeBasedBatchClosingParams struct {
