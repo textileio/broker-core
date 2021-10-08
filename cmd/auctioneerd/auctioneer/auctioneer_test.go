@@ -216,7 +216,6 @@ func TestClient_RunAuction(t *testing.T) {
 				}
 				assert.Equal(t, bidstore.BidStatusFinalized, found.Status)
 				assert.Empty(t, found.ErrorCause)
-
 			}
 
 			// Because of libp2p-pubsub-rpc republishing, message can be delivered

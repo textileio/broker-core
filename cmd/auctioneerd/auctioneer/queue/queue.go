@@ -386,7 +386,7 @@ func (q *Queue) SaveStorageProvider(ctx context.Context, id string, version stri
 	})
 }
 
-// SetStorageProviderUnhealthy .
+// SetStorageProviderUnhealthy sets the storage provider to be unhealthy at the current point.
 func (q *Queue) SetStorageProviderUnhealthy(ctx context.Context, id string, err string) error {
 	return q.db.SetStorageProviderUnhealthy(ctx, db.SetStorageProviderUnhealthyParams{
 		ID:                 id,
@@ -394,7 +394,7 @@ func (q *Queue) SetStorageProviderUnhealthy(ctx context.Context, id string, err 
 	})
 }
 
-// SaveBidEvent .
+// SaveBidEvent saves bid events.
 func (q *Queue) SaveBidEvent(ctx context.Context, eventType BidEventType, bidID string,
 	attempts uint32, err string, ts time.Time) error {
 	return q.db.CreateBidEvent(ctx, db.CreateBidEventParams{
@@ -403,7 +403,7 @@ func (q *Queue) SaveBidEvent(ctx context.Context, eventType BidEventType, bidID 
 		Attempts:   sql.NullInt32{Valid: attempts == 0, Int32: int32(attempts)},
 		Error:      sql.NullString{Valid: err != "", String: err},
 		HappenedAt: ts,
-		ReceivedAt: time.Now(),
+		ReceivedAt: time.Now().UTC(),
 	})
 }
 

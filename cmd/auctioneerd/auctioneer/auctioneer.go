@@ -638,6 +638,9 @@ func (a *Auctioneer) refreshProviderRates() {
 }
 
 func (a *Auctioneer) handleBidbotEvents(from peer.ID, event *pb.BidbotEvent) {
+	if event == nil {
+		return
+	}
 	var err error
 	ts := event.Ts.AsTime().UTC()
 	switch e := event.Type.(type) {
