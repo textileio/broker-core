@@ -64,6 +64,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateDealConfirmedAtStmt, err = db.PrepareContext(ctx, updateDealConfirmedAt); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateDealConfirmedAt: %w", err)
 	}
+	if q.updateDealFailedAtStmt, err = db.PrepareContext(ctx, updateDealFailedAt); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateDealFailedAt: %w", err)
+	}
 	if q.updateProposalCidStmt, err = db.PrepareContext(ctx, updateProposalCid); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateProposalCid: %w", err)
 	}
@@ -148,6 +151,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateDealConfirmedAtStmt: %w", cerr)
 		}
 	}
+	if q.updateDealFailedAtStmt != nil {
+		if cerr := q.updateDealFailedAtStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateDealFailedAtStmt: %w", cerr)
+		}
+	}
 	if q.updateProposalCidStmt != nil {
 		if cerr := q.updateProposalCidStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateProposalCidStmt: %w", cerr)
@@ -216,6 +224,7 @@ type Queries struct {
 	setStorageProviderUnhealthyStmt    *sql.Stmt
 	updateAuctionStatusAndErrorStmt    *sql.Stmt
 	updateDealConfirmedAtStmt          *sql.Stmt
+	updateDealFailedAtStmt             *sql.Stmt
 	updateProposalCidStmt              *sql.Stmt
 	updateProposalCidDeliveryErrorStmt *sql.Stmt
 	updateWinningBidStmt               *sql.Stmt
@@ -239,6 +248,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		setStorageProviderUnhealthyStmt:    q.setStorageProviderUnhealthyStmt,
 		updateAuctionStatusAndErrorStmt:    q.updateAuctionStatusAndErrorStmt,
 		updateDealConfirmedAtStmt:          q.updateDealConfirmedAtStmt,
+		updateDealFailedAtStmt:             q.updateDealFailedAtStmt,
 		updateProposalCidStmt:              q.updateProposalCidStmt,
 		updateProposalCidDeliveryErrorStmt: q.updateProposalCidDeliveryErrorStmt,
 		updateWinningBidStmt:               q.updateWinningBidStmt,

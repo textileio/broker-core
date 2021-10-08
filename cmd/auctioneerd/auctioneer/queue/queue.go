@@ -374,6 +374,17 @@ func (q *Queue) MarkDealAsConfirmed(
 	})
 }
 
+// MarkDealAsFailed marks the deal as failed by recording its failed time.
+func (q *Queue) MarkDealAsFailed(
+	ctx context.Context,
+	auctionID auction.ID,
+	bidID auction.BidID) error {
+	return q.db.UpdateDealFailedAt(ctx, db.UpdateDealFailedAtParams{
+		ID:        bidID,
+		AuctionID: auctionID,
+	})
+}
+
 // SaveStorageProvider saves the storage provider info.
 func (q *Queue) SaveStorageProvider(ctx context.Context, id string, version string, dealStartWindow uint64,
 	cidGravityConfigured, cidGravityStrict bool) error {

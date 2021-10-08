@@ -73,6 +73,7 @@ type Bid struct {
 	ProposalCidDeliveryError sql.NullString `json:"proposalCidDeliveryError"`
 	DealConfirmedAt          sql.NullTime   `json:"dealConfirmedAt"`
 	WonReason                sql.NullString `json:"wonReason"`
+	DealFailedAt             sql.NullTime   `json:"dealFailedAt"`
 }
 
 type BidEvent struct {
