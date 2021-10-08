@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/textileio/bidbot/lib/auction"
+	"github.com/textileio/broker-core/broker"
 )
 
 const createAuctionDeal = `-- name: CreateAuctionDeal :exec
 INSERT INTO auction_deals(
 id,
 auction_data_id,
+batch_id,
 storage_provider_id,
 price_per_gib_per_epoch,
 start_epoch,
@@ -48,35 +50,38 @@ ready_at
       $15,
       $16,
       $17,
-      $18
+      $18,
+      $19
       )
 `
 
 type CreateAuctionDealParams struct {
-	ID                  string        `json:"id"`
-	AuctionDataID       string        `json:"auctionDataID"`
-	StorageProviderID   string        `json:"storageProviderID"`
-	PricePerGibPerEpoch int64         `json:"pricePerGibPerEpoch"`
-	StartEpoch          uint64        `json:"startEpoch"`
-	Verified            bool          `json:"verified"`
-	FastRetrieval       bool          `json:"fastRetrieval"`
-	AuctionID           auction.ID    `json:"auctionID"`
-	BidID               auction.BidID `json:"bidID"`
-	Status              Status        `json:"status"`
-	Executing           bool          `json:"executing"`
-	ErrorCause          string        `json:"errorCause"`
-	Retries             int           `json:"retries"`
-	ProposalCid         string        `json:"proposalCid"`
-	DealID              int64         `json:"dealID"`
-	DealExpiration      uint64        `json:"dealExpiration"`
-	DealMarketStatus    uint64        `json:"dealMarketStatus"`
-	ReadyAt             time.Time     `json:"readyAt"`
+	ID                  string         `json:"id"`
+	AuctionDataID       string         `json:"auctionDataID"`
+	BatchID             broker.BatchID `json:"batchID"`
+	StorageProviderID   string         `json:"storageProviderID"`
+	PricePerGibPerEpoch int64          `json:"pricePerGibPerEpoch"`
+	StartEpoch          uint64         `json:"startEpoch"`
+	Verified            bool           `json:"verified"`
+	FastRetrieval       bool           `json:"fastRetrieval"`
+	AuctionID           auction.ID     `json:"auctionID"`
+	BidID               auction.BidID  `json:"bidID"`
+	Status              Status         `json:"status"`
+	Executing           bool           `json:"executing"`
+	ErrorCause          string         `json:"errorCause"`
+	Retries             int            `json:"retries"`
+	ProposalCid         string         `json:"proposalCid"`
+	DealID              int64          `json:"dealID"`
+	DealExpiration      uint64         `json:"dealExpiration"`
+	DealMarketStatus    uint64         `json:"dealMarketStatus"`
+	ReadyAt             time.Time      `json:"readyAt"`
 }
 
 func (q *Queries) CreateAuctionDeal(ctx context.Context, arg CreateAuctionDealParams) error {
 	_, err := q.exec(ctx, q.createAuctionDealStmt, createAuctionDeal,
 		arg.ID,
 		arg.AuctionDataID,
+		arg.BatchID,
 		arg.StorageProviderID,
 		arg.PricePerGibPerEpoch,
 		arg.StartEpoch,
@@ -98,7 +103,7 @@ func (q *Queries) CreateAuctionDeal(ctx context.Context, arg CreateAuctionDealPa
 }
 
 const getAuctionDeal = `-- name: GetAuctionDeal :one
-SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at FROM auction_deals WHERE id = $1
+SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at, batch_id FROM auction_deals WHERE id = $1
 `
 
 func (q *Queries) GetAuctionDeal(ctx context.Context, id string) (AuctionDeal, error) {
@@ -125,6 +130,7 @@ func (q *Queries) GetAuctionDeal(ctx context.Context, id string) (AuctionDeal, e
 		&i.ReadyAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BatchID,
 	)
 	return i, err
 }
@@ -157,7 +163,7 @@ func (q *Queries) GetAuctionDealIDs(ctx context.Context, auctionDataID string) (
 }
 
 const getAuctionDealsByStatus = `-- name: GetAuctionDealsByStatus :many
-SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at FROM auction_deals WHERE status = $1
+SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at, batch_id FROM auction_deals WHERE status = $1
 `
 
 func (q *Queries) GetAuctionDealsByStatus(ctx context.Context, status Status) ([]AuctionDeal, error) {
@@ -190,6 +196,7 @@ func (q *Queries) GetAuctionDealsByStatus(ctx context.Context, status Status) ([
 			&i.ReadyAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BatchID,
 		); err != nil {
 			return nil, err
 		}
@@ -217,7 +224,7 @@ WHERE id = (SELECT id FROM auction_deals
     ORDER BY auction_deals.ready_at asc
     FOR UPDATE SKIP LOCKED
     LIMIT 1)
-RETURNING id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at
+RETURNING id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at, batch_id
 `
 
 type NextPendingAuctionDealParams struct {
@@ -249,67 +256,62 @@ func (q *Queries) NextPendingAuctionDeal(ctx context.Context, arg NextPendingAuc
 		&i.ReadyAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BatchID,
 	)
 	return i, err
-}
-
-const removeAuctionDeal = `-- name: RemoveAuctionDeal :exec
-DELETE FROM auction_deals WHERE id = $1
-`
-
-func (q *Queries) RemoveAuctionDeal(ctx context.Context, id string) error {
-	_, err := q.exec(ctx, q.removeAuctionDealStmt, removeAuctionDeal, id)
-	return err
 }
 
 const updateAuctionDeal = `-- name: UpdateAuctionDeal :execrows
 UPDATE auction_deals
 SET 
     auction_data_id = $1,
-    storage_provider_id = $2,
-    price_per_gib_per_epoch = $3,
-    start_epoch = $4,
-    verified = $5,
-    fast_retrieval = $6,
-    auction_id = $7,
-    bid_id = $8,
-    status = $9,
-    executing = $10,
-    error_cause = $11,
-    retries = $12,
-    proposal_cid = $13,
-    deal_id = $14,
-    deal_expiration = $15,
-    deal_market_status = $16,
-    ready_at = $17,
+    batch_id = $2,
+    storage_provider_id = $3,
+    price_per_gib_per_epoch = $4,
+    start_epoch = $5,
+    verified = $6,
+    fast_retrieval = $7,
+    auction_id = $8,
+    bid_id = $9,
+    status = $10,
+    executing = $11,
+    error_cause = $12,
+    retries = $13,
+    proposal_cid = $14,
+    deal_id = $15,
+    deal_expiration = $16,
+    deal_market_status = $17,
+    ready_at = $18,
     updated_at = CURRENT_TIMESTAMP
-    WHERE id = $18
+    WHERE id = $19
 `
 
 type UpdateAuctionDealParams struct {
-	AuctionDataID       string        `json:"auctionDataID"`
-	StorageProviderID   string        `json:"storageProviderID"`
-	PricePerGibPerEpoch int64         `json:"pricePerGibPerEpoch"`
-	StartEpoch          uint64        `json:"startEpoch"`
-	Verified            bool          `json:"verified"`
-	FastRetrieval       bool          `json:"fastRetrieval"`
-	AuctionID           auction.ID    `json:"auctionID"`
-	BidID               auction.BidID `json:"bidID"`
-	Status              Status        `json:"status"`
-	Executing           bool          `json:"executing"`
-	ErrorCause          string        `json:"errorCause"`
-	Retries             int           `json:"retries"`
-	ProposalCid         string        `json:"proposalCid"`
-	DealID              int64         `json:"dealID"`
-	DealExpiration      uint64        `json:"dealExpiration"`
-	DealMarketStatus    uint64        `json:"dealMarketStatus"`
-	ReadyAt             time.Time     `json:"readyAt"`
-	ID                  string        `json:"id"`
+	AuctionDataID       string         `json:"auctionDataID"`
+	BatchID             broker.BatchID `json:"batchID"`
+	StorageProviderID   string         `json:"storageProviderID"`
+	PricePerGibPerEpoch int64          `json:"pricePerGibPerEpoch"`
+	StartEpoch          uint64         `json:"startEpoch"`
+	Verified            bool           `json:"verified"`
+	FastRetrieval       bool           `json:"fastRetrieval"`
+	AuctionID           auction.ID     `json:"auctionID"`
+	BidID               auction.BidID  `json:"bidID"`
+	Status              Status         `json:"status"`
+	Executing           bool           `json:"executing"`
+	ErrorCause          string         `json:"errorCause"`
+	Retries             int            `json:"retries"`
+	ProposalCid         string         `json:"proposalCid"`
+	DealID              int64          `json:"dealID"`
+	DealExpiration      uint64         `json:"dealExpiration"`
+	DealMarketStatus    uint64         `json:"dealMarketStatus"`
+	ReadyAt             time.Time      `json:"readyAt"`
+	ID                  string         `json:"id"`
 }
 
 func (q *Queries) UpdateAuctionDeal(ctx context.Context, arg UpdateAuctionDealParams) (int64, error) {
 	result, err := q.exec(ctx, q.updateAuctionDealStmt, updateAuctionDeal,
 		arg.AuctionDataID,
+		arg.BatchID,
 		arg.StorageProviderID,
 		arg.PricePerGibPerEpoch,
 		arg.StartEpoch,

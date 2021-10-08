@@ -7,6 +7,8 @@
 // migrations/002_market_status.up.sql
 // migrations/003_remote_wallet.down.sql
 // migrations/003_remote_wallet.up.sql
+// migrations/004_dealer_api.down.sql
+// migrations/004_dealer_api.up.sql
 package migrations
 
 import (
@@ -98,7 +100,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -118,7 +120,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -138,7 +140,7 @@ func _002_market_statusDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -158,7 +160,7 @@ func _002_market_statusUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -178,7 +180,7 @@ func _003_remote_walletDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(420), modTime: time.Unix(1631886677, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -198,7 +200,47 @@ func _003_remote_walletUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(420), modTime: time.Unix(1631886677, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __004_dealer_apiDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x7c\x91\x41\x6f\xab\x30\x10\x84\xef\xfb\x2b\xe6\x9d\xc8\x93\x1e\x7f\x00\xf4\x0e\x84\x6c\x53\x24\x30\x11\x38\xaa\x7a\x42\x6e\x70\x1a\xab\x09\xae\xc0\x49\xab\xfe\xfa\x0a\x48\x45\x83\xd4\x5e\xc7\xfb\xcd\xce\x8e\x97\xbc\x4e\x44\x48\x14\xa5\x92\x0b\xc8\x68\x99\x32\xd4\x79\xe7\x8c\x6d\xaa\x5a\xab\x63\x07\x5a\x15\xf9\x06\x71\x9e\x6e\x33\x81\x27\xe5\x76\x87\xca\xd4\x21\xd1\x8a\x53\x96\x8c\xbb\x22\xcf\x26\x42\x39\x45\x0f\xf7\x5c\x30\x4c\x0d\x91\x4b\x24\x02\x0b\x02\x4a\x4e\x39\x96\x58\x25\xa5\x4c\x44\x2c\x6f\x80\xca\xd4\x84\x99\x4f\xbf\x99\x80\xd1\xaa\x73\xca\x9d\x3b\xfc\xf9\x0f\x6f\x6f\x1a\x75\x34\x1f\xba\xf6\xe8\xef\x4f\x19\x86\xd4\x37\xe4\x0d\x18\x12\xf9\x3e\x5a\x7d\xd1\xad\x83\xb3\x70\x07\x0d\x7b\xac\x71\xd1\x6d\x67\x6c\x03\xbb\x1f\xa4\x2b\xaa\x9b\xf3\x89\xe2\x82\x23\xc9\x90\x8f\x9b\x2f\xcb\xaa\xd1\x6f\x88\x4a\xb0\xd8\x66\xc3\x81\x5e\xbf\xd6\x3f\xa9\x17\xd3\x3c\x7b\xff\x7a\x61\x67\x9b\xbd\x69\x4f\xaa\x0f\x35\x2a\xad\x7e\xb5\xad\xf3\x67\x37\xfc\xd2\xfc\xf8\x74\xad\xfe\x1a\x68\x1e\x82\xb6\x65\x22\xd6\x58\x8c\x52\x10\x38\xfd\xee\x82\x60\x1a\x18\x6a\xea\x7f\xf0\x1b\x38\x6d\x9d\x99\x15\x2c\xa2\x8c\x21\xf3\x69\x30\xce\xb3\x2c\x91\xe1\x67\x00\x00\x00\xff\xff\xa8\xf5\x5c\xb7\x28\x02\x00\x00")
+
+func _004_dealer_apiDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__004_dealer_apiDownSql,
+		"004_dealer_api.down.sql",
+	)
+}
+
+func _004_dealer_apiDownSql() (*asset, error) {
+	bytes, err := _004_dealer_apiDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "004_dealer_api.down.sql", size: 552, mode: os.FileMode(420), modTime: time.Unix(1633708954, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __004_dealer_apiUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x7c\x8f\xbb\x6e\x83\x40\x10\x45\xfb\xf9\x8a\xe9\xe8\xf8\x81\x55\x8a\x05\x26\x09\xd2\x3e\x10\x99\xcd\xa3\x42\x1b\x96\x28\x2b\x21\x5c\xb0\x34\xfe\x7a\x0b\xc9\x16\x36\xb6\xdc\xce\xb9\xf7\xea\x4c\x41\x6f\xb5\x11\x00\x52\x31\xb5\xc8\xb2\x50\x84\x7e\xe9\x53\x3c\x4c\x5d\x18\xfc\x38\x23\xc8\xaa\xc2\xd2\x2a\xa7\x0d\xfe\xfa\xd4\xff\x77\x31\x20\xd3\x37\x0b\x00\xd7\x54\x92\xef\x0a\x1f\xc4\x5b\xf2\x65\xa3\x3e\xf9\xfc\x72\x87\xd7\xd6\xea\x1b\x04\x5f\xef\xd4\xee\xb6\xf2\xeb\xc0\x83\xb5\x18\x9e\xa9\x9f\xc9\xde\x7d\xd5\x33\x96\xd1\x38\xa5\xb6\xfa\x4f\x43\x38\x27\x9f\x96\x19\xd7\x87\x3f\xa5\x72\x84\xd9\x5f\x9c\xfc\x18\x8f\x43\xc8\x04\x40\x69\xb5\xae\x59\x9c\x02\x00\x00\xff\xff\xb9\x83\xc9\x83\x33\x01\x00\x00")
+
+func _004_dealer_apiUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__004_dealer_apiUpSql,
+		"004_dealer_api.up.sql",
+	)
+}
+
+func _004_dealer_apiUpSql() (*asset, error) {
+	bytes, err := _004_dealer_apiUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "004_dealer_api.up.sql", size: 307, mode: os.FileMode(420), modTime: time.Unix(1633708773, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -261,6 +303,8 @@ var _bindata = map[string]func() (*asset, error){
 	"002_market_status.up.sql":   _002_market_statusUpSql,
 	"003_remote_wallet.down.sql": _003_remote_walletDownSql,
 	"003_remote_wallet.up.sql":   _003_remote_walletUpSql,
+	"004_dealer_api.down.sql":    _004_dealer_apiDownSql,
+	"004_dealer_api.up.sql":      _004_dealer_apiUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -310,6 +354,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"002_market_status.up.sql":   &bintree{_002_market_statusUpSql, map[string]*bintree{}},
 	"003_remote_wallet.down.sql": &bintree{_003_remote_walletDownSql, map[string]*bintree{}},
 	"003_remote_wallet.up.sql":   &bintree{_003_remote_walletUpSql, map[string]*bintree{}},
+	"004_dealer_api.down.sql":    &bintree{_004_dealer_apiDownSql, map[string]*bintree{}},
+	"004_dealer_api.up.sql":      &bintree{_004_dealer_apiUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

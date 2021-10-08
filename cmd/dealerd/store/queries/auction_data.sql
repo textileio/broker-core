@@ -19,9 +19,6 @@ INSERT INTO auction_data(
 SELECT * FROM auction_data
 WHERE id = $1;
 
--- name: RemoveAuctionData :exec
-DELETE FROM auction_data WHERE id = $1;
-
 -- name: CreateRemoteWallet :exec
 INSERT INTO remote_wallet(
    auction_data_id,
@@ -39,6 +36,3 @@ INSERT INTO remote_wallet(
 -- name: GetRemoteWallet :one
 SELECT * FROM remote_wallet
 where auction_data_id = $1;
-
--- name: RemoveRemoteWallet :exec
-DELETE FROM remote_wallet WHERE auction_data_id = $1;
