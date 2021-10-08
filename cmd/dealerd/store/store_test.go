@@ -186,7 +186,8 @@ func TestGetNext(t *testing.T) {
 	testsCases := []AuctionDealStatus{
 		StatusDealMaking,
 		StatusConfirmation,
-		StatusReportFinalized}
+		StatusReportFinalized,
+		StatusFinalized}
 
 	for _, tt := range testsCases {
 		err = s.SaveAndMoveAuctionDeal(context.Background(), aud, tt)
@@ -306,6 +307,7 @@ func deepCheckAuctionDeals(t *testing.T, s *Store, auds ...AuctionDeal) {
 		require.NotEmpty(t, dsAud.ID)
 		require.NotEmpty(t, dsAud.CreatedAt)
 		require.NotEmpty(t, dsAud.AuctionDataID)
+		require.NotEmpty(t, dsAud.BatchID)
 		cmpAuctionDeals(t, aud, AuctionDeal(dsAud))
 	}
 }
@@ -322,6 +324,7 @@ func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
 	require.Equal(t, aud1.ProposalCid, aud2.ProposalCid)
 	require.Equal(t, aud1.DealID, aud2.DealID)
 	require.Equal(t, aud1.DealExpiration, aud2.DealExpiration)
+	require.Equal(t, aud1.BatchID, aud2.BatchID)
 }
 
 var (
