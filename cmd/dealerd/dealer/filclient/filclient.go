@@ -432,6 +432,11 @@ func (fc *FilClient) streamToStorageProvider(
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
 	}
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := s.SetDeadline(deadline); err != nil {
+			return nil, fmt.Errorf("set deadline of stream: %s", err)
+		}
+	}
 
 	return s, nil
 }
