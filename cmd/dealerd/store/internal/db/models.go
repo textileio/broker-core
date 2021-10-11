@@ -65,6 +65,7 @@ type AuctionDeal struct {
 	BatchID             broker.BatchID `json:"batchID"`
 }
 
+// @enum
 type MarketDealStatus struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
