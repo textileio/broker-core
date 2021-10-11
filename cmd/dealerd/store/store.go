@@ -120,6 +120,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 			aud.BatchID = ad.BatchID
 			aud.Status = db.StatusDealMaking
 			aud.ReadyAt = time.Unix(0, 0)
+			aud.MarketDealStatus = "UNKNOWN"
 			if err := txn.CreateAuctionDeal(ctx, db.CreateAuctionDealParams{
 				ID:                  aud.ID,
 				AuctionDataID:       aud.AuctionDataID,
