@@ -9,6 +9,8 @@
 // migrations/003_remote_wallet.up.sql
 // migrations/004_dealer_api.down.sql
 // migrations/004_dealer_api.up.sql
+// migrations/005_market_deal_status_comment.down.sql
+// migrations/005_market_deal_status_comment.up.sql
 package migrations
 
 import (
@@ -220,7 +222,7 @@ func _004_dealer_apiDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_dealer_api.down.sql", size: 552, mode: os.FileMode(420), modTime: time.Unix(1633708954, 0)}
+	info := bindataFileInfo{name: "004_dealer_api.down.sql", size: 552, mode: os.FileMode(420), modTime: time.Unix(1633966822, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -240,7 +242,47 @@ func _004_dealer_apiUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_dealer_api.up.sql", size: 307, mode: os.FileMode(420), modTime: time.Unix(1633708773, 0)}
+	info := bindataFileInfo{name: "004_dealer_api.up.sql", size: 307, mode: os.FileMode(420), modTime: time.Unix(1633966822, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __005_market_deal_status_commentDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf6\xf7\xf5\x75\xf5\x0b\x51\xf0\xf7\x53\x08\x71\x74\xf2\x71\x55\xc8\x4d\x2c\xca\x4e\x2d\x89\x4f\x49\x4d\xcc\x89\x2f\x2e\x49\x2c\x29\x2d\x56\xf0\x0c\x56\xf0\x0b\xf5\xf1\xb1\x06\x04\x00\x00\xff\xff\xd8\x5e\x28\xf7\x2c\x00\x00\x00")
+
+func _005_market_deal_status_commentDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_market_deal_status_commentDownSql,
+		"005_market_deal_status_comment.down.sql",
+	)
+}
+
+func _005_market_deal_status_commentDownSql() (*asset, error) {
+	bytes, err := _005_market_deal_status_commentDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_market_deal_status_comment.down.sql", size: 44, mode: os.FileMode(420), modTime: time.Unix(1633979612, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __005_market_deal_status_commentUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf6\xf7\xf5\x75\xf5\x0b\x51\xf0\xf7\x53\x08\x71\x74\xf2\x71\x55\xc8\x4d\x2c\xca\x4e\x2d\x89\x4f\x49\x4d\xcc\x89\x2f\x2e\x49\x2c\x29\x2d\x56\xf0\x0c\x56\x70\x55\x77\x48\xcd\x2b\xcd\x55\xb7\x06\x04\x00\x00\xff\xff\x58\xa1\xf2\xd6\x30\x00\x00\x00")
+
+func _005_market_deal_status_commentUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_market_deal_status_commentUpSql,
+		"005_market_deal_status_comment.up.sql",
+	)
+}
+
+func _005_market_deal_status_commentUpSql() (*asset, error) {
+	bytes, err := _005_market_deal_status_commentUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_market_deal_status_comment.up.sql", size: 48, mode: os.FileMode(420), modTime: time.Unix(1633979647, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -297,14 +339,16 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":          _001_initDownSql,
-	"001_init.up.sql":            _001_initUpSql,
-	"002_market_status.down.sql": _002_market_statusDownSql,
-	"002_market_status.up.sql":   _002_market_statusUpSql,
-	"003_remote_wallet.down.sql": _003_remote_walletDownSql,
-	"003_remote_wallet.up.sql":   _003_remote_walletUpSql,
-	"004_dealer_api.down.sql":    _004_dealer_apiDownSql,
-	"004_dealer_api.up.sql":      _004_dealer_apiUpSql,
+	"001_init.down.sql":                       _001_initDownSql,
+	"001_init.up.sql":                         _001_initUpSql,
+	"002_market_status.down.sql":              _002_market_statusDownSql,
+	"002_market_status.up.sql":                _002_market_statusUpSql,
+	"003_remote_wallet.down.sql":              _003_remote_walletDownSql,
+	"003_remote_wallet.up.sql":                _003_remote_walletUpSql,
+	"004_dealer_api.down.sql":                 _004_dealer_apiDownSql,
+	"004_dealer_api.up.sql":                   _004_dealer_apiUpSql,
+	"005_market_deal_status_comment.down.sql": _005_market_deal_status_commentDownSql,
+	"005_market_deal_status_comment.up.sql":   _005_market_deal_status_commentUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -348,14 +392,16 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":          &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":            &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_market_status.down.sql": &bintree{_002_market_statusDownSql, map[string]*bintree{}},
-	"002_market_status.up.sql":   &bintree{_002_market_statusUpSql, map[string]*bintree{}},
-	"003_remote_wallet.down.sql": &bintree{_003_remote_walletDownSql, map[string]*bintree{}},
-	"003_remote_wallet.up.sql":   &bintree{_003_remote_walletUpSql, map[string]*bintree{}},
-	"004_dealer_api.down.sql":    &bintree{_004_dealer_apiDownSql, map[string]*bintree{}},
-	"004_dealer_api.up.sql":      &bintree{_004_dealer_apiUpSql, map[string]*bintree{}},
+	"001_init.down.sql":                       &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":                         &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_market_status.down.sql":              &bintree{_002_market_statusDownSql, map[string]*bintree{}},
+	"002_market_status.up.sql":                &bintree{_002_market_statusUpSql, map[string]*bintree{}},
+	"003_remote_wallet.down.sql":              &bintree{_003_remote_walletDownSql, map[string]*bintree{}},
+	"003_remote_wallet.up.sql":                &bintree{_003_remote_walletUpSql, map[string]*bintree{}},
+	"004_dealer_api.down.sql":                 &bintree{_004_dealer_apiDownSql, map[string]*bintree{}},
+	"004_dealer_api.up.sql":                   &bintree{_004_dealer_apiUpSql, map[string]*bintree{}},
+	"005_market_deal_status_comment.down.sql": &bintree{_005_market_deal_status_commentDownSql, map[string]*bintree{}},
+	"005_market_deal_status_comment.up.sql":   &bintree{_005_market_deal_status_commentUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
