@@ -1,10 +1,12 @@
 #! /bin/sh
-set -x
+
+echo "Executing postgres initialization..."
 
 quit() {
   echo "$1"
   exit 1
 }
+
 
 [ -z "$POSTGRES_PASSWORD" ] && quit "envvar POSTGRES_PASSWORD is not set"
 [ -z "$DB_PASSWORD" ] && quit "envvar DB_PASSWORD is not set. The daemon requires it to connect the database"
@@ -38,3 +40,5 @@ EOD
 unset POSTGRES_PASSWORD
 unset POSTGRES_USER
 $@ --postgres-uri="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME?sslmode=disable&search_path=${DB_USER}&timezone=UTC"
+
+echo "Finished"
