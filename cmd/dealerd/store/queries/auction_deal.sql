@@ -17,7 +17,7 @@ retries,
 proposal_cid,
 deal_id,
 deal_expiration,
-deal_market_status,
+market_deal_status,
 ready_at
     ) VALUES(
       $1,
@@ -75,7 +75,7 @@ SET
     proposal_cid = @proposal_cid,
     deal_id = @deal_id,
     deal_expiration = @deal_expiration,
-    deal_market_status = @deal_market_status,
+    market_deal_status = @market_deal_status,
     ready_at = @ready_at,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = @id;

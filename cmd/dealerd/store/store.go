@@ -138,7 +138,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 				ProposalCid:         aud.ProposalCid,
 				DealID:              aud.DealID,
 				DealExpiration:      aud.DealExpiration,
-				DealMarketStatus:    aud.DealMarketStatus,
+				MarketDealStatus:    aud.MarketDealStatus,
 				ReadyAt:             aud.ReadyAt,
 			}); err != nil {
 				return fmt.Errorf("saving auction deal in datastore: %s", err)
@@ -216,7 +216,7 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 			ProposalCid:      aud.ProposalCid,
 			DealID:           aud.DealID,
 			DealExpiration:   aud.DealExpiration,
-			DealMarketStatus: aud.DealMarketStatus,
+			MarketDealStatus: aud.MarketDealStatus,
 			ReadyAt:          aud.ReadyAt,
 		})
 		if err != nil {
@@ -281,11 +281,40 @@ func (s *Store) GetStatusCounts(ctx context.Context) (map[storagemarket.StorageD
 		return nil, fmt.Errorf("getting auction deals: %s", err)
 	}
 	ret := map[storagemarket.StorageDealStatus]int64{}
+	cache := map[string]storagemarket.StorageDealStatus{}
 	for _, ad := range ads {
-		ret[ad.DealMarketStatus]++
+		st, ok := cache[ad.MarketDealStatus]
+		if !ok {
+			arg := &sql.NullString{}
+			if err := arg.Scan(ad.MarketDealStatus); err != nil {
+				return nil, fmt.Errorf("parsing market deal status %s: %s", ad.MarketDealStatus, err)
+			}
+			mds, err := s.db.GetMarketDealStatusForType(ctx, *arg)
+			if err != nil {
+				return nil, fmt.Errorf("getting market deal status for type %s: %s", ad.MarketDealStatus, err)
+			}
+			st = uint64(mds.ID)
+			cache[ad.MarketDealStatus] = uint64(mds.ID)
+		}
+		ret[st]++
 	}
-
 	return ret, nil
+}
+
+// GetStatusForStatusID returns the string enum representation for the given storage deal status.
+func (s *Store) GetStatusForStatusID(
+	ctx context.Context,
+	id storagemarket.StorageDealStatus,
+) (status string, ok bool, err error) {
+	var mds db.MarketDealStatus
+	mds, err = s.db.GetMarketDealStatusForID(ctx, int64(id))
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return
+	}
+	return mds.Type.String, true, nil
 }
 
 func validate(ad *AuctionData, ads []*AuctionDeal, rw *broker.RemoteWallet) error {
