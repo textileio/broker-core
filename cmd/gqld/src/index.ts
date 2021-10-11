@@ -39,6 +39,7 @@ let p = postgraphile(
   [
     "auctioneer",
     "broker",
+    "dealer",
     "packer",
     "piecer",
   ],
