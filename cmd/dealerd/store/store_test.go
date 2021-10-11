@@ -6,7 +6,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
@@ -187,7 +186,8 @@ func TestGetNext(t *testing.T) {
 	testsCases := []AuctionDealStatus{
 		StatusDealMaking,
 		StatusConfirmation,
-		StatusReportFinalized}
+		StatusReportFinalized,
+		StatusFinalized}
 
 	for _, tt := range testsCases {
 		err = s.SaveAndMoveAuctionDeal(context.Background(), aud, tt)
@@ -272,79 +272,6 @@ func TestGetAuctionNotFound(t *testing.T) {
 	require.Equal(t, sql.ErrNoRows, err)
 }
 
-func TestRemoveAuctionDeals(t *testing.T) {
-	t.Parallel()
-
-	waddr, err := address.NewFromString(
-		"f3wmv7nhiqosmlr6mis2mr4xzupdhe3rtvw5ntis4x6yru7jhm35pfla2pkwgwfa3t62kdmoylssczmf74yika")
-	require.NoError(t, err)
-
-	type ttcases struct {
-		name string
-		ad   *AuctionData
-		auds []*AuctionDeal
-		rw   *broker.RemoteWallet
-	}
-	var tcases []ttcases
-	ad := gad1
-	aud1 := gaud1
-	aud2 := gaud2
-	tcases = append(tcases, ttcases{name: "without remote wallet", ad: &ad, auds: []*AuctionDeal{&aud1, &aud2}})
-
-	ad = gad1
-	aud1 = gaud1
-	aud2 = gaud2
-	tcases = append(tcases, ttcases{
-		name: "with remote wallet",
-		ad:   &ad,
-		auds: []*AuctionDeal{&aud1, &aud2},
-		rw:   &broker.RemoteWallet{PeerID: "peer-id-1", AuthToken: "test-auth_token", WalletAddr: waddr},
-	})
-
-	for _, test := range tcases {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			ctx := context.Background()
-			u, err := tests.PostgresURL()
-			require.NoError(t, err)
-			s, err := New(u)
-			require.NoError(t, err)
-			err = s.Create(ctx, test.ad, test.auds, test.rw)
-			require.NoError(t, err)
-
-			all, err := s.getAllPending()
-			require.NoError(t, err)
-			err = s.RemoveAuctionDeal(ctx, all[0])
-			require.Error(t, err, "should not remove non-final status auction deal")
-			all[0].Status = db.StatusReportFinalized
-			err = s.RemoveAuctionDeal(ctx, all[0])
-			require.Error(t, err, "should not remove pending auction deal")
-			all[0].Executing = true
-			err = s.RemoveAuctionDeal(ctx, all[0])
-			require.NoError(t, err)
-
-			// Check the corresponding AuctionData wasn't removed from the store,
-			// since the second auction data is still linking to it.
-			_, err = s.GetAuctionData(ctx, test.ad.ID)
-			require.NoError(t, err)
-
-			// Remove the second.
-			all[1].Status = db.StatusReportFinalized
-			all[1].Executing = true
-			all[1].ErrorCause = "failed because something happened"
-			err = s.RemoveAuctionDeal(ctx, all[1])
-			require.NoError(t, err)
-
-			// Check the corresponding AuctionData was also removed.
-			// No more auction datas linked to it.
-			_, err = s.GetAuctionData(ctx, test.ad.ID)
-			require.Equal(t, sql.ErrNoRows, err)
-		})
-	}
-}
-
 func castCid(cidStr string) cid.Cid {
 	c, err := cid.Decode(cidStr)
 	if err != nil {
@@ -380,6 +307,7 @@ func deepCheckAuctionDeals(t *testing.T, s *Store, auds ...AuctionDeal) {
 		require.NotEmpty(t, dsAud.ID)
 		require.NotEmpty(t, dsAud.CreatedAt)
 		require.NotEmpty(t, dsAud.AuctionDataID)
+		require.NotEmpty(t, dsAud.BatchID)
 		cmpAuctionDeals(t, aud, AuctionDeal(dsAud))
 	}
 }
@@ -396,6 +324,7 @@ func cmpAuctionDeals(t *testing.T, aud1, aud2 AuctionDeal) {
 	require.Equal(t, aud1.ProposalCid, aud2.ProposalCid)
 	require.Equal(t, aud1.DealID, aud2.DealID)
 	require.Equal(t, aud1.DealExpiration, aud2.DealExpiration)
+	require.Equal(t, aud1.BatchID, aud2.BatchID)
 }
 
 var (

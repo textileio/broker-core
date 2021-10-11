@@ -102,7 +102,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -122,7 +122,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(420), modTime: time.Unix(1630721178, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -142,7 +142,7 @@ func _002_rwDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(420), modTime: time.Unix(1631886677, 0)}
+	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -162,7 +162,7 @@ func _002_rwUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(420), modTime: time.Unix(1631886677, 0)}
+	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -182,7 +182,7 @@ func _003_providersDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1632945443, 0)}
+	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -202,7 +202,7 @@ func _003_providersUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(420), modTime: time.Unix(1632945443, 0)}
+	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -222,7 +222,7 @@ func _004_status_enumsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_status_enums.down.sql", size: 1435, mode: os.FileMode(420), modTime: time.Unix(1633614528, 0)}
+	info := bindataFileInfo{name: "004_status_enums.down.sql", size: 1435, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -242,7 +242,7 @@ func _004_status_enumsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_status_enums.up.sql", size: 1728, mode: os.FileMode(420), modTime: time.Unix(1633614528, 0)}
+	info := bindataFileInfo{name: "004_status_enums.up.sql", size: 1728, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -262,7 +262,7 @@ func _005_payload_sizeDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_payload_size.down.sql", size: 46, mode: os.FileMode(420), modTime: time.Unix(1633614528, 0)}
+	info := bindataFileInfo{name: "005_payload_size.down.sql", size: 46, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -282,7 +282,7 @@ func _005_payload_sizeUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_payload_size.up.sql", size: 52, mode: os.FileMode(420), modTime: time.Unix(1633614528, 0)}
+	info := bindataFileInfo{name: "005_payload_size.up.sql", size: 52, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

@@ -16,6 +16,7 @@ const (
 	StatusDealMaking      Status = "deal-making"
 	StatusConfirmation    Status = "confirmation"
 	StatusReportFinalized Status = "report-finalized"
+	StatusFinalized       Status = "finalized"
 )
 
 func (e *Status) Scan(src interface{}) error {
@@ -41,26 +42,27 @@ type AuctionDatum struct {
 }
 
 type AuctionDeal struct {
-	ID                  string        `json:"id"`
-	AuctionDataID       string        `json:"auctionDataID"`
-	StorageProviderID   string        `json:"storageProviderID"`
-	PricePerGibPerEpoch int64         `json:"pricePerGibPerEpoch"`
-	StartEpoch          uint64        `json:"startEpoch"`
-	Verified            bool          `json:"verified"`
-	FastRetrieval       bool          `json:"fastRetrieval"`
-	AuctionID           auction.ID    `json:"auctionID"`
-	BidID               auction.BidID `json:"bidID"`
-	Status              Status        `json:"status"`
-	Executing           bool          `json:"executing"`
-	ErrorCause          string        `json:"errorCause"`
-	Retries             int           `json:"retries"`
-	ProposalCid         string        `json:"proposalCid"`
-	DealID              int64         `json:"dealID"`
-	DealExpiration      uint64        `json:"dealExpiration"`
-	DealMarketStatus    uint64        `json:"dealMarketStatus"`
-	ReadyAt             time.Time     `json:"readyAt"`
-	CreatedAt           time.Time     `json:"createdAt"`
-	UpdatedAt           time.Time     `json:"updatedAt"`
+	ID                  string         `json:"id"`
+	AuctionDataID       string         `json:"auctionDataID"`
+	StorageProviderID   string         `json:"storageProviderID"`
+	PricePerGibPerEpoch int64          `json:"pricePerGibPerEpoch"`
+	StartEpoch          uint64         `json:"startEpoch"`
+	Verified            bool           `json:"verified"`
+	FastRetrieval       bool           `json:"fastRetrieval"`
+	AuctionID           auction.ID     `json:"auctionID"`
+	BidID               auction.BidID  `json:"bidID"`
+	Status              Status         `json:"status"`
+	Executing           bool           `json:"executing"`
+	ErrorCause          string         `json:"errorCause"`
+	Retries             int            `json:"retries"`
+	ProposalCid         string         `json:"proposalCid"`
+	DealID              int64          `json:"dealID"`
+	DealExpiration      uint64         `json:"dealExpiration"`
+	DealMarketStatus    uint64         `json:"dealMarketStatus"`
+	ReadyAt             time.Time      `json:"readyAt"`
+	CreatedAt           time.Time      `json:"createdAt"`
+	UpdatedAt           time.Time      `json:"updatedAt"`
+	BatchID             broker.BatchID `json:"batchID"`
 }
 
 type MarketDealStatus struct {

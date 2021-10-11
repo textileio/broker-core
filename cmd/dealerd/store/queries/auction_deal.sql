@@ -2,6 +2,7 @@
 INSERT INTO auction_deals(
 id,
 auction_data_id,
+batch_id,
 storage_provider_id,
 price_per_gib_per_epoch,
 start_epoch,
@@ -36,7 +37,8 @@ ready_at
       $15,
       $16,
       $17,
-      $18
+      $18,
+      $19
       );
 
 -- name: NextPendingAuctionDeal :one
@@ -58,6 +60,7 @@ RETURNING *;
 UPDATE auction_deals
 SET 
     auction_data_id = @auction_data_id,
+    batch_id = @batch_id,
     storage_provider_id = @storage_provider_id,
     price_per_gib_per_epoch = @price_per_gib_per_epoch,
     start_epoch = @start_epoch,
@@ -85,6 +88,3 @@ SELECT id FROM auction_deals WHERE auction_data_id = $1;
 
 -- name: GetAuctionDealsByStatus :many
 SELECT * FROM auction_deals WHERE status = $1;
-
--- name: RemoveAuctionDeal :exec
-DELETE FROM auction_deals WHERE id = $1;

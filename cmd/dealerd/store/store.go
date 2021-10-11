@@ -26,6 +26,8 @@ const (
 	StatusConfirmation = AuctionDealStatus(db.StatusConfirmation)
 	// StatusReportFinalized indicates that a deal result is pending to be reported.
 	StatusReportFinalized = AuctionDealStatus(db.StatusReportFinalized)
+	// StatusFinalized indicates that a deal result has been reported and all processing is complete.
+	StatusFinalized = AuctionDealStatus(db.StatusFinalized)
 
 	stuckSeconds = int64(300)
 )
@@ -115,11 +117,13 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 		for _, aud := range ads {
 			aud.ID = uuid.New().String()
 			aud.AuctionDataID = ad.ID
+			aud.BatchID = ad.BatchID
 			aud.Status = db.StatusDealMaking
 			aud.ReadyAt = time.Unix(0, 0)
 			if err := txn.CreateAuctionDeal(ctx, db.CreateAuctionDealParams{
 				ID:                  aud.ID,
 				AuctionDataID:       aud.AuctionDataID,
+				BatchID:             aud.BatchID,
 				StorageProviderID:   aud.StorageProviderID,
 				PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
 				StartEpoch:          aud.StartEpoch,
@@ -195,6 +199,7 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 		rows, err := q.UpdateAuctionDeal(ctx, db.UpdateAuctionDealParams{
 			ID:                  aud.ID,
 			AuctionDataID:       aud.AuctionDataID,
+			BatchID:             aud.BatchID,
 			StorageProviderID:   aud.StorageProviderID,
 			PricePerGibPerEpoch: aud.PricePerGibPerEpoch,
 			StartEpoch:          aud.StartEpoch,
@@ -267,40 +272,6 @@ func (s *Store) GetRemoteWallet(ctx context.Context, auctionDataID string) (rw *
 		return nil
 	})
 	return
-}
-
-// RemoveAuctionDeal removes the provided auction deal. If the corresponding auction data isn't linked
-// with any remaining auction deals, then is also removed.
-func (s *Store) RemoveAuctionDeal(ctx context.Context, aud AuctionDeal) error {
-	if aud.Status != db.StatusReportFinalized || !aud.Executing {
-		return fmt.Errorf("only auction deals in final status can be removed")
-	}
-	return storeutil.WithTx(ctx, s.conn, func(tx *sql.Tx) error {
-		txn := s.db.WithTx(tx)
-		// 1. Remove the auction deal.
-		if err := txn.RemoveAuctionDeal(ctx, aud.ID); err != nil {
-			return fmt.Errorf("deleting auction deal: %s", err)
-		}
-
-		// 2. Get the related AuctionData. If after decreased the counter of linked AuctionDeals
-		//    we get 0, then proceed to also delete it (since nobody will use it again).
-		ids, err := txn.GetAuctionDealIDs(ctx, aud.AuctionDataID)
-		if err != nil {
-			return fmt.Errorf("get linked auction data: %s", err)
-		}
-		if len(ids) == 0 {
-			// Remove wallet config (if exists, if doesn't is a noop).
-			if err := txn.RemoveRemoteWallet(ctx, aud.AuctionDataID); err != nil {
-				return fmt.Errorf("deleting remote wallet config: %s", err)
-			}
-
-			// Remove auction data.
-			if err := txn.RemoveAuctionData(ctx, aud.AuctionDataID); err != nil {
-				return fmt.Errorf("deleting orphaned auction data: %s", err)
-			}
-		}
-		return nil
-	})
 }
 
 // GetStatusCounts returns a summary of in which deal statuses are watched deals.
