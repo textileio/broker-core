@@ -137,6 +137,7 @@ const tags: JSONPgSmartTags = {
             "(batch_id) references broker.batches (id)",
             "(auction_id) references auctioneer.auctions (id)",
             "(bid_id) references auctioneer.bids (id)",
+            "(storage_provider_id) references auctioneer.storage_providers (id)",
           ],
           primaryKey: "storage_provider_id,auction_id",
           unique: ["bid_id,auction_id", "storage_provider_id,bid_id", "bid_id"]
