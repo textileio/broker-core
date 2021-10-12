@@ -31,6 +31,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createRemoteWalletStmt, err = db.PrepareContext(ctx, createRemoteWallet); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateRemoteWallet: %w", err)
 	}
+	if q.getAllMarketDealStatusesStmt, err = db.PrepareContext(ctx, getAllMarketDealStatuses); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAllMarketDealStatuses: %w", err)
+	}
 	if q.getAuctionDataStmt, err = db.PrepareContext(ctx, getAuctionData); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAuctionData: %w", err)
 	}
@@ -42,6 +45,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getAuctionDealsByStatusStmt, err = db.PrepareContext(ctx, getAuctionDealsByStatus); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAuctionDealsByStatus: %w", err)
+	}
+	if q.getMarketDealStatusForIDStmt, err = db.PrepareContext(ctx, getMarketDealStatusForID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetMarketDealStatusForID: %w", err)
+	}
+	if q.getMarketDealStatusForTypeStmt, err = db.PrepareContext(ctx, getMarketDealStatusForType); err != nil {
+		return nil, fmt.Errorf("error preparing query GetMarketDealStatusForType: %w", err)
 	}
 	if q.getRemoteWalletStmt, err = db.PrepareContext(ctx, getRemoteWallet); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRemoteWallet: %w", err)
@@ -72,6 +81,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createRemoteWalletStmt: %w", cerr)
 		}
 	}
+	if q.getAllMarketDealStatusesStmt != nil {
+		if cerr := q.getAllMarketDealStatusesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAllMarketDealStatusesStmt: %w", cerr)
+		}
+	}
 	if q.getAuctionDataStmt != nil {
 		if cerr := q.getAuctionDataStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAuctionDataStmt: %w", cerr)
@@ -90,6 +104,16 @@ func (q *Queries) Close() error {
 	if q.getAuctionDealsByStatusStmt != nil {
 		if cerr := q.getAuctionDealsByStatusStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAuctionDealsByStatusStmt: %w", cerr)
+		}
+	}
+	if q.getMarketDealStatusForIDStmt != nil {
+		if cerr := q.getMarketDealStatusForIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getMarketDealStatusForIDStmt: %w", cerr)
+		}
+	}
+	if q.getMarketDealStatusForTypeStmt != nil {
+		if cerr := q.getMarketDealStatusForTypeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getMarketDealStatusForTypeStmt: %w", cerr)
 		}
 	}
 	if q.getRemoteWalletStmt != nil {
@@ -144,33 +168,39 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                          DBTX
-	tx                          *sql.Tx
-	createAuctionDataStmt       *sql.Stmt
-	createAuctionDealStmt       *sql.Stmt
-	createRemoteWalletStmt      *sql.Stmt
-	getAuctionDataStmt          *sql.Stmt
-	getAuctionDealStmt          *sql.Stmt
-	getAuctionDealIDsStmt       *sql.Stmt
-	getAuctionDealsByStatusStmt *sql.Stmt
-	getRemoteWalletStmt         *sql.Stmt
-	nextPendingAuctionDealStmt  *sql.Stmt
-	updateAuctionDealStmt       *sql.Stmt
+	db                             DBTX
+	tx                             *sql.Tx
+	createAuctionDataStmt          *sql.Stmt
+	createAuctionDealStmt          *sql.Stmt
+	createRemoteWalletStmt         *sql.Stmt
+	getAllMarketDealStatusesStmt   *sql.Stmt
+	getAuctionDataStmt             *sql.Stmt
+	getAuctionDealStmt             *sql.Stmt
+	getAuctionDealIDsStmt          *sql.Stmt
+	getAuctionDealsByStatusStmt    *sql.Stmt
+	getMarketDealStatusForIDStmt   *sql.Stmt
+	getMarketDealStatusForTypeStmt *sql.Stmt
+	getRemoteWalletStmt            *sql.Stmt
+	nextPendingAuctionDealStmt     *sql.Stmt
+	updateAuctionDealStmt          *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                          tx,
-		tx:                          tx,
-		createAuctionDataStmt:       q.createAuctionDataStmt,
-		createAuctionDealStmt:       q.createAuctionDealStmt,
-		createRemoteWalletStmt:      q.createRemoteWalletStmt,
-		getAuctionDataStmt:          q.getAuctionDataStmt,
-		getAuctionDealStmt:          q.getAuctionDealStmt,
-		getAuctionDealIDsStmt:       q.getAuctionDealIDsStmt,
-		getAuctionDealsByStatusStmt: q.getAuctionDealsByStatusStmt,
-		getRemoteWalletStmt:         q.getRemoteWalletStmt,
-		nextPendingAuctionDealStmt:  q.nextPendingAuctionDealStmt,
-		updateAuctionDealStmt:       q.updateAuctionDealStmt,
+		db:                             tx,
+		tx:                             tx,
+		createAuctionDataStmt:          q.createAuctionDataStmt,
+		createAuctionDealStmt:          q.createAuctionDealStmt,
+		createRemoteWalletStmt:         q.createRemoteWalletStmt,
+		getAllMarketDealStatusesStmt:   q.getAllMarketDealStatusesStmt,
+		getAuctionDataStmt:             q.getAuctionDataStmt,
+		getAuctionDealStmt:             q.getAuctionDealStmt,
+		getAuctionDealIDsStmt:          q.getAuctionDealIDsStmt,
+		getAuctionDealsByStatusStmt:    q.getAuctionDealsByStatusStmt,
+		getMarketDealStatusForIDStmt:   q.getMarketDealStatusForIDStmt,
+		getMarketDealStatusForTypeStmt: q.getMarketDealStatusForTypeStmt,
+		getRemoteWalletStmt:            q.getRemoteWalletStmt,
+		nextPendingAuctionDealStmt:     q.nextPendingAuctionDealStmt,
+		updateAuctionDealStmt:          q.updateAuctionDealStmt,
 	}
 }

@@ -65,8 +65,9 @@ type RemoteWallet = db.RemoteWallet
 
 // Store provides persistent storage for Bids.
 type Store struct {
-	conn *sql.DB
-	db   *db.Queries
+	conn      *sql.DB
+	db        *db.Queries
+	statusMap map[string]storagemarket.StorageDealStatus
 }
 
 // New returns a *Store.
@@ -79,7 +80,8 @@ func New(postgresURI string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Store{conn: conn, db: db.New(conn)}, nil
+	s := &Store{conn: conn, db: db.New(conn)}
+	return s, s.initStatusMap()
 }
 
 func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
@@ -120,6 +122,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 			aud.BatchID = ad.BatchID
 			aud.Status = db.StatusDealMaking
 			aud.ReadyAt = time.Unix(0, 0)
+			aud.MarketDealStatus = "UNKNOWN"
 			if err := txn.CreateAuctionDeal(ctx, db.CreateAuctionDealParams{
 				ID:                  aud.ID,
 				AuctionDataID:       aud.AuctionDataID,
@@ -138,7 +141,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 				ProposalCid:         aud.ProposalCid,
 				DealID:              aud.DealID,
 				DealExpiration:      aud.DealExpiration,
-				DealMarketStatus:    aud.DealMarketStatus,
+				MarketDealStatus:    aud.MarketDealStatus,
 				ReadyAt:             aud.ReadyAt,
 			}); err != nil {
 				return fmt.Errorf("saving auction deal in datastore: %s", err)
@@ -216,7 +219,7 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 			ProposalCid:      aud.ProposalCid,
 			DealID:           aud.DealID,
 			DealExpiration:   aud.DealExpiration,
-			DealMarketStatus: aud.DealMarketStatus,
+			MarketDealStatus: aud.MarketDealStatus,
 			ReadyAt:          aud.ReadyAt,
 		})
 		if err != nil {
@@ -282,10 +285,29 @@ func (s *Store) GetStatusCounts(ctx context.Context) (map[storagemarket.StorageD
 	}
 	ret := map[storagemarket.StorageDealStatus]int64{}
 	for _, ad := range ads {
-		ret[ad.DealMarketStatus]++
+		st, ok := s.statusMap[ad.MarketDealStatus]
+		if !ok {
+			return nil, fmt.Errorf("unknown status: %s", ad.MarketDealStatus)
+		}
+		ret[st]++
 	}
-
 	return ret, nil
+}
+
+// GetStatusForStatusID returns the string enum representation for the given storage deal status.
+func (s *Store) GetStatusForStatusID(
+	ctx context.Context,
+	id storagemarket.StorageDealStatus,
+) (status string, ok bool, err error) {
+	var mds db.MarketDealStatus
+	mds, err = s.db.GetMarketDealStatusForID(ctx, int64(id))
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return status, ok, fmt.Errorf("getting market deal status for id: %s", err)
+	}
+	return mds.Type, true, nil
 }
 
 func validate(ad *AuctionData, ads []*AuctionDeal, rw *broker.RemoteWallet) error {
@@ -381,4 +403,16 @@ func (s *Store) getAllPending() (ret []AuctionDeal, err error) {
 		}
 	}
 	return
+}
+
+func (s *Store) initStatusMap() error {
+	s.statusMap = make(map[string]uint64)
+	statuses, err := s.db.GetAllMarketDealStatuses(context.Background())
+	if err != nil {
+		return fmt.Errorf("querying for all market deal statuses: %s", err)
+	}
+	for _, status := range statuses {
+		s.statusMap[status.Type] = uint64(status.ID)
+	}
+	return nil
 }

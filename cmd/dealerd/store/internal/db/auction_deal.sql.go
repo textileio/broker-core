@@ -30,7 +30,7 @@ retries,
 proposal_cid,
 deal_id,
 deal_expiration,
-deal_market_status,
+market_deal_status,
 ready_at
     ) VALUES(
       $1,
@@ -73,7 +73,7 @@ type CreateAuctionDealParams struct {
 	ProposalCid         string         `json:"proposalCid"`
 	DealID              int64          `json:"dealID"`
 	DealExpiration      uint64         `json:"dealExpiration"`
-	DealMarketStatus    uint64         `json:"dealMarketStatus"`
+	MarketDealStatus    string         `json:"marketDealStatus"`
 	ReadyAt             time.Time      `json:"readyAt"`
 }
 
@@ -96,14 +96,14 @@ func (q *Queries) CreateAuctionDeal(ctx context.Context, arg CreateAuctionDealPa
 		arg.ProposalCid,
 		arg.DealID,
 		arg.DealExpiration,
-		arg.DealMarketStatus,
+		arg.MarketDealStatus,
 		arg.ReadyAt,
 	)
 	return err
 }
 
 const getAuctionDeal = `-- name: GetAuctionDeal :one
-SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at, batch_id FROM auction_deals WHERE id = $1
+SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, ready_at, created_at, updated_at, batch_id, market_deal_status FROM auction_deals WHERE id = $1
 `
 
 func (q *Queries) GetAuctionDeal(ctx context.Context, id string) (AuctionDeal, error) {
@@ -126,11 +126,11 @@ func (q *Queries) GetAuctionDeal(ctx context.Context, id string) (AuctionDeal, e
 		&i.ProposalCid,
 		&i.DealID,
 		&i.DealExpiration,
-		&i.DealMarketStatus,
 		&i.ReadyAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.BatchID,
+		&i.MarketDealStatus,
 	)
 	return i, err
 }
@@ -163,7 +163,7 @@ func (q *Queries) GetAuctionDealIDs(ctx context.Context, auctionDataID string) (
 }
 
 const getAuctionDealsByStatus = `-- name: GetAuctionDealsByStatus :many
-SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at, batch_id FROM auction_deals WHERE status = $1
+SELECT id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, ready_at, created_at, updated_at, batch_id, market_deal_status FROM auction_deals WHERE status = $1
 `
 
 func (q *Queries) GetAuctionDealsByStatus(ctx context.Context, status Status) ([]AuctionDeal, error) {
@@ -192,11 +192,11 @@ func (q *Queries) GetAuctionDealsByStatus(ctx context.Context, status Status) ([
 			&i.ProposalCid,
 			&i.DealID,
 			&i.DealExpiration,
-			&i.DealMarketStatus,
 			&i.ReadyAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.BatchID,
+			&i.MarketDealStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -224,7 +224,7 @@ WHERE id = (SELECT id FROM auction_deals
     ORDER BY auction_deals.ready_at asc
     FOR UPDATE SKIP LOCKED
     LIMIT 1)
-RETURNING id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, deal_market_status, ready_at, created_at, updated_at, batch_id
+RETURNING id, auction_data_id, storage_provider_id, price_per_gib_per_epoch, start_epoch, verified, fast_retrieval, auction_id, bid_id, status, executing, error_cause, retries, proposal_cid, deal_id, deal_expiration, ready_at, created_at, updated_at, batch_id, market_deal_status
 `
 
 type NextPendingAuctionDealParams struct {
@@ -252,11 +252,11 @@ func (q *Queries) NextPendingAuctionDeal(ctx context.Context, arg NextPendingAuc
 		&i.ProposalCid,
 		&i.DealID,
 		&i.DealExpiration,
-		&i.DealMarketStatus,
 		&i.ReadyAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.BatchID,
+		&i.MarketDealStatus,
 	)
 	return i, err
 }
@@ -280,7 +280,7 @@ SET
     proposal_cid = $14,
     deal_id = $15,
     deal_expiration = $16,
-    deal_market_status = $17,
+    market_deal_status = $17,
     ready_at = $18,
     updated_at = CURRENT_TIMESTAMP
     WHERE id = $19
@@ -303,7 +303,7 @@ type UpdateAuctionDealParams struct {
 	ProposalCid         string         `json:"proposalCid"`
 	DealID              int64          `json:"dealID"`
 	DealExpiration      uint64         `json:"dealExpiration"`
-	DealMarketStatus    uint64         `json:"dealMarketStatus"`
+	MarketDealStatus    string         `json:"marketDealStatus"`
 	ReadyAt             time.Time      `json:"readyAt"`
 	ID                  string         `json:"id"`
 }
@@ -326,7 +326,7 @@ func (q *Queries) UpdateAuctionDeal(ctx context.Context, arg UpdateAuctionDealPa
 		arg.ProposalCid,
 		arg.DealID,
 		arg.DealExpiration,
-		arg.DealMarketStatus,
+		arg.MarketDealStatus,
 		arg.ReadyAt,
 		arg.ID,
 	)

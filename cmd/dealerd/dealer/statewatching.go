@@ -78,7 +78,14 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 	currentChainHeight uint64) error {
 	dealID, status := d.tryResolvingDealID(aud)
 	if status != storagemarket.StorageDealUnknown {
-		aud.DealMarketStatus = status
+		mds, ok, err := d.store.GetStatusForStatusID(ctx, status)
+		if !ok {
+			return fmt.Errorf("no status for status id: %d", status)
+		}
+		if err != nil {
+			return fmt.Errorf("getting status for status id: %s", err)
+		}
+		aud.MarketDealStatus = mds
 	}
 	stillHaveTime := aud.StartEpoch >= currentChainHeight
 

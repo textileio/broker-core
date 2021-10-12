@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/broker-core/broker"
@@ -270,6 +271,24 @@ func TestGetAuctionNotFound(t *testing.T) {
 
 	_, err = s.GetAuctionData(context.Background(), "invented")
 	require.Equal(t, sql.ErrNoRows, err)
+}
+
+func TestGetStatusForStatusID(t *testing.T) {
+	t.Parallel()
+
+	u, err := tests.PostgresURL()
+	require.NoError(t, err)
+	s, err := New(u)
+	require.NoError(t, err)
+
+	res, ok, err := s.GetStatusForStatusID(context.Background(), storagemarket.StorageDealActive)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "ACTIVE", res)
+
+	_, ok, err = s.GetStatusForStatusID(context.Background(), 9999)
+	require.NoError(t, err)
+	require.False(t, ok)
 }
 
 func castCid(cidStr string) cid.Cid {
