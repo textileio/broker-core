@@ -1,3 +1,6 @@
+-- name: GetAllMarketDealStatuses :many
+SELECT * FROM market_deal_status;
+
 -- name: GetMarketDealStatusForID :one
 SELECT * FROM market_deal_status WHERE id = $1;
 

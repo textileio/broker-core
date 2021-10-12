@@ -7,6 +7,33 @@ import (
 	"context"
 )
 
+const getAllMarketDealStatuses = `-- name: GetAllMarketDealStatuses :many
+SELECT id, description, type FROM market_deal_status
+`
+
+func (q *Queries) GetAllMarketDealStatuses(ctx context.Context) ([]MarketDealStatus, error) {
+	rows, err := q.query(ctx, q.getAllMarketDealStatusesStmt, getAllMarketDealStatuses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MarketDealStatus
+	for rows.Next() {
+		var i MarketDealStatus
+		if err := rows.Scan(&i.ID, &i.Description, &i.Type); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMarketDealStatusForID = `-- name: GetMarketDealStatusForID :one
 SELECT id, description, type FROM market_deal_status WHERE id = $1
 `

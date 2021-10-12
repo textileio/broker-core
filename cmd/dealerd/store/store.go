@@ -65,8 +65,9 @@ type RemoteWallet = db.RemoteWallet
 
 // Store provides persistent storage for Bids.
 type Store struct {
-	conn *sql.DB
-	db   *db.Queries
+	conn      *sql.DB
+	db        *db.Queries
+	statusMap map[string]storagemarket.StorageDealStatus
 }
 
 // New returns a *Store.
@@ -79,7 +80,8 @@ func New(postgresURI string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Store{conn: conn, db: db.New(conn)}, nil
+	s := &Store{conn: conn, db: db.New(conn)}
+	return s, s.initStatusMap()
 }
 
 func (s *Store) useTxFromCtx(ctx context.Context, f func(*db.Queries) error) (err error) {
@@ -282,16 +284,10 @@ func (s *Store) GetStatusCounts(ctx context.Context) (map[storagemarket.StorageD
 		return nil, fmt.Errorf("getting auction deals: %s", err)
 	}
 	ret := map[storagemarket.StorageDealStatus]int64{}
-	cache := map[string]storagemarket.StorageDealStatus{}
 	for _, ad := range ads {
-		st, ok := cache[ad.MarketDealStatus]
+		st, ok := s.statusMap[ad.MarketDealStatus]
 		if !ok {
-			mds, err := s.db.GetMarketDealStatusForType(ctx, ad.MarketDealStatus)
-			if err != nil {
-				return nil, fmt.Errorf("getting market deal status for type %s: %s", ad.MarketDealStatus, err)
-			}
-			st = uint64(mds.ID)
-			cache[ad.MarketDealStatus] = uint64(mds.ID)
+			return nil, fmt.Errorf("unknown status: %s", ad.MarketDealStatus)
 		}
 		ret[st]++
 	}
@@ -309,7 +305,7 @@ func (s *Store) GetStatusForStatusID(
 		return "", false, nil
 	}
 	if err != nil {
-		return
+		return status, ok, fmt.Errorf("getting market deal status for id: %s", err)
 	}
 	return mds.Type, true, nil
 }
@@ -407,4 +403,16 @@ func (s *Store) getAllPending() (ret []AuctionDeal, err error) {
 		}
 	}
 	return
+}
+
+func (s *Store) initStatusMap() error {
+	s.statusMap = make(map[string]uint64)
+	statuses, err := s.db.GetAllMarketDealStatuses(context.Background())
+	if err != nil {
+		return fmt.Errorf("querying for all market deal statuses: %s", err)
+	}
+	for _, status := range statuses {
+		s.statusMap[status.Type] = uint64(status.ID)
+	}
+	return nil
 }
