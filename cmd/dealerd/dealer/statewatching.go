@@ -83,7 +83,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 			return fmt.Errorf("no status for status id: %d", status)
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("getting status for status id: %s", err)
 		}
 		aud.MarketDealStatus = mds
 	}

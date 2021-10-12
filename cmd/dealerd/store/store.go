@@ -286,11 +286,7 @@ func (s *Store) GetStatusCounts(ctx context.Context) (map[storagemarket.StorageD
 	for _, ad := range ads {
 		st, ok := cache[ad.MarketDealStatus]
 		if !ok {
-			arg := &sql.NullString{}
-			if err := arg.Scan(ad.MarketDealStatus); err != nil {
-				return nil, fmt.Errorf("parsing market deal status %s: %s", ad.MarketDealStatus, err)
-			}
-			mds, err := s.db.GetMarketDealStatusForType(ctx, *arg)
+			mds, err := s.db.GetMarketDealStatusForType(ctx, ad.MarketDealStatus)
 			if err != nil {
 				return nil, fmt.Errorf("getting market deal status for type %s: %s", ad.MarketDealStatus, err)
 			}
@@ -315,7 +311,7 @@ func (s *Store) GetStatusForStatusID(
 	if err != nil {
 		return
 	}
-	return mds.Type.String, true, nil
+	return mds.Type, true, nil
 }
 
 func validate(ad *AuctionData, ads []*AuctionDeal, rw *broker.RemoteWallet) error {

@@ -5,7 +5,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 )
 
 const getMarketDealStatusForID = `-- name: GetMarketDealStatusForID :one
@@ -23,7 +22,7 @@ const getMarketDealStatusForType = `-- name: GetMarketDealStatusForType :one
 SELECT id, description, type FROM market_deal_status WHERE type = $1
 `
 
-func (q *Queries) GetMarketDealStatusForType(ctx context.Context, t sql.NullString) (MarketDealStatus, error) {
+func (q *Queries) GetMarketDealStatusForType(ctx context.Context, t string) (MarketDealStatus, error) {
 	row := q.queryRow(ctx, q.getMarketDealStatusForTypeStmt, getMarketDealStatusForType, t)
 	var i MarketDealStatus
 	err := row.Scan(&i.ID, &i.Description, &i.Type)

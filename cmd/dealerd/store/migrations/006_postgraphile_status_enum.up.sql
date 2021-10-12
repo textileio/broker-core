@@ -2,6 +2,7 @@ BEGIN;
 
 ALTER TABLE market_deal_status ADD COLUMN type TEXT;
 UPDATE market_deal_status SET type = REPLACE(UPPER(name), ' ', '_');
+ALTER table market_deal_status ALTER COLUMN type SET NOT NULL;
 ALTER TABLE market_deal_status DROP CONSTRAINT market_deal_status_pkey;
 ALTER TABLE market_deal_status ADD PRIMARY KEY (type);
 ALTER TABLE market_deal_status ADD CONSTRAINT id_unique UNIQUE (id);

@@ -3,7 +3,6 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -68,9 +67,9 @@ type AuctionDeal struct {
 
 // @enum
 type MarketDealStatus struct {
-	ID          int64          `json:"id"`
-	Description string         `json:"description"`
-	Type        sql.NullString `json:"type"`
+	ID          int64  `json:"id"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
 }
 
 type RemoteWallet struct {
