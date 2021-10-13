@@ -92,6 +92,7 @@ func New(
 	mb mbroker.MsgBroker,
 	fc filclient.FilClient,
 	auctionConf AuctionConfig,
+	recordBidbotEvents bool,
 ) (*Auctioneer, error) {
 	if err := validateConfig(auctionConf); err != nil {
 		return nil, fmt.Errorf("validating config: %v", err)
@@ -110,7 +111,11 @@ func New(
 	}
 	a.initMetrics()
 
-	commChannel, err := NewLibp2pPubsub(ctx, conf, a.handleBidbotEvents)
+	bidbotEventsHandler := func(from peer.ID, event *pb.BidbotEvent) {}
+	if recordBidbotEvents {
+		bidbotEventsHandler = a.handleBidbotEvents
+	}
+	commChannel, err := NewLibp2pPubsub(ctx, conf, bidbotEventsHandler)
 	if err != nil {
 		return nil, fin.Cleanupf("creating comm: %v", err)
 	}

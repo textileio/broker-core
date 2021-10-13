@@ -50,6 +50,7 @@ func init() {
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
 		{Name: "gpubsub-api-key", DefValue: "", Description: "Google PubSub API key"},
 		{Name: "msgbroker-topic-prefix", DefValue: "", Description: "Topic prefix to use for msg broker topics"},
+		{Name: "record-bidbot-events", DefValue: false, Description: "Record bidbot events to database"},
 
 		{Name: "metrics-addr", DefValue: ":9090", Description: "Prometheus listen address"},
 		{Name: "log-debug", DefValue: false, Description: "Enable debug level logging"},

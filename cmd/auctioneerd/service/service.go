@@ -20,9 +20,10 @@ var log = golog.Logger("auctioneer/service")
 
 // Config defines params for Service configuration.
 type Config struct {
-	Peer        rpcpeer.Config
-	Auction     auctioneer.AuctionConfig
-	PostgresURI string
+	Peer               rpcpeer.Config
+	Auction            auctioneer.AuctionConfig
+	PostgresURI        string
+	RecordBidbotEvents bool
 }
 
 // Service is a gRPC service wrapper around an Auctioneer.
@@ -41,7 +42,7 @@ func New(conf Config, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, e
 	fin := finalizer.NewFinalizer()
 
 	// Create auctioneer
-	lib, err := auctioneer.New(conf.Peer, conf.PostgresURI, mb, fc, conf.Auction)
+	lib, err := auctioneer.New(conf.Peer, conf.PostgresURI, mb, fc, conf.Auction, conf.RecordBidbotEvents)
 	if err != nil {
 		return nil, fin.Cleanupf("creating auctioneer: %v", err)
 	}
