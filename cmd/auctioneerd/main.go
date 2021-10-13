@@ -141,7 +141,8 @@ var daemonCmd = &cobra.Command{
 			Auction: auctioneer.AuctionConfig{
 				Duration: v.GetDuration("auction-duration"),
 			},
-			PostgresURI: v.GetString("postgres-uri"),
+			PostgresURI:        v.GetString("postgres-uri"),
+			RecordBidbotEvents: v.GetBool("record-bidbot-events"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")
