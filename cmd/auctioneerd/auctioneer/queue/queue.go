@@ -411,7 +411,7 @@ func (q *Queue) SaveBidEvent(ctx context.Context, eventType BidEventType, bidID 
 	return q.db.CreateBidEvent(ctx, db.CreateBidEventParams{
 		BidID:      bidID,
 		EventType:  eventType,
-		Attempts:   sql.NullInt32{Valid: attempts == 0, Int32: int32(attempts)},
+		Attempts:   sql.NullInt32{Valid: attempts != 0, Int32: int32(attempts)},
 		Error:      sql.NullString{Valid: err != "", String: err},
 		HappenedAt: ts,
 		ReceivedAt: time.Now().UTC(),
