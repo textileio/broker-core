@@ -113,6 +113,7 @@ func New(
 
 	bidbotEventsHandler := func(from peer.ID, event *pb.BidbotEvent) {}
 	if recordBidbotEvents {
+		log.Info("subscribing and recording bidbot events...")
 		bidbotEventsHandler = a.handleBidbotEvents
 	}
 	commChannel, err := NewLibp2pPubsub(ctx, conf, bidbotEventsHandler)
