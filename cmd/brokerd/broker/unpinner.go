@@ -70,7 +70,7 @@ func (b *Broker) unpinCid(ctx context.Context, uj store.UnpinJob) (err error) {
 		//          We should change this whenever the bug is resolved.
 		var ctmErr *cmds.Error
 		if ok := errors.As(err, &ctmErr); ok && ctmErr.Code == 0 {
-			log.Warnf("%s unpinning was skipped due to ipfs-cluster known bug", uj.Cid)
+			log.Warnf("%s unpinning was skipped due to ipfs-cluster known bug: %s", uj.Cid, err)
 			return nil
 		}
 		return fmt.Errorf("unpinning %s: %s", uj.Cid, err)
