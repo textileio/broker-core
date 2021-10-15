@@ -389,9 +389,11 @@ func (s *Store) BatchError(
 			return fmt.Errorf("generating id for unpin job: %s", err)
 		}
 
-		if err := txn.CreateUnpinJob(ctx, db.CreateUnpinJobParams{
-			ID: unpinID, Cid: ba.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
-			return fmt.Errorf("saving unpin job: %s", err)
+		if !ba.DisallowRebatching {
+			if err := txn.CreateUnpinJob(ctx, db.CreateUnpinJobParams{
+				ID: unpinID, Cid: ba.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
+				return fmt.Errorf("saving unpin job: %s", err)
+			}
 		}
 
 		brIDs, err = txn.GetStorageRequestIDs(ctx, batchIDToSQL(id))
@@ -404,7 +406,7 @@ func (s *Store) BatchError(
 // Success status.
 func (s *Store) BatchSuccess(ctx context.Context, id broker.BatchID) error {
 	return s.withTx(ctx, func(txn *db.Queries) error {
-		sd, err := txn.GetBatch(ctx, id)
+		ba, err := txn.GetBatch(ctx, id)
 		if err != nil {
 			return fmt.Errorf("get batch: %s", err)
 		}
@@ -423,24 +425,27 @@ func (s *Store) BatchSuccess(ctx context.Context, id broker.BatchID) error {
 		if err != nil {
 			return fmt.Errorf("getting storage requests: %s", err)
 		}
-		for _, br := range brs {
+
+		if !ba.DisallowRebatching {
+			for _, br := range brs {
+				unpinID, err := s.newID()
+				if err != nil {
+					return fmt.Errorf("generating id for unpin job: %s", err)
+				}
+				if err := txn.CreateUnpinJob(ctx, db.CreateUnpinJobParams{
+					ID: unpinID, Cid: br.DataCid, Type: int16(UnpinTypeData)}); err != nil {
+					return fmt.Errorf("saving unpin job: %s", err)
+				}
+			}
+
 			unpinID, err := s.newID()
 			if err != nil {
 				return fmt.Errorf("generating id for unpin job: %s", err)
 			}
 			if err := txn.CreateUnpinJob(ctx, db.CreateUnpinJobParams{
-				ID: unpinID, Cid: br.DataCid, Type: int16(UnpinTypeData)}); err != nil {
+				ID: unpinID, Cid: ba.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
 				return fmt.Errorf("saving unpin job: %s", err)
 			}
-		}
-
-		unpinID, err := s.newID()
-		if err != nil {
-			return fmt.Errorf("generating id for unpin job: %s", err)
-		}
-		if err := txn.CreateUnpinJob(ctx, db.CreateUnpinJobParams{
-			ID: unpinID, Cid: sd.PayloadCid, Type: int16(UnpinTypeBatch)}); err != nil {
-			return fmt.Errorf("saving unpin job: %s", err)
 		}
 		return nil
 	})
