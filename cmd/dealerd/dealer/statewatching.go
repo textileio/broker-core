@@ -126,7 +126,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 	// We can ask the chain now for final confirmation.
 	// Now we can stop asking/trusting the storage-provider for confirmation, and start asking
 	// the chain.
-	isActiveOnchain, expiration, slashed, err := d.filclient.CheckChainDeal(d.daemonCtx, aud.DealID)
+	isActiveOnchain, expiration, slashed, err := d.filclient.CheckChainDeal(ctx, aud.DealID)
 	if err != nil {
 		log.Errorf("checking if deal %d is active on-chain: %s", aud.DealID, err)
 
