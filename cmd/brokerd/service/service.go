@@ -46,8 +46,8 @@ type Config struct {
 	DefaultWalletAddress string
 	VerifiedDeals        bool
 
-	AuctionMaxRetries int
-	AuctionDuration   time.Duration
+	AuctionMaxRetries              int
+	DefaultAuctionDeadlineDuration time.Duration
 }
 
 // Service provides an implementation of the broker API.
@@ -99,7 +99,7 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		brokeri.WithDefaultWalletAddress(defaultWalletAddress),
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
-		brokeri.WithAuctionDuration(config.AuctionDuration),
+		brokeri.WithAuctionDeadlineDuration(config.DefaultAuctionDeadlineDuration),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)

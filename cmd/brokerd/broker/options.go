@@ -18,8 +18,8 @@ var defaultConfig = config{
 	unpinnerRetryDelay:      time.Minute,
 	exportPinCountFrequency: time.Minute * 30,
 
-	auctionMaxRetries: 5,
-	auctionDuration:   3 * 24 * time.Hour,
+	auctionMaxRetries:       5,
+	defaultDeadlineDuration: 3 * 24 * time.Hour,
 }
 
 type config struct {
@@ -32,8 +32,8 @@ type config struct {
 	unpinnerRetryDelay      time.Duration
 	exportPinCountFrequency time.Duration
 
-	auctionMaxRetries int
-	auctionDuration   time.Duration
+	auctionMaxRetries       int
+	defaultDeadlineDuration time.Duration
 }
 
 // Option provides configuration for Broker.
@@ -122,16 +122,16 @@ func WithAuctionMaxRetries(max int) Option {
 	}
 }
 
-// WithAuctionDuration indicates the auction duration to be used in
+// WithAuctionDeadlineDuration indicates the auction duration to be used in
 // every auction (includes re-auctioning). If a new auction has to be created
 // that can't fit into the Batch specified deadline, then it won't be created
 // and the Batch would be consider un-auctionable and thus fail.
-func WithAuctionDuration(duration time.Duration) Option {
+func WithAuctionDeadlineDuration(duration time.Duration) Option {
 	return func(c *config) error {
 		if duration == 0 {
-			return errors.New("auction duration must be positive")
+			return errors.New("auction deadline duration must be positive")
 		}
-		c.auctionDuration = duration
+		c.defaultDeadlineDuration = duration
 		return nil
 	}
 }

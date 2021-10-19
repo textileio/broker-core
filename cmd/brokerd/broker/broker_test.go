@@ -184,7 +184,7 @@ func TestCreatePrepared(t *testing.T) {
 			t.Parallel()
 			b, mb, _ := createBroker(t)
 
-			expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
+			expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.defaultDeadlineDuration))
 			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, test.meta, test.rw)
 			require.NoError(t, err)
 
@@ -853,7 +853,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		}
 		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
 		require.NoError(t, err)
-		expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
+		expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.defaultDeadlineDuration))
 
 		// Verify that the batch and storage request is still in deal-making,
 		// since a re-auctioning should be fired.
@@ -897,7 +897,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 
 		// We set some absurd duration for re-auctionings, so we can know that it should fail
 		// since 100 days is much bigger than 4 days.
-		b.conf.auctionDuration = time.Hour * 24 * 100
+		b.conf.defaultDeadlineDuration = time.Hour * 24 * 100
 
 		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
 		require.NoError(t, err)

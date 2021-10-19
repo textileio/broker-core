@@ -31,7 +31,7 @@ func init() {
 		{Name: "default-wallet-address", DefValue: "",
 			Description: "The wallet address by which the deals are signed, unless the storage request requires remote signing"},
 		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
-		{Name: "auction-duration", DefValue: "72h",
+		{Name: "auction-deadline-duration", DefValue: "72h",
 			Description: "Auction duration for creating auctions in batches with defined deadlines"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
@@ -75,8 +75,8 @@ var rootCmd = &cobra.Command{
 			DefaultWalletAddress: v.GetString("default-wallet-address"),
 			VerifiedDeals:        v.GetBool("verified-deals"),
 
-			AuctionMaxRetries: v.GetInt("auction-max-retries"),
-			AuctionDuration:   v.GetDuration("auction-duration"),
+			AuctionMaxRetries:              v.GetInt("auction-max-retries"),
+			DefaultAuctionDeadlineDuration: v.GetDuration("auction-deadline-duration"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")

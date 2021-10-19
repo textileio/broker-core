@@ -185,7 +185,7 @@ func (b *Broker) CreatePrepared(
 		pc.RepFactor = int(b.conf.dealReplication)
 	}
 
-	auctionDeadline := time.Now().Add(b.conf.auctionDuration)
+	auctionDeadline := time.Now().Add(b.conf.defaultDeadlineDuration)
 	if pc.Deadline.Before(auctionDeadline) {
 		log.Warnf("storage-request tighter than default auction duration %s", sr.ID)
 		auctionDeadline = pc.Deadline
@@ -597,7 +597,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		// If the batch doesn't have a specified deadline (==0), we can re-auction without deadline
 		// constraint.
 		if !isMinerMisconfigured && ba.FilEpochDeadline > 0 {
-			auctionDeadline := time.Now().Add(b.conf.auctionDuration)
+			auctionDeadline := time.Now().Add(b.conf.defaultDeadlineDuration)
 			auctionDeadlineEpoch, err = timeToFilEpoch(auctionDeadline)
 			if err != nil {
 				return fmt.Errorf("calculating auction epoch deadline: %s", err)
