@@ -19,7 +19,8 @@ var defaultConfig = config{
 	exportPinCountFrequency: time.Minute * 30,
 
 	auctionMaxRetries:       5,
-	defaultDeadlineDuration: 3 * 24 * time.Hour,
+	defaultDeadlineDuration: 10 * 24 * time.Hour,
+	defaultProposalDuration: 3 * 24 * time.Hour,
 }
 
 type config struct {
@@ -34,6 +35,7 @@ type config struct {
 
 	auctionMaxRetries       int
 	defaultDeadlineDuration time.Duration
+	defaultProposalDuration time.Duration
 }
 
 // Option provides configuration for Broker.
@@ -132,6 +134,18 @@ func WithAuctionDeadlineDuration(duration time.Duration) Option {
 			return errors.New("auction deadline duration must be positive")
 		}
 		c.defaultDeadlineDuration = duration
+		return nil
+	}
+}
+
+// WithProposalDuration indicates the default duration for DealStartEpoch from the current epoch
+// if isn't provided by the client in the request.
+func WithProposalDuration(duration time.Duration) Option {
+	return func(c *config) error {
+		if duration == 0 {
+			return errors.New("auction proposal duration must be positive")
+		}
+		c.defaultProposalDuration = duration
 		return nil
 	}
 }

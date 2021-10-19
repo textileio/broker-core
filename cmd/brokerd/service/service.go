@@ -48,6 +48,7 @@ type Config struct {
 
 	AuctionMaxRetries              int
 	DefaultAuctionDeadlineDuration time.Duration
+	DefaultProposalDuration        time.Duration
 }
 
 // Service provides an implementation of the broker API.
@@ -100,6 +101,7 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
 		brokeri.WithAuctionDeadlineDuration(config.DefaultAuctionDeadlineDuration),
+		brokeri.WithProposalDuration(config.DefaultProposalDuration),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
