@@ -3,6 +3,7 @@ package broker.v1;
 option go_package = "github.com/textileio/broker-core/gen/broker/v1;broker";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 message CreateStorageRequestRequest {
   string cid = 1;
@@ -32,6 +33,7 @@ message CreatePreparedStorageRequestRequest {
     google.protobuf.Timestamp deadline = 4;
     CARURL car_url = 5;
     CARIPFS car_ipfs = 6;
+    google.protobuf.Duration proposal_duration = 7;
 
     message CARURL {
       string url = 1;

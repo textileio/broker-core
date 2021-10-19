@@ -191,6 +191,11 @@ func (b *Broker) CreatePrepared(
 		auctionDeadline = pc.Deadline
 	}
 
+	auctionProposalDuration := b.conf.defaultProposalDuration
+	if pc.ProposalDuration != 0 {
+		auctionProposalDuration = pc.ProposalDuration
+	}
+
 	batchEpochDeadline, err := timeToFilEpoch(pc.Deadline)
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating batch epoch deadline: %s", err)

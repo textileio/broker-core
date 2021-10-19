@@ -11,6 +11,7 @@ import (
 	pb "github.com/textileio/broker-core/gen/broker/v1"
 	"github.com/textileio/broker-core/rpc"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -82,12 +83,13 @@ func (c *Client) CreatePrepared(
 	req := &pb.CreatePreparedStorageRequestRequest{
 		Cid: dataCid.String(),
 		PreparedCar: &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
-			PieceCid:  pc.PieceCid.String(),
-			PieceSize: pc.PieceSize,
-			RepFactor: int64(pc.RepFactor),
-			Deadline:  timestamppb.New(pc.Deadline),
-			CarUrl:    carURL,
-			CarIpfs:   carIpfs,
+			PieceCid:         pc.PieceCid.String(),
+			PieceSize:        pc.PieceSize,
+			RepFactor:        int64(pc.RepFactor),
+			Deadline:         timestamppb.New(pc.Deadline),
+			ProposalDuration: durationpb.New(pc.ProposalDuration),
+			CarUrl:           carURL,
+			CarIpfs:          carIpfs,
 		},
 		Metadata: &pb.CreatePreparedStorageRequestRequest_Metadata{
 			Origin:    meta.Origin,

@@ -13,8 +13,6 @@ import (
 const (
 	// CodecFilCommitmentUnsealed is the IPLD codec for PieceCid cids.
 	CodecFilCommitmentUnsealed = 0xf101
-	// DefaultPreparedCARDeadline is the default deadline for prepared CAR deals.
-	DefaultPreparedCARDeadline = time.Hour * 48
 	// MaxPieceSize is the maximum piece size accepted for prepared data.
 	MaxPieceSize = 32 << 30
 	// MinDealReplication is the minimum allowed deal replication requested of storage-providers.

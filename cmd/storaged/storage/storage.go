@@ -63,16 +63,17 @@ type Deal struct {
 
 // AuctionDataRequest contains information about a prepared dataset hosted externally.
 type AuctionDataRequest struct {
-	PayloadCid   string            `json:"payloadCid"`
-	PieceCid     string            `json:"pieceCid"`
-	PieceSize    uint64            `json:"pieceSize"`
-	RepFactor    int               `json:"repFactor"`
-	Deadline     string            `json:"deadline"`
-	CARURL       *CARURL           `json:"carURL"`
-	CARIPFS      *CARIPFS          `json:"carIPFS"`
-	Tags         map[string]string `json:"tags"`
-	RemoteWallet *RemoteWallet     `json:"remoteWallet"`
-	Providers    []string          `json:"providers"`
+	PayloadCid            string            `json:"payloadCid"`
+	PieceCid              string            `json:"pieceCid"`
+	PieceSize             uint64            `json:"pieceSize"`
+	RepFactor             int               `json:"repFactor"`
+	Deadline              string            `json:"deadline"`
+	ProposalDurationHours int               `json:"proposal_duration_hours"`
+	CARURL                *CARURL           `json:"carURL"`
+	CARIPFS               *CARIPFS          `json:"carIPFS"`
+	Tags                  map[string]string `json:"tags"`
+	RemoteWallet          *RemoteWallet     `json:"remoteWallet"`
+	Providers             []string          `json:"providers"`
 }
 
 // CARURL contains details of a CAR file stored in an HTTP endpoint.
