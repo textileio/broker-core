@@ -110,40 +110,43 @@ func TestCreateBatch(t *testing.T) {
 	require.Equal(t, batchID, bri2.StorageRequest.BatchID)
 
 	// Check that the batch was persisted correctly.
-	sd2, err := b.GetBatch(ctx, batchID)
+	ba2, err := b.GetBatch(ctx, batchID)
 	require.NoError(t, err)
-	require.Equal(t, batchID, sd2.ID)
-	require.True(t, sd2.PayloadCid.Defined())
-	require.Equal(t, int64(1000), *sd2.PayloadSize)
-	require.Equal(t, broker.BatchStatusPreparing, sd2.Status)
+	require.Equal(t, batchID, ba2.ID)
+	require.True(t, ba2.PayloadCid.Defined())
+	require.Equal(t, int64(1000), *ba2.PayloadSize)
+	require.Equal(t, broker.BatchStatusPreparing, ba2.Status)
 	brs, err := b.store.GetStorageRequestIDs(ctx, batchID)
 	require.NoError(t, err)
 	require.Len(t, brs, 2)
-	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
-	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
-	require.NotNil(t, sd2.Sources.CARURL)
-	require.Equal(t, carURL.String(), sd2.Sources.CARURL.URL.String())
-	require.Nil(t, sd2.Sources.CARIPFS)
-	require.Zero(t, sd2.FilEpochDeadline)
-	require.False(t, sd2.DisallowRebatching)
-	require.Equal(t, "OR", sd2.Origin)
+	require.True(t, time.Since(ba2.CreatedAt) < time.Minute)
+	require.True(t, time.Since(ba2.UpdatedAt) < time.Minute)
+	require.NotNil(t, ba2.Sources.CARURL)
+	require.Equal(t, carURL.String(), ba2.Sources.CARURL.URL.String())
+	require.Nil(t, ba2.Sources.CARIPFS)
+	require.Zero(t, ba2.FilEpochDeadline)
+	require.Equal(t, b.conf.defaultProposalStartOffset, ba2.ProposalStartOffset)
+	require.False(t, ba2.DisallowRebatching)
+	require.Equal(t, "OR", ba2.Origin)
 }
 
 func TestCreatePrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	deadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	batchDeadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	proposalStartOffset := time.Second * 30
 	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 	carURLStr := "https://duke.dog/car/" + payloadCid.String()
 	carURL, _ := url.Parse(carURLStr)
 	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
 	require.NoError(t, err)
 	pc := broker.PreparedCAR{
-		PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
-		PieceSize: 1024,
-		RepFactor: 3,
-		Deadline:  deadline,
+		PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize:           1024,
+		RepFactor:           3,
+		Deadline:            batchDeadline,
+		ProposalStartOffset: proposalStartOffset,
 		Sources: auction.Sources{
 			CARURL: &auction.CARURL{
 				URL: *carURL,
@@ -184,7 +187,6 @@ func TestCreatePrepared(t *testing.T) {
 			t.Parallel()
 			b, mb, _ := createBroker(t)
 
-			expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.defaultDeadlineDuration))
 			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, test.meta, test.rw)
 			require.NoError(t, err)
 
@@ -197,38 +199,39 @@ func TestCreatePrepared(t *testing.T) {
 			// 3- Check that the batch was created correctly, in particular:
 			//    - The download sources URL and IPFS.
 			//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
-			//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
+			//    - The PayloadCid, PiceceCid and PieceSize which come from the prepared data parameters.
 			//    - The providers were persisted correctly (if specified).
-			sd, err := b.GetBatch(ctx, br.BatchID)
+			ba, err := b.GetBatch(ctx, br.BatchID)
 			require.NoError(t, err)
-			require.Equal(t, pc.RepFactor, sd.RepFactor)
-			require.True(t, sd.DisallowRebatching)
-			require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
-			require.Equal(t, broker.BatchStatusAuctioning, sd.Status)
+			require.Equal(t, pc.RepFactor, ba.RepFactor)
+			require.True(t, ba.DisallowRebatching)
+			require.Equal(t, b.conf.dealDuration, uint64(ba.DealDuration))
+			require.Equal(t, broker.BatchStatusAuctioning, ba.Status)
 			brs, err := b.store.GetStorageRequestIDs(ctx, br.BatchID)
 			require.NoError(t, err)
 			require.Len(t, brs, 1)
 			require.Contains(t, brs, br.ID)
-			require.NotNil(t, sd.Sources.CARURL)
-			require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
-			require.NotNil(t, sd.Sources.CARIPFS)
-			require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
+			require.NotNil(t, ba.Sources.CARURL)
+			require.Equal(t, carURLStr, ba.Sources.CARURL.URL.String())
+			require.NotNil(t, ba.Sources.CARIPFS)
+			require.Equal(t, pc.Sources.CARIPFS.Cid, ba.Sources.CARIPFS.Cid)
 			require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
-			require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
-			deadlineEpoch, _ := timeToFilEpoch(deadline)
-			require.Equal(t, deadlineEpoch, sd.FilEpochDeadline)
-			require.Equal(t, payloadCid, sd.PayloadCid)
-			require.Equal(t, pc.PieceCid, sd.PieceCid)
-			require.Equal(t, pc.PieceSize, sd.PieceSize)
-			require.Len(t, sd.Tags, len(meta.Tags))
+			require.Contains(t, ba.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
+			batchDeadlineEpoch, _ := timeToFilEpoch(batchDeadline)
+			require.Equal(t, batchDeadlineEpoch, ba.FilEpochDeadline)
+			require.Equal(t, proposalStartOffset, ba.ProposalStartOffset)
+			require.Equal(t, payloadCid, ba.PayloadCid)
+			require.Equal(t, pc.PieceCid, ba.PieceCid)
+			require.Equal(t, pc.PieceSize, ba.PieceSize)
+			require.Len(t, ba.Tags, len(meta.Tags))
 			for k, v := range meta.Tags {
-				v2, ok := sd.Tags[k]
+				v2, ok := ba.Tags[k]
 				require.True(t, ok)
 				require.Equal(t, v, v2)
 			}
-			require.Len(t, sd.Providers, len(test.meta.Providers))
+			require.Len(t, ba.Providers, len(test.meta.Providers))
 			for _, metaProvider := range meta.Providers {
-				require.Contains(t, sd.Providers, metaProvider)
+				require.Contains(t, ba.Providers, metaProvider)
 			}
 			rw, err := b.store.GetRemoteWalletConfig(ctx, br.BatchID)
 			require.NoError(t, err)
@@ -254,11 +257,12 @@ func TestCreatePrepared(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, b.conf.dealDuration, rda.DealDuration)
 			require.Equal(t, payloadCid.Bytes(), rda.PayloadCid)
-			require.Equal(t, sd.PieceSize, rda.DealSize)
-			require.Equal(t, string(sd.ID), rda.BatchId)
+			require.Equal(t, ba.PieceSize, rda.DealSize)
+			require.Equal(t, string(ba.ID), rda.BatchId)
 			require.Equal(t, pc.RepFactor, int(rda.DealReplication))
 			require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-			require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
+			proposalStartEpoch, _ := timeToFilEpoch(time.Now().Add(proposalStartOffset))
+			require.Equal(t, proposalStartEpoch, rda.FilEpochDeadline)
 			require.NotNil(t, rda.Sources.CarUrl)
 			require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 			require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
@@ -353,7 +357,8 @@ func TestBatchPrepared(t *testing.T) {
 	require.Equal(t, string(sd), rda.BatchId)
 	require.Equal(t, b.conf.dealReplication, rda.DealReplication)
 	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-	require.Zero(t, rda.FilEpochDeadline)
+	propStartEpoch, _ := timeToFilEpoch(time.Now().Add(b.conf.defaultProposalStartOffset))
+	require.Equal(t, propStartEpoch, rda.FilEpochDeadline)
 	require.NotNil(t, rda.Sources.CarUrl)
 	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), rda.Sources.CarUrl.Url)
 
@@ -795,17 +800,18 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	// brokerSetup is a function that creates a storage request,
 	// includes it in a batch, runs an auction, and close it.
 	// It leaves the broker prepared to receive finalized deals messages to be processed.
-	brokerSetup := func(t *testing.T, b *Broker, batchDeadline time.Time) (broker.StorageRequest, broker.ClosedAuction) {
+	brokerSetup := func(t *testing.T, b *Broker, propStartEpoch, aucDeadline time.Duration) (broker.StorageRequest, broker.ClosedAuction) {
 		payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 		carURLStr := "https://duke.dog/car/" + payloadCid.String()
 		carURL, _ := url.Parse(carURLStr)
 		maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
 		require.NoError(t, err)
 		pc := broker.PreparedCAR{
-			PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
-			PieceSize: 1024,
-			RepFactor: 1,
-			Deadline:  batchDeadline,
+			PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+			PieceSize:           1024,
+			RepFactor:           1,
+			Deadline:            time.Now().Add(aucDeadline),
+			ProposalStartOffset: propStartEpoch,
 			Sources: auction.Sources{
 				CARURL: &auction.CARURL{
 					URL: *carURL,
@@ -845,7 +851,8 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	t.Run("with-enough-deadline-time", func(t *testing.T) {
 		b, mb, _ := createBroker(t)
 
-		sr, auction := brokerSetup(t, b, time.Now().Add(time.Hour*24*100)) // 100 days.
+		// ProposalStartEpoch=1day which fits re-auctioning in a 100 day deadline.
+		sr, auction := brokerSetup(t, b, time.Hour*24, time.Hour*24*100)
 		fad1 := broker.FinalizedDeal{
 			BatchID:           auction.BatchID,
 			StorageProviderID: "f0011",
@@ -853,7 +860,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		}
 		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
 		require.NoError(t, err)
-		expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.defaultDeadlineDuration))
+		expectedProposalStartEpoch, _ := timeToFilEpoch(time.Now().Add(time.Hour * 24))
 
 		// Verify that the batch and storage request is still in deal-making,
 		// since a re-auctioning should be fired.
@@ -879,7 +886,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		require.Equal(t, string(ba.ID), rda.BatchId)
 		require.Equal(t, ba.RepFactor, int(rda.DealReplication))
 		require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-		require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
+		require.Equal(t, expectedProposalStartEpoch, rda.FilEpochDeadline)
 		require.NotNil(t, rda.Sources.CarUrl)
 		require.Equal(t, ba.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 		require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
@@ -888,16 +895,14 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	t.Run("without-enough-deadline-time", func(t *testing.T) {
 		b, mb, _ := createBroker(t)
 
-		sr, auction := brokerSetup(t, b, time.Now().Add(time.Hour*24*4)) // 4 days.
+		// Set ProposalStartOffset=4days which is greater than the Aucitons deadline,
+		// thus should fail rebatching.
+		sr, auction := brokerSetup(t, b, time.Hour*24*4, time.Hour*24)
 		fad1 := broker.FinalizedDeal{
 			BatchID:           auction.BatchID,
 			StorageProviderID: "f0011",
 			ErrorCause:        "the miner is buggy",
 		}
-
-		// We set some absurd duration for re-auctionings, so we can know that it should fail
-		// since 100 days is much bigger than 4 days.
-		b.conf.defaultDeadlineDuration = time.Hour * 24 * 100
 
 		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
 		require.NoError(t, err)
@@ -920,9 +925,9 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	t.Run("deal-rejected", func(t *testing.T) {
 		b, mb, _ := createBroker(t)
 
-		batchDeadline := time.Now().Add(time.Hour * 24)
-		batchDeadlineEpoch, _ := timeToFilEpoch(batchDeadline)
-		sr, auction := brokerSetup(t, b, batchDeadline)
+		proposalStartOffset := time.Hour * 24
+		proposalStartEpoch, _ := timeToFilEpoch(time.Now().Add(proposalStartOffset))
+		sr, auction := brokerSetup(t, b, proposalStartOffset, proposalStartOffset*100)
 		fad1 := broker.FinalizedDeal{
 			BatchID:           auction.BatchID,
 			StorageProviderID: "f0011",
@@ -958,7 +963,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		require.Equal(t, string(ba.ID), rda.BatchId)
 		require.Equal(t, ba.RepFactor, int(rda.DealReplication))
 		require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-		require.Equal(t, batchDeadlineEpoch, rda.FilEpochDeadline) // Important assertion.
+		require.Equal(t, proposalStartEpoch, rda.FilEpochDeadline) // Important assertion.
 		require.NotNil(t, rda.Sources.CarUrl)
 		require.Equal(t, ba.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 		require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)

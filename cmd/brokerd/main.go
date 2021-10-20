@@ -33,7 +33,7 @@ func init() {
 		{Name: "auction-max-retries", DefValue: "5", Description: "Maximum number of re-auctioning for a storage deal"},
 		{Name: "auction-deadline-duration", DefValue: "240h",
 			Description: "Auction duration for creating auctions in batches with defined deadlines"},
-		{Name: "auction-proposal-duration", DefValue: "72h",
+		{Name: "auction-proposal-start-offset", DefValue: "72h",
 			Description: "The default duration to calculate DealStartEpoch in fired auctions"},
 		{Name: "verified-deals", DefValue: false, Description: "Make verified deals"},
 		{Name: "gpubsub-project-id", DefValue: "", Description: "Google PubSub project id"},
@@ -79,7 +79,7 @@ var rootCmd = &cobra.Command{
 
 			AuctionMaxRetries:              v.GetInt("auction-max-retries"),
 			DefaultAuctionDeadlineDuration: v.GetDuration("auction-deadline-duration"),
-			DefaultProposalDuration:        v.GetDuration("auction-proposal-duration"),
+			DefaultProposalStartOffset:     v.GetDuration("auction-proposal-start-offset"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")

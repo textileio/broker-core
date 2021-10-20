@@ -83,13 +83,13 @@ func (c *Client) CreatePrepared(
 	req := &pb.CreatePreparedStorageRequestRequest{
 		Cid: dataCid.String(),
 		PreparedCar: &pb.CreatePreparedStorageRequestRequest_PreparedCAR{
-			PieceCid:         pc.PieceCid.String(),
-			PieceSize:        pc.PieceSize,
-			RepFactor:        int64(pc.RepFactor),
-			Deadline:         timestamppb.New(pc.Deadline),
-			ProposalDuration: durationpb.New(pc.ProposalDuration),
-			CarUrl:           carURL,
-			CarIpfs:          carIpfs,
+			PieceCid:            pc.PieceCid.String(),
+			PieceSize:           pc.PieceSize,
+			RepFactor:           int64(pc.RepFactor),
+			Deadline:            timestamppb.New(pc.Deadline),
+			ProposalStartOffset: durationpb.New(pc.ProposalStartOffset),
+			CarUrl:              carURL,
+			CarIpfs:             carIpfs,
 		},
 		Metadata: &pb.CreatePreparedStorageRequestRequest_Metadata{
 			Origin:    meta.Origin,

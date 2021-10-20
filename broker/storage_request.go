@@ -50,12 +50,12 @@ type StorageRequestDeal struct {
 
 // PreparedCAR contains information about prepared data.
 type PreparedCAR struct {
-	PieceCid         cid.Cid
-	PieceSize        uint64
-	RepFactor        int
-	Deadline         time.Time
-	ProposalDuration time.Duration
-	Sources          auction.Sources
+	PieceCid            cid.Cid
+	PieceSize           uint64
+	RepFactor           int
+	Deadline            time.Time
+	ProposalStartOffset time.Duration
+	Sources             auction.Sources
 }
 
 // BatchMetadata is metadata about a batch.

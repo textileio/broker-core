@@ -226,21 +226,22 @@ func (s *Store) CreateBatch(
 		payloadSize.Int64 = *ba.PayloadSize
 	}
 	isd := db.CreateBatchParams{
-		ID:                 ba.ID,
-		Status:             ba.Status,
-		RepFactor:          ba.RepFactor,
-		DealDuration:       ba.DealDuration,
-		PayloadCid:         ba.PayloadCid.String(),
-		PayloadSize:        payloadSize,
-		PieceCid:           pieceCid,
-		PieceSize:          ba.PieceSize,
-		DisallowRebatching: ba.DisallowRebatching,
-		FilEpochDeadline:   ba.FilEpochDeadline,
-		CarUrl:             dsources.carURL,
-		CarIpfsCid:         dsources.ipfsCid,
-		CarIpfsAddrs:       strings.Join(dsources.ipfsMultiaddrs, ","),
-		Origin:             ba.Origin,
-		Providers:          common.StringifyAddrs(ba.Providers...),
+		ID:                         ba.ID,
+		Status:                     ba.Status,
+		RepFactor:                  ba.RepFactor,
+		DealDuration:               ba.DealDuration,
+		PayloadCid:                 ba.PayloadCid.String(),
+		PayloadSize:                payloadSize,
+		PieceCid:                   pieceCid,
+		PieceSize:                  ba.PieceSize,
+		DisallowRebatching:         ba.DisallowRebatching,
+		FilEpochDeadline:           ba.FilEpochDeadline,
+		ProposalStartOffsetSeconds: int64(ba.ProposalStartOffset.Seconds()),
+		CarUrl:                     dsources.carURL,
+		CarIpfsCid:                 dsources.ipfsCid,
+		CarIpfsAddrs:               strings.Join(dsources.ipfsMultiaddrs, ","),
+		Origin:                     ba.Origin,
+		Providers:                  common.StringifyAddrs(ba.Providers...),
 	}
 	ids := make([]string, len(brIDs))
 	for i, id := range brIDs {
@@ -504,7 +505,7 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 
 // GetBatch gets an existing batch by id. If the batch doesn't exists, it returns
 // ErrNotFound.
-func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Batch, err error) {
+func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (ba *broker.Batch, err error) {
 	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		var dbBatch db.Batch
 		dbBatch, err = q.GetBatch(ctx, id)
@@ -515,7 +516,7 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 		if err != nil {
 			return err
 		}
-		sd, err = batchFromDB(&dbBatch, tags)
+		ba, err = batchFromDB(&dbBatch, tags)
 		return err
 	})
 	return
@@ -617,29 +618,29 @@ func (s *Store) newID() (string, error) {
 	return strings.ToLower(id.String()), nil
 }
 
-func batchFromDB(ba *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error) {
+func batchFromDB(dbBatch *db.Batch, tags []db.BatchTag) (ba *broker.Batch, err error) {
 	var payloadCid cid.Cid
-	if ba.PayloadCid != "" {
-		payloadCid, err = cid.Parse(ba.PayloadCid)
+	if dbBatch.PayloadCid != "" {
+		payloadCid, err = cid.Parse(dbBatch.PayloadCid)
 		if err != nil {
 			return nil, fmt.Errorf("parsing payload CID: %s", err)
 		}
 	}
 	var pieceCid cid.Cid
-	if ba.PieceCid != "" {
-		pieceCid, err = cid.Parse(ba.PieceCid)
+	if dbBatch.PieceCid != "" {
+		pieceCid, err = cid.Parse(dbBatch.PieceCid)
 		if err != nil {
 			return nil, fmt.Errorf("parsing piece CID: %s", err)
 		}
 	}
 	var sources auction.Sources
-	if u, err := url.ParseRequestURI(ba.CarUrl); err == nil {
+	if u, err := url.ParseRequestURI(dbBatch.CarUrl); err == nil {
 		sources.CARURL = &auction.CARURL{URL: *u}
 	}
-	if ba.CarIpfsCid != "" {
-		if id, err := cid.Parse(ba.CarIpfsCid); err == nil {
+	if dbBatch.CarIpfsCid != "" {
+		if id, err := cid.Parse(dbBatch.CarIpfsCid); err == nil {
 			carIPFS := &auction.CARIPFS{Cid: id}
-			addrs := strings.Split(ba.CarIpfsAddrs, ",")
+			addrs := strings.Split(dbBatch.CarIpfsAddrs, ",")
 			for _, addr := range addrs {
 				if ma, err := multiaddr.NewMultiaddr(addr); err == nil {
 					carIPFS.Multiaddrs = append(carIPFS.Multiaddrs, ma)
@@ -650,8 +651,8 @@ func batchFromDB(ba *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 			sources.CARIPFS = carIPFS
 		}
 	}
-	providers := make([]address.Address, len(ba.Providers))
-	for i, strProv := range ba.Providers {
+	providers := make([]address.Address, len(dbBatch.Providers))
+	for i, strProv := range dbBatch.Providers {
 		providerAddr, err := address.NewFromString(strProv)
 		if err != nil {
 			return nil, fmt.Errorf("parsing provider %s: %s", strProv, err)
@@ -668,28 +669,29 @@ func batchFromDB(ba *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 	}
 
 	var payloadSize *int64
-	if ba.PayloadSize.Valid {
-		payloadSize = &ba.PayloadSize.Int64
+	if dbBatch.PayloadSize.Valid {
+		payloadSize = &dbBatch.PayloadSize.Int64
 	}
 
 	return &broker.Batch{
-		ID:                 ba.ID,
-		Status:             ba.Status,
-		RepFactor:          ba.RepFactor,
-		DealDuration:       ba.DealDuration,
-		PayloadCid:         payloadCid,
-		PayloadSize:        payloadSize,
-		PieceCid:           pieceCid,
-		PieceSize:          ba.PieceSize,
-		Sources:            sources,
-		DisallowRebatching: ba.DisallowRebatching,
-		FilEpochDeadline:   ba.FilEpochDeadline,
-		Origin:             ba.Origin,
-		Tags:               mtags,
-		Providers:          providers,
-		Error:              ba.Error,
-		CreatedAt:          ba.CreatedAt,
-		UpdatedAt:          ba.UpdatedAt,
+		ID:                  dbBatch.ID,
+		Status:              dbBatch.Status,
+		RepFactor:           dbBatch.RepFactor,
+		DealDuration:        dbBatch.DealDuration,
+		PayloadCid:          payloadCid,
+		PayloadSize:         payloadSize,
+		PieceCid:            pieceCid,
+		PieceSize:           dbBatch.PieceSize,
+		Sources:             sources,
+		DisallowRebatching:  dbBatch.DisallowRebatching,
+		FilEpochDeadline:    dbBatch.FilEpochDeadline,
+		ProposalStartOffset: time.Second * time.Duration(dbBatch.ProposalStartOffsetSeconds),
+		Origin:              dbBatch.Origin,
+		Tags:                mtags,
+		Providers:           providers,
+		Error:               dbBatch.Error,
+		CreatedAt:           dbBatch.CreatedAt,
+		UpdatedAt:           dbBatch.UpdatedAt,
 	}, nil
 }
 

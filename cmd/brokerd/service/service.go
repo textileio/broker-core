@@ -48,7 +48,7 @@ type Config struct {
 
 	AuctionMaxRetries              int
 	DefaultAuctionDeadlineDuration time.Duration
-	DefaultProposalDuration        time.Duration
+	DefaultProposalStartOffset     time.Duration
 }
 
 // Service provides an implementation of the broker API.
@@ -101,7 +101,7 @@ func New(mb msgbroker.MsgBroker, config Config) (*Service, error) {
 		brokeri.WithVerifiedDeals(config.VerifiedDeals),
 		brokeri.WithAuctionMaxRetries(config.AuctionMaxRetries),
 		brokeri.WithAuctionDeadlineDuration(config.DefaultAuctionDeadlineDuration),
-		brokeri.WithProposalDuration(config.DefaultProposalDuration),
+		brokeri.WithProposalStartOffset(config.DefaultProposalStartOffset),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating broker implementation: %s", err)
@@ -379,6 +379,7 @@ func parsePreparedCAR(ctx context.Context, r *pb.CreatePreparedStorageRequestReq
 	pc.RepFactor = int(r.PreparedCar.RepFactor)
 
 	pc.Deadline = r.PreparedCar.Deadline.AsTime()
+	pc.ProposalStartOffset = r.PreparedCar.ProposalStartOffset.AsDuration()
 
 	if r.PreparedCar.CarUrl != nil {
 		url, err := url.Parse(r.PreparedCar.CarUrl.Url)

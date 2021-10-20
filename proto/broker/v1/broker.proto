@@ -33,7 +33,7 @@ message CreatePreparedStorageRequestRequest {
     google.protobuf.Timestamp deadline = 4;
     CARURL car_url = 5;
     CARIPFS car_ipfs = 6;
-    google.protobuf.Duration proposal_duration = 7;
+    google.protobuf.Duration proposal_start_offset = 7;
 
     message CARURL {
       string url = 1;

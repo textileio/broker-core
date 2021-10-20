@@ -276,12 +276,12 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		return storage.Request{}, fmt.Errorf("parsing sources: %s", err)
 	}
 	pc := broker.PreparedCAR{
-		PieceCid:         pieceCid,
-		PieceSize:        adr.PieceSize,
-		RepFactor:        adr.RepFactor,
-		Deadline:         deadline,
-		ProposalDuration: proposalDuration,
-		Sources:          sources,
+		PieceCid:            pieceCid,
+		PieceSize:           adr.PieceSize,
+		RepFactor:           adr.RepFactor,
+		Deadline:            deadline,
+		ProposalStartOffset: proposalDuration,
+		Sources:             sources,
 	}
 	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
 		return storage.Request{}, errors.New("at least one source must be specified")
