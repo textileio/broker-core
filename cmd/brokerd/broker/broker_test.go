@@ -800,7 +800,9 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	// brokerSetup is a function that creates a storage request,
 	// includes it in a batch, runs an auction, and close it.
 	// It leaves the broker prepared to receive finalized deals messages to be processed.
-	brokerSetup := func(t *testing.T, b *Broker, propStartEpoch, aucDeadline time.Duration) (broker.StorageRequest, broker.ClosedAuction) {
+	brokerSetup := func(t *testing.T,
+		b *Broker,
+		propStartEpoch, aucDeadline time.Duration) (broker.StorageRequest, broker.ClosedAuction) {
 		payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 		carURLStr := "https://duke.dog/car/" + payloadCid.String()
 		carURL, _ := url.Parse(carURLStr)
@@ -895,7 +897,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	t.Run("without-enough-deadline-time", func(t *testing.T) {
 		b, mb, _ := createBroker(t)
 
-		// Set ProposalStartOffset=4days which is greater than the Aucitons deadline,
+		// Set ProposalStartOffset=4days which is greater than the Auctions deadline,
 		// thus should fail rebatching.
 		sr, auction := brokerSetup(t, b, time.Hour*24*4, time.Hour*24)
 		fad1 := broker.FinalizedDeal{

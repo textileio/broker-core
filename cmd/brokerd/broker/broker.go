@@ -184,7 +184,6 @@ func (b *Broker) CreatePrepared(
 	if pc.RepFactor == 0 {
 		pc.RepFactor = int(b.conf.dealReplication)
 	}
-
 	if pc.ProposalStartOffset < 0 {
 		return broker.StorageRequest{}, fmt.Errorf("proposals start offset is negative")
 	}
@@ -192,7 +191,6 @@ func (b *Broker) CreatePrepared(
 	if pc.ProposalStartOffset != 0 {
 		proposalStartOffset = pc.ProposalStartOffset
 	}
-
 	batchDeadline := time.Now().Add(b.conf.defaultDeadlineDuration)
 	if !pc.Deadline.IsZero() {
 		if pc.Deadline.Before(batchDeadline) {
@@ -200,7 +198,7 @@ func (b *Broker) CreatePrepared(
 		}
 		batchDeadline = pc.Deadline
 	}
-	deadlineEpoch, err := timeToFilEpoch(batchDeadline)
+	batchDeadlineEpoch, err := timeToFilEpoch(batchDeadline)
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating batch epoch deadline: %s", err)
 	}
@@ -216,7 +214,7 @@ func (b *Broker) CreatePrepared(
 		Status:              broker.BatchStatusAuctioning,
 		Sources:             pc.Sources,
 		DisallowRebatching:  true,
-		FilEpochDeadline:    deadlineEpoch,
+		FilEpochDeadline:    batchDeadlineEpoch,
 		ProposalStartOffset: proposalStartOffset,
 		Origin:              meta.Origin,
 		Tags:                meta.Tags,
@@ -402,7 +400,7 @@ func (b *Broker) NewBatchPrepared(
 	if ba.ProposalStartOffset != 0 {
 		proposalStartEpoch, err = timeToFilEpoch(time.Now().Add(ba.ProposalStartOffset))
 		if err != nil {
-			return fmt.Errorf("calcualting proposal start epoch: %s", err)
+			return fmt.Errorf("calculating proposal start epoch: %s", err)
 		}
 	}
 	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, nil, proposalStartEpoch)
