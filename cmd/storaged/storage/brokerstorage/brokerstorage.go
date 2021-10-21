@@ -266,8 +266,8 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		}
 	}
 	var proposalDuration time.Duration
-	if adr.ProposalDurationHours != 0 {
-		proposalDuration = time.Hour * time.Duration(adr.ProposalDurationHours)
+	if adr.ProposalStartOffsetHours != 0 {
+		proposalDuration = time.Hour * time.Duration(adr.ProposalStartOffsetHours)
 	}
 
 	// Sources.
