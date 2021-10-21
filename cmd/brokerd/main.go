@@ -77,9 +77,9 @@ var rootCmd = &cobra.Command{
 			DefaultWalletAddress: v.GetString("default-wallet-address"),
 			VerifiedDeals:        v.GetBool("verified-deals"),
 
-			AuctionMaxRetries:              v.GetInt("auction-max-retries"),
-			DefaultAuctionDeadlineDuration: v.GetDuration("auction-deadline-duration"),
-			DefaultProposalStartOffset:     v.GetDuration("auction-proposal-start-offset"),
+			AuctionMaxRetries:            v.GetInt("auction-max-retries"),
+			DefaultBatchDeadlineDuration: v.GetDuration("auction-deadline-duration"),
+			DefaultProposalStartOffset:   v.GetDuration("auction-proposal-start-offset"),
 		}
 
 		projectID := v.GetString("gpubsub-project-id")
