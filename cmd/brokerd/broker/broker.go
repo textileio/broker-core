@@ -396,12 +396,9 @@ func (b *Broker) NewBatchPrepared(
 		return fmt.Errorf("saving piecer output in batch: %s", err)
 	}
 
-	var proposalStartEpoch uint64
-	if ba.ProposalStartOffset != 0 {
-		proposalStartEpoch, err = timeToFilEpoch(time.Now().Add(ba.ProposalStartOffset))
-		if err != nil {
-			return fmt.Errorf("calculating proposal start epoch: %s", err)
-		}
+	proposalStartEpoch, err := timeToFilEpoch(time.Now().Add(ba.ProposalStartOffset))
+	if err != nil {
+		return fmt.Errorf("calculating proposal start epoch: %s", err)
 	}
 	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, nil, proposalStartEpoch)
 	if err != nil {
