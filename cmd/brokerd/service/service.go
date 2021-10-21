@@ -379,7 +379,11 @@ func parsePreparedCAR(ctx context.Context, r *pb.CreatePreparedStorageRequestReq
 	pc.RepFactor = int(r.PreparedCar.RepFactor)
 
 	pc.Deadline = r.PreparedCar.Deadline.AsTime()
-	pc.ProposalStartOffset = r.PreparedCar.ProposalStartOffset.AsDuration()
+
+	pc.ProposalStartOffset = 0
+	if r.PreparedCar.ProposalStartOffset != nil {
+		pc.ProposalStartOffset = r.PreparedCar.ProposalStartOffset.AsDuration()
+	}
 
 	if r.PreparedCar.CarUrl != nil {
 		url, err := url.Parse(r.PreparedCar.CarUrl.Url)
