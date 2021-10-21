@@ -19,7 +19,7 @@ var defaultConfig = config{
 	exportPinCountFrequency: time.Minute * 30,
 
 	auctionMaxRetries:          5,
-	defaultDeadlineDuration:    10 * 24 * time.Hour,
+	defaultBatchDeadline:       10 * 24 * time.Hour,
 	defaultProposalStartOffset: 3 * 24 * time.Hour,
 }
 
@@ -34,7 +34,7 @@ type config struct {
 	exportPinCountFrequency time.Duration
 
 	auctionMaxRetries          int
-	defaultDeadlineDuration    time.Duration
+	defaultBatchDeadline       time.Duration
 	defaultProposalStartOffset time.Duration
 }
 
@@ -124,16 +124,14 @@ func WithAuctionMaxRetries(max int) Option {
 	}
 }
 
-// WithAuctionDeadlineDuration indicates the auction duration to be used in
-// every auction (includes re-auctioning). If a new auction has to be created
-// that can't fit into the Batch specified deadline, then it won't be created
-// and the Batch would be consider un-auctionable and thus fail.
-func WithAuctionDeadlineDuration(duration time.Duration) Option {
+// WithDefaultBatchDeadline indicates the default duration a direct auction batch
+// can be re-auctioned before erroring.
+func WithDefaultBatchDeadline(duration time.Duration) Option {
 	return func(c *config) error {
 		if duration == 0 {
-			return errors.New("auction deadline duration must be positive")
+			return errors.New("batch deadline duration must be positive")
 		}
-		c.defaultDeadlineDuration = duration
+		c.defaultBatchDeadline = duration
 		return nil
 	}
 }

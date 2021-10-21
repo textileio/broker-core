@@ -191,7 +191,7 @@ func (b *Broker) CreatePrepared(
 	if pc.ProposalStartOffset != 0 {
 		proposalStartOffset = pc.ProposalStartOffset
 	}
-	batchDeadline := time.Now().Add(b.conf.defaultDeadlineDuration)
+	batchDeadline := time.Now().Add(b.conf.defaultBatchDeadline)
 	if !pc.Deadline.IsZero() {
 		if pc.Deadline.Before(batchDeadline) {
 			log.Warnf("storage-request tighter than default auction duration %s", sr.ID)
