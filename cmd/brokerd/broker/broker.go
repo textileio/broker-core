@@ -250,7 +250,7 @@ func (b *Broker) CreatePrepared(
 		return broker.StorageRequest{}, fmt.Errorf("calculating auction epoch deadline: %s", err)
 	}
 
-	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, nil, proposalStartOffsetEpoch)
+	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, proposalStartOffsetEpoch)
 	if err != nil {
 		return broker.StorageRequest{}, err
 	}
@@ -400,7 +400,7 @@ func (b *Broker) NewBatchPrepared(
 	if err != nil {
 		return fmt.Errorf("calculating proposal start epoch: %s", err)
 	}
-	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, nil, proposalStartEpoch)
+	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, proposalStartEpoch)
 	if err != nil {
 		return err
 	}
@@ -414,7 +414,6 @@ func (b *Broker) startAuction(ctx context.Context,
 	rw *broker.RemoteWallet,
 	repFactor int,
 	pieceSize uint64,
-	excludedStorageProviders []string,
 	filEpochDeadline uint64) (auction.ID, error) {
 	auctionID, err := b.newID()
 	if err != nil {
@@ -426,6 +425,31 @@ func (b *Broker) startAuction(ctx context.Context,
 	} else {
 		clientAddress = common.StringifyAddr(b.conf.defaultWalletAddr)
 	}
+
+	excludedSPs, err := b.store.GetExcludedStorageProviders(ctx, ba.PieceCid, ba.Origin)
+	if err != nil {
+		return "", fmt.Errorf("get excluded storage providers for %s:%s: %s", ba.PieceCid, ba.Origin, err)
+	}
+	// If this was a direct2provider auctioned batch, we still need at least 1 non-excluded
+	// miner to have the possibility of closing successfully. If we need to re-auction and don't
+	// have room for any miner to win, then re-auctioning won't make sense and it will fail.
+	if len(ba.Providers) > 0 {
+		var excludedTargetedProviders []string
+		for _, targetedSP := range ba.Providers {
+			for _, excludedSP := range excludedSPs {
+				if common.StringifyAddr(targetedSP) == excludedSP {
+					excludedTargetedProviders = append(excludedTargetedProviders, excludedSP)
+					break
+				}
+			}
+		}
+		if len(excludedTargetedProviders) == len(ba.Providers) {
+			errCause := "no available miners can be selected for re-auctioning"
+			log.Warn(errCause)
+			_, err := b.batchError(ctx, ba, errCause, false)
+			return "", fmt.Errorf("erroring batch for %q: %s", errCause, err)
+		}
+	}
 	if err := msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
@@ -436,7 +460,7 @@ func (b *Broker) startAuction(ctx context.Context,
 		ba.DealDuration,
 		repFactor,
 		b.conf.verifiedDeals,
-		excludedStorageProviders,
+		excludedSPs,
 		filEpochDeadline,
 		ba.Sources,
 		clientAddress,
@@ -584,21 +608,6 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 	// 1.a If the finalized deal errored, we should create a new auction with replication factor 1,
 	//     and we're done.
 	if fad.ErrorCause != "" {
-		var excludedStorageProviders []string
-		for _, deal := range deals {
-			excludedStorageProviders = append(excludedStorageProviders, deal.StorageProviderID)
-		}
-
-		// If this was a direct2provider auctioned batch, we still need at least 1 non-excluded
-		// miner to have the possibility of closing successfully. If we need to re-auction and don't
-		// have room for any miner to win, then re-auctioning won't make sense and it will fail.
-		if len(ba.Providers) > 0 && len(excludedStorageProviders) == len(ba.Providers) {
-			errCause := "no available miners can be selected for re-auctioning"
-			log.Warn(errCause)
-			_, err := b.batchError(ctx, ba, errCause, false)
-			return err
-		}
-
 		log.Infof("creating new auction for failed deal with storage-provider %s", fad.StorageProviderID)
 
 		isMinerMisconfigured := strings.Contains(fad.ErrorCause, "deal rejected")
@@ -627,7 +636,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		if err != nil {
 			return fmt.Errorf("get remote wallet config: %s", err)
 		}
-		_, err = b.startAuction(ctx, ba, rw, 1, ba.PieceSize, excludedStorageProviders, proposalStartEpoch)
+		_, err = b.startAuction(ctx, ba, rw, 1, ba.PieceSize, proposalStartEpoch)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}

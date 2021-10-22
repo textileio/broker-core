@@ -598,6 +598,27 @@ func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 	})
 }
 
+// GetExcludedStorageProviders returns a list of all storage providers that have won
+// auctions fired by the origin for the provided PieceCid. Note that this considers
+// all auctions history for the PieceCid and the origin.
+func (s *Store) GetExcludedStorageProviders(
+	ctx context.Context,
+	pieceCid cid.Cid,
+	origin string) (sps []string, err error) {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
+		params := db.GetExcludedStorageProvidersParams{
+			PieceCid: pieceCid.String(),
+			Origin:   origin,
+		}
+		sps, err = q.GetExcludedStorageProviders(ctx, params)
+		if err != nil {
+			return fmt.Errorf("calling get excluded storage providers: %s", err)
+		}
+		return nil
+	})
+	return
+}
+
 func (s *Store) newID() (string, error) {
 	s.lock.Lock()
 	// Not deferring unlock since can be recursive.

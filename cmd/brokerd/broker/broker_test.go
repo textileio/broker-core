@@ -130,6 +130,83 @@ func TestCreateBatch(t *testing.T) {
 	require.Equal(t, "OR", ba2.Origin)
 }
 
+func TestExclusionList(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	batchDeadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	proposalStartOffset := time.Second * 30
+	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+	carURLStr := "https://duke.dog/car/" + payloadCid.String()
+	carURL, _ := url.Parse(carURLStr)
+	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	require.NoError(t, err)
+	pc := broker.PreparedCAR{
+		PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize:           1024,
+		RepFactor:           1,
+		Deadline:            batchDeadline,
+		ProposalStartOffset: proposalStartOffset,
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
+				URL: *carURL,
+			},
+			CARIPFS: &auction.CARIPFS{
+				Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+				Multiaddrs: []multiaddr.Multiaddr{maddr},
+			},
+		},
+	}
+
+	b, mb, _ := createBroker(t)
+	// 1. Fire a prepared auction for a PieceCid and origin.
+	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	winningBids := map[auction.BidID]broker.WinningBid{
+		auction.BidID("Bid1"): {
+			StorageProviderID: "f0011",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
+		},
+	}
+
+	auction := broker.ClosedAuction{
+		ID:              auction.ID("AUCTION1"),
+		BatchID:         createdBr.BatchID,
+		DealDuration:    auction.MaxDealDuration,
+		DealReplication: 1,
+		Status:          broker.AuctionStatusFinalized,
+		WinningBids:     winningBids,
+	}
+	err = b.BatchAuctioned(ctx, "op-id", auction)
+	require.NoError(t, err)
+
+	// Check that this first auction doesn't have any excluded miners list.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	rda := &pb.ReadyToAuction{}
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Empty(t, rda.ExcludedStorageProviders)
+
+	// 2. Fire exactly the same PieceCid with the same origin. The created auction should
+	//    exclude f0011 since was a winner in a previous (cross-request) auction.
+	_, err = b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	// Check that this auction have the f0011 as an excluded storage provider.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err = mb.GetMsg(mbroker.ReadyToAuctionTopic, 1)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Len(t, rda.ExcludedStorageProviders, 1)
+	require.Equal(t, "f0011", rda.ExcludedStorageProviders[0])
+}
+
 func TestCreatePrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

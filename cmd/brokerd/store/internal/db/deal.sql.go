@@ -90,6 +90,42 @@ func (q *Queries) GetDeals(ctx context.Context, batchID broker.BatchID) ([]Deal,
 	return items, nil
 }
 
+const getExcludedStorageProviders = `-- name: GetExcludedStorageProviders :many
+SELECT DISTINCT d.storage_provider_id
+FROM deals d
+INNER JOIN batches b ON b.id=d.batch_id
+WHERE b.piece_cid=$1 AND
+      b.origin=$2
+`
+
+type GetExcludedStorageProvidersParams struct {
+	PieceCid string `json:"pieceCid"`
+	Origin   string `json:"origin"`
+}
+
+func (q *Queries) GetExcludedStorageProviders(ctx context.Context, arg GetExcludedStorageProvidersParams) ([]string, error) {
+	rows, err := q.query(ctx, q.getExcludedStorageProvidersStmt, getExcludedStorageProviders, arg.PieceCid, arg.Origin)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var storage_provider_id string
+		if err := rows.Scan(&storage_provider_id); err != nil {
+			return nil, err
+		}
+		items = append(items, storage_provider_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateDeals = `-- name: UpdateDeals :execrows
 UPDATE deals
 SET deal_id = $3,
