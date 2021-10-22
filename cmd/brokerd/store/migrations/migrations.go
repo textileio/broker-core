@@ -13,6 +13,8 @@
 // migrations/005_payload_size.up.sql
 // migrations/006_add_dealstartoffset.down.sql
 // migrations/006_add_dealstartoffset.up.sql
+// migrations/007_piececididx.down.sql
+// migrations/007_piececididx.up.sql
 package migrations
 
 import (
@@ -329,6 +331,46 @@ func _006_add_dealstartoffsetUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __007_piececididxDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\xf0\xf4\x73\x71\x8d\x50\xf0\x74\x53\x70\x8d\xf0\x0c\x0e\x09\x56\x48\x4a\x2c\x49\xce\x88\x2f\xc8\x4c\x4d\x4e\x4d\xce\x4c\xb1\xe6\x02\x04\x00\x00\xff\xff\xd3\x0a\x89\xe1\x25\x00\x00\x00")
+
+func _007_piececididxDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_piececididxDownSql,
+		"007_piececididx.down.sql",
+	)
+}
+
+func _007_piececididxDownSql() (*asset, error) {
+	bytes, err := _007_piececididxDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_piececididx.down.sql", size: 37, mode: os.FileMode(436), modTime: time.Unix(1634934125, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __007_piececididxUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x0e\x72\x75\x0c\x71\x55\xf0\xf4\x73\x71\x8d\x50\xf0\x74\x53\xf0\xf3\x0f\x51\x70\x8d\xf0\x0c\x0e\x09\x56\x48\x4a\x2c\x49\xce\x88\x2f\xc8\x4c\x4d\x4e\x4d\xce\x4c\x51\xf0\xf7\x83\x88\xa4\x16\x6b\x80\xc5\xe2\x93\x33\x53\x34\xad\xb9\x00\x01\x00\x00\xff\xff\xa5\x61\x7a\x8a\x41\x00\x00\x00")
+
+func _007_piececididxUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_piececididxUpSql,
+		"007_piececididx.up.sql",
+	)
+}
+
+func _007_piececididxUpSql() (*asset, error) {
+	bytes, err := _007_piececididxUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_piececididx.up.sql", size: 65, mode: os.FileMode(436), modTime: time.Unix(1634934092, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -393,6 +435,8 @@ var _bindata = map[string]func() (*asset, error){
 	"005_payload_size.up.sql":          _005_payload_sizeUpSql,
 	"006_add_dealstartoffset.down.sql": _006_add_dealstartoffsetDownSql,
 	"006_add_dealstartoffset.up.sql":   _006_add_dealstartoffsetUpSql,
+	"007_piececididx.down.sql":         _007_piececididxDownSql,
+	"007_piececididx.up.sql":           _007_piececididxUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -448,6 +492,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"005_payload_size.up.sql":          &bintree{_005_payload_sizeUpSql, map[string]*bintree{}},
 	"006_add_dealstartoffset.down.sql": &bintree{_006_add_dealstartoffsetDownSql, map[string]*bintree{}},
 	"006_add_dealstartoffset.up.sql":   &bintree{_006_add_dealstartoffsetUpSql, map[string]*bintree{}},
+	"007_piececididx.down.sql":         &bintree{_007_piececididxDownSql, map[string]*bintree{}},
+	"007_piececididx.up.sql":           &bintree{_007_piececididxUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
