@@ -452,21 +452,45 @@ func (s *Store) BatchSuccess(ctx context.Context, id broker.BatchID) error {
 	})
 }
 
-// AddDeals includes new deals from a finalized auction.
-func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) error {
-	return s.withTx(ctx, func(txn *db.Queries) error {
-		sd, err := txn.GetBatch(ctx, auction.BatchID)
+// AddDeals includes new deals from a finalized auction. Confirming the winners in the database
+// can discover the fact that a concurrent auction already made some of them winners.
+// The fully confirmed accepted winners are returned in the acceptedWinners return parameter.
+func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) (acceptedWinners []string, err error) {
+	err = s.withTx(ctx, func(txn *db.Queries) error {
+		ba, err := txn.GetBatch(ctx, auction.BatchID)
 		if err != nil {
 			return fmt.Errorf("get batch: %s", err)
 		}
 
 		// Take care of correct state transitions.
-		if sd.Status != broker.BatchStatusAuctioning && sd.Status != broker.BatchStatusDealMaking {
-			return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+		if ba.Status != broker.BatchStatusAuctioning && ba.Status != broker.BatchStatusDealMaking {
+			return fmt.Errorf("wrong storage request status transition, tried moving to %s", ba.Status)
+		}
+
+		excludedParams := db.GetExcludedStorageProvidersParams{
+			PieceCid: ba.PieceCid,
+			Origin:   ba.Origin,
+		}
+		excludedProviders, err := txn.GetExcludedStorageProviders(ctx, excludedParams)
+		if err != nil {
+			return fmt.Errorf("get excluded providers: %s", err)
 		}
 
 		// Add winning bids to list of deals.
 		for bidID, bid := range auction.WinningBids {
+			var alreadyWon bool
+			for _, excludedProvider := range excludedProviders {
+				if excludedProvider == bid.StorageProviderID {
+					alreadyWon = true
+					break
+				}
+			}
+			if alreadyWon {
+				log.Warnf("excluding winner %s in auction %s since already won", bid.StorageProviderID, auction.ID)
+				continue
+			}
+
+			acceptedWinners = append(acceptedWinners, bid.StorageProviderID)
 			if err := txn.CreateDeal(ctx, db.CreateDealParams{
 				BatchID:           auction.BatchID,
 				AuctionID:         auction.ID,
@@ -478,7 +502,7 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 		}
 
 		moveStorageRequestsToDealMaking := false
-		if sd.Status == broker.BatchStatusAuctioning {
+		if ba.Status == broker.BatchStatusAuctioning {
 			if err := txn.UpdateBatchStatus(ctx, db.UpdateBatchStatusParams{
 				ID: auction.BatchID, Status: broker.BatchStatusDealMaking}); err != nil {
 				return fmt.Errorf("save batch: %s", err)
@@ -494,13 +518,14 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 		// that might happen. On further auctions, we don't need to do this again.
 		if moveStorageRequestsToDealMaking {
 			if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
-				BatchID: batchIDToSQL(sd.ID), Status: broker.RequestDealMaking}); err != nil {
+				BatchID: batchIDToSQL(ba.ID), Status: broker.RequestDealMaking}); err != nil {
 				return fmt.Errorf("saving storage request: %s", err)
 			}
 		}
 
 		return nil
 	})
+	return
 }
 
 // GetBatch gets an existing batch by id. If the batch doesn't exists, it returns
@@ -596,6 +621,27 @@ func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 		}
 		return nil
 	})
+}
+
+// GetExcludedStorageProviders returns a list of all storage providers that have won
+// auctions fired by the origin for the provided PieceCid. Note that this considers
+// all auctions history for the PieceCid and the origin.
+func (s *Store) GetExcludedStorageProviders(
+	ctx context.Context,
+	pieceCid cid.Cid,
+	origin string) (sps []string, err error) {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
+		params := db.GetExcludedStorageProvidersParams{
+			PieceCid: pieceCid.String(),
+			Origin:   origin,
+		}
+		sps, err = q.GetExcludedStorageProviders(ctx, params)
+		if err != nil {
+			return fmt.Errorf("calling get excluded storage providers: %s", err)
+		}
+		return nil
+	})
+	return
 }
 
 func (s *Store) newID() (string, error) {
