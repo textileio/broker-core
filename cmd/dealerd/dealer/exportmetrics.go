@@ -32,6 +32,7 @@ func (d *Dealer) daemonExportMetrics() {
 		newCountMap, err := d.store.GetStatusCounts(context.Background())
 		if err != nil {
 			log.Errorf("metrics count statuses: %s", err)
+			time.Sleep(d.config.exportStatusesCountFrequency)
 			continue
 		}
 		for status := range countMap {
@@ -42,6 +43,6 @@ func (d *Dealer) daemonExportMetrics() {
 		}
 
 		log.Debugf("get auction deal status counts took %dms", time.Since(start).Milliseconds())
-		<-time.After(d.config.exportStatusesCountFrequency)
+		time.Sleep(d.config.exportStatusesCountFrequency)
 	}
 }
