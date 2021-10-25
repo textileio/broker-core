@@ -346,7 +346,7 @@ func _007_piececididxDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "007_piececididx.down.sql", size: 37, mode: os.FileMode(436), modTime: time.Unix(1634934125, 0)}
+	info := bindataFileInfo{name: "007_piececididx.down.sql", size: 37, mode: os.FileMode(436), modTime: time.Unix(1635171749, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -366,7 +366,7 @@ func _007_piececididxUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "007_piececididx.up.sql", size: 65, mode: os.FileMode(436), modTime: time.Unix(1634934092, 0)}
+	info := bindataFileInfo{name: "007_piececididx.up.sql", size: 65, mode: os.FileMode(436), modTime: time.Unix(1635171749, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

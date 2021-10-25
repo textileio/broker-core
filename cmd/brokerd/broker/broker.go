@@ -533,6 +533,29 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return fmt.Errorf("generating auction deal id: %s", err)
 	}
 
+	acceptedWinners, err := b.store.AddDeals(ctx, au)
+	if err != nil {
+		return fmt.Errorf("adding auction accepted winners: %s", err)
+	}
+
+	// If not all auction winners were accepted, then we should fire an auction to fill the gap.
+	if len(acceptedWinners) != len(au.WinningBids) {
+		propStartEpoch, err := timeToFilEpoch(time.Now().Add(ba.ProposalStartOffset))
+		if err != nil {
+			return fmt.Errorf("calculating auction start offset: %s", err)
+		}
+		_, err = b.startAuction(ctx, ba, rw, len(au.WinningBids)-len(acceptedWinners), ba.PieceSize, propStartEpoch)
+		if err != nil {
+			return fmt.Errorf("creating new auction for discarded miners: %s", err)
+		}
+	}
+
+	// If we had not accepted winners, we don't have to fire new deals, so return early.
+	if len(acceptedWinners) == 0 {
+		log.Infof("auction %s didn't fire deals since all winners weren't accepted", au.ID)
+		return nil
+	}
+
 	ads := dealer.AuctionDeals{
 		ID:           adID,
 		BatchID:      ba.ID,
@@ -540,28 +563,28 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		PieceCid:     ba.PieceCid,
 		PieceSize:    ba.PieceSize,
 		Duration:     au.DealDuration,
-		Proposals:    make([]dealer.Proposal, len(au.WinningBids)),
+		Proposals:    make([]dealer.Proposal, len(acceptedWinners)),
 		RemoteWallet: rw,
 	}
 
-	var i int
-	for id, bid := range au.WinningBids {
-		ads.Proposals[i] = dealer.Proposal{
-			StorageProviderID:   bid.StorageProviderID,
-			PricePerGiBPerEpoch: bid.Price,
-			StartEpoch:          bid.StartEpoch,
-			Verified:            au.DealVerified,
-			FastRetrieval:       bid.FastRetrieval,
-			AuctionID:           au.ID,
-			BidID:               id,
+	for i := range acceptedWinners {
+		for bidID, bid := range au.WinningBids {
+			if bid.StorageProviderID == acceptedWinners[i] {
+				ads.Proposals[i] = dealer.Proposal{
+					StorageProviderID:   bid.StorageProviderID,
+					PricePerGiBPerEpoch: bid.Price,
+					StartEpoch:          bid.StartEpoch,
+					Verified:            au.DealVerified,
+					FastRetrieval:       bid.FastRetrieval,
+					AuctionID:           au.ID,
+					BidID:               bidID,
+				}
+				break
+			}
 		}
-		i++
 	}
 
-	if err := b.store.AddDeals(ctx, au); err != nil {
-		return fmt.Errorf("adding storage-provider deals: %s", err)
-	}
-
+	// Fire the deals only with accepted winners.
 	log.Debugf("publishing ready to create deals for auction %s, batch %s", au.ID, au.BatchID)
 	if err := msgbroker.PublishMsgReadyToCreateDeals(ctx, b.mb, ads); err != nil {
 		return fmt.Errorf("sending ready to create deals msg to msgbroker: %s", err)

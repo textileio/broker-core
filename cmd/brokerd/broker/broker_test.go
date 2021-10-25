@@ -207,6 +207,127 @@ func TestExclusionList(t *testing.T) {
 	require.Equal(t, "f0011", rda.ExcludedStorageProviders[0])
 }
 
+func TestAuctionClosedWithRepeaterStorageProvider(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	batchDeadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	proposalStartOffset := time.Second * 30
+	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+	carURLStr := "https://duke.dog/car/" + payloadCid.String()
+	carURL, _ := url.Parse(carURLStr)
+	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	require.NoError(t, err)
+	pc := broker.PreparedCAR{
+		PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize:           1024,
+		RepFactor:           1,
+		Deadline:            batchDeadline,
+		ProposalStartOffset: proposalStartOffset,
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
+				URL: *carURL,
+			},
+			CARIPFS: &auction.CARIPFS{
+				Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+				Multiaddrs: []multiaddr.Multiaddr{maddr},
+			},
+		},
+	}
+
+	b, mb, _ := createBroker(t)
+
+	// 1. Create a first auction for data.
+	br1, err := b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	// Assert the usual first auction was fired, obviously withouth excluded miners
+	// since is the first one. Check just in case.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	rda := &pb.ReadyToAuction{}
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Empty(t, rda.ExcludedStorageProviders)
+
+	// 2. Before closing the auction from above, fire a new request for the same data
+	//    to create a new auction.
+	br2, err := b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	// Assert that this second auction doesn't have excluded miners. This is the case
+	// since the first auction wasn't closed yet. The idea of this test is that the second one
+	// closing will overlap a winner with the first one.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err = mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Empty(t, rda.ExcludedStorageProviders)
+
+	// 3. Close the first auction with winner f0011.
+	winningBids := map[auction.BidID]broker.WinningBid{
+		auction.BidID("Bid1"): {
+			StorageProviderID: "f0011",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
+		},
+	}
+	auc1 := broker.ClosedAuction{
+		ID:              auction.ID("AUCTION1"),
+		BatchID:         br1.BatchID,
+		DealDuration:    auction.MaxDealDuration,
+		DealReplication: 1,
+		Status:          broker.AuctionStatusFinalized,
+		WinningBids:     winningBids,
+	}
+	err = b.BatchAuctioned(ctx, "op-id", auc1)
+	require.NoError(t, err)
+	// Assert no new auction was fired; f0011 is an acceptable winner.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	// Assert that a msg was sent to dealerd since it should continue with deal making.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToCreateDealsTopic))
+
+	// 4. Close the second auction with also f0011 as the winner. This should fire
+	//    a new auction since this miner overlaps with the previous closed auction!
+	winningBids = map[auction.BidID]broker.WinningBid{
+		auction.BidID("Bid2"): {
+			StorageProviderID: "f0011",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
+		},
+	}
+	auc2 := broker.ClosedAuction{
+		ID:              auction.ID("AUCTION2"),
+		BatchID:         br2.BatchID,
+		DealDuration:    auction.MaxDealDuration,
+		DealReplication: 1,
+		Status:          broker.AuctionStatusFinalized,
+		WinningBids:     winningBids,
+	}
+	err = b.BatchAuctioned(ctx, "op-id-2", auc2)
+	require.NoError(t, err)
+
+	// Check that *no* deal making messages were fired. The winner f0011 should be
+	// ignored since in theorey we're already making a deal with them. The broker
+	// is basically ignoring the result and firing a new auction to look for another.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToCreateDealsTopic))
+
+	// Check that a *new* auction was fired, since the winner from this second auction
+	// overlaps with a winner from the previous one. This should fire a new auction
+	// with f0011 in the exclusion list.
+	require.Equal(t, 3, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err = mb.GetMsg(mbroker.ReadyToAuctionTopic, 2)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Len(t, rda.ExcludedStorageProviders, 1)
+	require.Equal(t, "f0011", rda.ExcludedStorageProviders[0])
+}
+
 func TestCreatePrepared(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
