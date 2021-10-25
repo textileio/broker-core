@@ -335,8 +335,6 @@ func (s *Store) BatchToAuctioning(
 }
 
 // BatchError moves a batch to an error status with a specified error cause.
-// The underlying storage requests are moved to Batching status. The caller is responsible to
-// schedule again this storage requests to Packer.
 func (s *Store) BatchError(
 	ctx context.Context,
 	id broker.BatchID,
@@ -358,7 +356,7 @@ func (s *Store) BatchError(
 			brIDs, err = txn.GetStorageRequestIDs(ctx, batchIDToSQL(id))
 			return err
 		default:
-			return fmt.Errorf("wrong storage request status transition, tried moving to %s", ba.Status)
+			return fmt.Errorf("wrong batch %s status transition, tried from %s", ba.ID, ba.Status)
 		}
 
 		// 2. Move the Batch to BatchError with the error cause.
