@@ -265,9 +265,9 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 			return storage.Request{}, fmt.Errorf("deadline should be in RFC3339 format: %s", err)
 		}
 	}
-	var proposalDuration time.Duration
-	if adr.ProposalStartOffsetHours != 0 {
-		proposalDuration = time.Hour * time.Duration(adr.ProposalStartOffsetHours)
+	var proposalMaxDuration time.Duration
+	if adr.MaxProposalDeadlineHours != 0 {
+		proposalMaxDuration = time.Hour * time.Duration(adr.MaxProposalDeadlineHours)
 	}
 
 	// Sources.
@@ -280,7 +280,7 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		PieceSize:           adr.PieceSize,
 		RepFactor:           adr.RepFactor,
 		Deadline:            deadline,
-		ProposalStartOffset: proposalDuration,
+		ProposalStartOffset: proposalMaxDuration,
 		Sources:             sources,
 	}
 	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
