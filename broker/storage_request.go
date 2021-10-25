@@ -13,8 +13,6 @@ import (
 const (
 	// CodecFilCommitmentUnsealed is the IPLD codec for PieceCid cids.
 	CodecFilCommitmentUnsealed = 0xf101
-	// DefaultPreparedCARDeadline is the default deadline for prepared CAR deals.
-	DefaultPreparedCARDeadline = time.Hour * 48
 	// MaxPieceSize is the maximum piece size accepted for prepared data.
 	MaxPieceSize = 32 << 30
 	// MinDealReplication is the minimum allowed deal replication requested of storage-providers.
@@ -52,11 +50,12 @@ type StorageRequestDeal struct {
 
 // PreparedCAR contains information about prepared data.
 type PreparedCAR struct {
-	PieceCid  cid.Cid
-	PieceSize uint64
-	RepFactor int
-	Deadline  time.Time
-	Sources   auction.Sources
+	PieceCid            cid.Cid
+	PieceSize           uint64
+	RepFactor           int
+	Deadline            time.Time
+	ProposalStartOffset time.Duration
+	Sources             auction.Sources
 }
 
 // BatchMetadata is metadata about a batch.

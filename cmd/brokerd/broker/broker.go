@@ -184,32 +184,41 @@ func (b *Broker) CreatePrepared(
 	if pc.RepFactor == 0 {
 		pc.RepFactor = int(b.conf.dealReplication)
 	}
-
-	auctionDeadline := time.Now().Add(b.conf.auctionDuration)
-	if pc.Deadline.Before(auctionDeadline) {
-		log.Warnf("storage-request tighter than default auction duration %s", sr.ID)
-		auctionDeadline = pc.Deadline
+	if pc.ProposalStartOffset < 0 {
+		return broker.StorageRequest{}, fmt.Errorf("proposals start offset is negative")
 	}
-
-	batchEpochDeadline, err := timeToFilEpoch(pc.Deadline)
+	proposalStartOffset := b.conf.defaultProposalStartOffset
+	if pc.ProposalStartOffset != 0 {
+		proposalStartOffset = pc.ProposalStartOffset
+	}
+	batchDeadline := time.Now().Add(b.conf.defaultBatchDeadline)
+	if !pc.Deadline.IsZero() {
+		if pc.Deadline.Before(batchDeadline) {
+			log.Warnf("storage-request tighter than default auction duration %s", sr.ID)
+		}
+		batchDeadline = pc.Deadline
+	}
+	batchDeadlineEpoch, err := timeToFilEpoch(batchDeadline)
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating batch epoch deadline: %s", err)
 	}
+
 	batchID, err := b.newID()
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("generating batch id: %s", err)
 	}
 	ba := &broker.Batch{
-		ID:                 broker.BatchID(batchID),
-		RepFactor:          pc.RepFactor,
-		DealDuration:       int(b.conf.dealDuration),
-		Status:             broker.BatchStatusAuctioning,
-		Sources:            pc.Sources,
-		DisallowRebatching: true,
-		FilEpochDeadline:   batchEpochDeadline,
-		Origin:             meta.Origin,
-		Tags:               meta.Tags,
-		Providers:          meta.Providers,
+		ID:                  broker.BatchID(batchID),
+		RepFactor:           pc.RepFactor,
+		DealDuration:        int(b.conf.dealDuration),
+		Status:              broker.BatchStatusAuctioning,
+		Sources:             pc.Sources,
+		DisallowRebatching:  true,
+		FilEpochDeadline:    batchDeadlineEpoch,
+		ProposalStartOffset: proposalStartOffset,
+		Origin:              meta.Origin,
+		Tags:                meta.Tags,
+		Providers:           meta.Providers,
 
 		PayloadCid:  payloadCid,
 		PayloadSize: nil, // On prepared CARs this information isn't provided.
@@ -236,12 +245,12 @@ func (b *Broker) CreatePrepared(
 	}
 	sr.BatchID = ba.ID
 
-	auctionEpochDeadline, err := timeToFilEpoch(auctionDeadline)
+	proposalStartOffsetEpoch, err := timeToFilEpoch(time.Now().Add(proposalStartOffset))
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating auction epoch deadline: %s", err)
 	}
 
-	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, nil, auctionEpochDeadline)
+	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, proposalStartOffsetEpoch)
 	if err != nil {
 		return broker.StorageRequest{}, err
 	}
@@ -313,15 +322,16 @@ func (b *Broker) CreateNewBatch(
 	}
 
 	ba := broker.Batch{
-		ID:                 batchID,
-		PayloadCid:         batchCid,
-		PayloadSize:        &batchSize,
-		RepFactor:          int(b.conf.dealReplication),
-		DealDuration:       int(b.conf.dealDuration),
-		Status:             broker.BatchStatusPreparing,
-		Origin:             origin,
-		DisallowRebatching: false,
-		FilEpochDeadline:   0, // For internal batches, we currently don't have hard deadlines.
+		ID:                  batchID,
+		PayloadCid:          batchCid,
+		PayloadSize:         &batchSize,
+		RepFactor:           int(b.conf.dealReplication),
+		DealDuration:        int(b.conf.dealDuration),
+		Status:              broker.BatchStatusPreparing,
+		Origin:              origin,
+		DisallowRebatching:  false,
+		FilEpochDeadline:    0, // For internal batches, we currently don't have hard deadlines.
+		ProposalStartOffset: b.conf.defaultProposalStartOffset,
 		Sources: auction.Sources{
 			CARURL: &auction.CARURL{
 				URL: *carURL,
@@ -386,7 +396,11 @@ func (b *Broker) NewBatchPrepared(
 		return fmt.Errorf("saving piecer output in batch: %s", err)
 	}
 
-	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, nil, ba.FilEpochDeadline)
+	proposalStartEpoch, err := timeToFilEpoch(time.Now().Add(ba.ProposalStartOffset))
+	if err != nil {
+		return fmt.Errorf("calculating proposal start epoch: %s", err)
+	}
+	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, proposalStartEpoch)
 	if err != nil {
 		return err
 	}
@@ -400,7 +414,6 @@ func (b *Broker) startAuction(ctx context.Context,
 	rw *broker.RemoteWallet,
 	repFactor int,
 	pieceSize uint64,
-	excludedStorageProviders []string,
 	filEpochDeadline uint64) (auction.ID, error) {
 	auctionID, err := b.newID()
 	if err != nil {
@@ -412,6 +425,31 @@ func (b *Broker) startAuction(ctx context.Context,
 	} else {
 		clientAddress = common.StringifyAddr(b.conf.defaultWalletAddr)
 	}
+
+	excludedSPs, err := b.store.GetExcludedStorageProviders(ctx, ba.PieceCid, ba.Origin)
+	if err != nil {
+		return "", fmt.Errorf("get excluded storage providers for %s:%s: %s", ba.PieceCid, ba.Origin, err)
+	}
+	// If this was a direct2provider auctioned batch, we still need at least 1 non-excluded
+	// miner to have the possibility of closing successfully. If we need to re-auction and don't
+	// have room for any miner to win, then re-auctioning won't make sense and it will fail.
+	if len(ba.Providers) > 0 {
+		var excludedTargetedProviders []string
+		for _, targetedSP := range ba.Providers {
+			for _, excludedSP := range excludedSPs {
+				if common.StringifyAddr(targetedSP) == excludedSP {
+					excludedTargetedProviders = append(excludedTargetedProviders, excludedSP)
+					break
+				}
+			}
+		}
+		if len(excludedTargetedProviders) == len(ba.Providers) {
+			errCause := "no available miners can be selected for re-auctioning"
+			log.Warn(errCause)
+			_, err := b.batchError(ctx, ba, errCause, false)
+			return "", fmt.Errorf("erroring batch for %q: %s", errCause, err)
+		}
+	}
 	if err := msgbroker.PublishMsgReadyToAuction(
 		ctx,
 		b.mb,
@@ -422,7 +460,7 @@ func (b *Broker) startAuction(ctx context.Context,
 		ba.DealDuration,
 		repFactor,
 		b.conf.verifiedDeals,
-		excludedStorageProviders,
+		excludedSPs,
 		filEpochDeadline,
 		ba.Sources,
 		clientAddress,
@@ -495,6 +533,29 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		return fmt.Errorf("generating auction deal id: %s", err)
 	}
 
+	acceptedWinners, err := b.store.AddDeals(ctx, au)
+	if err != nil {
+		return fmt.Errorf("adding auction accepted winners: %s", err)
+	}
+
+	// If not all auction winners were accepted, then we should fire an auction to fill the gap.
+	if len(acceptedWinners) != len(au.WinningBids) {
+		propStartEpoch, err := timeToFilEpoch(time.Now().Add(ba.ProposalStartOffset))
+		if err != nil {
+			return fmt.Errorf("calculating auction start offset: %s", err)
+		}
+		_, err = b.startAuction(ctx, ba, rw, len(au.WinningBids)-len(acceptedWinners), ba.PieceSize, propStartEpoch)
+		if err != nil {
+			return fmt.Errorf("creating new auction for discarded miners: %s", err)
+		}
+	}
+
+	// If we had not accepted winners, we don't have to fire new deals, so return early.
+	if len(acceptedWinners) == 0 {
+		log.Infof("auction %s didn't fire deals since all winners weren't accepted", au.ID)
+		return nil
+	}
+
 	ads := dealer.AuctionDeals{
 		ID:           adID,
 		BatchID:      ba.ID,
@@ -502,28 +563,28 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		PieceCid:     ba.PieceCid,
 		PieceSize:    ba.PieceSize,
 		Duration:     au.DealDuration,
-		Proposals:    make([]dealer.Proposal, len(au.WinningBids)),
+		Proposals:    make([]dealer.Proposal, len(acceptedWinners)),
 		RemoteWallet: rw,
 	}
 
-	var i int
-	for id, bid := range au.WinningBids {
-		ads.Proposals[i] = dealer.Proposal{
-			StorageProviderID:   bid.StorageProviderID,
-			PricePerGiBPerEpoch: bid.Price,
-			StartEpoch:          bid.StartEpoch,
-			Verified:            au.DealVerified,
-			FastRetrieval:       bid.FastRetrieval,
-			AuctionID:           au.ID,
-			BidID:               id,
+	for i := range acceptedWinners {
+		for bidID, bid := range au.WinningBids {
+			if bid.StorageProviderID == acceptedWinners[i] {
+				ads.Proposals[i] = dealer.Proposal{
+					StorageProviderID:   bid.StorageProviderID,
+					PricePerGiBPerEpoch: bid.Price,
+					StartEpoch:          bid.StartEpoch,
+					Verified:            au.DealVerified,
+					FastRetrieval:       bid.FastRetrieval,
+					AuctionID:           au.ID,
+					BidID:               bidID,
+				}
+				break
+			}
 		}
-		i++
 	}
 
-	if err := b.store.AddDeals(ctx, au); err != nil {
-		return fmt.Errorf("adding storage-provider deals: %s", err)
-	}
-
+	// Fire the deals only with accepted winners.
 	log.Debugf("publishing ready to create deals for auction %s, batch %s", au.ID, au.BatchID)
 	if err := msgbroker.PublishMsgReadyToCreateDeals(ctx, b.mb, ads); err != nil {
 		return fmt.Errorf("sending ready to create deals msg to msgbroker: %s", err)
@@ -570,55 +631,35 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 	// 1.a If the finalized deal errored, we should create a new auction with replication factor 1,
 	//     and we're done.
 	if fad.ErrorCause != "" {
-		var excludedStorageProviders []string
-		for _, deal := range deals {
-			excludedStorageProviders = append(excludedStorageProviders, deal.StorageProviderID)
-		}
-
-		// If this was a direct2provider auctioned batch, we still need at least 1 non-excluded
-		// miner to have the possibility of closing successfully. If we need to re-auction and don't
-		// have room for any miner to win, then re-auctioning won't make sense and it will fail.
-		if len(ba.Providers) > 0 && len(excludedStorageProviders) == len(ba.Providers) {
-			errCause := "no available miners can be selected for re-auctioning"
-			log.Warn(errCause)
-			_, err := b.batchError(ctx, ba, errCause, false)
-			return err
-		}
-
 		log.Infof("creating new auction for failed deal with storage-provider %s", fad.StorageProviderID)
 
 		isMinerMisconfigured := strings.Contains(fad.ErrorCause, "deal rejected")
 
-		auctionDeadlineEpoch := ba.FilEpochDeadline
+		proposalStartEpoch, err := timeToFilEpoch(time.Now().Add(ba.ProposalStartOffset))
+		if err != nil {
+			return fmt.Errorf("calculating auction start offset: %s", err)
+		}
+
 		// If the Batch has a specific deadline, check if the re-auction can be run
 		// considering the broker auction duration. If doesn't fit before the known deadline
 		// we can't reauction and we fail the batch.
 		//
 		// If the batch doesn't have a specified deadline (==0), we can re-auction without deadline
 		// constraint.
-		if !isMinerMisconfigured && ba.FilEpochDeadline > 0 {
-			auctionDeadline := time.Now().Add(b.conf.auctionDuration)
-			auctionDeadlineEpoch, err = timeToFilEpoch(auctionDeadline)
-			if err != nil {
-				return fmt.Errorf("calculating auction epoch deadline: %s", err)
-			}
-
-			// Would the auction finish after the batch specified deadline?
-			if ba.FilEpochDeadline < auctionDeadlineEpoch {
-				errCause := fmt.Sprintf(
-					"re-auction deadline %d is greater than batch deadline  %d: "+msgAuctionDeadlineExceeded,
-					auctionDeadlineEpoch, ba.FilEpochDeadline)
-				log.Warn(errCause)
-				_, err := b.batchError(ctx, ba, errCause, false)
-				return err
-			}
+		if !isMinerMisconfigured && ba.FilEpochDeadline > 0 && ba.FilEpochDeadline < proposalStartEpoch {
+			errCause := fmt.Sprintf(
+				"re-auction deadline %d is greater than batch deadline  %d: "+msgAuctionDeadlineExceeded,
+				proposalStartEpoch, ba.FilEpochDeadline)
+			log.Warn(errCause)
+			_, err := b.batchError(ctx, ba, errCause, false)
+			return err
 		}
 
 		rw, err := b.store.GetRemoteWalletConfig(ctx, ba.ID)
 		if err != nil {
 			return fmt.Errorf("get remote wallet config: %s", err)
 		}
-		_, err = b.startAuction(ctx, ba, rw, 1, ba.PieceSize, excludedStorageProviders, auctionDeadlineEpoch)
+		_, err = b.startAuction(ctx, ba, rw, 1, ba.PieceSize, proposalStartEpoch)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}

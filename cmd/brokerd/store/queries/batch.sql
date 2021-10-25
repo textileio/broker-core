@@ -9,6 +9,7 @@ INSERT INTO batches(
     car_ipfs_addrs,
     disallow_rebatching,
     fil_epoch_deadline,
+    proposal_start_offset_seconds,
     error,
     payload_cid,
     payload_size,
@@ -32,7 +33,8 @@ INSERT INTO batches(
       $13,
       $14,
       $15,
-      $16);
+      $16,
+      $17);
 
 -- name: CreateBatchManifest :exec
 INSERT INTO batch_manifests(

@@ -258,12 +258,16 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		return storage.Request{}, errors.New("rep-factor should can't be negative")
 	}
 
-	deadline := time.Now().Add(broker.DefaultPreparedCARDeadline)
+	var deadline time.Time
 	if adr.Deadline != "" {
 		deadline, err = time.Parse(time.RFC3339, adr.Deadline)
 		if err != nil {
 			return storage.Request{}, fmt.Errorf("deadline should be in RFC3339 format: %s", err)
 		}
+	}
+	var proposalMaxDuration time.Duration
+	if adr.MaxProposalDeadlineHours != 0 {
+		proposalMaxDuration = time.Hour * time.Duration(adr.MaxProposalDeadlineHours)
 	}
 
 	// Sources.
@@ -272,11 +276,12 @@ func (bs *BrokerStorage) CreateFromExternalSource(
 		return storage.Request{}, fmt.Errorf("parsing sources: %s", err)
 	}
 	pc := broker.PreparedCAR{
-		PieceCid:  pieceCid,
-		PieceSize: adr.PieceSize,
-		RepFactor: adr.RepFactor,
-		Deadline:  deadline,
-		Sources:   sources,
+		PieceCid:            pieceCid,
+		PieceSize:           adr.PieceSize,
+		RepFactor:           adr.RepFactor,
+		Deadline:            deadline,
+		ProposalStartOffset: proposalMaxDuration,
+		Sources:             sources,
 	}
 	if pc.Sources.CARURL == nil && pc.Sources.CARIPFS == nil {
 		return storage.Request{}, errors.New("at least one source must be specified")

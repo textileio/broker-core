@@ -22,6 +22,7 @@ INSERT INTO batches(
     car_ipfs_addrs,
     disallow_rebatching,
     fil_epoch_deadline,
+    proposal_start_offset_seconds,
     error,
     payload_cid,
     payload_size,
@@ -45,26 +46,28 @@ INSERT INTO batches(
       $13,
       $14,
       $15,
-      $16)
+      $16,
+      $17)
 `
 
 type CreateBatchParams struct {
-	ID                 broker.BatchID     `json:"id"`
-	Status             broker.BatchStatus `json:"status"`
-	RepFactor          int                `json:"repFactor"`
-	DealDuration       int                `json:"dealDuration"`
-	CarUrl             string             `json:"carUrl"`
-	CarIpfsCid         string             `json:"carIpfsCid"`
-	CarIpfsAddrs       string             `json:"carIpfsAddrs"`
-	DisallowRebatching bool               `json:"disallowRebatching"`
-	FilEpochDeadline   uint64             `json:"filEpochDeadline"`
-	Error              string             `json:"error"`
-	PayloadCid         string             `json:"payloadCid"`
-	PayloadSize        sql.NullInt64      `json:"payloadSize"`
-	PieceCid           string             `json:"pieceCid"`
-	PieceSize          uint64             `json:"pieceSize"`
-	Origin             string             `json:"origin"`
-	Providers          []string           `json:"providers"`
+	ID                         broker.BatchID     `json:"id"`
+	Status                     broker.BatchStatus `json:"status"`
+	RepFactor                  int                `json:"repFactor"`
+	DealDuration               int                `json:"dealDuration"`
+	CarUrl                     string             `json:"carUrl"`
+	CarIpfsCid                 string             `json:"carIpfsCid"`
+	CarIpfsAddrs               string             `json:"carIpfsAddrs"`
+	DisallowRebatching         bool               `json:"disallowRebatching"`
+	FilEpochDeadline           uint64             `json:"filEpochDeadline"`
+	ProposalStartOffsetSeconds int64              `json:"proposalStartOffsetSeconds"`
+	Error                      string             `json:"error"`
+	PayloadCid                 string             `json:"payloadCid"`
+	PayloadSize                sql.NullInt64      `json:"payloadSize"`
+	PieceCid                   string             `json:"pieceCid"`
+	PieceSize                  uint64             `json:"pieceSize"`
+	Origin                     string             `json:"origin"`
+	Providers                  []string           `json:"providers"`
 }
 
 func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error {
@@ -78,6 +81,7 @@ func (q *Queries) CreateBatch(ctx context.Context, arg CreateBatchParams) error 
 		arg.CarIpfsAddrs,
 		arg.DisallowRebatching,
 		arg.FilEpochDeadline,
+		arg.ProposalStartOffsetSeconds,
 		arg.Error,
 		arg.PayloadCid,
 		arg.PayloadSize,
@@ -158,7 +162,7 @@ func (q *Queries) CreateBatchTag(ctx context.Context, arg CreateBatchTagParams) 
 }
 
 const getBatch = `-- name: GetBatch :one
-SELECT id, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers, status, payload_size FROM batches
+SELECT id, rep_factor, deal_duration, payload_cid, piece_cid, piece_size, car_url, car_ipfs_cid, car_ipfs_addrs, disallow_rebatching, fil_epoch_deadline, error, origin, created_at, updated_at, providers, status, payload_size, proposal_start_offset_seconds FROM batches
 WHERE id = $1
 `
 
@@ -184,6 +188,7 @@ func (q *Queries) GetBatch(ctx context.Context, id broker.BatchID) (Batch, error
 		pq.Array(&i.Providers),
 		&i.Status,
 		&i.PayloadSize,
+		&i.ProposalStartOffsetSeconds,
 	)
 	return i, err
 }

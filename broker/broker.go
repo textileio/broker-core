@@ -71,17 +71,18 @@ type Broker interface {
 // store data in the Filecoin network. It groups one or multiple
 // StorageRequests.
 type Batch struct {
-	ID                 BatchID
-	Status             BatchStatus
-	RepFactor          int
-	DealDuration       int
-	Sources            auction.Sources
-	DisallowRebatching bool
-	FilEpochDeadline   uint64
-	Error              string
-	Origin             string
-	Tags               map[string]string
-	Providers          []address.Address
+	ID                  BatchID
+	Status              BatchStatus
+	RepFactor           int
+	DealDuration        int
+	Sources             auction.Sources
+	DisallowRebatching  bool
+	FilEpochDeadline    uint64
+	ProposalStartOffset time.Duration
+	Error               string
+	Origin              string
+	Tags                map[string]string
+	Providers           []address.Address
 
 	// Packer calculates this field after batching storage requests.
 	PayloadCid  cid.Cid

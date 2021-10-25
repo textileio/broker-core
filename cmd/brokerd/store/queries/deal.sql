@@ -28,3 +28,10 @@ WHERE batch_id = $1 AND storage_provider_id = $2;
 
 -- name: GetDeals :many
 SELECT * FROM deals WHERE batch_id = $1;
+
+-- name: GetExcludedStorageProviders :many
+SELECT DISTINCT d.storage_provider_id
+FROM deals d
+INNER JOIN batches b ON b.id=d.batch_id
+WHERE b.piece_cid=$1 AND
+      b.origin=$2;

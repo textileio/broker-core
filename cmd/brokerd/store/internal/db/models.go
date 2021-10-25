@@ -61,24 +61,25 @@ func (e *StorageRequestStatus) Scan(src interface{}) error {
 }
 
 type Batch struct {
-	ID                 broker.BatchID     `json:"id"`
-	RepFactor          int                `json:"repFactor"`
-	DealDuration       int                `json:"dealDuration"`
-	PayloadCid         string             `json:"payloadCid"`
-	PieceCid           string             `json:"pieceCid"`
-	PieceSize          uint64             `json:"pieceSize"`
-	CarUrl             string             `json:"carUrl"`
-	CarIpfsCid         string             `json:"carIpfsCid"`
-	CarIpfsAddrs       string             `json:"carIpfsAddrs"`
-	DisallowRebatching bool               `json:"disallowRebatching"`
-	FilEpochDeadline   uint64             `json:"filEpochDeadline"`
-	Error              string             `json:"error"`
-	Origin             string             `json:"origin"`
-	CreatedAt          time.Time          `json:"createdAt"`
-	UpdatedAt          time.Time          `json:"updatedAt"`
-	Providers          []string           `json:"providers"`
-	Status             broker.BatchStatus `json:"status"`
-	PayloadSize        sql.NullInt64      `json:"payloadSize"`
+	ID                         broker.BatchID     `json:"id"`
+	RepFactor                  int                `json:"repFactor"`
+	DealDuration               int                `json:"dealDuration"`
+	PayloadCid                 string             `json:"payloadCid"`
+	PieceCid                   string             `json:"pieceCid"`
+	PieceSize                  uint64             `json:"pieceSize"`
+	CarUrl                     string             `json:"carUrl"`
+	CarIpfsCid                 string             `json:"carIpfsCid"`
+	CarIpfsAddrs               string             `json:"carIpfsAddrs"`
+	DisallowRebatching         bool               `json:"disallowRebatching"`
+	FilEpochDeadline           uint64             `json:"filEpochDeadline"`
+	Error                      string             `json:"error"`
+	Origin                     string             `json:"origin"`
+	CreatedAt                  time.Time          `json:"createdAt"`
+	UpdatedAt                  time.Time          `json:"updatedAt"`
+	Providers                  []string           `json:"providers"`
+	Status                     broker.BatchStatus `json:"status"`
+	PayloadSize                sql.NullInt64      `json:"payloadSize"`
+	ProposalStartOffsetSeconds int64              `json:"proposalStartOffsetSeconds"`
 }
 
 type BatchManifest struct {

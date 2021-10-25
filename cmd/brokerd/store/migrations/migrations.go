@@ -11,6 +11,10 @@
 // migrations/004_status_enums.up.sql
 // migrations/005_payload_size.down.sql
 // migrations/005_payload_size.up.sql
+// migrations/006_add_dealstartoffset.down.sql
+// migrations/006_add_dealstartoffset.up.sql
+// migrations/007_piececididx.down.sql
+// migrations/007_piececididx.up.sql
 package migrations
 
 import (
@@ -102,7 +106,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 90, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -122,7 +126,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 2552, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -142,7 +146,7 @@ func _002_rwDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+	info := bindataFileInfo{name: "002_rw.down.sql", size: 32, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -162,7 +166,7 @@ func _002_rwUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+	info := bindataFileInfo{name: "002_rw.up.sql", size: 423, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -182,7 +186,7 @@ func _003_providersDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
+	info := bindataFileInfo{name: "003_providers.down.sql", size: 43, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -202,7 +206,7 @@ func _003_providersUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
+	info := bindataFileInfo{name: "003_providers.up.sql", size: 63, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -222,7 +226,7 @@ func _004_status_enumsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_status_enums.down.sql", size: 1435, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
+	info := bindataFileInfo{name: "004_status_enums.down.sql", size: 1435, mode: os.FileMode(436), modTime: time.Unix(1633541920, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -242,7 +246,7 @@ func _004_status_enumsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_status_enums.up.sql", size: 1728, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
+	info := bindataFileInfo{name: "004_status_enums.up.sql", size: 1728, mode: os.FileMode(436), modTime: time.Unix(1633541920, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -262,7 +266,7 @@ func _005_payload_sizeDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_payload_size.down.sql", size: 46, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
+	info := bindataFileInfo{name: "005_payload_size.down.sql", size: 46, mode: os.FileMode(436), modTime: time.Unix(1633611889, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -282,7 +286,87 @@ func _005_payload_sizeUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_payload_size.up.sql", size: 52, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
+	info := bindataFileInfo{name: "005_payload_size.up.sql", size: 52, mode: os.FileMode(436), modTime: time.Unix(1633611889, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __006_add_dealstartoffsetDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x4a\x2c\x49\xce\x48\x2d\x56\x70\x09\xf2\x0f\x50\x70\xf6\xf7\x09\xf5\xf5\x53\xf0\x74\x53\x70\x8d\xf0\x0c\x0e\x09\x56\x28\x28\xca\x2f\xc8\x2f\x4e\xcc\x89\x2f\x2e\x49\x2c\x2a\x89\xcf\x4f\x4b\x2b\x4e\x2d\x89\x2f\x4e\x4d\xce\xcf\x4b\x29\xb6\xe6\x02\x04\x00\x00\xff\xff\x14\xa2\x6b\x0f\x49\x00\x00\x00")
+
+func _006_add_dealstartoffsetDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__006_add_dealstartoffsetDownSql,
+		"006_add_dealstartoffset.down.sql",
+	)
+}
+
+func _006_add_dealstartoffsetDownSql() (*asset, error) {
+	bytes, err := _006_add_dealstartoffsetDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "006_add_dealstartoffset.down.sql", size: 73, mode: os.FileMode(436), modTime: time.Unix(1634734442, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __006_add_dealstartoffsetUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x7c\xce\xc1\x0a\xc2\x30\x10\x04\xd0\x7b\xbe\x62\x3f\xa1\x7a\x51\x08\x1e\xd2\x36\x96\x85\x34\x15\xb3\x01\x6f\x21\xd6\x14\x0f\x62\x4a\x37\xff\x8f\x50\x04\x4f\xf6\x3a\x30\x33\xaf\xd6\x1d\x5a\x29\x94\x21\x7d\x05\x52\xb5\xd1\x70\x8f\x65\x7c\x26\x06\xd5\xb6\xd0\x0c\xc6\xf7\x16\xf0\x0c\x76\x20\xd0\x37\x74\xe4\x60\x5e\xf2\x9c\x39\xbe\x02\x97\xb8\x94\x90\xa7\x89\x53\x09\x9c\xc6\xfc\x7e\x30\xd4\xd8\xa1\x25\x29\xfc\xa5\x55\xf4\x5b\xe3\x54\xb6\x8b\xa7\xdd\x61\x7f\xac\xaa\x3f\x96\x35\xfb\x6a\xb6\xff\x9d\xa6\x15\x6b\xbd\x31\x52\x34\x43\xdf\x23\x49\xf1\x09\x00\x00\xff\xff\x22\xe1\x8c\x4e\xe8\x00\x00\x00")
+
+func _006_add_dealstartoffsetUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__006_add_dealstartoffsetUpSql,
+		"006_add_dealstartoffset.up.sql",
+	)
+}
+
+func _006_add_dealstartoffsetUpSql() (*asset, error) {
+	bytes, err := _006_add_dealstartoffsetUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "006_add_dealstartoffset.up.sql", size: 232, mode: os.FileMode(436), modTime: time.Unix(1634849455, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __007_piececididxDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\xf0\xf4\x73\x71\x8d\x50\xf0\x74\x53\x70\x8d\xf0\x0c\x0e\x09\x56\x48\x4a\x2c\x49\xce\x88\x2f\xc8\x4c\x4d\x4e\x4d\xce\x4c\xb1\xe6\x02\x04\x00\x00\xff\xff\xd3\x0a\x89\xe1\x25\x00\x00\x00")
+
+func _007_piececididxDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_piececididxDownSql,
+		"007_piececididx.down.sql",
+	)
+}
+
+func _007_piececididxDownSql() (*asset, error) {
+	bytes, err := _007_piececididxDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_piececididx.down.sql", size: 37, mode: os.FileMode(436), modTime: time.Unix(1635171749, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __007_piececididxUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x0e\x72\x75\x0c\x71\x55\xf0\xf4\x73\x71\x8d\x50\xf0\x74\x53\xf0\xf3\x0f\x51\x70\x8d\xf0\x0c\x0e\x09\x56\x48\x4a\x2c\x49\xce\x88\x2f\xc8\x4c\x4d\x4e\x4d\xce\x4c\x51\xf0\xf7\x83\x88\xa4\x16\x6b\x80\xc5\xe2\x93\x33\x53\x34\xad\xb9\x00\x01\x00\x00\xff\xff\xa5\x61\x7a\x8a\x41\x00\x00\x00")
+
+func _007_piececididxUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_piececididxUpSql,
+		"007_piececididx.up.sql",
+	)
+}
+
+func _007_piececididxUpSql() (*asset, error) {
+	bytes, err := _007_piececididxUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_piececididx.up.sql", size: 65, mode: os.FileMode(436), modTime: time.Unix(1635171749, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -339,16 +423,20 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":         _001_initDownSql,
-	"001_init.up.sql":           _001_initUpSql,
-	"002_rw.down.sql":           _002_rwDownSql,
-	"002_rw.up.sql":             _002_rwUpSql,
-	"003_providers.down.sql":    _003_providersDownSql,
-	"003_providers.up.sql":      _003_providersUpSql,
-	"004_status_enums.down.sql": _004_status_enumsDownSql,
-	"004_status_enums.up.sql":   _004_status_enumsUpSql,
-	"005_payload_size.down.sql": _005_payload_sizeDownSql,
-	"005_payload_size.up.sql":   _005_payload_sizeUpSql,
+	"001_init.down.sql":                _001_initDownSql,
+	"001_init.up.sql":                  _001_initUpSql,
+	"002_rw.down.sql":                  _002_rwDownSql,
+	"002_rw.up.sql":                    _002_rwUpSql,
+	"003_providers.down.sql":           _003_providersDownSql,
+	"003_providers.up.sql":             _003_providersUpSql,
+	"004_status_enums.down.sql":        _004_status_enumsDownSql,
+	"004_status_enums.up.sql":          _004_status_enumsUpSql,
+	"005_payload_size.down.sql":        _005_payload_sizeDownSql,
+	"005_payload_size.up.sql":          _005_payload_sizeUpSql,
+	"006_add_dealstartoffset.down.sql": _006_add_dealstartoffsetDownSql,
+	"006_add_dealstartoffset.up.sql":   _006_add_dealstartoffsetUpSql,
+	"007_piececididx.down.sql":         _007_piececididxDownSql,
+	"007_piececididx.up.sql":           _007_piececididxUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -392,16 +480,20 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":         &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":           &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_rw.down.sql":           &bintree{_002_rwDownSql, map[string]*bintree{}},
-	"002_rw.up.sql":             &bintree{_002_rwUpSql, map[string]*bintree{}},
-	"003_providers.down.sql":    &bintree{_003_providersDownSql, map[string]*bintree{}},
-	"003_providers.up.sql":      &bintree{_003_providersUpSql, map[string]*bintree{}},
-	"004_status_enums.down.sql": &bintree{_004_status_enumsDownSql, map[string]*bintree{}},
-	"004_status_enums.up.sql":   &bintree{_004_status_enumsUpSql, map[string]*bintree{}},
-	"005_payload_size.down.sql": &bintree{_005_payload_sizeDownSql, map[string]*bintree{}},
-	"005_payload_size.up.sql":   &bintree{_005_payload_sizeUpSql, map[string]*bintree{}},
+	"001_init.down.sql":                &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":                  &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_rw.down.sql":                  &bintree{_002_rwDownSql, map[string]*bintree{}},
+	"002_rw.up.sql":                    &bintree{_002_rwUpSql, map[string]*bintree{}},
+	"003_providers.down.sql":           &bintree{_003_providersDownSql, map[string]*bintree{}},
+	"003_providers.up.sql":             &bintree{_003_providersUpSql, map[string]*bintree{}},
+	"004_status_enums.down.sql":        &bintree{_004_status_enumsDownSql, map[string]*bintree{}},
+	"004_status_enums.up.sql":          &bintree{_004_status_enumsUpSql, map[string]*bintree{}},
+	"005_payload_size.down.sql":        &bintree{_005_payload_sizeDownSql, map[string]*bintree{}},
+	"005_payload_size.up.sql":          &bintree{_005_payload_sizeUpSql, map[string]*bintree{}},
+	"006_add_dealstartoffset.down.sql": &bintree{_006_add_dealstartoffsetDownSql, map[string]*bintree{}},
+	"006_add_dealstartoffset.up.sql":   &bintree{_006_add_dealstartoffsetUpSql, map[string]*bintree{}},
+	"007_piececididx.down.sql":         &bintree{_007_piececididxDownSql, map[string]*bintree{}},
+	"007_piececididx.up.sql":           &bintree{_007_piececididxUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

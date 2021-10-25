@@ -110,40 +110,241 @@ func TestCreateBatch(t *testing.T) {
 	require.Equal(t, batchID, bri2.StorageRequest.BatchID)
 
 	// Check that the batch was persisted correctly.
-	sd2, err := b.GetBatch(ctx, batchID)
+	ba2, err := b.GetBatch(ctx, batchID)
 	require.NoError(t, err)
-	require.Equal(t, batchID, sd2.ID)
-	require.True(t, sd2.PayloadCid.Defined())
-	require.Equal(t, int64(1000), *sd2.PayloadSize)
-	require.Equal(t, broker.BatchStatusPreparing, sd2.Status)
+	require.Equal(t, batchID, ba2.ID)
+	require.True(t, ba2.PayloadCid.Defined())
+	require.Equal(t, int64(1000), *ba2.PayloadSize)
+	require.Equal(t, broker.BatchStatusPreparing, ba2.Status)
 	brs, err := b.store.GetStorageRequestIDs(ctx, batchID)
 	require.NoError(t, err)
 	require.Len(t, brs, 2)
-	require.True(t, time.Since(sd2.CreatedAt) < time.Minute)
-	require.True(t, time.Since(sd2.UpdatedAt) < time.Minute)
-	require.NotNil(t, sd2.Sources.CARURL)
-	require.Equal(t, carURL.String(), sd2.Sources.CARURL.URL.String())
-	require.Nil(t, sd2.Sources.CARIPFS)
-	require.Zero(t, sd2.FilEpochDeadline)
-	require.False(t, sd2.DisallowRebatching)
-	require.Equal(t, "OR", sd2.Origin)
+	require.True(t, time.Since(ba2.CreatedAt) < time.Minute)
+	require.True(t, time.Since(ba2.UpdatedAt) < time.Minute)
+	require.NotNil(t, ba2.Sources.CARURL)
+	require.Equal(t, carURL.String(), ba2.Sources.CARURL.URL.String())
+	require.Nil(t, ba2.Sources.CARIPFS)
+	require.Zero(t, ba2.FilEpochDeadline)
+	require.Equal(t, b.conf.defaultProposalStartOffset, ba2.ProposalStartOffset)
+	require.False(t, ba2.DisallowRebatching)
+	require.Equal(t, "OR", ba2.Origin)
 }
 
-func TestCreatePrepared(t *testing.T) {
+func TestExclusionList(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	deadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	batchDeadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	proposalStartOffset := time.Second * 30
 	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 	carURLStr := "https://duke.dog/car/" + payloadCid.String()
 	carURL, _ := url.Parse(carURLStr)
 	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
 	require.NoError(t, err)
 	pc := broker.PreparedCAR{
-		PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
-		PieceSize: 1024,
-		RepFactor: 3,
-		Deadline:  deadline,
+		PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize:           1024,
+		RepFactor:           1,
+		Deadline:            batchDeadline,
+		ProposalStartOffset: proposalStartOffset,
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
+				URL: *carURL,
+			},
+			CARIPFS: &auction.CARIPFS{
+				Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+				Multiaddrs: []multiaddr.Multiaddr{maddr},
+			},
+		},
+	}
+
+	b, mb, _ := createBroker(t)
+	// 1. Fire a prepared auction for a PieceCid and origin.
+	createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	winningBids := map[auction.BidID]broker.WinningBid{
+		auction.BidID("Bid1"): {
+			StorageProviderID: "f0011",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
+		},
+	}
+
+	auction := broker.ClosedAuction{
+		ID:              auction.ID("AUCTION1"),
+		BatchID:         createdBr.BatchID,
+		DealDuration:    auction.MaxDealDuration,
+		DealReplication: 1,
+		Status:          broker.AuctionStatusFinalized,
+		WinningBids:     winningBids,
+	}
+	err = b.BatchAuctioned(ctx, "op-id", auction)
+	require.NoError(t, err)
+
+	// Check that this first auction doesn't have any excluded miners list.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	rda := &pb.ReadyToAuction{}
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Empty(t, rda.ExcludedStorageProviders)
+
+	// 2. Fire exactly the same PieceCid with the same origin. The created auction should
+	//    exclude f0011 since was a winner in a previous (cross-request) auction.
+	_, err = b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	// Check that this auction have the f0011 as an excluded storage provider.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err = mb.GetMsg(mbroker.ReadyToAuctionTopic, 1)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Len(t, rda.ExcludedStorageProviders, 1)
+	require.Equal(t, "f0011", rda.ExcludedStorageProviders[0])
+}
+
+func TestAuctionClosedWithRepeaterStorageProvider(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	batchDeadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	proposalStartOffset := time.Second * 30
+	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+	carURLStr := "https://duke.dog/car/" + payloadCid.String()
+	carURL, _ := url.Parse(carURLStr)
+	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	require.NoError(t, err)
+	pc := broker.PreparedCAR{
+		PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize:           1024,
+		RepFactor:           1,
+		Deadline:            batchDeadline,
+		ProposalStartOffset: proposalStartOffset,
+		Sources: auction.Sources{
+			CARURL: &auction.CARURL{
+				URL: *carURL,
+			},
+			CARIPFS: &auction.CARIPFS{
+				Cid:        castCid("QmW2dMfxsd3YpS5MSMi5UUTbjMKUckZJjX5ouaQPuCjK8c"),
+				Multiaddrs: []multiaddr.Multiaddr{maddr},
+			},
+		},
+	}
+
+	b, mb, _ := createBroker(t)
+
+	// 1. Create a first auction for data.
+	br1, err := b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	// Assert the usual first auction was fired, obviously withouth excluded miners
+	// since is the first one. Check just in case.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	rda := &pb.ReadyToAuction{}
+	data, err := mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Empty(t, rda.ExcludedStorageProviders)
+
+	// 2. Before closing the auction from above, fire a new request for the same data
+	//    to create a new auction.
+	br2, err := b.CreatePrepared(ctx, payloadCid, pc, meta, nil)
+	require.NoError(t, err)
+
+	// Assert that this second auction doesn't have excluded miners. This is the case
+	// since the first auction wasn't closed yet. The idea of this test is that the second one
+	// closing will overlap a winner with the first one.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err = mb.GetMsg(mbroker.ReadyToAuctionTopic, 0)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Empty(t, rda.ExcludedStorageProviders)
+
+	// 3. Close the first auction with winner f0011.
+	winningBids := map[auction.BidID]broker.WinningBid{
+		auction.BidID("Bid1"): {
+			StorageProviderID: "f0011",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
+		},
+	}
+	auc1 := broker.ClosedAuction{
+		ID:              auction.ID("AUCTION1"),
+		BatchID:         br1.BatchID,
+		DealDuration:    auction.MaxDealDuration,
+		DealReplication: 1,
+		Status:          broker.AuctionStatusFinalized,
+		WinningBids:     winningBids,
+	}
+	err = b.BatchAuctioned(ctx, "op-id", auc1)
+	require.NoError(t, err)
+	// Assert no new auction was fired; f0011 is an acceptable winner.
+	require.Equal(t, 2, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	// Assert that a msg was sent to dealerd since it should continue with deal making.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToCreateDealsTopic))
+
+	// 4. Close the second auction with also f0011 as the winner. This should fire
+	//    a new auction since this miner overlaps with the previous closed auction!
+	winningBids = map[auction.BidID]broker.WinningBid{
+		auction.BidID("Bid2"): {
+			StorageProviderID: "f0011",
+			Price:             200,
+			StartEpoch:        300,
+			FastRetrieval:     true,
+		},
+	}
+	auc2 := broker.ClosedAuction{
+		ID:              auction.ID("AUCTION2"),
+		BatchID:         br2.BatchID,
+		DealDuration:    auction.MaxDealDuration,
+		DealReplication: 1,
+		Status:          broker.AuctionStatusFinalized,
+		WinningBids:     winningBids,
+	}
+	err = b.BatchAuctioned(ctx, "op-id-2", auc2)
+	require.NoError(t, err)
+
+	// Check that *no* deal making messages were fired. The winner f0011 should be
+	// ignored since in theorey we're already making a deal with them. The broker
+	// is basically ignoring the result and firing a new auction to look for another.
+	require.Equal(t, 1, mb.TotalPublishedTopic(mbroker.ReadyToCreateDealsTopic))
+
+	// Check that a *new* auction was fired, since the winner from this second auction
+	// overlaps with a winner from the previous one. This should fire a new auction
+	// with f0011 in the exclusion list.
+	require.Equal(t, 3, mb.TotalPublishedTopic(mbroker.ReadyToAuctionTopic))
+	data, err = mb.GetMsg(mbroker.ReadyToAuctionTopic, 2)
+	require.NoError(t, err)
+	err = proto.Unmarshal(data, rda)
+	require.NoError(t, err)
+	require.Len(t, rda.ExcludedStorageProviders, 1)
+	require.Equal(t, "f0011", rda.ExcludedStorageProviders[0])
+}
+
+func TestCreatePrepared(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	batchDeadline, _ := time.Parse(time.RFC3339, "2100-01-01T00:00:00+00:00")
+	proposalStartOffset := time.Second * 30
+	payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
+	carURLStr := "https://duke.dog/car/" + payloadCid.String()
+	carURL, _ := url.Parse(carURLStr)
+	maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
+	require.NoError(t, err)
+	pc := broker.PreparedCAR{
+		PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+		PieceSize:           1024,
+		RepFactor:           3,
+		Deadline:            batchDeadline,
+		ProposalStartOffset: proposalStartOffset,
 		Sources: auction.Sources{
 			CARURL: &auction.CARURL{
 				URL: *carURL,
@@ -184,7 +385,6 @@ func TestCreatePrepared(t *testing.T) {
 			t.Parallel()
 			b, mb, _ := createBroker(t)
 
-			expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
 			createdBr, err := b.CreatePrepared(ctx, payloadCid, pc, test.meta, test.rw)
 			require.NoError(t, err)
 
@@ -197,38 +397,39 @@ func TestCreatePrepared(t *testing.T) {
 			// 3- Check that the batch was created correctly, in particular:
 			//    - The download sources URL and IPFS.
 			//    - The FIL epoch deadline which should have been converted from time.Time to a FIL epoch.
-			//    - The PayloadCId, PiceceCid and PieceSize which come from the prepared data parameters.
+			//    - The PayloadCid, PiceceCid and PieceSize which come from the prepared data parameters.
 			//    - The providers were persisted correctly (if specified).
-			sd, err := b.GetBatch(ctx, br.BatchID)
+			ba, err := b.GetBatch(ctx, br.BatchID)
 			require.NoError(t, err)
-			require.Equal(t, pc.RepFactor, sd.RepFactor)
-			require.True(t, sd.DisallowRebatching)
-			require.Equal(t, b.conf.dealDuration, uint64(sd.DealDuration))
-			require.Equal(t, broker.BatchStatusAuctioning, sd.Status)
+			require.Equal(t, pc.RepFactor, ba.RepFactor)
+			require.True(t, ba.DisallowRebatching)
+			require.Equal(t, b.conf.dealDuration, uint64(ba.DealDuration))
+			require.Equal(t, broker.BatchStatusAuctioning, ba.Status)
 			brs, err := b.store.GetStorageRequestIDs(ctx, br.BatchID)
 			require.NoError(t, err)
 			require.Len(t, brs, 1)
 			require.Contains(t, brs, br.ID)
-			require.NotNil(t, sd.Sources.CARURL)
-			require.Equal(t, carURLStr, sd.Sources.CARURL.URL.String())
-			require.NotNil(t, sd.Sources.CARIPFS)
-			require.Equal(t, pc.Sources.CARIPFS.Cid, sd.Sources.CARIPFS.Cid)
+			require.NotNil(t, ba.Sources.CARURL)
+			require.Equal(t, carURLStr, ba.Sources.CARURL.URL.String())
+			require.NotNil(t, ba.Sources.CARIPFS)
+			require.Equal(t, pc.Sources.CARIPFS.Cid, ba.Sources.CARIPFS.Cid)
 			require.Len(t, pc.Sources.CARIPFS.Multiaddrs, 1)
-			require.Contains(t, sd.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
-			deadlineEpoch, _ := timeToFilEpoch(deadline)
-			require.Equal(t, deadlineEpoch, sd.FilEpochDeadline)
-			require.Equal(t, payloadCid, sd.PayloadCid)
-			require.Equal(t, pc.PieceCid, sd.PieceCid)
-			require.Equal(t, pc.PieceSize, sd.PieceSize)
-			require.Len(t, sd.Tags, len(meta.Tags))
+			require.Contains(t, ba.Sources.CARIPFS.Multiaddrs, pc.Sources.CARIPFS.Multiaddrs[0])
+			batchDeadlineEpoch, _ := timeToFilEpoch(batchDeadline)
+			require.Equal(t, batchDeadlineEpoch, ba.FilEpochDeadline)
+			require.Equal(t, proposalStartOffset, ba.ProposalStartOffset)
+			require.Equal(t, payloadCid, ba.PayloadCid)
+			require.Equal(t, pc.PieceCid, ba.PieceCid)
+			require.Equal(t, pc.PieceSize, ba.PieceSize)
+			require.Len(t, ba.Tags, len(meta.Tags))
 			for k, v := range meta.Tags {
-				v2, ok := sd.Tags[k]
+				v2, ok := ba.Tags[k]
 				require.True(t, ok)
 				require.Equal(t, v, v2)
 			}
-			require.Len(t, sd.Providers, len(test.meta.Providers))
+			require.Len(t, ba.Providers, len(test.meta.Providers))
 			for _, metaProvider := range meta.Providers {
-				require.Contains(t, sd.Providers, metaProvider)
+				require.Contains(t, ba.Providers, metaProvider)
 			}
 			rw, err := b.store.GetRemoteWalletConfig(ctx, br.BatchID)
 			require.NoError(t, err)
@@ -254,11 +455,12 @@ func TestCreatePrepared(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, b.conf.dealDuration, rda.DealDuration)
 			require.Equal(t, payloadCid.Bytes(), rda.PayloadCid)
-			require.Equal(t, sd.PieceSize, rda.DealSize)
-			require.Equal(t, string(sd.ID), rda.BatchId)
+			require.Equal(t, ba.PieceSize, rda.DealSize)
+			require.Equal(t, string(ba.ID), rda.BatchId)
 			require.Equal(t, pc.RepFactor, int(rda.DealReplication))
 			require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-			require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
+			proposalStartEpoch, _ := timeToFilEpoch(time.Now().Add(proposalStartOffset))
+			require.Equal(t, proposalStartEpoch, rda.FilEpochDeadline)
 			require.NotNil(t, rda.Sources.CarUrl)
 			require.Equal(t, pc.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 			require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
@@ -353,7 +555,8 @@ func TestBatchPrepared(t *testing.T) {
 	require.Equal(t, string(sd), rda.BatchId)
 	require.Equal(t, b.conf.dealReplication, rda.DealReplication)
 	require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-	require.Zero(t, rda.FilEpochDeadline)
+	propStartEpoch, _ := timeToFilEpoch(time.Now().Add(b.conf.defaultProposalStartOffset))
+	require.Equal(t, propStartEpoch, rda.FilEpochDeadline)
 	require.NotNil(t, rda.Sources.CarUrl)
 	require.Equal(t, "http://duke.web3/car/"+sd2.PayloadCid.String(), rda.Sources.CarUrl.Url)
 
@@ -795,17 +998,20 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	// brokerSetup is a function that creates a storage request,
 	// includes it in a batch, runs an auction, and close it.
 	// It leaves the broker prepared to receive finalized deals messages to be processed.
-	brokerSetup := func(t *testing.T, b *Broker, batchDeadline time.Time) (broker.StorageRequest, broker.ClosedAuction) {
+	brokerSetup := func(t *testing.T,
+		b *Broker,
+		propStartEpoch, aucDeadline time.Duration) (broker.StorageRequest, broker.ClosedAuction) {
 		payloadCid := castCid("QmWc1T3ZMtAemjdt7Z87JmFVGjtxe4S6sNwn9zhvcNP1Fs")
 		carURLStr := "https://duke.dog/car/" + payloadCid.String()
 		carURL, _ := url.Parse(carURLStr)
 		maddr, err := multiaddr.NewMultiaddr("/ip4/192.0.0.1/tcp/2020")
 		require.NoError(t, err)
 		pc := broker.PreparedCAR{
-			PieceCid:  castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
-			PieceSize: 1024,
-			RepFactor: 1,
-			Deadline:  batchDeadline,
+			PieceCid:            castCid("baga6ea4seaqofw2n4m4dagqbrrbmcbq3g7b5vzxlurpzxvvls4d5vk4skhdsuhq"),
+			PieceSize:           1024,
+			RepFactor:           1,
+			Deadline:            time.Now().Add(aucDeadline),
+			ProposalStartOffset: propStartEpoch,
 			Sources: auction.Sources{
 				CARURL: &auction.CARURL{
 					URL: *carURL,
@@ -845,7 +1051,8 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	t.Run("with-enough-deadline-time", func(t *testing.T) {
 		b, mb, _ := createBroker(t)
 
-		sr, auction := brokerSetup(t, b, time.Now().Add(time.Hour*24*100)) // 100 days.
+		// ProposalStartEpoch=1day which fits re-auctioning in a 100 day deadline.
+		sr, auction := brokerSetup(t, b, time.Hour*24, time.Hour*24*100)
 		fad1 := broker.FinalizedDeal{
 			BatchID:           auction.BatchID,
 			StorageProviderID: "f0011",
@@ -853,7 +1060,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		}
 		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
 		require.NoError(t, err)
-		expectedAuctionDuration, _ := timeToFilEpoch(time.Now().Add(b.conf.auctionDuration))
+		expectedProposalStartEpoch, _ := timeToFilEpoch(time.Now().Add(time.Hour * 24))
 
 		// Verify that the batch and storage request is still in deal-making,
 		// since a re-auctioning should be fired.
@@ -879,7 +1086,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		require.Equal(t, string(ba.ID), rda.BatchId)
 		require.Equal(t, ba.RepFactor, int(rda.DealReplication))
 		require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-		require.Equal(t, expectedAuctionDuration, rda.FilEpochDeadline)
+		require.Equal(t, expectedProposalStartEpoch, rda.FilEpochDeadline)
 		require.NotNil(t, rda.Sources.CarUrl)
 		require.Equal(t, ba.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 		require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)
@@ -888,16 +1095,14 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	t.Run("without-enough-deadline-time", func(t *testing.T) {
 		b, mb, _ := createBroker(t)
 
-		sr, auction := brokerSetup(t, b, time.Now().Add(time.Hour*24*4)) // 4 days.
+		// Set ProposalStartOffset=4days which is greater than the Auctions deadline,
+		// thus should fail rebatching.
+		sr, auction := brokerSetup(t, b, time.Hour*24*4, time.Hour*24)
 		fad1 := broker.FinalizedDeal{
 			BatchID:           auction.BatchID,
 			StorageProviderID: "f0011",
 			ErrorCause:        "the miner is buggy",
 		}
-
-		// We set some absurd duration for re-auctionings, so we can know that it should fail
-		// since 100 days is much bigger than 4 days.
-		b.conf.auctionDuration = time.Hour * 24 * 100
 
 		err := b.BatchFinalizedDeal(ctx, "op1", fad1)
 		require.NoError(t, err)
@@ -920,9 +1125,9 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 	t.Run("deal-rejected", func(t *testing.T) {
 		b, mb, _ := createBroker(t)
 
-		batchDeadline := time.Now().Add(time.Hour * 24)
-		batchDeadlineEpoch, _ := timeToFilEpoch(batchDeadline)
-		sr, auction := brokerSetup(t, b, batchDeadline)
+		proposalStartOffset := time.Hour * 24
+		proposalStartEpoch, _ := timeToFilEpoch(time.Now().Add(proposalStartOffset))
+		sr, auction := brokerSetup(t, b, proposalStartOffset, proposalStartOffset*100)
 		fad1 := broker.FinalizedDeal{
 			BatchID:           auction.BatchID,
 			StorageProviderID: "f0011",
@@ -958,7 +1163,7 @@ func TestBatchFailedFinalizedDeal(t *testing.T) {
 		require.Equal(t, string(ba.ID), rda.BatchId)
 		require.Equal(t, ba.RepFactor, int(rda.DealReplication))
 		require.Equal(t, b.conf.verifiedDeals, rda.DealVerified)
-		require.Equal(t, batchDeadlineEpoch, rda.FilEpochDeadline) // Important assertion.
+		require.Equal(t, proposalStartEpoch, rda.FilEpochDeadline) // Important assertion.
 		require.NotNil(t, rda.Sources.CarUrl)
 		require.Equal(t, ba.Sources.CARIPFS.Cid.String(), rda.Sources.CarIpfs.Cid)
 		require.Len(t, rda.Sources.CarIpfs.Multiaddrs, 1)

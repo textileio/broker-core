@@ -226,21 +226,22 @@ func (s *Store) CreateBatch(
 		payloadSize.Int64 = *ba.PayloadSize
 	}
 	isd := db.CreateBatchParams{
-		ID:                 ba.ID,
-		Status:             ba.Status,
-		RepFactor:          ba.RepFactor,
-		DealDuration:       ba.DealDuration,
-		PayloadCid:         ba.PayloadCid.String(),
-		PayloadSize:        payloadSize,
-		PieceCid:           pieceCid,
-		PieceSize:          ba.PieceSize,
-		DisallowRebatching: ba.DisallowRebatching,
-		FilEpochDeadline:   ba.FilEpochDeadline,
-		CarUrl:             dsources.carURL,
-		CarIpfsCid:         dsources.ipfsCid,
-		CarIpfsAddrs:       strings.Join(dsources.ipfsMultiaddrs, ","),
-		Origin:             ba.Origin,
-		Providers:          common.StringifyAddrs(ba.Providers...),
+		ID:                         ba.ID,
+		Status:                     ba.Status,
+		RepFactor:                  ba.RepFactor,
+		DealDuration:               ba.DealDuration,
+		PayloadCid:                 ba.PayloadCid.String(),
+		PayloadSize:                payloadSize,
+		PieceCid:                   pieceCid,
+		PieceSize:                  ba.PieceSize,
+		DisallowRebatching:         ba.DisallowRebatching,
+		FilEpochDeadline:           ba.FilEpochDeadline,
+		ProposalStartOffsetSeconds: int64(ba.ProposalStartOffset.Seconds()),
+		CarUrl:                     dsources.carURL,
+		CarIpfsCid:                 dsources.ipfsCid,
+		CarIpfsAddrs:               strings.Join(dsources.ipfsMultiaddrs, ","),
+		Origin:                     ba.Origin,
+		Providers:                  common.StringifyAddrs(ba.Providers...),
 	}
 	ids := make([]string, len(brIDs))
 	for i, id := range brIDs {
@@ -451,21 +452,45 @@ func (s *Store) BatchSuccess(ctx context.Context, id broker.BatchID) error {
 	})
 }
 
-// AddDeals includes new deals from a finalized auction.
-func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) error {
-	return s.withTx(ctx, func(txn *db.Queries) error {
-		sd, err := txn.GetBatch(ctx, auction.BatchID)
+// AddDeals includes new deals from a finalized auction. Confirming the winners in the database
+// can discover the fact that a concurrent auction already made some of them winners.
+// The fully confirmed accepted winners are returned in the acceptedWinners return parameter.
+func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) (acceptedWinners []string, err error) {
+	err = s.withTx(ctx, func(txn *db.Queries) error {
+		ba, err := txn.GetBatch(ctx, auction.BatchID)
 		if err != nil {
 			return fmt.Errorf("get batch: %s", err)
 		}
 
 		// Take care of correct state transitions.
-		if sd.Status != broker.BatchStatusAuctioning && sd.Status != broker.BatchStatusDealMaking {
-			return fmt.Errorf("wrong storage request status transition, tried moving to %s", sd.Status)
+		if ba.Status != broker.BatchStatusAuctioning && ba.Status != broker.BatchStatusDealMaking {
+			return fmt.Errorf("wrong storage request status transition, tried moving to %s", ba.Status)
+		}
+
+		excludedParams := db.GetExcludedStorageProvidersParams{
+			PieceCid: ba.PieceCid,
+			Origin:   ba.Origin,
+		}
+		excludedProviders, err := txn.GetExcludedStorageProviders(ctx, excludedParams)
+		if err != nil {
+			return fmt.Errorf("get excluded providers: %s", err)
 		}
 
 		// Add winning bids to list of deals.
 		for bidID, bid := range auction.WinningBids {
+			var alreadyWon bool
+			for _, excludedProvider := range excludedProviders {
+				if excludedProvider == bid.StorageProviderID {
+					alreadyWon = true
+					break
+				}
+			}
+			if alreadyWon {
+				log.Warnf("excluding winner %s in auction %s since already won", bid.StorageProviderID, auction.ID)
+				continue
+			}
+
+			acceptedWinners = append(acceptedWinners, bid.StorageProviderID)
 			if err := txn.CreateDeal(ctx, db.CreateDealParams{
 				BatchID:           auction.BatchID,
 				AuctionID:         auction.ID,
@@ -477,7 +502,7 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 		}
 
 		moveStorageRequestsToDealMaking := false
-		if sd.Status == broker.BatchStatusAuctioning {
+		if ba.Status == broker.BatchStatusAuctioning {
 			if err := txn.UpdateBatchStatus(ctx, db.UpdateBatchStatusParams{
 				ID: auction.BatchID, Status: broker.BatchStatusDealMaking}); err != nil {
 				return fmt.Errorf("save batch: %s", err)
@@ -493,18 +518,19 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) erro
 		// that might happen. On further auctions, we don't need to do this again.
 		if moveStorageRequestsToDealMaking {
 			if err := txn.UpdateStorageRequestsStatus(ctx, db.UpdateStorageRequestsStatusParams{
-				BatchID: batchIDToSQL(sd.ID), Status: broker.RequestDealMaking}); err != nil {
+				BatchID: batchIDToSQL(ba.ID), Status: broker.RequestDealMaking}); err != nil {
 				return fmt.Errorf("saving storage request: %s", err)
 			}
 		}
 
 		return nil
 	})
+	return
 }
 
 // GetBatch gets an existing batch by id. If the batch doesn't exists, it returns
 // ErrNotFound.
-func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Batch, err error) {
+func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (ba *broker.Batch, err error) {
 	err = s.withCtxTx(ctx, func(q *db.Queries) error {
 		var dbBatch db.Batch
 		dbBatch, err = q.GetBatch(ctx, id)
@@ -515,7 +541,7 @@ func (s *Store) GetBatch(ctx context.Context, id broker.BatchID) (sd *broker.Bat
 		if err != nil {
 			return err
 		}
-		sd, err = batchFromDB(&dbBatch, tags)
+		ba, err = batchFromDB(&dbBatch, tags)
 		return err
 	})
 	return
@@ -597,6 +623,27 @@ func (s *Store) SaveDeals(ctx context.Context, fad broker.FinalizedDeal) error {
 	})
 }
 
+// GetExcludedStorageProviders returns a list of all storage providers that have won
+// auctions fired by the origin for the provided PieceCid. Note that this considers
+// all auctions history for the PieceCid and the origin.
+func (s *Store) GetExcludedStorageProviders(
+	ctx context.Context,
+	pieceCid cid.Cid,
+	origin string) (sps []string, err error) {
+	err = s.withCtxTx(ctx, func(q *db.Queries) error {
+		params := db.GetExcludedStorageProvidersParams{
+			PieceCid: pieceCid.String(),
+			Origin:   origin,
+		}
+		sps, err = q.GetExcludedStorageProviders(ctx, params)
+		if err != nil {
+			return fmt.Errorf("calling get excluded storage providers: %s", err)
+		}
+		return nil
+	})
+	return
+}
+
 func (s *Store) newID() (string, error) {
 	s.lock.Lock()
 	// Not deferring unlock since can be recursive.
@@ -617,29 +664,29 @@ func (s *Store) newID() (string, error) {
 	return strings.ToLower(id.String()), nil
 }
 
-func batchFromDB(ba *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error) {
+func batchFromDB(dbBatch *db.Batch, tags []db.BatchTag) (ba *broker.Batch, err error) {
 	var payloadCid cid.Cid
-	if ba.PayloadCid != "" {
-		payloadCid, err = cid.Parse(ba.PayloadCid)
+	if dbBatch.PayloadCid != "" {
+		payloadCid, err = cid.Parse(dbBatch.PayloadCid)
 		if err != nil {
 			return nil, fmt.Errorf("parsing payload CID: %s", err)
 		}
 	}
 	var pieceCid cid.Cid
-	if ba.PieceCid != "" {
-		pieceCid, err = cid.Parse(ba.PieceCid)
+	if dbBatch.PieceCid != "" {
+		pieceCid, err = cid.Parse(dbBatch.PieceCid)
 		if err != nil {
 			return nil, fmt.Errorf("parsing piece CID: %s", err)
 		}
 	}
 	var sources auction.Sources
-	if u, err := url.ParseRequestURI(ba.CarUrl); err == nil {
+	if u, err := url.ParseRequestURI(dbBatch.CarUrl); err == nil {
 		sources.CARURL = &auction.CARURL{URL: *u}
 	}
-	if ba.CarIpfsCid != "" {
-		if id, err := cid.Parse(ba.CarIpfsCid); err == nil {
+	if dbBatch.CarIpfsCid != "" {
+		if id, err := cid.Parse(dbBatch.CarIpfsCid); err == nil {
 			carIPFS := &auction.CARIPFS{Cid: id}
-			addrs := strings.Split(ba.CarIpfsAddrs, ",")
+			addrs := strings.Split(dbBatch.CarIpfsAddrs, ",")
 			for _, addr := range addrs {
 				if ma, err := multiaddr.NewMultiaddr(addr); err == nil {
 					carIPFS.Multiaddrs = append(carIPFS.Multiaddrs, ma)
@@ -650,8 +697,8 @@ func batchFromDB(ba *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 			sources.CARIPFS = carIPFS
 		}
 	}
-	providers := make([]address.Address, len(ba.Providers))
-	for i, strProv := range ba.Providers {
+	providers := make([]address.Address, len(dbBatch.Providers))
+	for i, strProv := range dbBatch.Providers {
 		providerAddr, err := address.NewFromString(strProv)
 		if err != nil {
 			return nil, fmt.Errorf("parsing provider %s: %s", strProv, err)
@@ -668,28 +715,29 @@ func batchFromDB(ba *db.Batch, tags []db.BatchTag) (sd2 *broker.Batch, err error
 	}
 
 	var payloadSize *int64
-	if ba.PayloadSize.Valid {
-		payloadSize = &ba.PayloadSize.Int64
+	if dbBatch.PayloadSize.Valid {
+		payloadSize = &dbBatch.PayloadSize.Int64
 	}
 
 	return &broker.Batch{
-		ID:                 ba.ID,
-		Status:             ba.Status,
-		RepFactor:          ba.RepFactor,
-		DealDuration:       ba.DealDuration,
-		PayloadCid:         payloadCid,
-		PayloadSize:        payloadSize,
-		PieceCid:           pieceCid,
-		PieceSize:          ba.PieceSize,
-		Sources:            sources,
-		DisallowRebatching: ba.DisallowRebatching,
-		FilEpochDeadline:   ba.FilEpochDeadline,
-		Origin:             ba.Origin,
-		Tags:               mtags,
-		Providers:          providers,
-		Error:              ba.Error,
-		CreatedAt:          ba.CreatedAt,
-		UpdatedAt:          ba.UpdatedAt,
+		ID:                  dbBatch.ID,
+		Status:              dbBatch.Status,
+		RepFactor:           dbBatch.RepFactor,
+		DealDuration:        dbBatch.DealDuration,
+		PayloadCid:          payloadCid,
+		PayloadSize:         payloadSize,
+		PieceCid:            pieceCid,
+		PieceSize:           dbBatch.PieceSize,
+		Sources:             sources,
+		DisallowRebatching:  dbBatch.DisallowRebatching,
+		FilEpochDeadline:    dbBatch.FilEpochDeadline,
+		ProposalStartOffset: time.Second * time.Duration(dbBatch.ProposalStartOffsetSeconds),
+		Origin:              dbBatch.Origin,
+		Tags:                mtags,
+		Providers:           providers,
+		Error:               dbBatch.Error,
+		CreatedAt:           dbBatch.CreatedAt,
+		UpdatedAt:           dbBatch.UpdatedAt,
 	}, nil
 }
 
