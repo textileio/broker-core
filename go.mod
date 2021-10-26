@@ -28,7 +28,7 @@ require (
 	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-files v0.0.8
-	github.com/ipfs/go-ipfs-http-client v0.1.0
+	github.com/ipfs/go-ipfs-http-client v0.1.0-update-libp2p
 	github.com/ipfs/go-ipfs-util v0.0.2
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-unixfs v0.2.6
@@ -39,13 +39,13 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.3.1
 	github.com/lib/pq v1.10.2
-	github.com/libp2p/go-libp2p v0.15.0
+	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-swarm v0.5.3
 	github.com/mr-tron/base58 v1.2.0
-	github.com/multiformats/go-multiaddr v0.4.0
+	github.com/multiformats/go-multiaddr v0.4.1
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.16
 	github.com/oklog/ulid/v2 v2.0.2
@@ -54,12 +54,12 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.1.2-0.20211007145355-32d70a404060
-	github.com/textileio/cli v1.0.1
+	github.com/textileio/bidbot v0.1.5-0.20211026212128-6a89e3dd351a
+	github.com/textileio/cli v1.0.2
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
 	github.com/textileio/go-auctions-client v0.0.0-20210914093526-52fac6d8b09f
 	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.6-0.20211026211639-6100384b5476
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
@@ -71,7 +71,6 @@ require (
 	go.opentelemetry.io/otel/metric v0.22.0
 	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
 	go.opentelemetry.io/otel/sdk/metric v0.21.0
-	go.uber.org/atomic v1.9.0 // indirect
 	google.golang.org/api v0.56.0
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
@@ -80,8 +79,6 @@ require (
 replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
-
-replace github.com/ipfs/go-ipns => github.com/ipfs/go-ipns v0.0.2
 
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
 replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/nabokihms/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.20.1-0.20210622062648-f4d780a56f54
