@@ -17,7 +17,7 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/specs-actors/actors/builtin/market"
+	"github.com/filecoin-project/specs-actors/v6/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/libp2p/go-libp2p-core/host"

@@ -10,15 +10,16 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.8
 	github.com/filecoin-project/go-address v0.0.6
-	github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2
+	github.com/filecoin-project/go-cbor-util v0.0.1
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.3.0
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
-	github.com/filecoin-project/go-fil-markets v1.12.0
+	github.com/filecoin-project/go-fil-markets v1.13.1
 	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
 	github.com/filecoin-project/go-state-types v0.1.1-0.20210810190654-139e0e79e69e
 	github.com/filecoin-project/lotus v1.11.3
 	github.com/filecoin-project/specs-actors v0.9.14
+	github.com/filecoin-project/specs-actors/v6 v6.0.1
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.15.0
@@ -32,7 +33,7 @@ require (
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-unixfs v0.2.6
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
-	github.com/ipld/go-car v0.3.1-0.20210601190600-f512dac51e8e
+	github.com/ipld/go-car v0.3.2-0.20211001225732-32d0d9933823
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/joho/godotenv v1.3.0
