@@ -29,9 +29,11 @@ func TestRemoteSigning(t *testing.T) {
 	ctx := context.Background()
 
 	// Libp2p hosts wiring.
-	h1 := bhost.New(swarmt.GenSwarm(t, ctx)) // dealer
-	h2 := bhost.New(swarmt.GenSwarm(t, ctx)) // remote wallet
-	err := h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
+	h1, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // dealer
+	require.NoError(t, err)
+	h2, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // remote wallet
+	require.NoError(t, err)
+	err = h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
 	require.NoError(t, err)
 
 	// Remote wallet config.
