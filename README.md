@@ -82,5 +82,3 @@ A changelog is published along with each [release](https://github.com/textileio/
 ## License
 
 [MIT](LICENSE)
-
-
