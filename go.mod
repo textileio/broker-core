@@ -37,7 +37,7 @@ require (
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/joho/godotenv v1.3.0
-	github.com/jsign/go-filsigner v0.3.1
+	github.com/jsign/go-filsigner v0.3.2
 	github.com/lib/pq v1.10.2
 	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-circuit v0.4.0
@@ -57,7 +57,7 @@ require (
 	github.com/textileio/bidbot v0.1.5-0.20211026212128-6a89e3dd351a
 	github.com/textileio/cli v1.0.2
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
-	github.com/textileio/go-auctions-client v0.0.0-20210914093526-52fac6d8b09f
+	github.com/textileio/go-auctions-client v0.0.0-20211026211352-8d3beeb31237
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.6-0.20211026211639-6100384b5476
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
