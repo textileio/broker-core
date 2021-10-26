@@ -14,10 +14,10 @@ require (
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.3.0
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
-	github.com/filecoin-project/go-fil-markets v1.12.0
+	github.com/filecoin-project/go-fil-markets v1.13.1
 	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
-	github.com/filecoin-project/go-state-types v0.1.1-0.20210810190654-139e0e79e69e
-	github.com/filecoin-project/lotus v1.11.3
+	github.com/filecoin-project/go-state-types v0.1.1-0.20210915140513-d354ccf10379
+	github.com/filecoin-project/lotus v1.13.0
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -32,19 +32,19 @@ require (
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-unixfs v0.2.6
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
-	github.com/ipld/go-car v0.3.1-0.20210601190600-f512dac51e8e
+	github.com/ipld/go-car v0.3.2-0.20211001225732-32d0d9933823
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/joho/godotenv v1.3.0
 	github.com/jsign/go-filsigner v0.3.1
 	github.com/lib/pq v1.10.2
-	github.com/libp2p/go-libp2p v0.14.4
+	github.com/libp2p/go-libp2p v0.15.0
 	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-swarm v0.5.3
 	github.com/mr-tron/base58 v1.2.0
-	github.com/multiformats/go-multiaddr v0.3.3
+	github.com/multiformats/go-multiaddr v0.4.0
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.16
 	github.com/oklog/ulid/v2 v2.0.2
