@@ -36,7 +36,7 @@ require (
 	github.com/ipld/go-car v0.3.2-0.20211001225732-32d0d9933823
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
-	github.com/joho/godotenv v1.3.0
+	github.com/joho/godotenv v1.4.0
 	github.com/jsign/go-filsigner v0.3.2
 	github.com/lib/pq v1.10.2
 	github.com/libp2p/go-libp2p v0.15.1
