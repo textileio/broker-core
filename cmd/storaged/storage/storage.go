@@ -68,7 +68,7 @@ type AuctionDataRequest struct {
 	PieceSize                uint64            `json:"pieceSize"`
 	RepFactor                int               `json:"repFactor"`
 	Deadline                 string            `json:"deadline"`
-	MaxProposalDeadlineHours int               `json:"max_proposal_deadline_hours"`
+	MaxProposalDeadlineHours int               `json:"maxProposalDeadlineHours"`
 	CARURL                   *CARURL           `json:"carURL"`
 	CARIPFS                  *CARIPFS          `json:"carIPFS"`
 	Tags                     map[string]string `json:"tags"`
