@@ -54,12 +54,12 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.1.5-0.20211026212128-6a89e3dd351a
+	github.com/textileio/bidbot v0.1.5
 	github.com/textileio/cli v1.0.2
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
 	github.com/textileio/go-auctions-client v0.0.0-20211026211352-8d3beeb31237
 	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.6-0.20211026211639-6100384b5476
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.6
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
