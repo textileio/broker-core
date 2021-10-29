@@ -76,6 +76,8 @@ require (
 	google.golang.org/protobuf v1.27.1
 )
 
+replace github.com/textileio/go-auctions-client => ../go-auctions-client
+
 replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1

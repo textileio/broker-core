@@ -21,5 +21,6 @@ type FilClient interface {
 	CheckDealStatusWithStorageProvider(
 		ctx context.Context,
 		storageProviderID string,
-		propCid cid.Cid) (*storagemarket.ProviderDealState, error)
+		propCid cid.Cid,
+		rw *store.RemoteWallet) (*storagemarket.ProviderDealState, error)
 }

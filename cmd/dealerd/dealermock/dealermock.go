@@ -113,7 +113,7 @@ func (d *Dealer) callRemoteWallet(auds dealeri.AuctionDeals) error {
 	}
 
 	log.Debugf("requesting remote signature to %s", rw.PeerID)
-	sig, err := propsigner.RequestSignatureV1(ctx, d.host, rw.AuthToken, proposal, rw.PeerID)
+	sig, err := propsigner.RequestDealProposalSignatureV1(ctx, d.host, rw.AuthToken, proposal, rw.PeerID)
 	if err != nil {
 		return fmt.Errorf("remote signing proposal: %s", err)
 	}

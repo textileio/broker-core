@@ -74,9 +74,15 @@ func (d *Dealer) daemonDealMonitoringTick() error {
 	return nil
 }
 
-func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.AuctionDeal,
+func (d *Dealer) executeWaitingConfirmation(
+	ctx context.Context,
+	aud store.AuctionDeal,
 	currentChainHeight uint64) error {
-	dealID, status := d.tryResolvingDealID(aud)
+	rw, err := d.store.GetRemoteWallet(ctx, aud.AuctionDataID)
+	if err != nil {
+		return fmt.Errorf("get remote wallet info: %s", err)
+	}
+	dealID, status := d.tryResolvingDealID(aud, rw)
 	if status != storagemarket.StorageDealUnknown {
 		mds, ok, err := d.store.GetStatusForStatusID(ctx, status)
 		if !ok {
@@ -184,7 +190,7 @@ func (d *Dealer) executeWaitingConfirmation(ctx context.Context, aud store.Aucti
 // It asks the storage-provider for the message Cid that published the deal. If a DealID is returned,
 // we can be sure is the correct one for AuctionDeal, since this method checks that the storage-provider
 // isn't playing tricks reporting a DealID from other data.
-func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal) (int64, storagemarket.StorageDealStatus) {
+func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, rw *store.RemoteWallet) (int64, storagemarket.StorageDealStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	proposalCid, err := cid.Parse(aud.ProposalCid)
@@ -192,7 +198,8 @@ func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal) (int64, storagemarket
 		log.Errorf("parsing proposal cid: %s", err)
 		return 0, 0
 	}
-	pds, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid)
+
+	pds, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid, rw)
 	if err != nil {
 		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0

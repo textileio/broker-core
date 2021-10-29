@@ -1,6 +1,7 @@
 package filclient
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,7 +10,9 @@ import (
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-jsonrpc"
+	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/api/v0api"
+	"github.com/filecoin-project/specs-actors/v6/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/libp2p/go-libp2p"
@@ -88,7 +91,7 @@ func TestRemoteSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	// Validate signature.
-	err = validateSignature(sp.DealProposal.Proposal, &sp.DealProposal.ClientSignature)
+	err = validateDealProposalSignature(sp.DealProposal.Proposal, &sp.DealProposal.ClientSignature)
 	require.NoError(t, err)
 }
 
@@ -150,15 +153,14 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 
 func TestCheckStatusWithStorageProvider(t *testing.T) {
 	t.Parallel()
-	t.SkipNow()
 
 	client := create(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
+	proposalCid, err := cid.Decode("bafyreifydfjfbkcszmeyz72zu66an2lc4glykhrjlq7r7ir75mplwpqoxu")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid)
+	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f01277", proposalCid, nil)
 	require.NoError(t, err)
 	fmt.Printf("%s\n", logger.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])
@@ -204,4 +206,24 @@ func create(t *testing.T) *FilClient {
 	require.NoError(t, err)
 
 	return client
+}
+
+func validateDealProposalSignature(proposal market.DealProposal, sig *crypto.Signature) error {
+	msg := &bytes.Buffer{}
+	err := proposal.MarshalCBOR(msg)
+	if err != nil {
+		return fmt.Errorf("marshaling proposal: %s", err)
+	}
+	sigBytes, err := sig.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("marshaling signature: %s", err)
+	}
+	ok, err := wallet.WalletVerify(proposal.Client, msg.Bytes(), sigBytes)
+	if err != nil {
+		return fmt.Errorf("verifying signature: %s", err)
+	}
+	if !ok {
+		return fmt.Errorf("signature is invalid: %s", err)
+	}
+	return nil
 }
