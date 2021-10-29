@@ -355,6 +355,9 @@ func (s *Store) BatchError(
 		case broker.BatchStatusError:
 			brIDs, err = txn.GetStorageRequestIDs(ctx, batchIDToSQL(id))
 			return err
+		case broker.BatchStatusSuccess:
+			log.Warnf("ignoring batch erroring due to being on success, cause: %s", ba.Error)
+			return nil
 		default:
 			return fmt.Errorf("wrong batch %s status transition, tried from %s", ba.ID, ba.Status)
 		}
