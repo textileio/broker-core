@@ -66,10 +66,10 @@ require (
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.22.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.21.0
-	go.opentelemetry.io/otel v1.0.0-RC2
+	go.opentelemetry.io/otel v1.0.1
 	go.opentelemetry.io/otel/exporters/prometheus v0.21.0
-	go.opentelemetry.io/otel/metric v0.22.0
-	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
+	go.opentelemetry.io/otel/metric v0.24.0
+	go.opentelemetry.io/otel/sdk/export/metric v0.24.0
 	go.opentelemetry.io/otel/sdk/metric v0.21.0
 	google.golang.org/api v0.56.0
 	google.golang.org/grpc v1.41.0
