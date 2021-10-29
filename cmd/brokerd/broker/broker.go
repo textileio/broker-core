@@ -509,6 +509,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 
 	if ba.Status == broker.BatchStatusSuccess {
 		log.Warnf("ignoring closed auction %s since the batch is in success status", ba.ID)
+		return nil
 	}
 	if ba.Status != broker.BatchStatusAuctioning && ba.Status != broker.BatchStatusDealMaking {
 		return fmt.Errorf("batch isn't in expected status: %s", ba.Status)
