@@ -22,7 +22,7 @@ require (
 	github.com/filecoin-project/specs-actors/v6 v6.0.1
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/golang-migrate/migrate/v4 v4.15.0
+	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
 	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-datastore v0.4.6
@@ -36,7 +36,7 @@ require (
 	github.com/ipld/go-car v0.3.2-0.20211001225732-32d0d9933823
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
-	github.com/joho/godotenv v1.3.0
+	github.com/joho/godotenv v1.4.0
 	github.com/jsign/go-filsigner v0.3.2
 	github.com/lib/pq v1.10.2
 	github.com/libp2p/go-libp2p v0.15.1
@@ -72,7 +72,7 @@ require (
 	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
 	go.opentelemetry.io/otel/sdk/metric v0.21.0
 	google.golang.org/api v0.56.0
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
 
