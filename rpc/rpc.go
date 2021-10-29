@@ -55,3 +55,7 @@ func StopServer(s *grpc.Server) {
 		timer.Stop()
 	}
 }
+
+func Foo(s string) string {
+	return "foo"
+}
