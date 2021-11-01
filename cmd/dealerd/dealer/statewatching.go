@@ -190,7 +190,9 @@ func (d *Dealer) executeWaitingConfirmation(
 // It asks the storage-provider for the message Cid that published the deal. If a DealID is returned,
 // we can be sure is the correct one for AuctionDeal, since this method checks that the storage-provider
 // isn't playing tricks reporting a DealID from other data.
-func (d *Dealer) tryResolvingDealID(aud store.AuctionDeal, rw *store.RemoteWallet) (int64, storagemarket.StorageDealStatus) {
+func (d *Dealer) tryResolvingDealID(
+	aud store.AuctionDeal,
+	rw *store.RemoteWallet) (int64, storagemarket.StorageDealStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	proposalCid, err := cid.Parse(aud.ProposalCid)

@@ -142,7 +142,7 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	// Validate signature.
-	err = propsigner.ValidateDealStatustSignature(waddrPubKey.String(), propCid, &dsr.Signature)
+	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), propCid, &dsr.Signature)
 	require.NoError(t, err)
 }
 
