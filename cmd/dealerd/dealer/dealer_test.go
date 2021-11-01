@@ -334,7 +334,8 @@ func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint6
 func (fc *fcMock) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
 	storageProviderID string,
-	propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
+	propCid cid.Cid,
+	rw *store.RemoteWallet) (*storagemarket.ProviderDealState, error) {
 	args := fc.Called(ctx, storageProviderID, propCid)
 
 	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)

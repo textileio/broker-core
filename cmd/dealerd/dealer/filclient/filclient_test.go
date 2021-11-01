@@ -24,7 +24,7 @@ import (
 	logger "github.com/textileio/go-log/v2"
 )
 
-func TestRemoteSigning(t *testing.T) {
+func TestRemoteDealProposalSigning(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -88,7 +88,61 @@ func TestRemoteSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	// Validate signature.
-	err = validateSignature(sp.DealProposal.Proposal, &sp.DealProposal.ClientSignature)
+	err = propsigner.ValidateDealProposalSignature(sp.DealProposal.Proposal, &sp.DealProposal.ClientSignature)
+	require.NoError(t, err)
+}
+
+func TestRemoteDealStatusSigning(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Libp2p hosts wiring.
+	h1, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // dealer
+	require.NoError(t, err)
+	h2, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // remote wallet
+	require.NoError(t, err)
+	err = h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
+	require.NoError(t, err)
+
+	// Remote wallet config.
+	walletKeys := []string{
+		// Secp256k1 exported private key in Lotus format.
+		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
+	}
+	authToken := "veryhardtokentoguess"
+	lwallet, err := localwallet.New(walletKeys)
+	require.NoError(t, err)
+
+	err = propsigner.NewDealSignerService(h2, authToken, lwallet)
+	require.NoError(t, err)
+
+	// Dealer filclient.
+	client, err := New(createFilClient(t), h1, WithMaxPriceLimits(10, 10))
+	require.NoError(t, err)
+
+	// Remote wallet.
+	maddrs := make([]string, len(h2.Addrs()))
+	for i, maddr := range h2.Addrs() {
+		maddrs[i] = maddr.String()
+	}
+	waddrPubKey, err := wallet.PublicKey(walletKeys[0])
+	require.NoError(t, err)
+	rw := &store.RemoteWallet{
+		PeerID:     h2.ID().String(),
+		AuthToken:  authToken,
+		WalletAddr: waddrPubKey.String(),
+		Multiaddrs: maddrs,
+	}
+
+	// Create proposal targeting remote wallet.
+	propCid, err := cid.Decode("bafyreifydfjfbkcszmeyz72zu66an2lc4glykhrjlq7r7ir75mplwpqoxu")
+	require.NoError(t, err)
+
+	dsr, err := client.createDealStatusRequest(ctx, propCid, rw)
+	require.NoError(t, err)
+
+	// Validate signature.
+	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), propCid, &dsr.Signature)
 	require.NoError(t, err)
 }
 
@@ -158,7 +212,7 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 
 	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid)
+	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid, nil)
 	require.NoError(t, err)
 	fmt.Printf("%s\n", logger.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])

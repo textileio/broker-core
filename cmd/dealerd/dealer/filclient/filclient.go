@@ -243,7 +243,9 @@ func (fc *FilClient) CheckChainDeal(
 func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
 	storageProviderID string,
-	propCid cid.Cid) (status *storagemarket.ProviderDealState, err error) {
+	propCid cid.Cid,
+	rw *store.RemoteWallet,
+) (status *storagemarket.ProviderDealState, err error) {
 	log.Debugf("checking status of proposal %s with storage-provider %s", propCid, storageProviderID)
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithStorageProvider)
@@ -252,19 +254,10 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	if err != nil {
 		return nil, fmt.Errorf("invalid storage-provider address %s: %s", storageProviderID, err)
 	}
-	cidb, err := cborutil.Dump(propCid)
-	if err != nil {
-		return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
-	}
 
-	sig, err := wallet.WalletSign(fc.conf.exportedHexKey, cidb)
+	req, err := fc.createDealStatusRequest(ctx, propCid, rw)
 	if err != nil {
-		return nil, fmt.Errorf("signing status request failed: %w", err)
-	}
-
-	req := &network.DealStatusRequest{
-		Proposal:  propCid,
-		Signature: *sig,
+		return nil, fmt.Errorf("creating deal status request: %s", err)
 	}
 
 	s, err := fc.streamToStorageProvider(ctx, sp, dealStatusProtocol)
@@ -288,6 +281,40 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	}
 
 	return &resp.DealState, nil
+}
+
+func (fc *FilClient) createDealStatusRequest(
+	ctx context.Context,
+	propCid cid.Cid,
+	rw *store.RemoteWallet) (*network.DealStatusRequest, error) {
+	var sig *crypto.Signature
+	if rw == nil {
+		cidb, err := cborutil.Dump(propCid)
+		if err != nil {
+			return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
+		}
+		sig, err = wallet.WalletSign(fc.conf.exportedHexKey, cidb)
+		if err != nil {
+			return nil, fmt.Errorf("signing status request failed: %w", err)
+		}
+	} else {
+		peerID, err := fc.connectToRemoteWallet(ctx, rw)
+		if err != nil {
+			return nil, fmt.Errorf("connecting to remote wallet: %s", err)
+		}
+
+		log.Debugf("requesting proposal cid remote signature to %s", peerID)
+		sig, err = propsigner.RequestDealStatusSignatureV1(ctx, fc.host, rw.AuthToken, rw.WalletAddr, propCid, peerID)
+		if err != nil {
+			return nil, fmt.Errorf("remote signing proposal: %s", err)
+		}
+		log.Debugf("remote proposal cid signature from %s is valid", peerID)
+	}
+
+	return &network.DealStatusRequest{
+		Proposal:  propCid,
+		Signature: *sig,
+	}, nil
 }
 
 func (fc *FilClient) createDealProposal(
@@ -362,45 +389,16 @@ func (fc *FilClient) createDealProposal(
 			return nil, fmt.Errorf("locally signing proposal: %s", err)
 		}
 	} else {
-		peerID, err := peer.Decode(rw.PeerID)
+		peerID, err := fc.connectToRemoteWallet(ctx, rw)
 		if err != nil {
-			return nil, fmt.Errorf("decoding remote peer-id: %s", err)
-		}
-		maddrs := make([]multiaddr.Multiaddr, len(rw.Multiaddrs))
-		for i, maddr := range rw.Multiaddrs {
-			maddr, err := multiaddr.NewMultiaddr(maddr)
-			if err != nil {
-				log.Warnf("parsing multiaddr %s: %s", maddr, err)
-				continue
-			}
-			maddrs[i] = maddr
-		}
-
-		if fc.conf.relayMaddr != "" {
-			relayed, err := multiaddr.NewMultiaddr(fc.conf.relayMaddr + "/p2p-circuit/p2p/" + peerID.String())
-			if err != nil {
-				return nil, fmt.Errorf("creating relayed maddr: %s", err)
-			}
-			maddrs = append(maddrs, relayed)
-		}
-		pi := peer.AddrInfo{
-			ID:    peerID,
-			Addrs: maddrs,
-		}
-		if err := fc.host.Connect(ctx, pi); err != nil {
-			return nil, fmt.Errorf("connecting with remote wallet: %s", err)
+			return nil, fmt.Errorf("connecting to remote wallet: %s", err)
 		}
 
 		log.Debugf("requesting remote signature to %s", peerID)
-		sig, err = propsigner.RequestSignatureV1(ctx, fc.host, rw.AuthToken, *proposal, peerID)
+		sig, err = propsigner.RequestDealProposalSignatureV1(ctx, fc.host, rw.AuthToken, *proposal, peerID)
 		if err != nil {
 			return nil, fmt.Errorf("remote signing proposal: %s", err)
 		}
-		log.Debugf("remote signature to %s received successfully", peerID)
-		if err := validateSignature(*proposal, sig); err != nil {
-			return nil, fmt.Errorf("remote signature is invalid: %s", err)
-		}
-		log.Debugf("remote signature from %s is valid", peerID)
 	}
 
 	sigprop := &market.ClientDealProposal{
@@ -551,29 +549,42 @@ func (fc *FilClient) collectAPIMetrics(ctx context.Context, methodName string, e
 	fc.metricFilAPIDurationMillis.Record(ctx, duration.Milliseconds(), labels...)
 }
 
+func (fc *FilClient) connectToRemoteWallet(ctx context.Context, rw *store.RemoteWallet) (peer.ID, error) {
+	peerID, err := peer.Decode(rw.PeerID)
+	if err != nil {
+		return "", fmt.Errorf("decoding remote peer-id: %s", err)
+	}
+	maddrs := make([]multiaddr.Multiaddr, len(rw.Multiaddrs))
+	for i, maddr := range rw.Multiaddrs {
+		maddr, err := multiaddr.NewMultiaddr(maddr)
+		if err != nil {
+			log.Warnf("parsing multiaddr %s: %s", maddr, err)
+			continue
+		}
+		maddrs[i] = maddr
+	}
+
+	if fc.conf.relayMaddr != "" {
+		relayed, err := multiaddr.NewMultiaddr(fc.conf.relayMaddr + "/p2p-circuit/p2p/" + peerID.String())
+		if err != nil {
+			return "", fmt.Errorf("creating relayed maddr: %s", err)
+		}
+		maddrs = append(maddrs, relayed)
+	}
+	pi := peer.AddrInfo{
+		ID:    peerID,
+		Addrs: maddrs,
+	}
+	if err := fc.host.Connect(ctx, pi); err != nil {
+		return "", fmt.Errorf("connecting with remote wallet: %s", err)
+	}
+
+	return peerID, nil
+}
+
 func labelField(c cid.Cid) (string, error) {
 	if c.Version() == 0 {
 		return c.StringOfBase(multibase.Base58BTC)
 	}
 	return c.StringOfBase(multibase.Base64)
-}
-
-func validateSignature(proposal market.DealProposal, sig *crypto.Signature) error {
-	msg := &bytes.Buffer{}
-	err := proposal.MarshalCBOR(msg)
-	if err != nil {
-		return fmt.Errorf("marshaling proposal: %s", err)
-	}
-	sigBytes, err := sig.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("marshaling signature: %s", err)
-	}
-	ok, err := wallet.WalletVerify(proposal.Client, msg.Bytes(), sigBytes)
-	if err != nil {
-		return fmt.Errorf("verifying signature: %s", err)
-	}
-	if !ok {
-		return fmt.Errorf("signature is invalid: %s", err)
-	}
-	return nil
 }
