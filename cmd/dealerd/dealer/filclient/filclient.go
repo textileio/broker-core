@@ -255,6 +255,38 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 		return nil, fmt.Errorf("invalid storage-provider address %s: %s", storageProviderID, err)
 	}
 
+	req, err := fc.createDealStatusRequest(ctx, propCid, rw)
+	if err != nil {
+		return nil, fmt.Errorf("creating deal status request: %s", err)
+	}
+
+	s, err := fc.streamToStorageProvider(ctx, sp, dealStatusProtocol)
+	if err != nil {
+		return nil, fmt.Errorf("opening stream with %s: %s", storageProviderID, err)
+	}
+
+	if err := cborutil.WriteCborRPC(s, req); err != nil {
+		return nil, fmt.Errorf("failed to write status request: %w", err)
+	}
+
+	var resp network.DealStatusResponse
+	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
+		return nil, fmt.Errorf("reading response: %w", err)
+	}
+	log.Debugf("storage-provider %s replied proposal %s status check: %s",
+		storageProviderID, propCid, storagemarket.DealStates[resp.DealState.State])
+
+	if resp.DealState.State == storagemarket.StorageDealError {
+		log.Warnf("deal error: %s", resp.DealState.Message)
+	}
+
+	return &resp.DealState, nil
+}
+
+func (fc *FilClient) createDealStatusRequest(
+	ctx context.Context,
+	propCid cid.Cid,
+	rw *store.RemoteWallet) (*network.DealStatusRequest, error) {
 	var sig *crypto.Signature
 	if rw == nil {
 		cidb, err := cborutil.Dump(propCid)
@@ -279,31 +311,10 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 		log.Debugf("remote proposal cid signature from %s is valid", peerID)
 	}
 
-	s, err := fc.streamToStorageProvider(ctx, sp, dealStatusProtocol)
-	if err != nil {
-		return nil, fmt.Errorf("opening stream with %s: %s", storageProviderID, err)
-	}
-
-	req := &network.DealStatusRequest{
+	return &network.DealStatusRequest{
 		Proposal:  propCid,
 		Signature: *sig,
-	}
-	if err := cborutil.WriteCborRPC(s, req); err != nil {
-		return nil, fmt.Errorf("failed to write status request: %w", err)
-	}
-
-	var resp network.DealStatusResponse
-	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
-	}
-	log.Debugf("storage-provider %s replied proposal %s status check: %s",
-		storageProviderID, propCid, storagemarket.DealStates[resp.DealState.State])
-
-	if resp.DealState.State == storagemarket.StorageDealError {
-		log.Warnf("deal error: %s", resp.DealState.Message)
-	}
-
-	return &resp.DealState, nil
+	}, nil
 }
 
 func (fc *FilClient) createDealProposal(

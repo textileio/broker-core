@@ -1,7 +1,6 @@
 package filclient
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -10,9 +9,7 @@ import (
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-jsonrpc"
-	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/api/v0api"
-	"github.com/filecoin-project/specs-actors/v6/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/libp2p/go-libp2p"
@@ -27,7 +24,7 @@ import (
 	logger "github.com/textileio/go-log/v2"
 )
 
-func TestRemoteSigning(t *testing.T) {
+func TestRemoteDealProposalSigning(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -91,7 +88,61 @@ func TestRemoteSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	// Validate signature.
-	err = validateDealProposalSignature(sp.DealProposal.Proposal, &sp.DealProposal.ClientSignature)
+	err = propsigner.ValidateDealProposalSignature(sp.DealProposal.Proposal, &sp.DealProposal.ClientSignature)
+	require.NoError(t, err)
+}
+
+func TestRemoteDealStatusSigning(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Libp2p hosts wiring.
+	h1, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // dealer
+	require.NoError(t, err)
+	h2, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // remote wallet
+	require.NoError(t, err)
+	err = h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
+	require.NoError(t, err)
+
+	// Remote wallet config.
+	walletKeys := []string{
+		// Secp256k1 exported private key in Lotus format.
+		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
+	}
+	authToken := "veryhardtokentoguess"
+	lwallet, err := localwallet.New(walletKeys)
+	require.NoError(t, err)
+
+	err = propsigner.NewDealSignerService(h2, authToken, lwallet)
+	require.NoError(t, err)
+
+	// Dealer filclient.
+	client, err := New(createFilClient(t), h1, WithMaxPriceLimits(10, 10))
+	require.NoError(t, err)
+
+	// Remote wallet.
+	maddrs := make([]string, len(h2.Addrs()))
+	for i, maddr := range h2.Addrs() {
+		maddrs[i] = maddr.String()
+	}
+	waddrPubKey, err := wallet.PublicKey(walletKeys[0])
+	require.NoError(t, err)
+	rw := &store.RemoteWallet{
+		PeerID:     h2.ID().String(),
+		AuthToken:  authToken,
+		WalletAddr: waddrPubKey.String(),
+		Multiaddrs: maddrs,
+	}
+
+	// Create proposal targeting remote wallet.
+	propCid, err := cid.Decode("bafyreifydfjfbkcszmeyz72zu66an2lc4glykhrjlq7r7ir75mplwpqoxu")
+	require.NoError(t, err)
+
+	dsr, err := client.createDealStatusRequest(ctx, propCid, rw)
+	require.NoError(t, err)
+
+	// Validate signature.
+	err = propsigner.ValidateDealStatustSignature(waddrPubKey.String(), propCid, &dsr.Signature)
 	require.NoError(t, err)
 }
 
@@ -153,6 +204,7 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 
 func TestCheckStatusWithStorageProvider(t *testing.T) {
 	t.Parallel()
+	t.SkipNow()
 
 	client := create(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -206,24 +258,4 @@ func create(t *testing.T) *FilClient {
 	require.NoError(t, err)
 
 	return client
-}
-
-func validateDealProposalSignature(proposal market.DealProposal, sig *crypto.Signature) error {
-	msg := &bytes.Buffer{}
-	err := proposal.MarshalCBOR(msg)
-	if err != nil {
-		return fmt.Errorf("marshaling proposal: %s", err)
-	}
-	sigBytes, err := sig.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("marshaling signature: %s", err)
-	}
-	ok, err := wallet.WalletVerify(proposal.Client, msg.Bytes(), sigBytes)
-	if err != nil {
-		return fmt.Errorf("verifying signature: %s", err)
-	}
-	if !ok {
-		return fmt.Errorf("signature is invalid: %s", err)
-	}
-	return nil
 }

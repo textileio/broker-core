@@ -76,6 +76,7 @@ require (
 	google.golang.org/protobuf v1.27.1
 )
 
+// TODO(jsign): remove and update tagged dep.
 replace github.com/textileio/go-auctions-client => ../go-auctions-client
 
 replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
