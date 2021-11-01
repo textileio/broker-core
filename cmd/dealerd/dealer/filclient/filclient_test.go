@@ -210,9 +210,9 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proposalCid, err := cid.Decode("bafyreifydfjfbkcszmeyz72zu66an2lc4glykhrjlq7r7ir75mplwpqoxu")
+	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f01277", proposalCid, nil)
+	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid, nil)
 	require.NoError(t, err)
 	fmt.Printf("%s\n", logger.MustJSONIndent(status))
 	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])
