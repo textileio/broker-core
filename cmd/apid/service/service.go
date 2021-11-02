@@ -25,7 +25,6 @@ type Service struct {
 
 var _ msgbroker.AuctionEventsListener = (*Service)(nil)
 
-// New creates the service.
 func New(mb msgbroker.MsgBroker, httpAddr string, postgresURI string) (*Service, error) {
 	s, err := store.New(postgresURI)
 	if err != nil {

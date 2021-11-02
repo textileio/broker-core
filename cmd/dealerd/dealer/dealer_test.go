@@ -264,6 +264,10 @@ func TestStateMachineExecReporting(t *testing.T) {
 	require.Empty(t, fd.ErrorCause)
 }
 
+func TestFailingTest(t *testing.T) {
+	t.Error("this is a failed test example")
+}
+
 func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
