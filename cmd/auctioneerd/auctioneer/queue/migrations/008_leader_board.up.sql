@@ -17,7 +17,7 @@ create or replace view competition_results as (
     sum(b.failed)::float/count(*)::float as failure_rate,
     sum(b.freshness*b.failed)/count(*) as decaying_failure_rate,
     sum(deal_size) as gibs,
-    case when sum(deal_size) >= 500 then true else false end qualified
+    case when sum(deal_size) >= 1024 then true else false end qualified
   from b
   group by storage_provider_id
   order by qualified desc, decaying_failure_rate asc, gibs desc
