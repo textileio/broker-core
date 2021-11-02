@@ -128,7 +128,7 @@ func New(api v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			if err = h.Connect(ctx, bp); err != nil {
+			if err := h.Connect(ctx, bp); err != nil {
 				log.Errorf("bootstrap peer connect: %s", err)
 			}
 		}()
