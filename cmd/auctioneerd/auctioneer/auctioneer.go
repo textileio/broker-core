@@ -482,9 +482,13 @@ func (a *Auctioneer) selectWinners(
 		}
 		minWindow := auction.FilEpochDeadline - current
 		epoches := a.getProviderOnChainEpoches()
+		var totalDiscarded int
 		candidates = candidates.Select(func(b *auctioneer.Bid) bool {
+			log.Debugf("auction %s: discarding bid %s because of weekly max epoch", auction.ID, b.StorageProviderID)
+			totalDiscarded++
 			return minWindow > epoches[b.StorageProviderID]
 		})
+		log.Debugf("%s total discarded bids due to weekly max epoch was %d", auction.ID, totalDiscarded)
 	}
 	if len(auction.Providers) > 0 {
 		log.Debugf("auction %s is targeting these providers: %+v", auction.ID, auction.Providers)
@@ -508,7 +512,7 @@ func (a *Auctioneer) selectWinners(
 		var win bool
 		var winningReason string
 		switch i {
-		case 0:
+		case 0, 2, 3:
 			// for the first replica, leaning toward the providers with less recent failures (can not make a
 			// winning deal on chain for some reason).
 			b, win = a.selectOneWinner(ctx, &auction,
