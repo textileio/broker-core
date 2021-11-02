@@ -304,7 +304,7 @@ func _006_postgraphile_status_enumDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_postgraphile_status_enum.down.sql", size: 727, mode: os.FileMode(420), modTime: time.Unix(1634055110, 0)}
+	info := bindataFileInfo{name: "006_postgraphile_status_enum.down.sql", size: 727, mode: os.FileMode(420), modTime: time.Unix(1634141824, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -324,7 +324,7 @@ func _006_postgraphile_status_enumUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_postgraphile_status_enum.up.sql", size: 950, mode: os.FileMode(420), modTime: time.Unix(1634055110, 0)}
+	info := bindataFileInfo{name: "006_postgraphile_status_enum.up.sql", size: 950, mode: os.FileMode(420), modTime: time.Unix(1634141824, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

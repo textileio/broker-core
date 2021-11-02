@@ -142,7 +142,7 @@ define gen_sql_assets
 endef
 
 sql-assets: $(GO_BINDATA) $(SQLC)
-	$(call gen_sql_assets,authd/store auctioneerd/auctioneer/queue apid/store brokerd/store dealerd/store packerd/store piecerd/store);
+	$(call gen_sql_assets,authd/store auctioneerd/auctioneer/queue apid/store brokerd/store dealerd/store packerd/store piecerd/store chainreportingd/store);
 .PHONY: sql-assets
 
 generate: protos sql-assets
