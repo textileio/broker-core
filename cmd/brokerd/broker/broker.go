@@ -447,7 +447,10 @@ func (b *Broker) startAuction(ctx context.Context,
 			errCause := "no available miners can be selected for re-auctioning"
 			log.Warn(errCause)
 			_, err := b.batchError(ctx, ba, errCause, false)
-			return "", fmt.Errorf("erroring batch for %q: %s", errCause, err)
+			if err != nil {
+				return "", fmt.Errorf("moving batch to error: %s", err)
+			}
+			return "", nil
 		}
 	}
 	if err := msgbroker.PublishMsgReadyToAuction(
@@ -668,12 +671,14 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		if err != nil {
 			return fmt.Errorf("get remote wallet config: %s", err)
 		}
-		_, err = b.startAuction(ctx, ba, rw, 1, ba.PieceSize, proposalStartEpoch)
+		auctionID, err := b.startAuction(ctx, ba, rw, 1, ba.PieceSize, proposalStartEpoch)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
-		b.metricReauctions.Add(ctx, 1)
-		b.metricReauctionedBytes.Add(ctx, int64(ba.PieceSize))
+		if auctionID != "" {
+			b.metricReauctions.Add(ctx, 1)
+			b.metricReauctionedBytes.Add(ctx, int64(ba.PieceSize))
+		}
 		return nil
 	}
 
