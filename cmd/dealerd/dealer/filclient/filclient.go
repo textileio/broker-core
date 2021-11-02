@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -24,6 +25,9 @@ import (
 	inet "github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	record "github.com/libp2p/go-libp2p-record"
+	routed "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multibase"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filapi"
@@ -35,12 +39,44 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-var (
-	log = logger.Logger("dealer/filclient")
+const (
+	dealStatusProtocol = "/fil/storage/status/1.1.0"
+	dealProtocol       = "/fil/storage/mk/1.1.0"
 )
 
-const dealStatusProtocol = "/fil/storage/status/1.1.0"
-const dealProtocol = "/fil/storage/mk/1.1.0"
+var (
+	log         = logger.Logger("dealer/filclient")
+	boostrpeers = []string{
+		"/dns4/bootstrap-0.mainnet.filops.net/tcp/1347/p2p/12D3KooWCVe8MmsEMes2FzgTpt9fXtmCY7wrq91GRiaC8PHSCCBj",
+		"/dns4/bootstrap-1.mainnet.filops.net/tcp/1347/p2p/12D3KooWCwevHg1yLCvktf2nvLu7L9894mcrJR4MsBCcm4syShVc",
+		"/dns4/bootstrap-2.mainnet.filops.net/tcp/1347/p2p/12D3KooWEWVwHGn2yR36gKLozmb4YjDJGerotAPGxmdWZx2nxMC4",
+		"/dns4/bootstrap-3.mainnet.filops.net/tcp/1347/p2p/12D3KooWKhgq8c7NQ9iGjbyK7v7phXvG6492HQfiDaGHLHLQjk7R",
+		"/dns4/bootstrap-4.mainnet.filops.net/tcp/1347/p2p/12D3KooWL6PsFNPhYftrJzGgF5U18hFoaVhfGk7xwzD8yVrHJ3Uc",
+		"/dns4/bootstrap-5.mainnet.filops.net/tcp/1347/p2p/12D3KooWLFynvDQiUpXoHroV1YxKHhPJgysQGH2k3ZGwtWzR4dFH",
+		"/dns4/bootstrap-6.mainnet.filops.net/tcp/1347/p2p/12D3KooWP5MwCiqdMETF9ub1P3MbCvQCcfconnYHbWg6sUJcDRQQ",
+		"/dns4/bootstrap-7.mainnet.filops.net/tcp/1347/p2p/12D3KooWRs3aY1p3juFjPy8gPN95PEQChm2QKGUCAdcDCC4EBMKf",
+		"/dns4/bootstrap-8.mainnet.filops.net/tcp/1347/p2p/12D3KooWScFR7385LTyR4zU1bYdzSiiAb5rnNABfVahPvVSzyTkR",
+		"/dns4/lotus-bootstrap.ipfsforce.com/tcp/41778/p2p/12D3KooWGhufNmZHF3sv48aQeS13ng5XVJZ9E6qy2Ms4VzqeUsHk",
+		"/dns4/node.glif.io/tcp/1235/p2p/12D3KooWBF8cpp65hp2u9LK5mh19x67ftAam84z9LsfaquTDSBpt",
+	}
+	bootstrapPeers []peer.AddrInfo
+)
+
+func init() {
+	for _, bs := range boostrpeers {
+		ma, err := multiaddr.NewMultiaddr(bs)
+		if err != nil {
+			log.Errorf("parsing bootstrap address: ", err)
+			continue
+		}
+		ai, err := peer.AddrInfoFromP2pAddr(ma)
+		if err != nil {
+			log.Errorf("create address info: ", err)
+			continue
+		}
+		bootstrapPeers = append(bootstrapPeers, *ai)
+	}
+}
 
 // FilClient provides API to interact with the Filecoin network.
 type FilClient struct {
@@ -67,6 +103,37 @@ func New(api v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
 			return nil, fmt.Errorf("applying option: %s", err)
 		}
 	}
+
+	filopts := []dht.Option{dht.Mode(dht.ModeAuto),
+		dht.Validator(record.NamespacedValidator{
+			"pk": record.PublicKeyValidator{},
+		}),
+		dht.ProtocolPrefix("/fil/kad/testnetnet"),
+		dht.QueryFilter(dht.PublicQueryFilter),
+		dht.RoutingTableFilter(dht.PublicRoutingTableFilter),
+		dht.DisableProviders(),
+		dht.BootstrapPeers(bootstrapPeers...),
+		dht.DisableValues()}
+	fildht, err := dht.New(context.Background(), h, filopts...)
+	if err != nil {
+		return nil, fmt.Errorf("creating dht client: %s", err)
+	}
+	h = routed.Wrap(h, fildht)
+
+	var wg sync.WaitGroup
+	wg.Add(len(bootstrapPeers))
+	for _, bp := range bootstrapPeers {
+		bp := bp
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			if err = h.Connect(ctx, bp); err != nil {
+				log.Errorf("bootstrap peer connect: %s", err)
+			}
+		}()
+	}
+	wg.Wait()
 
 	fc := &FilClient{
 		conf: cfg,
@@ -455,26 +522,9 @@ func (fc *FilClient) connectToStorageProvider(ctx context.Context, maddr address
 		log.Warnf("net-find-peer %s api call failed: %s", *minfo.PeerId, err)
 	}
 
-	maddrs := addrInfo.Addrs
-	if len(maddrs) == 0 {
-		log.Debugf("resolving multiaddresses for %s in DHT failed, querying the chain for available ones...", maddr)
-		// Try checking on-chain as a last resource.
-		for _, mma := range minfo.Multiaddrs {
-			ma, err := multiaddr.NewMultiaddrBytes(mma) //nolint:typecheck
-			if err != nil {
-				return "", fmt.Errorf("storage-provider %s had invalid multiaddrs in their info: %w", maddr, err)
-			}
-			maddrs = append(maddrs, ma)
-		}
-	}
-
-	if len(maddrs) == 0 {
-		return "", fmt.Errorf("no available multiaddresses for storage-provider %s", maddr)
-	}
-
 	if err := fc.host.Connect(ctx, peer.AddrInfo{
 		ID:    *minfo.PeerId,
-		Addrs: maddrs,
+		Addrs: addrInfo.Addrs,
 	}); err != nil {
 		log.Warnf("failed connecting with storage-provider %s", maddr)
 		return "", fmt.Errorf("connecting to storage-provider: %s", err)

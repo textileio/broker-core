@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
+	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/libp2p/go-libp2p"
@@ -177,6 +179,23 @@ func TestExecuteAuctionDeal(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, retry)
 	fmt.Printf("propCid: %s", propCid)
+}
+
+func TestConnectWithStorageProvider(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	fc := create(t)
+
+	maddr, _ := address.NewFromString("f010446")
+	minfo, err := fc.api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+	require.NoError(t, err)
+	require.NotNil(t, minfo.PeerId)
+	ai := peer.AddrInfo{
+		ID: *minfo.PeerId,
+	}
+	err = fc.host.Connect(context.Background(), ai)
+	require.NoError(t, err)
 }
 
 func TestPublishedMessageAndDealOnChain(t *testing.T) {
