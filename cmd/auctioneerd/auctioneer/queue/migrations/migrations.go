@@ -15,6 +15,8 @@
 // migrations/006_consume_bidbot_events.up.sql
 // migrations/007_bids_add_deal_failed_at.down.sql
 // migrations/007_bids_add_deal_failed_at.up.sql
+// migrations/008_leader_board.down.sql
+// migrations/008_leader_board.up.sql
 package migrations
 
 import (
@@ -106,7 +108,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 38, mode: os.FileMode(436), modTime: time.Unix(1630327856, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 38, mode: os.FileMode(420), modTime: time.Unix(1630006425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -126,7 +128,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1526, mode: os.FileMode(436), modTime: time.Unix(1630327856, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1526, mode: os.FileMode(420), modTime: time.Unix(1630006425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -146,7 +148,7 @@ func _002_bids_support_calculating_ratesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_bids_support_calculating_rates.down.sql", size: 87, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+	info := bindataFileInfo{name: "002_bids_support_calculating_rates.down.sql", size: 87, mode: os.FileMode(420), modTime: time.Unix(1632754344, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -166,7 +168,7 @@ func _002_bids_support_calculating_ratesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_bids_support_calculating_rates.up.sql", size: 123, mode: os.FileMode(436), modTime: time.Unix(1631615050, 0)}
+	info := bindataFileInfo{name: "002_bids_support_calculating_rates.up.sql", size: 123, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -186,7 +188,7 @@ func _003_auctions_add_client_addressDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auctions_add_client_address.down.sql", size: 49, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+	info := bindataFileInfo{name: "003_auctions_add_client_address.down.sql", size: 49, mode: os.FileMode(420), modTime: time.Unix(1632754344, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -206,7 +208,7 @@ func _003_auctions_add_client_addressUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auctions_add_client_address.up.sql", size: 213, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+	info := bindataFileInfo{name: "003_auctions_add_client_address.up.sql", size: 213, mode: os.FileMode(420), modTime: time.Unix(1632754344, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -226,7 +228,7 @@ func _004_bids_add_won_reasonDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_bids_add_won_reason.down.sql", size: 42, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+	info := bindataFileInfo{name: "004_bids_add_won_reason.down.sql", size: 42, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -246,7 +248,7 @@ func _004_bids_add_won_reasonUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_bids_add_won_reason.up.sql", size: 45, mode: os.FileMode(436), modTime: time.Unix(1633021059, 0)}
+	info := bindataFileInfo{name: "004_bids_add_won_reason.up.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -266,7 +268,7 @@ func _005_auctions_add_providersDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_auctions_add_providers.down.sql", size: 44, mode: os.FileMode(436), modTime: time.Unix(1633453830, 0)}
+	info := bindataFileInfo{name: "005_auctions_add_providers.down.sql", size: 44, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -286,7 +288,7 @@ func _005_auctions_add_providersUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_auctions_add_providers.up.sql", size: 50, mode: os.FileMode(436), modTime: time.Unix(1633453830, 0)}
+	info := bindataFileInfo{name: "005_auctions_add_providers.up.sql", size: 50, mode: os.FileMode(420), modTime: time.Unix(1633543228, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -306,7 +308,7 @@ func _006_consume_bidbot_eventsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_consume_bidbot_events.down.sql", size: 99, mode: os.FileMode(436), modTime: time.Unix(1633703350, 0)}
+	info := bindataFileInfo{name: "006_consume_bidbot_events.down.sql", size: 99, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -326,7 +328,7 @@ func _006_consume_bidbot_eventsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_consume_bidbot_events.up.sql", size: 914, mode: os.FileMode(436), modTime: time.Unix(1633703350, 0)}
+	info := bindataFileInfo{name: "006_consume_bidbot_events.up.sql", size: 914, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -346,7 +348,7 @@ func _007_bids_add_deal_failed_atDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "007_bids_add_deal_failed_at.down.sql", size: 46, mode: os.FileMode(436), modTime: time.Unix(1633957075, 0)}
+	info := bindataFileInfo{name: "007_bids_add_deal_failed_at.down.sql", size: 46, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -366,7 +368,47 @@ func _007_bids_add_deal_failed_atUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "007_bids_add_deal_failed_at.up.sql", size: 55, mode: os.FileMode(436), modTime: time.Unix(1633957075, 0)}
+	info := bindataFileInfo{name: "007_bids_add_deal_failed_at.up.sql", size: 55, mode: os.FileMode(420), modTime: time.Unix(1633707990, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __008_leader_boardDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x4a\x29\xca\x2f\x50\x28\xcb\x4c\x2d\x57\x48\xce\xcf\x2d\x48\x2d\xc9\x2c\xc9\xcc\xcf\x8b\x2f\x4a\x2d\x2e\xcd\x29\x29\xb6\xe6\x02\x04\x00\x00\xff\xff\x4f\xc0\x6a\xc1\x1f\x00\x00\x00")
+
+func _008_leader_boardDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__008_leader_boardDownSql,
+		"008_leader_board.down.sql",
+	)
+}
+
+func _008_leader_boardDownSql() (*asset, error) {
+	bytes, err := _008_leader_boardDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "008_leader_board.down.sql", size: 31, mode: os.FileMode(420), modTime: time.Unix(1635874430, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __008_leader_boardUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x84\x53\x5f\x8f\xd3\x3e\x10\x7c\xcf\xa7\x98\xb7\x4b\xaa\x5e\x9b\xfe\xf4\x43\x88\x83\x3b\x09\x09\x1e\x90\x4e\x3d\x89\x83\xe7\xc8\xb1\x37\xad\xc1\xb1\xc3\xda\x69\x28\x9f\x1e\x39\xff\xe8\x1d\x01\x22\x25\xca\x66\x76\x67\xc7\xbb\x13\xc9\x24\x02\xc1\x31\x98\x1a\x23\x24\xe1\xa4\xa9\x83\x74\x75\x43\x41\x07\xed\x6c\xc1\xe4\x5b\x13\x3c\x84\x47\x9a\x00\x9d\x0e\x47\x94\x53\x04\x78\x32\x24\x43\xff\x0a\xf8\xe0\x58\x1c\xa8\x68\xd8\x9d\xb4\x22\x2e\xb4\x5a\x8f\xd0\x0e\xd7\xa0\xef\x81\x85\x0c\x29\x35\x4e\x1e\x51\xb1\xab\x21\x5b\x66\xb2\xa1\x08\xba\x26\x1f\x44\xdd\xe0\x1a\x4c\x92\xf4\x89\x54\x21\x42\x86\xed\x52\x95\xb6\x81\xf8\x24\x0c\xae\xfe\x43\x47\xf4\xd5\x5f\x65\x78\xfb\x88\x8a\xc9\x1f\x2d\x79\x3f\x35\x8d\x97\x14\x9e\xd0\x1d\xc9\x42\x91\x30\x85\x74\xb6\xd2\x5c\xf7\xec\xd0\x1e\xb6\x35\x06\x21\xc2\x3b\x90\xf1\x84\x1c\xef\xf7\xef\x50\x09\x6d\x68\x16\xff\x37\x8e\x0f\x8f\x17\x1c\xf9\xc0\xd1\x67\x79\xfd\x83\xb6\xe9\x6e\x93\xbf\xfc\x7f\xd5\xb8\x2e\xdd\xe5\xeb\x57\x59\x06\xb2\xea\x17\x3e\xf2\xf7\x87\x2a\xb5\xf2\x63\xfc\xc5\x69\x0b\xd1\xca\xb8\x00\x0f\x67\x7b\x6c\x33\x7e\x28\xb4\xc2\xed\x8c\x6e\xb4\x1a\x8b\xba\x23\x31\x5d\x0e\x0f\x77\x8b\xe3\xfd\x7d\x78\x10\x56\xa1\x73\x76\x3c\xce\xfe\xe1\x13\xf6\x9f\xef\xef\xe7\x21\x46\x38\xed\x35\x0f\x63\x79\x96\x87\x87\x8f\x4f\xda\xbe\xf9\x47\xdb\x1d\x94\x38\xfb\xab\x2c\x01\xe2\x7d\xe1\xa0\x72\xf3\x47\x07\xf9\xb6\x4e\xcb\xcd\xd0\x3f\x8b\xf6\x1b\xa5\x44\x59\xe3\xbe\xa5\x6b\x6d\x48\x57\x3d\x3a\x8d\xa7\xe8\x9c\x5d\x20\xb8\xb9\xa9\x8c\x13\x61\x3b\x95\x8c\xf1\xc4\xdb\x32\x15\x2c\x02\x3d\xa9\x9c\xcc\xb5\x9a\x59\xb6\x97\x1d\x15\x49\x71\xd6\xf6\x50\x2c\x13\xcc\x2b\xef\x93\x0f\xba\x9c\x44\xcf\xd6\x7a\x96\x75\x77\x8b\x17\x79\x3e\xd8\x2a\x70\x4b\x83\xb3\x2a\x11\x9f\xd1\x43\xdf\x5a\x61\x74\xa5\x29\xae\x7f\xf0\x4f\x02\x1c\xd8\xb5\x0d\xca\xf3\xd2\x9f\x98\x00\x8e\x15\x71\x84\xe7\x62\x28\xf2\x72\xbd\x2c\x1e\x22\x42\x51\x6a\x9f\x95\x64\xaf\x93\x9f\x01\x00\x00\xff\xff\x0b\x5c\x41\x7b\x30\x04\x00\x00")
+
+func _008_leader_boardUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__008_leader_boardUpSql,
+		"008_leader_board.up.sql",
+	)
+}
+
+func _008_leader_boardUpSql() (*asset, error) {
+	bytes, err := _008_leader_boardUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "008_leader_board.up.sql", size: 1072, mode: os.FileMode(420), modTime: time.Unix(1635874420, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -437,6 +479,8 @@ var _bindata = map[string]func() (*asset, error){
 	"006_consume_bidbot_events.up.sql":            _006_consume_bidbot_eventsUpSql,
 	"007_bids_add_deal_failed_at.down.sql":        _007_bids_add_deal_failed_atDownSql,
 	"007_bids_add_deal_failed_at.up.sql":          _007_bids_add_deal_failed_atUpSql,
+	"008_leader_board.down.sql":                   _008_leader_boardDownSql,
+	"008_leader_board.up.sql":                     _008_leader_boardUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -494,6 +538,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"006_consume_bidbot_events.up.sql":            &bintree{_006_consume_bidbot_eventsUpSql, map[string]*bintree{}},
 	"007_bids_add_deal_failed_at.down.sql":        &bintree{_007_bids_add_deal_failed_atDownSql, map[string]*bintree{}},
 	"007_bids_add_deal_failed_at.up.sql":          &bintree{_007_bids_add_deal_failed_atUpSql, map[string]*bintree{}},
+	"008_leader_board.down.sql":                   &bintree{_008_leader_boardDownSql, map[string]*bintree{}},
+	"008_leader_board.up.sql":                     &bintree{_008_leader_boardUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
