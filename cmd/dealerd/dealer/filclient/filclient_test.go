@@ -183,6 +183,7 @@ func TestExecuteAuctionDeal(t *testing.T) {
 
 func TestConnectWithStorageProvider(t *testing.T) {
 	t.Parallel()
+	t.SkipNow()
 
 	ctx := context.Background()
 	fc := create(t)
