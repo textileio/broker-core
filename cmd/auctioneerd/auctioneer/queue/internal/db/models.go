@@ -85,6 +85,16 @@ type BidEvent struct {
 	ReceivedAt time.Time      `json:"receivedAt"`
 }
 
+type CompetitionResult struct {
+	StorageProviderID   string `json:"storageProviderID"`
+	FailedDeals         int64  `json:"failedDeals"`
+	AuctionsWon         int64  `json:"auctionsWon"`
+	FailureRate         int32  `json:"failureRate"`
+	DecayingFailureRate int32  `json:"decayingFailureRate"`
+	Gibs                int64  `json:"gibs"`
+	Qualified           bool   `json:"qualified"`
+}
+
 type StorageProvider struct {
 	ID                   string         `json:"id"`
 	BidbotVersion        string         `json:"bidbotVersion"`

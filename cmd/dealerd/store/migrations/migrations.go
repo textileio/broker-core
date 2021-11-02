@@ -104,7 +104,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -124,7 +124,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -144,7 +144,7 @@ func _002_market_statusDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
+	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -164,7 +164,7 @@ func _002_market_statusUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
+	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -184,7 +184,7 @@ func _003_remote_walletDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -204,7 +204,7 @@ func _003_remote_walletUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -224,7 +224,7 @@ func _004_dealer_apiDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_dealer_api.down.sql", size: 552, mode: os.FileMode(436), modTime: time.Unix(1633965948, 0)}
+	info := bindataFileInfo{name: "004_dealer_api.down.sql", size: 552, mode: os.FileMode(420), modTime: time.Unix(1633966822, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -244,7 +244,7 @@ func _004_dealer_apiUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_dealer_api.up.sql", size: 307, mode: os.FileMode(436), modTime: time.Unix(1633965948, 0)}
+	info := bindataFileInfo{name: "004_dealer_api.up.sql", size: 307, mode: os.FileMode(420), modTime: time.Unix(1633966822, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -264,7 +264,7 @@ func _005_market_deal_status_commentDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_market_deal_status_comment.down.sql", size: 44, mode: os.FileMode(436), modTime: time.Unix(1633980644, 0)}
+	info := bindataFileInfo{name: "005_market_deal_status_comment.down.sql", size: 44, mode: os.FileMode(420), modTime: time.Unix(1633981162, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -284,7 +284,7 @@ func _005_market_deal_status_commentUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_market_deal_status_comment.up.sql", size: 48, mode: os.FileMode(436), modTime: time.Unix(1633980644, 0)}
+	info := bindataFileInfo{name: "005_market_deal_status_comment.up.sql", size: 48, mode: os.FileMode(420), modTime: time.Unix(1633981162, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -304,7 +304,7 @@ func _006_postgraphile_status_enumDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_postgraphile_status_enum.down.sql", size: 727, mode: os.FileMode(436), modTime: time.Unix(1634213788, 0)}
+	info := bindataFileInfo{name: "006_postgraphile_status_enum.down.sql", size: 727, mode: os.FileMode(420), modTime: time.Unix(1634141824, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -324,7 +324,7 @@ func _006_postgraphile_status_enumUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_postgraphile_status_enum.up.sql", size: 950, mode: os.FileMode(436), modTime: time.Unix(1634213788, 0)}
+	info := bindataFileInfo{name: "006_postgraphile_status_enum.up.sql", size: 950, mode: os.FileMode(420), modTime: time.Unix(1634141824, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
