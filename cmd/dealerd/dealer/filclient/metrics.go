@@ -21,5 +21,5 @@ func (fc *FilClient) initMetrics() {
 	fc.metricCheckChainDeal = metrics.Meter.NewInt64Counter("dealer.filclient.checkchaindeal")
 
 	fc.metricFilAPIRequests = metrics.Meter.NewInt64Counter("dealer.filclient.filapi.requests")
-	fc.metricFilAPIDurationMillis = metrics.Meter.NewInt64ValueRecorder("dealer.filclient.filapi.duration.millis")
+	fc.metricFilAPIDurationMillis = metrics.Meter.NewInt64Histogram("dealer.filclient.filapi.duration.millis")
 }

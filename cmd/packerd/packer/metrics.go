@@ -10,19 +10,19 @@ import (
 func (p *Packer) initMetrics() {
 	p.metricNewBatch = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batches_total")
 	p.metricBatchSizeTotal = metrics.Meter.NewInt64Counter(metrics.Prefix + ".batch_sizes_total")
-	p.metricLastBatchCreated = metrics.Meter.NewInt64ValueObserver(
+	p.metricLastBatchCreated = metrics.Meter.NewInt64GaugeObserver(
 		metrics.Prefix+".last_batch_created_epoch",
 		p.lastCreatedCb,
 	)
-	p.metricLastBatchCount = metrics.Meter.NewInt64ValueObserver(
+	p.metricLastBatchCount = metrics.Meter.NewInt64GaugeObserver(
 		metrics.Prefix+".last_batch_count",
 		p.lastCountCb,
 	)
-	p.metricLastBatchSize = metrics.Meter.NewInt64ValueObserver(
+	p.metricLastBatchSize = metrics.Meter.NewInt64GaugeObserver(
 		metrics.Prefix+".last_batch_size",
 		p.lastSizeCb,
 	)
-	p.metricLastBatchDurationMillis = metrics.Meter.NewInt64ValueObserver(
+	p.metricLastBatchDurationMillis = metrics.Meter.NewInt64GaugeObserver(
 		metrics.Prefix+".last_batch_duration_millis",
 		p.lastDurationCb,
 	)

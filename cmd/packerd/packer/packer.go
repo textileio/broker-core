@@ -52,13 +52,13 @@ type Packer struct {
 	metricNewBatch                metric.Int64Counter
 	metricBatchSizeTotal          metric.Int64Counter
 	statLastBatch                 time.Time
-	metricLastBatchCreated        metric.Int64ValueObserver
+	metricLastBatchCreated        metric.Int64GaugeObserver
 	statLastBatchCount            int64
-	metricLastBatchCount          metric.Int64ValueObserver
+	metricLastBatchCount          metric.Int64GaugeObserver
 	statLastBatchSize             int64
-	metricLastBatchSize           metric.Int64ValueObserver
+	metricLastBatchSize           metric.Int64GaugeObserver
 	statLastBatchDuration         int64
-	metricLastBatchDurationMillis metric.Int64ValueObserver
+	metricLastBatchDurationMillis metric.Int64GaugeObserver
 }
 
 // CARUploader provides blob storage for CAR files.

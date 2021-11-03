@@ -77,8 +77,8 @@ type Auctioneer struct {
 	metricNewFinalizedAuction metric.Int64Counter
 	metricNewBid              metric.Int64Counter
 	metricWinningBid          metric.Int64Counter
-	metricLastCreatedAuction  metric.Int64ValueObserver
-	metricPubsubPeers         metric.Int64ValueObserver
+	metricLastCreatedAuction  metric.Int64GaugeObserver
+	metricPubsubPeers         metric.Int64GaugeObserver
 
 	providerFailureRates   atomic.Value // map[string]int
 	providerOnChainEpoches atomic.Value // map[string]uint64

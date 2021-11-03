@@ -13,11 +13,11 @@ func (a *Auctioneer) initMetrics() {
 	a.metricNewFinalizedAuction = metrics.Meter.NewInt64Counter(metrics.Prefix + ".finalized_auctions_total")
 	a.metricNewBid = metrics.Meter.NewInt64Counter(metrics.Prefix + ".bids_total")
 	a.metricWinningBid = metrics.Meter.NewInt64Counter(metrics.Prefix + ".winning_bids_total")
-	a.metricLastCreatedAuction = metrics.Meter.NewInt64ValueObserver(
+	a.metricLastCreatedAuction = metrics.Meter.NewInt64GaugeObserver(
 		metrics.Prefix+".last_created_auction_epoch",
 		a.lastCreatedAuctionCb)
 
-	a.metricPubsubPeers = metrics.Meter.NewInt64ValueObserver(metrics.Prefix+".libp2p_pubsub_peers", a.lastPubsubPeersCb)
+	a.metricPubsubPeers = metrics.Meter.NewInt64GaugeObserver(metrics.Prefix+".libp2p_pubsub_peers", a.lastPubsubPeersCb)
 }
 
 func (a *Auctioneer) lastCreatedAuctionCb(_ context.Context, r metric.Int64ObserverResult) {

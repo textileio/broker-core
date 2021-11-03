@@ -44,12 +44,12 @@ type Piecer struct {
 	daemonClosed    chan struct{}
 
 	statLastSize              int64
-	metricLastSize            metric.Int64ValueObserver
+	metricLastSize            metric.Int64GaugeObserver
 	statLastDurationSeconds   int64
-	metricLastDurationSeconds metric.Int64ValueObserver
+	metricLastDurationSeconds metric.Int64GaugeObserver
 	metricNewPrepare          metric.Int64Counter
 	statLastPrepared          time.Time
-	metricLastPrepared        metric.Int64ValueObserver
+	metricLastPrepared        metric.Int64GaugeObserver
 }
 
 // New returns a new Piecer.
