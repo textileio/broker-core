@@ -27,7 +27,7 @@ require (
 	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ipfs-cmds v0.6.0
-	github.com/ipfs/go-ipfs-files v0.0.8
+	github.com/ipfs/go-ipfs-files v0.0.9
 	github.com/ipfs/go-ipfs-http-client v0.1.0-update-libp2p
 	github.com/ipfs/go-ipfs-util v0.0.2
 	github.com/ipfs/go-ipld-format v0.2.0
@@ -66,15 +66,15 @@ require (
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.22.0
-	go.opentelemetry.io/contrib/instrumentation/runtime v0.21.0
-	go.opentelemetry.io/otel v1.0.0-RC2
-	go.opentelemetry.io/otel/exporters/prometheus v0.21.0
-	go.opentelemetry.io/otel/metric v0.22.0
-	go.opentelemetry.io/otel/sdk/export/metric v0.21.0
-	go.opentelemetry.io/otel/sdk/metric v0.21.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.26.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.26.0
+	go.opentelemetry.io/otel v1.1.0
+	go.opentelemetry.io/otel/exporters/prometheus v0.24.0
+	go.opentelemetry.io/otel/metric v0.24.0
+	go.opentelemetry.io/otel/sdk/export/metric v0.24.0
+	go.opentelemetry.io/otel/sdk/metric v0.24.0
 	google.golang.org/api v0.56.0
-	google.golang.org/grpc v1.41.0
+	google.golang.org/grpc v1.42.0
 	google.golang.org/protobuf v1.27.1
 )
 
@@ -83,4 +83,4 @@ replace github.com/kilic/bls12-381 => github.com/kilic/bls12-381 v0.0.0-20200820
 replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1
 
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
-replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/nabokihms/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.20.1-0.20210622062648-f4d780a56f54
+replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20211103030059-3552081365d7
