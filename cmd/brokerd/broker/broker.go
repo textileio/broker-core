@@ -69,13 +69,13 @@ type Broker struct {
 	metricFinishedBytes        metric.Int64Counter
 	metricRebatches            metric.Int64Counter
 	metricRebatchedBytes       metric.Int64Counter
-	metricBatchFinalityMinutes metric.Int64ValueRecorder
+	metricBatchFinalityMinutes metric.Int64Histogram
 	metricReauctions           metric.Int64Counter
 	metricReauctionedBytes     metric.Int64Counter
 
 	metricUnpinTotal        metric.Int64Counter
 	statTotalRecursivePins  int64
-	metricRecursivePinCount metric.Int64ValueObserver
+	metricRecursivePinCount metric.Int64GaugeObserver
 }
 
 // New creates a new Broker.

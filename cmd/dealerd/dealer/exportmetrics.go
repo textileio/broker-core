@@ -12,7 +12,7 @@ import (
 
 func (d *Dealer) daemonExportMetrics() {
 	var (
-		metricStatusCounter metric.Int64ValueObserver
+		metricStatusCounter metric.Int64GaugeObserver
 		countMap            = map[storagemarket.StorageDealStatus]int64{}
 	)
 	attrStatus := attribute.Key("status")
@@ -25,7 +25,7 @@ func (d *Dealer) daemonExportMetrics() {
 			)
 		}
 	})
-	metricStatusCounter = batchObs.NewInt64ValueObserver(metrics.Prefix + ".deal_status_count")
+	metricStatusCounter = batchObs.NewInt64GaugeObserver(metrics.Prefix + ".deal_status_count")
 
 	for {
 		start := time.Now()

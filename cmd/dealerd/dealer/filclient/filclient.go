@@ -92,7 +92,7 @@ type FilClient struct {
 	metricCheckChainDeal                     metric.Int64Counter
 
 	metricFilAPIRequests       metric.Int64Counter
-	metricFilAPIDurationMillis metric.Int64ValueRecorder
+	metricFilAPIDurationMillis metric.Int64Histogram
 }
 
 // New returns a new FilClient.

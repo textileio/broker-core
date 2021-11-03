@@ -45,14 +45,14 @@ func New(rc *registryclient.Client, pc *providerclient.Client, chainID string) *
 
 func (m *Metrics) initMetrics() {
 	var (
-		providerCount     metric.Int64ValueObserver
-		depositsCount     metric.Int64ValueObserver
-		depositsSum       metric.Float64ValueObserver
-		accountBal        metric.Float64ValueObserver
-		lockedAccountBal  metric.Float64ValueObserver
-		storageUsage      metric.Int64ValueObserver
-		latestBlocktime   metric.Int64ValueObserver
-		latestBlockHeight metric.Int64ValueObserver
+		providerCount     metric.Int64GaugeObserver
+		depositsCount     metric.Int64GaugeObserver
+		depositsSum       metric.Float64GaugeObserver
+		accountBal        metric.Float64GaugeObserver
+		lockedAccountBal  metric.Float64GaugeObserver
+		storageUsage      metric.Int64GaugeObserver
+		latestBlocktime   metric.Int64GaugeObserver
+		latestBlockHeight metric.Int64GaugeObserver
 	)
 	batchObs := meter.NewBatchObserver(func(ctx context.Context, result metric.BatchObserverResult) {
 		var obs []metric.Observation
@@ -132,12 +132,12 @@ func (m *Metrics) initMetrics() {
 
 		result.Observe([]attribute.KeyValue{{Key: "chainId", Value: attribute.StringValue(m.chainID)}}, obs...)
 	})
-	providerCount = batchObs.NewInt64ValueObserver(prefix + ".provider_count")
-	depositsCount = batchObs.NewInt64ValueObserver(prefix + ".deposits_count")
-	depositsSum = batchObs.NewFloat64ValueObserver(prefix + ".deposits_sum")
-	accountBal = batchObs.NewFloat64ValueObserver(prefix + ".account_bal")
-	lockedAccountBal = batchObs.NewFloat64ValueObserver(prefix + ".locked_account_bal")
-	storageUsage = batchObs.NewInt64ValueObserver(prefix + ".storage_usage")
-	latestBlocktime = batchObs.NewInt64ValueObserver(prefix + ".latest_block_time")
-	latestBlockHeight = batchObs.NewInt64ValueObserver(prefix + ".latest_block_height")
+	providerCount = batchObs.NewInt64GaugeObserver(prefix + ".provider_count")
+	depositsCount = batchObs.NewInt64GaugeObserver(prefix + ".deposits_count")
+	depositsSum = batchObs.NewFloat64GaugeObserver(prefix + ".deposits_sum")
+	accountBal = batchObs.NewFloat64GaugeObserver(prefix + ".account_bal")
+	lockedAccountBal = batchObs.NewFloat64GaugeObserver(prefix + ".locked_account_bal")
+	storageUsage = batchObs.NewInt64GaugeObserver(prefix + ".storage_usage")
+	latestBlocktime = batchObs.NewInt64GaugeObserver(prefix + ".latest_block_time")
+	latestBlockHeight = batchObs.NewInt64GaugeObserver(prefix + ".latest_block_height")
 }

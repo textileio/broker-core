@@ -13,11 +13,11 @@ import (
 
 func (p *Packer) daemonExportMetrics() {
 	var (
-		mOpenBatchesCidCount metric.Int64ValueObserver
-		mOpenBatchesBytes    metric.Int64ValueObserver
-		mOpenBatchesCount    metric.Int64ValueObserver
-		mDoneBatchesCount    metric.Int64ValueObserver
-		mDoneBatchesBytes    metric.Int64ValueObserver
+		mOpenBatchesCidCount metric.Int64GaugeObserver
+		mOpenBatchesBytes    metric.Int64GaugeObserver
+		mOpenBatchesCount    metric.Int64GaugeObserver
+		mDoneBatchesCount    metric.Int64GaugeObserver
+		mDoneBatchesBytes    metric.Int64GaugeObserver
 
 		lock                 sync.Mutex
 		lastOpenBatchesStats []store.OpenBatchStats
@@ -46,11 +46,11 @@ func (p *Packer) daemonExportMetrics() {
 			)
 		}
 	})
-	mOpenBatchesCidCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_cid_count")
-	mOpenBatchesBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_bytes")
-	mOpenBatchesCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".open_batches_count")
-	mDoneBatchesCount = batchObs.NewInt64ValueObserver(metrics.Prefix + ".done_batches_count")
-	mDoneBatchesBytes = batchObs.NewInt64ValueObserver(metrics.Prefix + ".done_batches_bytes")
+	mOpenBatchesCidCount = batchObs.NewInt64GaugeObserver(metrics.Prefix + ".open_batches_cid_count")
+	mOpenBatchesBytes = batchObs.NewInt64GaugeObserver(metrics.Prefix + ".open_batches_bytes")
+	mOpenBatchesCount = batchObs.NewInt64GaugeObserver(metrics.Prefix + ".open_batches_count")
+	mDoneBatchesCount = batchObs.NewInt64GaugeObserver(metrics.Prefix + ".done_batches_count")
+	mDoneBatchesBytes = batchObs.NewInt64GaugeObserver(metrics.Prefix + ".done_batches_bytes")
 
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

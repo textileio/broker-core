@@ -24,7 +24,7 @@ type otelMetricsCollector struct {
 	metricPublishMessageErrors        metric.Int64Counter
 	metricHandledMessages             metric.Int64Counter
 	metricHandleMessageErrors         metric.Int64Counter
-	metricHandleMessageDurationMillis metric.Int64ValueRecorder
+	metricHandleMessageDurationMillis metric.Int64Histogram
 }
 
 func (c *otelMetricsCollector) onPublish(ctx context.Context, topicName string, err error) {
@@ -50,6 +50,6 @@ func (p *PubsubMsgBroker) initMetrics(meter metric.MeterMust) {
 		metricPublishMessageErrors:        meter.NewInt64Counter("gpubsub_publish_message_errors_total"),
 		metricHandledMessages:             meter.NewInt64Counter("gpubsub_handled_messages_total"),
 		metricHandleMessageErrors:         meter.NewInt64Counter("gpubsub_handle_message_errors_total"),
-		metricHandleMessageDurationMillis: meter.NewInt64ValueRecorder("gpubsub_handle_message_duration_millis"),
+		metricHandleMessageDurationMillis: meter.NewInt64Histogram("gpubsub_handle_message_duration_millis"),
 	}
 }

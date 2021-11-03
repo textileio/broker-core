@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric/global"
-	export "go.opentelemetry.io/otel/sdk/export/metric"
+	"go.opentelemetry.io/otel/sdk/export/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
@@ -27,11 +27,11 @@ func SetupInstrumentation(prometheusAddr string) error {
 		DefaultHistogramBoundaries: []float64{0.25, 1, 10, 100, 1000, 10000},
 	}
 	c := controller.New(
-		processor.New(
+		processor.NewFactory(
 			selector.NewWithHistogramDistribution(
 				histogram.WithExplicitBoundaries(config.DefaultHistogramBoundaries),
 			),
-			export.CumulativeExportKindSelector(),
+			metric.CumulativeExportKindSelector(),
 			processor.WithMemory(true),
 		),
 	)

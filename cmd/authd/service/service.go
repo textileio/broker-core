@@ -47,7 +47,7 @@ type Service struct {
 	store  *store.Store
 
 	metricGrpcRequests              metric.Int64Counter
-	metricGrpcRequestDurationMillis metric.Int64ValueRecorder
+	metricGrpcRequestDurationMillis metric.Int64Histogram
 }
 
 // Config is the service config.
