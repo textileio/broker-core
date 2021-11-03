@@ -27,7 +27,7 @@ require (
 	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ipfs-cmds v0.6.0
-	github.com/ipfs/go-ipfs-files v0.0.8
+	github.com/ipfs/go-ipfs-files v0.0.9
 	github.com/ipfs/go-ipfs-http-client v0.1.0-update-libp2p
 	github.com/ipfs/go-ipfs-util v0.0.2
 	github.com/ipfs/go-ipld-format v0.2.0
