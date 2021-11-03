@@ -25,7 +25,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
 	github.com/ipfs/go-cid v0.1.0
-	github.com/ipfs/go-datastore v0.4.6
+	github.com/ipfs/go-datastore v0.5.0
 	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-http-client v0.1.0-update-libp2p
@@ -43,7 +43,7 @@ require (
 	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.9.0
-	github.com/libp2p/go-libp2p-kad-dht v0.13.1
+	github.com/libp2p/go-libp2p-kad-dht v0.15.0
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-swarm v0.5.3
 	github.com/mr-tron/base58 v1.2.0
