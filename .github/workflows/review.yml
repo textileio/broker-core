@@ -14,7 +14,7 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-    - name: Install Go
+      - name: Install Go
         uses: actions/setup-go@v2
         with:
           go-version: v1.17
