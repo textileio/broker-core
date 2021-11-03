@@ -34,4 +34,5 @@ SELECT DISTINCT d.storage_provider_id
 FROM deals d
 INNER JOIN batches b ON b.id=d.batch_id
 WHERE b.piece_cid=$1 AND
-      b.origin=$2;
+      b.origin=$2 AND
+      (b.providers = '{}' OR (b.providers!='{}' AND d.deal_id>0 AND d.deal_expiration>0));
