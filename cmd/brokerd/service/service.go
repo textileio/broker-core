@@ -426,8 +426,14 @@ func parsePreparedCAR(ctx context.Context, r *pb.CreatePreparedStorageRequestReq
 	if err != nil {
 		return broker.PreparedCAR{}, fmt.Errorf("creating data URI from sources: %s", err)
 	}
-	if err := u.Validate(ctx); err != nil {
-		return broker.PreparedCAR{}, fmt.Errorf("validating sources: %s", err)
+
+	// We only validate CAR URIs for non-targeted auctions. Clients running targeted auctions
+	// could provide private URL links that are fetchable by the targeted miners, but not to us
+	// to be able to check.
+	if len(r.Metadata.Providers) == 0 {
+		if err := u.Validate(ctx); err != nil {
+			return broker.PreparedCAR{}, fmt.Errorf("validating sources: %s", err)
+		}
 	}
 
 	return pc, nil
