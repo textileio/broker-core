@@ -56,8 +56,13 @@ var (
 		"/dns4/bootstrap-6.mainnet.filops.net/tcp/1347/p2p/12D3KooWP5MwCiqdMETF9ub1P3MbCvQCcfconnYHbWg6sUJcDRQQ",
 		"/dns4/bootstrap-7.mainnet.filops.net/tcp/1347/p2p/12D3KooWRs3aY1p3juFjPy8gPN95PEQChm2QKGUCAdcDCC4EBMKf",
 		"/dns4/bootstrap-8.mainnet.filops.net/tcp/1347/p2p/12D3KooWScFR7385LTyR4zU1bYdzSiiAb5rnNABfVahPvVSzyTkR",
+
 		"/dns4/lotus-bootstrap.ipfsforce.com/tcp/41778/p2p/12D3KooWGhufNmZHF3sv48aQeS13ng5XVJZ9E6qy2Ms4VzqeUsHk",
+		"/dns4/bootstrap-0.starpool.in/tcp/12757/p2p/12D3KooWDqaZkm3oSczUm3dvAJ5aL2rdSeQ5VQbnHRTQNEFShhmc",
+		"/dns4/bootstrap-1.starpool.in/tcp/12757/p2p/12D3KooWDgQrcyZpcMAkbEFSJJYV2qXEMwXX67WTbqpNdbifHaEq",
 		"/dns4/node.glif.io/tcp/1235/p2p/12D3KooWBF8cpp65hp2u9LK5mh19x67ftAam84z9LsfaquTDSBpt",
+		"/dns4/bootstrap-0.ipfsmain.cn/tcp/34721/p2p/12D3KooWQnwEGNqcM2nAcPtRR9rAX8Hrg4k9kJLCHoTR5chJfz6d",
+		"/dns4/bootstrap-1.ipfsmain.cn/tcp/34723/p2p/12D3KooWMKxMkD5DMpSWsW7dBddKxKT7L2GgbNuckz9otxvkvByP",
 	}
 	bootstrapPeers []peer.AddrInfo
 )
@@ -126,7 +131,7 @@ func New(api v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
 		bp := bp
 		go func() {
 			defer wg.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
 			if err := h.Connect(ctx, bp); err != nil {
 				log.Errorf("bootstrap peer connect: %s", err)
@@ -344,7 +349,7 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 		storageProviderID, propCid, storagemarket.DealStates[resp.DealState.State])
 
 	if resp.DealState.State == storagemarket.StorageDealError {
-		log.Warnf("deal error: %s", resp.DealState.Message)
+		log.Warnf("deal %s error from %s: %s", resp.DealState.ProposalCid, storageProviderID, resp.DealState.Message)
 	}
 
 	return &resp.DealState, nil
