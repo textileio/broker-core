@@ -1,4 +1,8 @@
-create or replace view competition_results as (
+begin;
+
+drop view if exists competition_results;
+
+create view competition_results as (
   with a as(
     select
       storage_provider_id,
@@ -58,3 +62,5 @@ create or replace view competition_results as (
     qualified
   order by qualified desc, total desc, gibs desc
 );
+
+commit;
