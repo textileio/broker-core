@@ -99,15 +99,17 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 			aud.ErrorCause = failureDealMakingMaxRetries
 			aud.ReadyAt = time.Unix(0, 0)
 			if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusReportFinalized); err != nil {
-				return fmt.Errorf("saving auction deal: %s", err)
+				return fmt.Errorf("saving auction deal for final retry: %s", err)
 			}
 			return nil
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
 		log.Warnf("deal for %s with %s failed, we'll retry soon...", ad.PayloadCid, aud.StorageProviderID)
 		aud.ReadyAt = time.Now().Add(d.config.dealMakingRetryDelay * time.Duration(aud.Retries))
 		if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusDealMaking); err != nil {
-			return fmt.Errorf("saving auction deal: %s", err)
+			return fmt.Errorf("saving auction deal for future retry: %s", err)
 		}
 		return nil
 	}
