@@ -86,13 +86,14 @@ type BidEvent struct {
 }
 
 type CompetitionResult struct {
-	StorageProviderID   string `json:"storageProviderID"`
-	FailedDeals         int64  `json:"failedDeals"`
-	AuctionsWon         int64  `json:"auctionsWon"`
-	FailureRate         int32  `json:"failureRate"`
-	DecayingFailureRate int32  `json:"decayingFailureRate"`
-	Gibs                int64  `json:"gibs"`
-	Qualified           bool   `json:"qualified"`
+	StorageProviderID string `json:"storageProviderID"`
+	SuccessfulDeals   int64  `json:"successfulDeals"`
+	AuctionsWon       int64  `json:"auctionsWon"`
+	SuccessRate       int32  `json:"successRate"`
+	Bonus             int32  `json:"bonus"`
+	Total             int32  `json:"total"`
+	Gibs              int64  `json:"gibs"`
+	Qualified         bool   `json:"qualified"`
 }
 
 type StorageProvider struct {
