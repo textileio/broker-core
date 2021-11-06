@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	failureDealMakingMaxRetries = "reached maximum amount of deal-making retries"
+	failureDealMakingMaxRetries = "deal rejected: reached maximum amount of deal-making retries"
 )
 
 func (d *Dealer) daemonDealMaker() {
@@ -89,6 +89,8 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		return fmt.Errorf("executing auction deal: %s", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
 	// If retry, then we move from ExecutingDealMaking back to PendingDealMaking
 	// with some delay as to retry again. If we tried dealMakingMaxRetries,
 	// we give up and error the auction deal.
@@ -104,8 +106,6 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 			return nil
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
 		log.Warnf("deal for %s with %s failed, we'll retry soon...", ad.PayloadCid, aud.StorageProviderID)
 		aud.ReadyAt = time.Now().Add(d.config.dealMakingRetryDelay * time.Duration(aud.Retries))
 		if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusDealMaking); err != nil {
