@@ -245,13 +245,14 @@ func (b *Broker) CreatePrepared(
 	}
 	sr.BatchID = ba.ID
 
-	proposalStartOffsetEpoch, err := timeToFilEpoch(time.Now().Add(proposalStartOffset))
+	propStartOffsetEpoch, err := timeToFilEpoch(time.Now().Add(proposalStartOffset))
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating auction epoch deadline: %s", err)
 	}
 
 	// If is a D2P auction, we ignore previous history to exclude potential winners.
-	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, proposalStartOffsetEpoch, len(ba.Providers) > 0)
+	ignorePreviousAuctions := len(ba.Providers) > 0
+	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, propStartOffsetEpoch, ignorePreviousAuctions)
 	if err != nil {
 		return broker.StorageRequest{}, err
 	}
