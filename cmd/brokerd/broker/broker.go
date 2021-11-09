@@ -245,12 +245,14 @@ func (b *Broker) CreatePrepared(
 	}
 	sr.BatchID = ba.ID
 
-	proposalStartOffsetEpoch, err := timeToFilEpoch(time.Now().Add(proposalStartOffset))
+	propStartOffsetEpoch, err := timeToFilEpoch(time.Now().Add(proposalStartOffset))
 	if err != nil {
 		return broker.StorageRequest{}, fmt.Errorf("calculating auction epoch deadline: %s", err)
 	}
 
-	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, proposalStartOffsetEpoch)
+	// If is a D2P auction, we ignore previous history to exclude potential winners.
+	ignorePreviousAuctions := len(ba.Providers) > 0
+	auctionID, err := b.startAuction(ctx, ba, rw, ba.RepFactor, ba.PieceSize, propStartOffsetEpoch, ignorePreviousAuctions)
 	if err != nil {
 		return broker.StorageRequest{}, err
 	}
@@ -400,7 +402,7 @@ func (b *Broker) NewBatchPrepared(
 	if err != nil {
 		return fmt.Errorf("calculating proposal start epoch: %s", err)
 	}
-	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, proposalStartEpoch)
+	auctionID, err := b.startAuction(ctx, ba, nil, ba.RepFactor, dpr.PieceSize, proposalStartEpoch, false)
 	if err != nil {
 		return err
 	}
@@ -414,7 +416,8 @@ func (b *Broker) startAuction(ctx context.Context,
 	rw *broker.RemoteWallet,
 	repFactor int,
 	pieceSize uint64,
-	filEpochDeadline uint64) (auction.ID, error) {
+	filEpochDeadline uint64,
+	ignorePreviousAuctions bool) (auction.ID, error) {
 	auctionID, err := b.newID()
 	if err != nil {
 		return "", fmt.Errorf("generating auction id: %s", err)
@@ -426,9 +429,12 @@ func (b *Broker) startAuction(ctx context.Context,
 		clientAddress = common.StringifyAddr(b.conf.defaultWalletAddr)
 	}
 
-	excludedSPs, err := b.store.GetExcludedStorageProviders(ctx, ba.PieceCid, ba.Origin)
-	if err != nil {
-		return "", fmt.Errorf("get excluded storage providers for %s:%s: %s", ba.PieceCid, ba.Origin, err)
+	var excludedSPs []string
+	if !ignorePreviousAuctions {
+		excludedSPs, err = b.store.GetExcludedStorageProviders(ctx, ba.PieceCid, ba.Origin)
+		if err != nil {
+			return "", fmt.Errorf("get excluded storage providers for %s:%s: %s", ba.PieceCid, ba.Origin, err)
+		}
 	}
 	// If this was a direct2provider auctioned batch, we still need at least 1 non-excluded
 	// miner to have the possibility of closing successfully. If we need to re-auction and don't
@@ -556,7 +562,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		if err != nil {
 			return fmt.Errorf("calculating auction start offset: %s", err)
 		}
-		_, err = b.startAuction(ctx, ba, rw, len(au.WinningBids)-len(acceptedWinners), ba.PieceSize, propStartEpoch)
+		_, err = b.startAuction(ctx, ba, rw, len(au.WinningBids)-len(acceptedWinners), ba.PieceSize, propStartEpoch, false)
 		if err != nil {
 			return fmt.Errorf("creating new auction for discarded miners: %s", err)
 		}
@@ -671,7 +677,7 @@ func (b *Broker) BatchFinalizedDeal(ctx context.Context,
 		if err != nil {
 			return fmt.Errorf("get remote wallet config: %s", err)
 		}
-		auctionID, err := b.startAuction(ctx, ba, rw, 1, ba.PieceSize, proposalStartEpoch)
+		auctionID, err := b.startAuction(ctx, ba, rw, 1, ba.PieceSize, proposalStartEpoch, false)
 		if err != nil {
 			return fmt.Errorf("creating new auction for errored deal: %s", err)
 		}
