@@ -163,7 +163,7 @@ WITH b AS (SELECT storage_provider_id,
       CASE WHEN deal_confirmed_at IS NULL THEN 1 ELSE 0 END failed
     FROM bids
     WHERE received_at > current_timestamp - interval '1 weeks' AND won_at IS NOT NULL
-    AND (deal_failed_at IS NOT NULL OR received_at < current_timestamp - interval '1 days'))
+    AND (deal_failed_at IS NOT NULL OR deal_confirmed_at IS NOT NULL))
 SELECT b.storage_provider_id, (SUM(b.freshness*b.failed)*1000000/COUNT(*))::bigint AS failure_rate_ppm
 FROM b
 GROUP BY storage_provider_id
