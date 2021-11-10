@@ -21,14 +21,14 @@ create or replace view competition_results as (
   b as (
     select
       bids.storage_provider_id,
-          case when deal_confirmed_at is null then 0 else 1 end success,
-      case when deal_confirmed_at is null then 0 else auctions.deal_size/(1.074*pow(10,9)) end deal_size
+        case when deal_confirmed_at is null then 0 else 1 end success,
+        case when deal_confirmed_at is null then 0 else auctions.deal_size/(1.074*pow(10,9)) end deal_size
       from bids
-      join auctions on bids.auction_id = auctions.id
+        join auctions on bids.auction_id = auctions.id
       where received_at > timestamp '2021-11-08 00:00:00.000000+00'
-      and received_at < timestamp '2021-11-22 00:00:00.000000+00'
-      and won_at is not null
-      and (deal_confirmed_at is not null or deal_failed_at is not null)
+        and received_at < timestamp '2021-11-22 00:00:00.000000+00'
+        and won_at is not null
+        and (deal_confirmed_at is not null or deal_failed_at is not null)
   ),
   c as (
     select
