@@ -51,7 +51,8 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	// Dealer filclient.
-	client, err := New(createFilClient(t), h1, WithMaxPriceLimits(10, 10))
+	api := createFilClient(t, "https://api.node.glif.io/")
+	client, err := New([]v0api.FullNode{api}, h1, WithMaxPriceLimits(10, 10))
 	require.NoError(t, err)
 
 	// Create proposal targeting remote wallet.
@@ -119,7 +120,8 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	// Dealer filclient.
-	client, err := New(createFilClient(t), h1, WithMaxPriceLimits(10, 10))
+	api := createFilClient(t, "https://api.node.glif.io/")
+	client, err := New([]v0api.FullNode{api}, h1, WithMaxPriceLimits(10, 10))
 	require.NoError(t, err)
 
 	// Remote wallet.
@@ -152,7 +154,7 @@ func TestExecuteAuctionDeal(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 
-	client := create(t)
+	client := create(t, "https://api.node.glif.io/")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -186,7 +188,7 @@ func TestConnectWithStorageProvider(t *testing.T) {
 	t.SkipNow()
 
 	ctx := context.Background()
-	fc := create(t)
+	fc := create(t, "https://api.node.glif.io/")
 
 	maddr, _ := address.NewFromString("f010446")
 	minfo, err := fc.api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
@@ -203,7 +205,7 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 
-	client := create(t)
+	client := create(t, "https://api.node.glif.com/", "https://api.node.glif.io/")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -226,7 +228,7 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 
-	client := create(t)
+	client := create(t, "https://api.node.glif.io/")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -241,7 +243,7 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 func TestGetChainHeight(t *testing.T) {
 	t.Parallel()
 
-	client := create(t)
+	client := create(t, "https://api.node.glif.io/")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -250,9 +252,32 @@ func TestGetChainHeight(t *testing.T) {
 	require.Greater(t, height, uint64(0))
 }
 
-func createFilClient(t *testing.T) *v0api.FullNodeStruct {
+func TestGetChainHeightWithSuccessulRetry(t *testing.T) {
+	t.Parallel()
+
+	client := create(t, "https://api.node.glif.com/", "https://api.node.glif.io/") // the first gateway is invalid
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	height, err := client.GetChainHeight(ctx)
+	require.NoError(t, err)
+	require.Greater(t, height, uint64(0))
+}
+
+func TestGetChainHeightWithUnsuccessulRetry(t *testing.T) {
+	t.Parallel()
+
+	client := create(t, "https://api.node.glif.com/", "https://api.node.glif.com/") // both gateways are invalid
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	_, err := client.GetChainHeight(ctx)
+	require.Error(t, err)
+}
+
+func createFilClient(t *testing.T, url string) *v0api.FullNodeStruct {
 	var api v0api.FullNodeStruct
-	closer, err := jsonrpc.NewMergeClient(context.Background(), "https://api.node.glif.io", "Filecoin",
+	closer, err := jsonrpc.NewMergeClient(context.Background(), url, "Filecoin",
 		[]interface{}{
 			&api.CommonStruct.Internal,
 			&api.NetStruct.Internal,
@@ -266,15 +291,19 @@ func createFilClient(t *testing.T) *v0api.FullNodeStruct {
 	return &api
 }
 
-func create(t *testing.T) *FilClient {
-	api := createFilClient(t)
+func create(t *testing.T, urls ...string) *FilClient {
+	apis := []v0api.FullNode{}
+	for _, url := range urls {
+		apis = append(apis, createFilClient(t, url))
+	}
+
 	exportedKey := "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349" +
 		"586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d"
 	h, err := libp2p.New(context.Background(),
 		libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
 	)
 	require.NoError(t, err)
-	client, err := New(api, h, WithExportedKey(exportedKey))
+	client, err := New(apis, h, WithExportedKey(exportedKey))
 	require.NoError(t, err)
 
 	return client

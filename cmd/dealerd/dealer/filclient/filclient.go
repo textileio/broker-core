@@ -101,7 +101,7 @@ type FilClient struct {
 }
 
 // New returns a new FilClient.
-func New(api v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
+func New(apis []v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
 	cfg := defaultConfig
 	for _, op := range opts {
 		if err := op(&cfg); err != nil {
@@ -144,7 +144,12 @@ func New(api v0api.FullNode, h host.Host, opts ...Option) (*FilClient, error) {
 		conf: cfg,
 		host: h,
 	}
-	fc.api = filapi.Measured(api, fc.collectAPIMetrics)
+
+	measuredApis := []filapi.FilAPI{}
+	for _, api := range apis {
+		measuredApis = append(measuredApis, filapi.Measured(api, fc.collectAPIMetrics))
+	}
+	fc.api = filapi.Retryable(measuredApis)
 	fc.initMetrics()
 
 	return fc, nil

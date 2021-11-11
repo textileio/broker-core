@@ -91,7 +91,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		if conf.RelayMaddr != "" {
 			opts = append(opts, filclient.WithRelayAddr(conf.RelayMaddr))
 		}
-		filclient, err := filclient.New(&lotusClients[0], h, opts...)
+		filclient, err := filclient.New(lotusClients, h, opts...)
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}
@@ -115,8 +115,8 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	return s, nil
 }
 
-func initializeLotusClients(fin *finalizer.Finalizer, gatewaysURLs []string) ([]v0api.FullNodeStruct, error) {
-	lotusClients := []v0api.FullNodeStruct{}
+func initializeLotusClients(fin *finalizer.Finalizer, gatewaysURLs []string) ([]v0api.FullNode, error) {
+	lotusClients := []v0api.FullNode{}
 	for _, url := range gatewaysURLs {
 		var lotusAPI v0api.FullNodeStruct
 		closer, err := jsonrpc.NewMergeClient(context.Background(), url, "Filecoin",
@@ -134,11 +134,11 @@ func initializeLotusClients(fin *finalizer.Finalizer, gatewaysURLs []string) ([]
 		}
 
 		fin.Add(&nopCloser{closer})
-		lotusClients = append(lotusClients, lotusAPI)
+		lotusClients = append(lotusClients, &lotusAPI)
 	}
 
 	if len(lotusClients) == 0 {
-		return []v0api.FullNodeStruct{}, errors.New("failed to instantiate Lotus client")
+		return lotusClients, errors.New("failed to initialize Lotus clients")
 	}
 
 	return lotusClients, nil
