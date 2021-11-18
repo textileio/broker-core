@@ -472,9 +472,15 @@ func (s *Store) AddDeals(ctx context.Context, auction broker.ClosedAuction) (acc
 			PieceCid: ba.PieceCid,
 			Origin:   ba.Origin,
 		}
-		excludedProviders, err := txn.GetExcludedStorageProviders(ctx, excludedParams)
-		if err != nil {
-			return fmt.Errorf("get excluded providers: %s", err)
+		var excludedProviders []string
+
+		// Only consider excluding auction winners from looking at history for non direct to
+		// provider auctions, since we allow the client to have total control of this.
+		if len(ba.Providers) == 0 {
+			excludedProviders, err = txn.GetExcludedStorageProviders(ctx, excludedParams)
+			if err != nil {
+				return fmt.Errorf("get excluded providers: %s", err)
+			}
 		}
 
 		// Add winning bids to list of deals.

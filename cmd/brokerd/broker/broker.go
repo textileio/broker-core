@@ -450,7 +450,7 @@ func (b *Broker) startAuction(ctx context.Context,
 			}
 		}
 		if len(excludedTargetedProviders) == len(ba.Providers) {
-			errCause := "no available miners can be selected for re-auctioning"
+			errCause := "no available miners can be selected for auctioning"
 			log.Warn(errCause)
 			_, err := b.batchError(ctx, ba, errCause, false)
 			if err != nil {
