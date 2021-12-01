@@ -620,6 +620,7 @@ func auctionFromDb(a db.Auction) (*auctioneer.Auction, error) {
 		DealVerified:             a.DealVerified,
 		FilEpochDeadline:         a.FilEpochDeadline,
 		ExcludedStorageProviders: a.ExcludedStorageProviders,
+		Providers:                a.Providers,
 		PayloadCid:               payloadCid,
 		Sources:                  sources,
 		ClientAddress:            a.ClientAddress,
