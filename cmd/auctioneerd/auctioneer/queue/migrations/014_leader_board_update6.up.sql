@@ -27,7 +27,7 @@ create or replace view competition_results as (
         join auctions on bids.auction_id = auctions.id
       where received_at > timestamp '2021-11-08 00:00:00.000000+00'
         and won_at is not null
-        and auctioneer.auctions.client_address != 'f3w5fx6wta4ewl2iyf7xcogmzffz2fmrngpzdpduj3xmk3dwjxc6dyq36gdf3rflkkrblh5nci5xymc5hal3qq'
+        and auctions.client_address != 'f3w5fx6wta4ewl2iyf7xcogmzffz2fmrngpzdpduj3xmk3dwjxc6dyq36gdf3rflkkrblh5nci5xymc5hal3qq'
         and (
           (deal_confirmed_at is not null and deal_confirmed_at < timestamp '2021-11-22 00:00:00.000000+00')
           or (deal_failed_at is not null and deal_failed_at < timestamp '2021-11-22 00:00:00.000000+00')
