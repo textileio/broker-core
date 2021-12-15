@@ -30,7 +30,7 @@ var (
 
 	// stuckSeconds is the seconds elapsed before an started auction is
 	// considered stuck and can be rescheduled.
-	stuckSeconds = int64(600)
+	stuckSeconds = int64(3600)
 
 	// MaxConcurrency is the maximum number of auctions that will be handled concurrently.
 	MaxConcurrency = 1
