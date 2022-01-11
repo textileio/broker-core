@@ -577,6 +577,16 @@ github.com/etclabscore/go-openrpc-reflect v0.0.36/go.mod h1:0404Ky3igAasAOpyj1eE
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 h1:BBso6MBKW8ncyZLv37o+KNyy0HrrHgfnOaGQC2qvN+A=
 github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5/go.mod h1:JpoxHjuQauoxiFMl1ie8Xc/7TfLuMZ5eOCONd1sUBHg=
+github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c h1:8ISkoahWXwZR41ois5lSJBSVw4D0OV19Ht/JSTzvSv0=
+github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c/go.mod h1:Yg+htXGokKKdzcwhuNDwVvN+uBxDGXJ7G/VN1d8fa64=
+github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 h1:JWuenKqqX8nojtoVVWjGfOF9635RETekkoH6Cc9SX0A=
+github.com/facebookgo/stack v0.0.0-20160209184415-751773369052/go.mod h1:UbMTZqLaRiH3MsBH8va0n7s1pQYcu3uTb8G4tygF4Zg=
+github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 h1:7HZCaLC5+BZpmbhCOZJ293Lz68O7PYrF2EzeiFMwCLk=
+github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4/go.mod h1:5tD+neXqOorC30/tWg0LCSkrqj/AR6gu8yY8/fpw1q0=
+github.com/facebookgo/symwalk v0.0.0-20150726040526-42004b9f3222 h1:ivxAxcE9py2xLAqpcEwN7sN711aLfEWgh3cY0aha7uY=
+github.com/facebookgo/symwalk v0.0.0-20150726040526-42004b9f3222/go.mod h1:PgrCjL2+FgkITqxQI+erRTONtAv4JkpOzun5ozKW/Jg=
+github.com/facebookgo/testname v0.0.0-20150612200628-5443337c3a12 h1:pKeuUgeuL6jk/FpxSr0ZVL1XEiOmrcWBvB2rKXu0mMI=
+github.com/facebookgo/testname v0.0.0-20150612200628-5443337c3a12/go.mod h1:IYed2VYeQcs7JTN6KiVXjaz6Rv/Qz092Wjc6o5bCJ9I=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.8.0/go.mod h1:3l45GVGkyrnYNl9HoIjnp2NnNWvh6hLAqD8yTfGjnw8=
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
@@ -1922,6 +1932,8 @@ github.com/mdlayher/netlink v0.0.0-20190828143259-340058475d09/go.mod h1:KxeJAFO
 github.com/mdlayher/netlink v1.0.0/go.mod h1:KxeJAFOFLG6AjpyDkQ/iIhxygIUKD+vcwqcnu43w/+M=
 github.com/mdlayher/netlink v1.1.0/go.mod h1:H4WCitaheIsdF9yOYu8CFmCgQthAPIWZmcKp9uZHgmY=
 github.com/mdlayher/wifi v0.0.0-20190303161829-b1436901ddee/go.mod h1:Evt/EIne46u9PtQbeTx2NTcqURpr5K4SvKtGmBuDPN8=
+github.com/melbahja/got v0.6.1 h1:K3nB60YVNWFsZDRXrY3VZ7/pUfVjPBZ3VTJwf9hGYFY=
+github.com/melbahja/got v0.6.1/go.mod h1:3NbG1yxji7B3aU1cyGNgzTdCDDI2AkF16Pn/bg7okng=
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
 github.com/microcosm-cc/bluemonday v1.0.1/go.mod h1:hsXNsILzKxV+sX77C5b8FSuKF00vh2OMYv+xgHpAMF4=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
@@ -2450,8 +2462,8 @@ github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954 h1:xQdMZ1WLrgkk
 github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954/go.mod h1:u2MKkTVTVJWe5D1rCvame8WqhBd88EuIwODJZ1VHCPM=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
 github.com/tchap/go-patricia v2.2.6+incompatible/go.mod h1:bmLyhP68RS6kStMGxByiQ23RP/odRBOTVjwp2cDyi6I=
-github.com/textileio/bidbot v0.1.5 h1:3urTXB4IiBIGCvht80vR/6BX4P75DH1OYlebfEzta0s=
-github.com/textileio/bidbot v0.1.5/go.mod h1:ueHc+BpaveDbDDeuVcfYXblf+BaugO+K0sXluARnukY=
+github.com/textileio/bidbot v0.1.7 h1:E7Ym0SHrDa0lp4lDnz4WVqcBjmm72fhWsNII4C/wlio=
+github.com/textileio/bidbot v0.1.7/go.mod h1:JmJV/uK09y9g/M+0EMUX067Kafl+hlpn4wlw6f1lq5M=
 github.com/textileio/cli v1.0.1/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
 github.com/textileio/cli v1.0.2 h1:qSp/x4d/9SZ93TxhgZnE5okRKqzqHqrzAwKAPjuPw50=
 github.com/textileio/cli v1.0.2/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
@@ -2604,6 +2616,9 @@ github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxt
 github.com/zondax/hid v0.9.0/go.mod h1:l5wttcP0jwtdLjqjMMWFVEE7d1zO0jvSPA9OPZxWpEM=
 github.com/zondax/ledger-go v0.12.1/go.mod h1:KatxXrVDzgWwbssUWsF5+cOJHXPvzQ09YSlzGNuhOEo=
 gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b/go.mod h1:T3BPAOm2cqquPa0MKWeNkmOM5RQsRhkrwMWonFMN7fE=
+gitlab.com/poldi1405/go-ansi v1.1.0/go.mod h1:TLoRttGdPaq5H2qfF7I1cC5Lt2WXtQeIkFurjbUf6OI=
+gitlab.com/poldi1405/go-indicators v0.0.0-20200820134929-9b373aa411a5/go.mod h1:jn34qwBiXTHz73wD9neAMeJGCeMijVro+WCqk1RJXL4=
+gitlab.com/poldi1405/go-indicators v1.0.0/go.mod h1:jn34qwBiXTHz73wD9neAMeJGCeMijVro+WCqk1RJXL4=
 go.dedis.ch/fixbuf v1.0.3 h1:hGcV9Cd/znUxlusJ64eAlExS+5cJDIyTyEG+otu5wQs=
 go.dedis.ch/fixbuf v1.0.3/go.mod h1:yzJMt34Wa5xD37V5RTdmp38cz3QhMagdGoem9anUalw=
 go.dedis.ch/kyber/v3 v3.0.4/go.mod h1:OzvaEnPvKlyrWyp3kGXlFdp7ap1VC6RkZDTaPikqhsQ=
