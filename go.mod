@@ -3,6 +3,7 @@ module github.com/textileio/broker-core
 go 1.16
 
 require (
+	cloud.google.com/go/iam v0.1.1 // indirect
 	cloud.google.com/go/pubsub v1.17.0
 	cloud.google.com/go/storage v1.16.1
 	github.com/StackExchange/wmi v1.2.1 // indirect
@@ -73,7 +74,7 @@ require (
 	go.opentelemetry.io/otel/metric v0.24.0
 	go.opentelemetry.io/otel/sdk/export/metric v0.24.0
 	go.opentelemetry.io/otel/sdk/metric v0.24.0
-	google.golang.org/api v0.56.0
+	google.golang.org/api v0.68.0
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
