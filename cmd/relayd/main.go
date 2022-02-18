@@ -2,10 +2,8 @@ package main
 
 import (
 	_ "net/http/pprof"
-	"time"
 
 	"github.com/libp2p/go-libp2p"
-	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/multiformats/go-multiaddr"
@@ -73,13 +71,15 @@ var rootCmd = &cobra.Command{
 		pk, err := crypto.UnmarshalPrivateKey(key)
 		cli.CheckErrf("unmarshaling private key: %s", err)
 
+		cm, err := connmgr.NewConnManager(500, 800)
+		cli.CheckErrf("creating connection manager: %s", err)
 		opts := []libp2p.Option{
-			libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
+			libp2p.ConnectionManager(cm),
 			libp2p.ListenAddrs(listenAddr),
 			libp2p.Identity(pk),
-			libp2p.EnableRelay(relay.OptHop),
+			libp2p.EnableRelay(),
 		}
-		h, err := libp2p.New(c.Context(), opts...)
+		h, err := libp2p.New(opts...)
 		cli.CheckErrf("bootstraping libp2p host: %s", err)
 		fin.Add(h)
 

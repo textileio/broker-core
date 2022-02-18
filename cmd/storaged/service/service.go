@@ -1,11 +1,9 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
@@ -76,9 +74,11 @@ func createStorage(config Config) (storage.Requester, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating brokerd gRPC client: %s", err)
 	}
-	h, err := libp2p.New(context.Background(),
-		libp2p.ConnectionManager(connmgr.NewConnManager(100, 200, time.Minute)),
-	)
+	cm, err := connmgr.NewConnManager(100, 200)
+	if err != nil {
+		return nil, fmt.Errorf("creating connection manager: %s", err)
+	}
+	h, err := libp2p.New(libp2p.ConnectionManager(cm))
 	if err != nil {
 		return nil, fmt.Errorf("creating host: %s", err)
 	}

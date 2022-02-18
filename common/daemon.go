@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/sdk/export/metric"
+	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
@@ -31,7 +31,7 @@ func SetupInstrumentation(prometheusAddr string) error {
 			selector.NewWithHistogramDistribution(
 				histogram.WithExplicitBoundaries(config.DefaultHistogramBoundaries),
 			),
-			metric.CumulativeExportKindSelector(),
+			aggregation.CumulativeTemporalitySelector(),
 			processor.WithMemory(true),
 		),
 	)

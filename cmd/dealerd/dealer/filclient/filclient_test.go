@@ -31,9 +31,9 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 	ctx := context.Background()
 
 	// Libp2p hosts wiring.
-	h1, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // dealer
+	h1, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // dealer
 	require.NoError(t, err)
-	h2, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // remote wallet
+	h2, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // remote wallet
 	require.NoError(t, err)
 	err = h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
 	require.NoError(t, err)
@@ -99,9 +99,9 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 	ctx := context.Background()
 
 	// Libp2p hosts wiring.
-	h1, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // dealer
+	h1, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // dealer
 	require.NoError(t, err)
-	h2, err := bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), nil) // remote wallet
+	h2, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // remote wallet
 	require.NoError(t, err)
 	err = h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
 	require.NoError(t, err)
@@ -270,9 +270,9 @@ func create(t *testing.T) *FilClient {
 	api := createFilClient(t)
 	exportedKey := "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349" +
 		"586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d"
-	h, err := libp2p.New(context.Background(),
-		libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
-	)
+	cm, err := connmgr.NewConnManager(500, 800) // TODO(jsign): , time.Minute)
+	require.NoError(t, err)
+	h, err := libp2p.New(libp2p.ConnectionManager(cm))
 	require.NoError(t, err)
 	client, err := New(api, h, WithExportedKey(exportedKey))
 	require.NoError(t, err)

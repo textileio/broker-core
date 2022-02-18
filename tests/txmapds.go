@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -23,31 +24,31 @@ func NewTxMapDatastore() *TxMapDatastore {
 }
 
 // Get returns the value for a key.
-func (d *TxMapDatastore) Get(key datastore.Key) ([]byte, error) {
+func (d *TxMapDatastore) Get(ctx context.Context, key datastore.Key) ([]byte, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	return d.MapDatastore.Get(key)
+	return d.MapDatastore.Get(ctx, key)
 }
 
 // Put sets the value of a key.
-func (d *TxMapDatastore) Put(key datastore.Key, data []byte) error {
+func (d *TxMapDatastore) Put(ctx context.Context, key datastore.Key, data []byte) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	return d.MapDatastore.Put(key, data)
+	return d.MapDatastore.Put(ctx, key, data)
 }
 
 // Delete deletes a key.
-func (d *TxMapDatastore) Delete(key datastore.Key) error {
+func (d *TxMapDatastore) Delete(ctx context.Context, key datastore.Key) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	return d.MapDatastore.Delete(key)
+	return d.MapDatastore.Delete(ctx, key)
 }
 
 // Query executes a query in the datastore.
-func (d *TxMapDatastore) Query(q query.Query) (query.Results, error) {
+func (d *TxMapDatastore) Query(ctx context.Context, q query.Query) (query.Results, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	return d.MapDatastore.Query(q)
+	return d.MapDatastore.Query(ctx, q)
 }
 
 // Clone returns a cloned datastore.
@@ -56,7 +57,7 @@ func (d *TxMapDatastore) Clone() (*TxMapDatastore, error) {
 	defer d.lock.Unlock()
 
 	q := query.Query{}
-	res, err := d.MapDatastore.Query(q)
+	res, err := d.MapDatastore.Query(context.Background(), q)
 	if err != nil {
 		return nil, fmt.Errorf("querying datastore: %s", err)
 	}
@@ -69,7 +70,7 @@ func (d *TxMapDatastore) Clone() (*TxMapDatastore, error) {
 		if v.Error != nil {
 			return nil, fmt.Errorf("iter next: %s", v.Error)
 		}
-		if err := t2.Put(datastore.NewKey(v.Key), v.Value); err != nil {
+		if err := t2.Put(context.Background(), datastore.NewKey(v.Key), v.Value); err != nil {
 			return nil, fmt.Errorf("copying datastore value: %s", err)
 		}
 	}
@@ -96,7 +97,7 @@ func (d *TxMapDatastore) NewTransactionExtended(readOnly bool) (dse.TxnExt, erro
 func (d *TxMapDatastore) QueryExtended(q dse.QueryExt) (query.Results, error) {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
-	return d.Query(q.Query)
+	return d.Query(context.Background(), q.Query)
 }
 
 type op struct {
@@ -121,42 +122,42 @@ func NewSimpleTx(ds datastore.Datastore) dse.TxnExt {
 }
 
 // Query executes a query within the transaction scope.
-func (bt *SimpleTx) Query(q query.Query) (query.Results, error) {
+func (bt *SimpleTx) Query(ctx context.Context, q query.Query) (query.Results, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
-	return bt.target.Query(q)
+	return bt.target.Query(ctx, q)
 }
 
 // QueryExtended executes an extended query within the transaction scope.
 func (bt *SimpleTx) QueryExtended(q dse.QueryExt) (query.Results, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
-	return bt.target.Query(q.Query)
+	return bt.target.Query(context.Background(), q.Query)
 }
 
 // Get returns a key value within the transaction.
-func (bt *SimpleTx) Get(k datastore.Key) ([]byte, error) {
+func (bt *SimpleTx) Get(ctx context.Context, k datastore.Key) ([]byte, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
-	return bt.target.Get(k)
+	return bt.target.Get(ctx, k)
 }
 
 // Has returns true if the key exist, false otherwise.
-func (bt *SimpleTx) Has(k datastore.Key) (bool, error) {
+func (bt *SimpleTx) Has(ctx context.Context, k datastore.Key) (bool, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
-	return bt.target.Has(k)
+	return bt.target.Has(ctx, k)
 }
 
 // GetSize returns the size of the key value.
-func (bt *SimpleTx) GetSize(k datastore.Key) (int, error) {
+func (bt *SimpleTx) GetSize(ctx context.Context, k datastore.Key) (int, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
-	return bt.target.GetSize(k)
+	return bt.target.GetSize(ctx, k)
 }
 
 // Put sets the value for a key.
-func (bt *SimpleTx) Put(key datastore.Key, val []byte) error {
+func (bt *SimpleTx) Put(_ context.Context, key datastore.Key, val []byte) error {
 	bt.lock.Lock()
 	defer bt.lock.Unlock()
 	bt.ops[key] = op{value: val}
@@ -164,7 +165,7 @@ func (bt *SimpleTx) Put(key datastore.Key, val []byte) error {
 }
 
 // Delete deletes a key.
-func (bt *SimpleTx) Delete(key datastore.Key) error {
+func (bt *SimpleTx) Delete(_ context.Context, key datastore.Key) error {
 	bt.lock.Lock()
 	defer bt.lock.Unlock()
 	bt.ops[key] = op{delete: true}
@@ -172,21 +173,21 @@ func (bt *SimpleTx) Delete(key datastore.Key) error {
 }
 
 // Discard cancels the changes done in the transaction.
-func (bt *SimpleTx) Discard() {
+func (bt *SimpleTx) Discard(_ context.Context) {
 	bt.lock.Lock()
 	defer bt.lock.Unlock()
 }
 
 // Commit confirms changes done in the transaction.
-func (bt *SimpleTx) Commit() error {
+func (bt *SimpleTx) Commit(ctx context.Context) error {
 	bt.lock.Lock()
 	defer bt.lock.Unlock()
 	var err error
 	for k, op := range bt.ops {
 		if op.delete {
-			err = bt.target.Delete(k)
+			err = bt.target.Delete(ctx, k)
 		} else {
-			err = bt.target.Put(k, op.value)
+			err = bt.target.Put(ctx, k, op.value)
 		}
 		if err != nil {
 			break

@@ -51,9 +51,11 @@ var _ mbroker.ReadyToCreateDealsListener = (*Service)(nil)
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
-	h, err := libp2p.New(context.Background(),
-		libp2p.ConnectionManager(connmgr.NewConnManager(500, 800, time.Minute)),
-	)
+	cm, err := connmgr.NewConnManager(500, 800)
+	if err != nil {
+		return nil, fmt.Errorf("creating connection manager: %s", err)
+	}
+	h, err := libp2p.New(libp2p.ConnectionManager(cm))
 	if err != nil {
 		return nil, fmt.Errorf("creating host: %s", err)
 	}
