@@ -105,7 +105,7 @@ var daemonCmd = &cobra.Command{
 	Long:  "Run a network-connected storage deal auctioneer for a broker.",
 	PersistentPreRun: func(c *cobra.Command, args []string) {
 		cli.ExpandEnvVars(v, v.AllSettings())
-		logv1.SetLogLevel("pubsub", "debug")
+		_ = logv1.SetLogLevel("pubsub", "debug")
 		err := cli.ConfigureLogging(v, []string{
 			daemonName,
 			"auctioneer",
