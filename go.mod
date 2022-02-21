@@ -5,7 +5,6 @@ go 1.16
 require (
 	cloud.google.com/go/pubsub v1.17.0
 	cloud.google.com/go/storage v1.16.1
-	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.8
@@ -14,12 +13,12 @@ require (
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.3.0
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
-	github.com/filecoin-project/go-fil-markets v1.13.1
-	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
-	github.com/filecoin-project/go-state-types v0.1.1-0.20210915140513-d354ccf10379
-	github.com/filecoin-project/lotus v1.13.0
+	github.com/filecoin-project/go-fil-markets v1.13.4
+	github.com/filecoin-project/go-jsonrpc v0.1.5
+	github.com/filecoin-project/go-state-types v0.1.3
+	github.com/filecoin-project/lotus v1.14.1
 	github.com/filecoin-project/specs-actors v0.9.14
-	github.com/filecoin-project/specs-actors/v6 v6.0.1
+	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.15.1
@@ -50,7 +49,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.4.1
 	github.com/multiformats/go-multibase v0.0.3
-	github.com/multiformats/go-multihash v0.0.16
+	github.com/multiformats/go-multihash v0.1.0
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/shirou/gopsutil v3.21.7+incompatible // indirect
