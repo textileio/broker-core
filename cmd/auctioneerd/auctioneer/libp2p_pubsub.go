@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -141,6 +142,11 @@ func (ps *Libp2pPubsub) PublishAuction(ctx context.Context, id auction.ID, aucti
 	}()
 	topic.SetEventHandler(ps.eventHandler)
 	topic.SetMessageHandler(func(from peer.ID, _ string, msg []byte) ([]byte, error) {
+		log.Debugf("received bid from peerid %s", from)
+		now := time.Now()
+		defer func() {
+			log.Debugf("processing bid from %s took %dms", from, time.Since(now).Milliseconds())
+		}()
 		if err := from.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid bidder: %v", err)
 		}

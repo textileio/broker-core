@@ -31,6 +31,7 @@ require (
 	github.com/ipfs/go-ipfs-http-client v0.1.0-update-libp2p
 	github.com/ipfs/go-ipfs-util v0.0.2
 	github.com/ipfs/go-ipld-format v0.2.0
+	github.com/ipfs/go-log v1.0.5
 	github.com/ipfs/go-unixfs v0.2.6
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/ipld/go-car v0.3.2-0.20211001225732-32d0d9933823

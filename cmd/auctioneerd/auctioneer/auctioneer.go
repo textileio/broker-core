@@ -269,6 +269,14 @@ func (a *Auctioneer) processAuction(
 			return nil, fmt.Errorf("generating bid id: %v", err)
 		}
 
+		var price int64
+		if auction.DealVerified {
+			price = pbid.VerifiedAskPrice
+		} else {
+			price = pbid.AskPrice
+		}
+		log.Infof("auction %s received bid from %s: %d", auction.ID, from, price)
+
 		bid := auctioneer.Bid{
 			ID:                id,
 			StorageProviderID: pbid.StorageProviderId,
@@ -287,13 +295,6 @@ func (a *Auctioneer) processAuction(
 			log.Warn(err) // error is annotated
 		}
 
-		var price int64
-		if auction.DealVerified {
-			price = bid.VerifiedAskPrice
-		} else {
-			price = bid.AskPrice
-		}
-		log.Infof("auction %s received bid from %s: %d", auction.ID, bid.BidderID, price)
 		label := attribute.String("storage-provider-id", bid.StorageProviderID)
 		a.metricNewBid.Add(ctx, 1, label)
 
