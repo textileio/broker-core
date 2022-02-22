@@ -304,10 +304,6 @@ func (a *Auctioneer) processAuction(
 			return nil, errors.New("bid rejected")
 		}
 
-		if err = addBid(bid); err != nil {
-			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
-		}
-
 		mu.Lock()
 		_, exists := bidders[from]
 		if exists {
@@ -320,7 +316,13 @@ func (a *Auctioneer) processAuction(
 			auction.Bids = make(map[auc.BidID]auctioneer.Bid)
 		}
 		auction.Bids[bid.ID] = bid
+		mu.Unlock()
 
+		if err = addBid(bid); err != nil {
+			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
+		}
+
+		mu.Lock()
 		bids = append(bids, bid)
 		mu.Unlock()
 
