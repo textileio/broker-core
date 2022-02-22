@@ -83,7 +83,8 @@ type Queue struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	wg sync.WaitGroup
+	wg         sync.WaitGroup
+	addBidLock sync.Mutex
 }
 
 // NewQueue returns a new Queue using handler to process auctions.
@@ -501,6 +502,17 @@ func (q *Queue) saveAndFinalizeAuction(a *auctioneer.Auction) {
 
 func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) error {
 	start := time.Now()
+	if a.Status != broker.AuctionStatusStarted {
+		return errors.New("auction has not started")
+	}
+
+	q.addBidLock.Lock()
+	if a.Bids == nil {
+		a.Bids = make(map[auction.BidID]auctioneer.Bid)
+	}
+	a.Bids[bid.ID] = bid
+	q.addBidLock.Unlock()
+
 	if err := q.db.CreateBid(q.ctx, db.CreateBidParams{
 		ID:                bid.ID,
 		AuctionID:         a.ID,

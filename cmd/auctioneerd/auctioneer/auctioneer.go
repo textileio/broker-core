@@ -16,7 +16,6 @@ import (
 	"github.com/oklog/ulid/v2"
 	pb "github.com/textileio/bidbot/gen/v1"
 	"github.com/textileio/bidbot/lib/auction"
-	auc "github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/filclient"
@@ -311,11 +310,6 @@ func (a *Auctioneer) processAuction(
 			return nil, fmt.Errorf("bid was already received")
 		}
 		bidders[bid.BidderID] = struct{}{}
-
-		if auction.Bids == nil {
-			auction.Bids = make(map[auc.BidID]auctioneer.Bid)
-		}
-		auction.Bids[bid.ID] = bid
 		mu.Unlock()
 
 		if err = addBid(bid); err != nil {
