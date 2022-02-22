@@ -61,7 +61,7 @@ require (
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
 	github.com/textileio/go-auctions-client v0.1.0
 	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.7-0.20220222140208-f906227061f3
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.6
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
