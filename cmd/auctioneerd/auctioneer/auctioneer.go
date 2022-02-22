@@ -16,6 +16,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	pb "github.com/textileio/bidbot/gen/v1"
 	"github.com/textileio/bidbot/lib/auction"
+	auc "github.com/textileio/bidbot/lib/auction"
 	core "github.com/textileio/bidbot/lib/auction"
 	"github.com/textileio/bidbot/lib/cast"
 	"github.com/textileio/bidbot/lib/filclient"
@@ -263,6 +264,7 @@ func (a *Auctioneer) processAuction(
 		mu      sync.Mutex
 	)
 
+	// bidsHandler is called concurrently, so it should be concurrent safe.
 	bidsHandler := func(from peer.ID, pbid *pb.Bid) ([]byte, error) {
 		id, err := a.newID()
 		if err != nil {
@@ -302,6 +304,10 @@ func (a *Auctioneer) processAuction(
 			return nil, errors.New("bid rejected")
 		}
 
+		if err = addBid(bid); err != nil {
+			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
+		}
+
 		mu.Lock()
 		_, exists := bidders[from]
 		if exists {
@@ -309,13 +315,12 @@ func (a *Auctioneer) processAuction(
 			return nil, fmt.Errorf("bid was already received")
 		}
 		bidders[bid.BidderID] = struct{}{}
-		mu.Unlock()
 
-		err = addBid(bid)
-		if err != nil {
-			return nil, fmt.Errorf("adding bid to auction %s: %v", auction.ID, err)
+		if auction.Bids == nil {
+			auction.Bids = make(map[auc.BidID]auctioneer.Bid)
 		}
-		mu.Lock()
+		auction.Bids[bid.ID] = bid
+
 		bids = append(bids, bid)
 		mu.Unlock()
 

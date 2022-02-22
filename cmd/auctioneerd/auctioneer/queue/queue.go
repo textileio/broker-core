@@ -500,14 +500,7 @@ func (q *Queue) saveAndFinalizeAuction(a *auctioneer.Auction) {
 }
 
 func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) error {
-	if a.Status != broker.AuctionStatusStarted {
-		return errors.New("auction has not started")
-	}
-	if a.Bids == nil {
-		a.Bids = make(map[auction.BidID]auctioneer.Bid)
-	}
-	a.Bids[bid.ID] = bid
-
+	start := time.Now()
 	if err := q.db.CreateBid(q.ctx, db.CreateBidParams{
 		ID:                bid.ID,
 		AuctionID:         a.ID,
@@ -522,6 +515,7 @@ func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) error {
 	}); err != nil {
 		return fmt.Errorf("saving bid: %v", err)
 	}
+	log.Debugf("adding bid %s of %s took %dms", bid.ID, bid.BidderID, time.Since(start).Milliseconds())
 	return nil
 }
 
