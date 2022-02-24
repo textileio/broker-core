@@ -506,6 +506,14 @@ func (q *Queue) addBid(a *auctioneer.Auction, bid auctioneer.Bid) error {
 		return errors.New("auction has not started")
 	}
 
+	// This locking is necessary since `addBid` is called by `bidHandler` which
+	// is called concurrently by `go-libp2p-pubsub-rpc` subscription processing mechanism.
+	// This "add bid to map" logic shouldn't live here since forces this shared lock
+	// to be used for all auctions, not per auction. And since the domain-level auctioneer.Auction
+	// struct is used as a DTO we can't enhance it safely.
+	// We should move this code to the `bidHandler` but that means checking carefully some
+	// `auctioneer.Auction` copies that we have in many callback indirections.
+	// This isn't an urgent change, nor this lock produce contention at all; but it's just odd.
 	q.addBidLock.Lock()
 	if a.Bids == nil {
 		a.Bids = make(map[auction.BidID]auctioneer.Bid)
