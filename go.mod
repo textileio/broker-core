@@ -152,7 +152,6 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -373,4 +372,13 @@ replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.1
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
 replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20211103030059-3552081365d7
 
+// ristretto v0.1.0 is forced by Lotus v1.15 but isn't compatible with textileio/go-badger3.
+// ristretto isn't used in any place in broker-core, so we force the usable version here.
+// it would be a good idea to upgrade textileio/go-badger3 to use (indirectly) the same
+// ristretto version, but we should be careful about doing that correctly.
+replace github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.0.4-0.20210122082011-bb5d392ed82d
+
+// TODO(jsign)/Temporary: replace with tagged versions.
 replace github.com/textileio/go-libp2p-pubsub-rpc => ../go-libp2p-pubsub-rpc
+
+replace github.com/textileio/go-ds-badger3 => ../go-ds-badger3
