@@ -13,10 +13,10 @@ require (
 	github.com/filecoin-project/go-dagaggregator-unixfs v0.3.0
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-fil-commp-hashhash v0.1.0
-	github.com/filecoin-project/go-fil-markets v1.13.4
+	github.com/filecoin-project/go-fil-markets v1.19.2
 	github.com/filecoin-project/go-jsonrpc v0.1.5
 	github.com/filecoin-project/go-state-types v0.1.3
-	github.com/filecoin-project/lotus v1.14.1
+	github.com/filecoin-project/lotus v1.15.0-rc3
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
 	github.com/go-stack/stack v1.8.1 // indirect
@@ -24,27 +24,27 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
 	github.com/ipfs/go-cid v0.1.0
-	github.com/ipfs/go-datastore v0.4.6
+	github.com/ipfs/go-datastore v0.5.1
 	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-files v0.0.9
 	github.com/ipfs/go-ipfs-http-client v0.1.0-update-libp2p
 	github.com/ipfs/go-ipfs-util v0.0.2
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-log v1.0.5
-	github.com/ipfs/go-unixfs v0.2.6
+	github.com/ipfs/go-unixfs v0.3.1
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
-	github.com/ipld/go-car v0.3.2-0.20211001225732-32d0d9933823
+	github.com/ipld/go-car v0.3.3
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/joho/godotenv v1.4.0
 	github.com/jsign/go-filsigner v0.3.2
 	github.com/lib/pq v1.10.2
-	github.com/libp2p/go-libp2p v0.15.1
-	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.9.0
-	github.com/libp2p/go-libp2p-kad-dht v0.13.1
+	github.com/libp2p/go-libp2p v0.17.0
+	github.com/libp2p/go-libp2p-connmgr v0.3.1
+	github.com/libp2p/go-libp2p-core v0.13.0
+	github.com/libp2p/go-libp2p-kad-dht v0.15.0
 	github.com/libp2p/go-libp2p-record v0.1.3
-	github.com/libp2p/go-libp2p-swarm v0.5.3
+	github.com/libp2p/go-libp2p-swarm v0.9.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.4.1
 	github.com/multiformats/go-multibase v0.0.3
@@ -67,11 +67,11 @@ require (
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.26.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.26.0
-	go.opentelemetry.io/otel v1.1.0
+	go.opentelemetry.io/otel v1.3.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.24.0
-	go.opentelemetry.io/otel/metric v0.24.0
-	go.opentelemetry.io/otel/sdk/export/metric v0.24.0
-	go.opentelemetry.io/otel/sdk/metric v0.24.0
+	go.opentelemetry.io/otel/metric v0.25.0
+	go.opentelemetry.io/otel/sdk/export/metric v0.25.0
+	go.opentelemetry.io/otel/sdk/metric v0.25.0
 	google.golang.org/api v0.56.0
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
