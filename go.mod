@@ -83,3 +83,5 @@ replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.1
 
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
 replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20211103030059-3552081365d7
+
+replace github.com/textileio/go-libp2p-pubsub-rpc => ../go-libp2p-pubsub-rpc
