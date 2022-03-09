@@ -46,7 +46,7 @@ require (
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-swarm v0.9.0
 	github.com/mr-tron/base58 v1.2.0
-	github.com/multiformats/go-multiaddr v0.4.1
+	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.1.0
 	github.com/oklog/ulid/v2 v2.0.2
@@ -60,7 +60,7 @@ require (
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
 	github.com/textileio/go-auctions-client v0.1.0
 	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.7
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.8
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
@@ -170,7 +170,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/holiman/uint256 v1.1.1 // indirect
-	github.com/hsanjuan/ipfs-lite v1.2.0 // indirect
+	github.com/hsanjuan/ipfs-lite v1.2.1-0.20220309173135-e3246b1d1b2f // indirect
 	github.com/huin/goupnp v1.0.2 // indirect
 	github.com/icza/backscanner v0.0.0-20210726202459-ac2ffc679f94 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -324,7 +324,7 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954 // indirect
-	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c // indirect
+	github.com/textileio/go-ds-badger3 v0.1.0 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef // indirect
 	github.com/urfave/cli/v2 v2.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
@@ -378,10 +378,4 @@ replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.
 replace github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.0.4-0.20210122082011-bb5d392ed82d
 
 // TODO(jsign)/Temporary: replace with tagged versions.
-replace github.com/textileio/go-libp2p-pubsub-rpc => ../go-libp2p-pubsub-rpc
-
-replace github.com/textileio/go-ds-badger3 => ../go-ds-badger3
-
-replace github.com/hsanjuan/ipfs-lite => ../ipfs-lite
-
 replace github.com/textileio/bidbot => ../bidbot
