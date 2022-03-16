@@ -78,6 +78,7 @@ var rootCmd = &cobra.Command{
 			libp2p.ListenAddrs(listenAddr),
 			libp2p.Identity(pk),
 			libp2p.EnableRelay(),
+			libp2p.EnableRelayService(),
 		}
 		h, err := libp2p.New(opts...)
 		cli.CheckErrf("bootstraping libp2p host: %s", err)
