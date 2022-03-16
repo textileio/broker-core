@@ -270,7 +270,7 @@ func create(t *testing.T) *FilClient {
 	api := createFilClient(t)
 	exportedKey := "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349" +
 		"586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d"
-	cm, err := connmgr.NewConnManager(500, 800) // TODO(jsign): , time.Minute)
+	cm, err := connmgr.NewConnManager(500, 800, connmgr.WithGracePeriod(time.Minute))
 	require.NoError(t, err)
 	h, err := libp2p.New(libp2p.ConnectionManager(cm))
 	require.NoError(t, err)
