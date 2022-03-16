@@ -55,7 +55,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.1.10-0.20220315131050-a07c7cc7a756
+	github.com/textileio/bidbot v0.1.10
 	github.com/textileio/cli v1.0.2
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
 	github.com/textileio/go-auctions-client v0.1.0
