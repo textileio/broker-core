@@ -37,20 +37,20 @@ func (_m *Broker) Create(ctx context.Context, dataCid cid.Cid, origin string) (b
 	return r0, r1
 }
 
-// CreatePrepared provides a mock function with given fields: ctx, payloadCid, pc, m
-func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR, m broker.BatchMetadata) (broker.StorageRequest, error) {
-	ret := _m.Called(ctx, payloadCid, pc, m)
+// CreatePrepared provides a mock function with given fields: ctx, payloadCid, pc, m, rw
+func (_m *Broker) CreatePrepared(ctx context.Context, payloadCid cid.Cid, pc broker.PreparedCAR, m broker.BatchMetadata, rw *broker.RemoteWallet) (broker.StorageRequest, error) {
+	ret := _m.Called(ctx, payloadCid, pc, m, rw)
 
 	var r0 broker.StorageRequest
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata) broker.StorageRequest); ok {
-		r0 = rf(ctx, payloadCid, pc, m)
+	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata, *broker.RemoteWallet) broker.StorageRequest); ok {
+		r0 = rf(ctx, payloadCid, pc, m, rw)
 	} else {
 		r0 = ret.Get(0).(broker.StorageRequest)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata) error); ok {
-		r1 = rf(ctx, payloadCid, pc, m)
+	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, broker.PreparedCAR, broker.BatchMetadata, *broker.RemoteWallet) error); ok {
+		r1 = rf(ctx, payloadCid, pc, m, rw)
 	} else {
 		r1 = ret.Error(1)
 	}

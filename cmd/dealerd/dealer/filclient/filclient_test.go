@@ -175,7 +175,7 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	propCid, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
+	propCid, _, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
 	require.NoError(t, err)
 	require.False(t, retry)
 	fmt.Printf("propCid: %s", propCid)

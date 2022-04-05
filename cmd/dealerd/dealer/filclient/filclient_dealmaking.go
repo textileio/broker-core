@@ -14,6 +14,7 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
+	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/metrics"
@@ -32,7 +33,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (dealIdentifier string, retriable bool, err error) {
+	rw *store.RemoteWallet) (proposalCid cid.Cid, dealUID string, retriable bool, err error) {
 	log.Debugf(
 		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
 		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
@@ -48,15 +49,14 @@ func (fc *FilClient) ExecuteAuctionDeal(
 
 	sp, err := address.NewFromString(aud.StorageProviderID)
 	if err != nil {
-		return "", false, fmt.Errorf("parsing storage-provider address: %s", err)
+		return cid.Undef, "", false, fmt.Errorf("parsing storage-provider address: %s", err)
 	}
 	spDealProtocol, err := fc.dealProtocolForStorageProvider(ctx, sp)
 	if err != nil {
-		return "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
+		return cid.Undef, "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
 	}
 
 	var dealStatus storagemarket.StorageDealStatus
-	var dealID string
 	var proposalMsg string
 	switch spDealProtocol {
 	case dealProtocolv110:
@@ -64,40 +64,44 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		if err != nil {
 			// Any error here deserves retries.
 			log.Errorf("creating deal proposal: %s", err)
-			return "", true, nil
+			return cid.Undef, "", true, nil
 		}
 		log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
 		pr, err := fc.sendProposal_v110(ctx, p)
 		if err != nil {
 			log.Errorf("sending proposal to storage-provider: %s", err)
 			// Any error here deserves retries.
-			return "", true, nil
+			return cid.Undef, "", true, nil
 		}
-		dealID = pr.Response.Proposal.String()
+		proposalCid = pr.Response.Proposal
 		dealStatus = pr.Response.State
 		proposalMsg = pr.Response.Message
-		log.Debugf("sent proposal v1.1.0 %s: %s", dealID, logger.MustJSONIndent(p))
+		log.Debugf("sent proposal v1.1.0 %s: %s", dealUID, logger.MustJSONIndent(p))
 	case dealProtocolv120:
 		// TODO(jsign): TODO.
 		panic("TODO")
+		// dealUID =
+		// dealStatus =
+		// proposalMsg =
 	default:
-		return "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
+		return cid.Undef, "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
 	}
 
 	switch dealStatus {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal %s accepted: %s", dealID)
+		log.Debugf("proposal %s accepted: %s", dealUID)
 	default:
-		log.Warnf("proposal %s failed", dealID)
-		return "",
+		log.Warnf("proposal %s failed", dealUID)
+		return cid.Undef,
+			"",
 			false,
 			fmt.Errorf("failed proposal %s (%s): %s",
-				dealID,
+				dealUID,
 				storagemarket.DealStates[dealStatus],
 				proposalMsg)
 	}
 
-	return dealID, false, nil
+	return proposalCid, dealUID, false, nil
 }
 
 func (fc *FilClient) createDealProposal_v110(

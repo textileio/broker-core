@@ -7,6 +7,8 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 
+	db "github.com/textileio/broker-core/cmd/dealerd/store"
+
 	mock "github.com/stretchr/testify/mock"
 
 	storagemarket "github.com/filecoin-project/go-fil-markets/storagemarket"
@@ -54,13 +56,13 @@ func (_m *FilClient) CheckChainDeal(ctx context.Context, dealID int64) (bool, ui
 	return r0, r1, r2, r3
 }
 
-// CheckDealStatusWithStorageProvider provides a mock function with given fields: ctx, storageProviderID, propCid
-func (_m *FilClient) CheckDealStatusWithStorageProvider(ctx context.Context, storageProviderID string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
-	ret := _m.Called(ctx, storageProviderID, propCid)
+// CheckDealStatusWithStorageProvider provides a mock function with given fields: ctx, storageProviderID, propCid, rw
+func (_m *FilClient) CheckDealStatusWithStorageProvider(ctx context.Context, storageProviderID string, propCid cid.Cid, rw *db.RemoteWallet) (*storagemarket.ProviderDealState, error) {
+	ret := _m.Called(ctx, storageProviderID, propCid, rw)
 
 	var r0 *storagemarket.ProviderDealState
-	if rf, ok := ret.Get(0).(func(context.Context, string, cid.Cid) *storagemarket.ProviderDealState); ok {
-		r0 = rf(ctx, storageProviderID, propCid)
+	if rf, ok := ret.Get(0).(func(context.Context, string, cid.Cid, *db.RemoteWallet) *storagemarket.ProviderDealState); ok {
+		r0 = rf(ctx, storageProviderID, propCid, rw)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*storagemarket.ProviderDealState)
@@ -68,8 +70,8 @@ func (_m *FilClient) CheckDealStatusWithStorageProvider(ctx context.Context, sto
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, cid.Cid) error); ok {
-		r1 = rf(ctx, storageProviderID, propCid)
+	if rf, ok := ret.Get(1).(func(context.Context, string, cid.Cid, *db.RemoteWallet) error); ok {
+		r1 = rf(ctx, storageProviderID, propCid, rw)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -77,32 +79,39 @@ func (_m *FilClient) CheckDealStatusWithStorageProvider(ctx context.Context, sto
 	return r0, r1
 }
 
-// ExecuteAuctionDeal provides a mock function with given fields: ctx, ad, aud
-func (_m *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (cid.Cid, bool, error) {
-	ret := _m.Called(ctx, ad, aud)
+// ExecuteAuctionDeal provides a mock function with given fields: ctx, ad, aud, rw
+func (_m *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal, rw *db.RemoteWallet) (cid.Cid, string, bool, error) {
+	ret := _m.Called(ctx, ad, aud, rw)
 
 	var r0 cid.Cid
-	if rf, ok := ret.Get(0).(func(context.Context, store.AuctionData, store.AuctionDeal) cid.Cid); ok {
-		r0 = rf(ctx, ad, aud)
+	if rf, ok := ret.Get(0).(func(context.Context, store.AuctionData, store.AuctionDeal, *db.RemoteWallet) cid.Cid); ok {
+		r0 = rf(ctx, ad, aud, rw)
 	} else {
 		r0 = ret.Get(0).(cid.Cid)
 	}
 
-	var r1 bool
-	if rf, ok := ret.Get(1).(func(context.Context, store.AuctionData, store.AuctionDeal) bool); ok {
-		r1 = rf(ctx, ad, aud)
+	var r1 string
+	if rf, ok := ret.Get(1).(func(context.Context, store.AuctionData, store.AuctionDeal, *db.RemoteWallet) string); ok {
+		r1 = rf(ctx, ad, aud, rw)
 	} else {
-		r1 = ret.Get(1).(bool)
+		r1 = ret.Get(1).(string)
 	}
 
-	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, store.AuctionData, store.AuctionDeal) error); ok {
-		r2 = rf(ctx, ad, aud)
+	var r2 bool
+	if rf, ok := ret.Get(2).(func(context.Context, store.AuctionData, store.AuctionDeal, *db.RemoteWallet) bool); ok {
+		r2 = rf(ctx, ad, aud, rw)
 	} else {
-		r2 = ret.Error(2)
+		r2 = ret.Get(2).(bool)
 	}
 
-	return r0, r1, r2
+	var r3 error
+	if rf, ok := ret.Get(3).(func(context.Context, store.AuctionData, store.AuctionDeal, *db.RemoteWallet) error); ok {
+		r3 = rf(ctx, ad, aud, rw)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // GetChainHeight provides a mock function with given fields: ctx

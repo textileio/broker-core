@@ -116,7 +116,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 
 	log.Infof("deal with payloadcid %s with %s successfully executed", ad.PayloadCid, aud.StorageProviderID)
 	aud.Retries = 0
-	aud.ProposalCid = proposalCid
+	aud.ProposalCid = proposalCid.String()
 	aud.DealUid = dealUID
 	aud.ReadyAt = time.Unix(0, 0)
 	if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusConfirmation); err != nil {

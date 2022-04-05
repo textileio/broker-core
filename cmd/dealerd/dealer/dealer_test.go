@@ -268,7 +268,7 @@ func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
 	fc.On("ExecuteAuctionDeal",
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, "", false, nil)
 
 	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&storagemarket.ProviderDealState{
@@ -310,9 +310,9 @@ func (fc *fcMock) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (string, bool, error) {
+	rw *store.RemoteWallet) (cid.Cid, string, bool, error) {
 	args := fc.Called(ctx, ad, aud)
-	return args.String(0), args.Bool(1), args.Error(2)
+	return args.Get(0).(cid.Cid), args.String(1), args.Bool(2), args.Error(3)
 }
 
 func (fc *fcMock) GetChainHeight(ctx context.Context) (uint64, error) {
