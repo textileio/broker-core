@@ -213,9 +213,9 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache
 
       - name: Install Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
-          version: 341.0.0
+          version: 367.0.0
           service_account_key: ${{ secrets.GKE_SA_KEY }}
           project_id: ${{ secrets.GKE_PROJECT }}
 
