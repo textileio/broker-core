@@ -2,9 +2,12 @@ package filclient
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/dustin/go-humanize"
+	smtypes "github.com/filecoin-project/boost/storagemarket/types"
+	boosttypes "github.com/filecoin-project/boost/transport/types"
 	"github.com/filecoin-project/go-address"
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
@@ -14,6 +17,7 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
@@ -56,17 +60,18 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		return cid.Undef, "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
 	}
 
+	p, err := fc.createDealProposal_v110(ctx, ad, aud, rw)
+	if err != nil {
+		// Any error here deserves retries.
+		log.Errorf("creating deal proposal: %s", err)
+		return cid.Undef, "", true, nil
+	}
+	log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
+
 	var dealStatus storagemarket.StorageDealStatus
 	var proposalMsg string
 	switch spDealProtocol {
 	case dealProtocolv110:
-		p, err := fc.createDealProposal_v110(ctx, ad, aud, rw)
-		if err != nil {
-			// Any error here deserves retries.
-			log.Errorf("creating deal proposal: %s", err)
-			return cid.Undef, "", true, nil
-		}
-		log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
 		pr, err := fc.sendProposal_v110(ctx, p)
 		if err != nil {
 			log.Errorf("sending proposal to storage-provider: %s", err)
@@ -76,32 +81,79 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		proposalCid = pr.Response.Proposal
 		dealStatus = pr.Response.State
 		proposalMsg = pr.Response.Message
-		log.Debugf("sent proposal v1.1.0 %s: %s", dealUID, logger.MustJSONIndent(p))
+		log.Debugf("sent proposal v1.1.0 %s: %s", proposalCid, logger.MustJSONIndent(p))
 	case dealProtocolv120:
-		// TODO(jsign): TODO.
-		panic("TODO")
-		// dealUID =
-		// dealStatus =
-		// proposalMsg =
+		duuid := uuid.New()
+		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, p, duuid, carURL)
+		if err != nil {
+			return cid.Undef, "", true, fmt.Errorf("sending proposal v1.2.0: %s", err)
+		}
+		dealUID = duuid.String()
+
 	default:
 		return cid.Undef, "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
 	}
 
 	switch dealStatus {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal %s accepted: %s", dealUID)
+		log.Debugf("proposal %s/%s accepted: %s", proposalCid, dealUID, proposalMsg)
 	default:
-		log.Warnf("proposal %s failed", dealUID)
+		log.Warnf("proposal %s/%s failed: %s", proposalCid, dealUID, proposalMsg)
 		return cid.Undef,
 			"",
 			false,
-			fmt.Errorf("failed proposal %s (%s): %s",
+			fmt.Errorf("failed proposal %s/%s (%s): %s",
+				proposalCid,
 				dealUID,
 				storagemarket.DealStates[dealStatus],
 				proposalMsg)
 	}
 
 	return proposalCid, dealUID, false, nil
+}
+
+func (fc *FilClient) sendProposalV120(
+	ctx context.Context,
+	netprop *network.Proposal,
+	dealUUID uuid.UUID,
+	carURL string) (storagemarket.StorageDealStatus, string, error) {
+	s, err := fc.streamToStorageProvider(ctx, netprop.DealProposal.Proposal.Provider, dealProtocolv120)
+	if err != nil {
+		return 0, "", fmt.Errorf("opening stream to storage provider %s: %s", netprop.DealProposal.Proposal.Provider, err)
+	}
+
+	defer s.Close()
+
+	// Add the data URL and authorization token to the transfer parameters
+	transferParams, err := json.Marshal(boosttypes.HttpRequest{URL: carURL})
+	if err != nil {
+		return 0, "", fmt.Errorf("marshalling deal transfer params: %w", err)
+	}
+
+	// Send proposal to storage provider using deal protocol v1.2.0 format
+	params := smtypes.DealParams{
+		DealUUID:           dealUUID,
+		ClientDealProposal: *netprop.DealProposal,
+		DealDataRoot:       netprop.Piece.Root,
+		Transfer: smtypes.Transfer{
+			Type:     "http", // TODO(jsign): is this value right?
+			ClientID: "",     // TODO(jsign): how this differs from dealUUID?
+			Params:   transferParams,
+			Size:     netprop.Piece.RawBlockSize, // TODO(jsign): ask if RawBlockSize is the nominal size of the real CAR file.
+		},
+	}
+
+	resp, err := fc.sendProposal_v120(ctx, &params)
+	if err != nil {
+		return 0, "", fmt.Errorf("send proposal v1.2.0 rpc: %s", err)
+	}
+
+	// Check if the deal proposal was accepted
+	if !resp.Accepted {
+		return storagemarket.StorageDealProposalRejected, resp.Message, nil
+	}
+
+	return storagemarket.StorageDealWaitingForData, resp.Message, nil
 }
 
 func (fc *FilClient) createDealProposal_v110(
@@ -198,12 +250,38 @@ func (fc *FilClient) createDealProposal_v110(
 	return &network.Proposal{
 		DealProposal: sigprop,
 		Piece: &storagemarket.DataRef{
-			TransferType: storagemarket.TTManual,
+			TransferType: storagemarket.TTManual, // TODO(jsign): should I tune this?
 			Root:         ad.PayloadCid,
 			PieceCid:     &ad.PieceCid,
 		},
 		FastRetrieval: aud.FastRetrieval,
 	}, nil
+}
+
+func (fc *FilClient) sendProposal_v120(
+	ctx context.Context,
+	proposal *smtypes.DealParams) (res *smtypes.DealResponse, err error) {
+	s, err := fc.streamToStorageProvider(ctx, proposal.ClientDealProposal.Proposal.Provider, dealProtocolv110)
+	if err != nil {
+		return nil, fmt.Errorf("opening stream to storage-provider: %w", err)
+	}
+
+	defer func() {
+		if err := s.Close(); err != nil {
+			log.Errorf("closing stream: %s", err)
+		}
+	}()
+
+	if err := cborutil.WriteCborRPC(s, proposal); err != nil {
+		return nil, fmt.Errorf("failed to write proposal to storage-provider: %w", err)
+	}
+
+	var resp smtypes.DealResponse
+	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
+		return nil, fmt.Errorf("failed to read response from storage-provider: %w", err)
+	}
+
+	return &resp, nil
 }
 
 func (fc *FilClient) sendProposal_v110(
