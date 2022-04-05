@@ -14,7 +14,6 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
-	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/metrics"
@@ -23,14 +22,17 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-const dealProtocol = "/fil/storage/mk/1.1.0"
+const (
+	dealProtocolv110 = "/fil/storage/mk/1.1.0"
+	dealProtocolv120 = "/fil/storage/mk/1.2.0"
+)
 
 // ExecuteAuctionDeal creates a deal with a storage-provider using the data described in an auction deal.
 func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (propCid cid.Cid, retriable bool, err error) {
+	rw *store.RemoteWallet) (dealIdentifier string, retriable bool, err error) {
 	log.Debugf(
 		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
 		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
@@ -44,36 +46,61 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal, attrs...)
 	}()
 
-	p, err := fc.createDealProposal(ctx, ad, aud, rw)
+	sp, err := address.NewFromString(aud.StorageProviderID)
 	if err != nil {
-		// Any error here deserves retries.
-		log.Errorf("creating deal proposal: %s", err)
-		return cid.Undef, true, nil
+		return "", false, fmt.Errorf("parsing storage-provider address: %s", err)
 	}
-	log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
-	pr, err := fc.sendProposal(ctx, p)
+	spDealProtocol, err := fc.dealProtocolForStorageProvider(ctx, sp)
 	if err != nil {
-		log.Errorf("sending proposal to storage-provider: %s", err)
-		// Any error here deserves retries.
-		return cid.Undef, true, nil
+		return "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
 	}
 
-	switch pr.Response.State {
-	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal %s accepted: %s", pr.Response.Proposal, logger.MustJSONIndent(p))
+	var dealStatus storagemarket.StorageDealStatus
+	var dealID string
+	var proposalMsg string
+	switch spDealProtocol {
+	case dealProtocolv110:
+		p, err := fc.createDealProposal_v110(ctx, ad, aud, rw)
+		if err != nil {
+			// Any error here deserves retries.
+			log.Errorf("creating deal proposal: %s", err)
+			return "", true, nil
+		}
+		log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
+		pr, err := fc.sendProposal_v110(ctx, p)
+		if err != nil {
+			log.Errorf("sending proposal to storage-provider: %s", err)
+			// Any error here deserves retries.
+			return "", true, nil
+		}
+		dealID = pr.Response.Proposal.String()
+		dealStatus = pr.Response.State
+		proposalMsg = pr.Response.Message
+		log.Debugf("sent proposal v1.1.0 %s: %s", dealID, logger.MustJSONIndent(p))
+	case dealProtocolv120:
+		// TODO(jsign): TODO.
+		panic("TODO")
 	default:
-		log.Warnf("proposal failed: %s", pr.Response.Proposal, logger.MustJSONIndent(p))
-		return cid.Undef,
-			false,
-			fmt.Errorf("failed proposal (%s): %s",
-				storagemarket.DealStates[pr.Response.State],
-				pr.Response.Message)
+		return "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
 	}
 
-	return pr.Response.Proposal, false, nil
+	switch dealStatus {
+	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
+		log.Debugf("proposal %s accepted: %s", dealID)
+	default:
+		log.Warnf("proposal %s failed", dealID)
+		return "",
+			false,
+			fmt.Errorf("failed proposal %s (%s): %s",
+				dealID,
+				storagemarket.DealStates[dealStatus],
+				proposalMsg)
+	}
+
+	return dealID, false, nil
 }
 
-func (fc *FilClient) createDealProposal(
+func (fc *FilClient) createDealProposal_v110(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
@@ -175,10 +202,10 @@ func (fc *FilClient) createDealProposal(
 	}, nil
 }
 
-func (fc *FilClient) sendProposal(
+func (fc *FilClient) sendProposal_v110(
 	ctx context.Context,
 	proposal *network.Proposal) (res *network.SignedResponse, err error) {
-	s, err := fc.streamToStorageProvider(ctx, proposal.DealProposal.Proposal.Provider, dealProtocol)
+	s, err := fc.streamToStorageProvider(ctx, proposal.DealProposal.Proposal.Provider, dealProtocolv110)
 	if err != nil {
 		return nil, fmt.Errorf("opening stream to storage-provider: %w", err)
 	}
@@ -224,4 +251,21 @@ func (fc *FilClient) validateProposal(p *market.DealProposal) error {
 	}
 
 	return nil
+}
+
+func (fc *FilClient) dealProtocolForStorageProvider(ctx context.Context, storageProvider address.Address) (string, error) {
+	mpid, err := fc.connectToStorageProvider(ctx, storageProvider)
+	if err != nil {
+		return "", fmt.Errorf("connecting to storage-provider %s: %s", storageProvider, err)
+	}
+
+	proto, err := fc.host.Peerstore().FirstSupportedProtocol(mpid, dealProtocolv120, dealProtocolv110)
+	if err != nil {
+		return "", fmt.Errorf("getting deal protocol for %s: %w", storageProvider, err)
+	}
+	if proto == "" {
+		return "", fmt.Errorf("%s does not support any deal making protocol", storageProvider)
+	}
+
+	return proto, nil
 }

@@ -84,7 +84,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 
 	log.Debugf("%s executing deal from SD %s for %s with storage-provider %s",
 		aud.ID, ad.BatchID, ad.PayloadCid, aud.StorageProviderID)
-	proposalCid, retry, err := d.filclient.ExecuteAuctionDeal(ctx, ad, aud, rw)
+	proposalCid, dealUID, retry, err := d.filclient.ExecuteAuctionDeal(ctx, ad, aud, rw)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
 	}
@@ -116,22 +116,29 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 
 	log.Infof("deal with payloadcid %s with %s successfully executed", ad.PayloadCid, aud.StorageProviderID)
 	aud.Retries = 0
-	aud.ProposalCid = proposalCid.String()
+	aud.ProposalCid = proposalCid
+	aud.DealUid = dealUID
 	aud.ReadyAt = time.Unix(0, 0)
 	if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusConfirmation); err != nil {
 		return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
 	}
 
-	log.Debugf("accepted deal proposal %s from payloadcid %s", proposalCid, ad.PayloadCid)
-	if err := mbroker.PublishMsgDealProposalAccepted(
-		ctx,
-		d.mb,
-		ad.BatchID,
-		aud.AuctionID,
-		aud.BidID,
-		aud.StorageProviderID,
-		proposalCid); err != nil {
-		return fmt.Errorf("publish deal-proposal-accepted msg of proposal %s to msgbroker: %s", proposalCid, err)
+	log.Debugf("accepted deal proposal %s/%s from payloadcid %s", proposalCid, dealUID, ad.PayloadCid)
+
+	if proposalCid.Defined() {
+		log.Debugf("notifying about proposalcid %s", proposalCid)
+		if err := mbroker.PublishMsgDealProposalAccepted(
+			ctx,
+			d.mb,
+			ad.BatchID,
+			aud.AuctionID,
+			aud.BidID,
+			aud.StorageProviderID,
+			proposalCid); err != nil {
+			return fmt.Errorf("publish deal-proposal-accepted msg of proposal %s to msgbroker: %s", proposalCid, err)
+		}
+	} else {
+		log.Debugf("skipping proposalCid notification since proposed %s using protocolv1.2.0", dealUID)
 	}
 
 	return nil

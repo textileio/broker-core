@@ -310,9 +310,9 @@ func (fc *fcMock) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (cid.Cid, bool, error) {
+	rw *store.RemoteWallet) (string, bool, error) {
 	args := fc.Called(ctx, ad, aud)
-	return args.Get(0).(cid.Cid), args.Bool(1), args.Error(2)
+	return args.String(0), args.Bool(1), args.Error(2)
 }
 
 func (fc *fcMock) GetChainHeight(ctx context.Context) (uint64, error) {

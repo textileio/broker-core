@@ -63,6 +63,7 @@ type AuctionDeal struct {
 	UpdatedAt           time.Time      `json:"updatedAt"`
 	BatchID             broker.BatchID `json:"batchID"`
 	MarketDealStatus    string         `json:"marketDealStatus"`
+	DealUid             string         `json:"dealUid"`
 }
 
 // @enum

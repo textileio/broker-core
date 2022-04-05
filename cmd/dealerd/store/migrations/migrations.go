@@ -13,6 +13,8 @@
 // migrations/005_market_deal_status_comment.up.sql
 // migrations/006_postgraphile_status_enum.down.sql
 // migrations/006_postgraphile_status_enum.up.sql
+// migrations/007_dealuid.down.sql
+// migrations/007_dealuid.up.sql
 package migrations
 
 import (
@@ -104,7 +106,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 69, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -124,7 +126,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(420), modTime: time.Unix(1628108979, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1333, mode: os.FileMode(436), modTime: time.Unix(1628018891, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -144,7 +146,7 @@ func _002_market_statusDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
+	info := bindataFileInfo{name: "002_market_status.down.sql", size: 33, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -164,7 +166,7 @@ func _002_market_statusUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(420), modTime: time.Unix(1628185790, 0)}
+	info := bindataFileInfo{name: "002_market_status.up.sql", size: 1010, mode: os.FileMode(436), modTime: time.Unix(1628112604, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -184,7 +186,7 @@ func _003_remote_walletDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.down.sql", size: 26, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -204,7 +206,7 @@ func _003_remote_walletUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(420), modTime: time.Unix(1632421151, 0)}
+	info := bindataFileInfo{name: "003_remote_wallet.up.sql", size: 437, mode: os.FileMode(436), modTime: time.Unix(1631882118, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -224,7 +226,7 @@ func _004_dealer_apiDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_dealer_api.down.sql", size: 552, mode: os.FileMode(420), modTime: time.Unix(1633966822, 0)}
+	info := bindataFileInfo{name: "004_dealer_api.down.sql", size: 552, mode: os.FileMode(436), modTime: time.Unix(1633965948, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -244,7 +246,7 @@ func _004_dealer_apiUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_dealer_api.up.sql", size: 307, mode: os.FileMode(420), modTime: time.Unix(1633966822, 0)}
+	info := bindataFileInfo{name: "004_dealer_api.up.sql", size: 307, mode: os.FileMode(436), modTime: time.Unix(1633965948, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -264,7 +266,7 @@ func _005_market_deal_status_commentDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_market_deal_status_comment.down.sql", size: 44, mode: os.FileMode(420), modTime: time.Unix(1633981162, 0)}
+	info := bindataFileInfo{name: "005_market_deal_status_comment.down.sql", size: 44, mode: os.FileMode(436), modTime: time.Unix(1633980644, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -284,7 +286,7 @@ func _005_market_deal_status_commentUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_market_deal_status_comment.up.sql", size: 48, mode: os.FileMode(420), modTime: time.Unix(1633981162, 0)}
+	info := bindataFileInfo{name: "005_market_deal_status_comment.up.sql", size: 48, mode: os.FileMode(436), modTime: time.Unix(1633980644, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -304,7 +306,7 @@ func _006_postgraphile_status_enumDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_postgraphile_status_enum.down.sql", size: 727, mode: os.FileMode(420), modTime: time.Unix(1634141824, 0)}
+	info := bindataFileInfo{name: "006_postgraphile_status_enum.down.sql", size: 727, mode: os.FileMode(436), modTime: time.Unix(1634213788, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -324,7 +326,47 @@ func _006_postgraphile_status_enumUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_postgraphile_status_enum.up.sql", size: 950, mode: os.FileMode(420), modTime: time.Unix(1634141824, 0)}
+	info := bindataFileInfo{name: "006_postgraphile_status_enum.up.sql", size: 950, mode: os.FileMode(436), modTime: time.Unix(1634213788, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __007_dealuidDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x2c\x4d\x2e\xc9\xcc\xcf\x8b\x4f\x49\x4d\xcc\x29\x56\x70\x09\xf2\x0f\x50\x70\xf6\xf7\x09\xf5\xf5\x53\x00\x89\xc4\x97\x66\xa6\x58\x73\x01\x02\x00\x00\xff\xff\x45\x66\xff\x5e\x30\x00\x00\x00")
+
+func _007_dealuidDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_dealuidDownSql,
+		"007_dealuid.down.sql",
+	)
+}
+
+func _007_dealuidDownSql() (*asset, error) {
+	bytes, err := _007_dealuidDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_dealuid.down.sql", size: 48, mode: os.FileMode(436), modTime: time.Unix(1649180265, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __007_dealuidUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\x2c\x4d\x2e\xc9\xcc\xcf\x8b\x4f\x49\x4d\xcc\x29\x56\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x00\x09\xc4\x97\x66\xa6\x28\x94\xa4\x56\x94\x28\xe4\xe5\x97\x28\xe4\x95\xe6\xe4\x28\xa4\xa4\xa6\x25\x96\xe6\x94\x28\xa8\xab\x5b\x73\x01\x02\x00\x00\xff\xff\x13\x43\x5c\x22\x48\x00\x00\x00")
+
+func _007_dealuidUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_dealuidUpSql,
+		"007_dealuid.up.sql",
+	)
+}
+
+func _007_dealuidUpSql() (*asset, error) {
+	bytes, err := _007_dealuidUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_dealuid.up.sql", size: 72, mode: os.FileMode(436), modTime: time.Unix(1649180275, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -393,6 +435,8 @@ var _bindata = map[string]func() (*asset, error){
 	"005_market_deal_status_comment.up.sql":   _005_market_deal_status_commentUpSql,
 	"006_postgraphile_status_enum.down.sql":   _006_postgraphile_status_enumDownSql,
 	"006_postgraphile_status_enum.up.sql":     _006_postgraphile_status_enumUpSql,
+	"007_dealuid.down.sql":                    _007_dealuidDownSql,
+	"007_dealuid.up.sql":                      _007_dealuidUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -448,6 +492,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"005_market_deal_status_comment.up.sql":   &bintree{_005_market_deal_status_commentUpSql, map[string]*bintree{}},
 	"006_postgraphile_status_enum.down.sql":   &bintree{_006_postgraphile_status_enumDownSql, map[string]*bintree{}},
 	"006_postgraphile_status_enum.up.sql":     &bintree{_006_postgraphile_status_enumUpSql, map[string]*bintree{}},
+	"007_dealuid.down.sql":                    &bintree{_007_dealuidDownSql, map[string]*bintree{}},
+	"007_dealuid.up.sql":                      &bintree{_007_dealuidUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

@@ -86,7 +86,7 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 		WalletAddr: waddrPubKey.String(),
 		Multiaddrs: maddrs,
 	}
-	sp, err := client.createDealProposal(ctx, ad, aud, rw)
+	sp, err := client.createDealProposal_v110(ctx, ad, aud, rw)
 	require.NoError(t, err)
 
 	// Validate signature.
