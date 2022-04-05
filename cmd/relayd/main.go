@@ -2,10 +2,12 @@ package main
 
 import (
 	_ "net/http/pprof"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/relay"
 	"github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
 	"github.com/spf13/cobra"
@@ -73,12 +75,16 @@ var rootCmd = &cobra.Command{
 
 		cm, err := connmgr.NewConnManager(500, 800)
 		cli.CheckErrf("creating connection manager: %s", err)
+
+		relayResources := relay.DefaultResources()
+		relayResources.Limit.Data = 1 << 30
+		relayResources.Limit.Duration = time.Hour * 24 * 365 * 10
 		opts := []libp2p.Option{
 			libp2p.ConnectionManager(cm),
 			libp2p.ListenAddrs(listenAddr),
 			libp2p.Identity(pk),
 			libp2p.EnableRelay(),
-			libp2p.EnableRelayService(),
+			libp2p.EnableRelayService(relay.WithResources(relayResources)),
 			libp2p.ForceReachabilityPublic(),
 		}
 		h, err := libp2p.New(opts...)
