@@ -3,6 +3,8 @@ package main
 import (
 	_ "net/http/pprof"
 
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/textileio/broker-core/cmd/dealerd/metrics"
@@ -22,7 +24,7 @@ var (
 func init() {
 	flags := []cli.Flag{
 		{Name: "postgres-uri", DefValue: "", Description: "PostgreSQL URI"},
-		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URL"},
+		{Name: "lotus-gateway-url", DefValue: "https://api.node.glif.io", Description: "Lotus gateway URLs"},
 		{
 			Name:        "lotus-exported-wallet-address",
 			DefValue:    "",
@@ -80,7 +82,7 @@ var rootCmd = &cobra.Command{
 		config := service.Config{
 			PostgresURI: v.GetString("postgres-uri"),
 
-			LotusGatewayURL:         v.GetString("lotus-gateway-url"),
+			LotusGatewayURL:         strings.Split(v.GetString("lotus-gateway-url"), ","),
 			LotusExportedWalletAddr: v.GetString("lotus-exported-wallet-address"),
 
 			AllowUnverifiedDeals:             v.GetBool("allow-unverified-deals"),

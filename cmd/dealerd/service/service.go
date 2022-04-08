@@ -28,7 +28,7 @@ var log = golog.Logger("dealer/service")
 type Config struct {
 	PostgresURI string
 
-	LotusGatewayURL         string
+	LotusGatewayURL         []string
 	LotusExportedWalletAddr string
 
 	AllowUnverifiedDeals             bool
@@ -80,19 +80,10 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		log.Warnf("running in mocked mode")
 		lib = dealermock.New(mb, h, conf.RelayMaddr)
 	} else {
-		var lotusAPI v0api.FullNodeStruct
-		closer, err := jsonrpc.NewMergeClient(context.Background(), conf.LotusGatewayURL, "Filecoin",
-			[]interface{}{
-				&lotusAPI.CommonStruct.Internal,
-				&lotusAPI.NetStruct.Internal,
-				&lotusAPI.Internal,
-			},
-			http.Header{},
-		)
+		lotusClients, err := initializeLotusClients(fin, conf.LotusGatewayURL)
 		if err != nil {
-			return nil, fmt.Errorf("creating lotus gateway client: %s", err)
+			return nil, err
 		}
-		fin.Add(&nopCloser{closer})
 
 		opts := []filclient.Option{
 			filclient.WithExportedKey(conf.LotusExportedWalletAddr),
@@ -102,7 +93,7 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 		if conf.RelayMaddr != "" {
 			opts = append(opts, filclient.WithRelayAddr(conf.RelayMaddr))
 		}
-		filclient, err := filclient.New(&lotusAPI, h, opts...)
+		filclient, err := filclient.New(lotusClients, h, opts...)
 		if err != nil {
 			return nil, fin.Cleanupf("creating filecoin client: %s", err)
 		}
@@ -124,6 +115,35 @@ func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	}
 
 	return s, nil
+}
+
+func initializeLotusClients(fin *finalizer.Finalizer, gatewaysURLs []string) ([]v0api.FullNode, error) {
+	lotusClients := []v0api.FullNode{}
+	for _, url := range gatewaysURLs {
+		var lotusAPI v0api.FullNodeStruct
+		closer, err := jsonrpc.NewMergeClient(context.Background(), url, "Filecoin",
+			[]interface{}{
+				&lotusAPI.CommonStruct.Internal,
+				&lotusAPI.NetStruct.Internal,
+				&lotusAPI.Internal,
+			},
+			http.Header{},
+		)
+
+		if err != nil {
+			log.Warnf("creating lotus gateway client: %s", err)
+			continue
+		}
+
+		fin.Add(&nopCloser{closer})
+		lotusClients = append(lotusClients, &lotusAPI)
+	}
+
+	if len(lotusClients) == 0 {
+		return lotusClients, errors.New("failed to initialize Lotus clients")
+	}
+
+	return lotusClients, nil
 }
 
 // OnReadyToCreateDeals process an event for deals to be executed.
