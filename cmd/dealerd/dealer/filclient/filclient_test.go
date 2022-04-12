@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/libp2p/go-libp2p"
@@ -23,7 +24,6 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/go-auctions-client/localwallet"
 	"github.com/textileio/go-auctions-client/propsigner"
-	logger "github.com/textileio/go-log/v2"
 )
 
 func TestRemoteDealProposalSigning(t *testing.T) {
@@ -140,11 +140,14 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 	propCid, err := cid.Decode("bafyreifydfjfbkcszmeyz72zu66an2lc4glykhrjlq7r7ir75mplwpqoxu")
 	require.NoError(t, err)
 
-	dsr, err := client.createDealStatusRequest(ctx, propCid, rw)
+	sig, err := client.signDealStatusRequest(ctx, propCid, uuid.UUID{}, rw)
 	require.NoError(t, err)
 
 	// Validate signature.
-	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), propCid, &dsr.Signature)
+	payload, err := propCid.MarshalBinary()
+	require.NoError(t, err)
+	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), payload, sig)
+
 	require.NoError(t, err)
 }
 
@@ -232,10 +235,10 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 
 	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid, nil)
+	pcid, status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid, "", nil)
 	require.NoError(t, err)
-	fmt.Printf("%s\n", logger.MustJSONIndent(status))
-	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])
+	fmt.Printf("pcid: %s\n", pcid)
+	fmt.Printf("status: %s\n", storagemarket.DealStatesDescriptions[status])
 }
 
 func TestGetChainHeight(t *testing.T) {

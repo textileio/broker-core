@@ -372,6 +372,9 @@ replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.1
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
 replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20211103030059-3552081365d7
 
+// TODO(jsign): temp replace while developing feature
+replace github.com/textileio/go-auctions-client => ../go-auctions-client
+
 // ristretto v0.1.0 is forced by Lotus v1.15 but isn't compatible with textileio/go-badger3.
 // ristretto isn't used in any place in broker-core, so we force the usable version here.
 // it would be a good idea to upgrade textileio/go-badger3 to use (indirectly) the same

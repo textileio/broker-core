@@ -201,29 +201,29 @@ func (d *Dealer) tryResolvingDealID(
 		return 0, 0
 	}
 
-	pds, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid, rw)
+	publishCid, status, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid, dealUUID, rw)
 	if err != nil {
 		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0
 	}
-	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[pds.State])
+	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[status])
 
-	if pds.PublishCid != nil {
+	if publishCid != nil {
 		log.Debugf("%s storage-provider published the deal in message %s, trying to resolve on-chain...",
-			aud.ID, pds.PublishCid)
+			aud.ID, publishCid)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
-		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, proposalCid, *pds.PublishCid)
+		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, proposalCid, *publishCid)
 		if err != nil {
-			log.Errorf("trying to resolve deal-id from message %s: %s", pds.PublishCid, err)
-			return 0, pds.State
+			log.Errorf("trying to resolve deal-id from message %s: %s", publishCid, err)
+			return 0, status
 		}
 		// Could we resolve by looking to the chain?, if yes, save it.
 		// If no, no problem... we'll try again later when it might get confirmed.
 		if dealID > 0 {
-			return dealID, pds.State
+			return dealID, status
 		}
 	}
 
-	return 0, pds.State
+	return 0, status
 }

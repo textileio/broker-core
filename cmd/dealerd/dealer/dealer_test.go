@@ -270,7 +270,7 @@ func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	fc.On("ExecuteAuctionDeal",
 		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, "", false, nil)
 
-	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
+	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&storagemarket.ProviderDealState{
 		PublishCid: &fakePublishDealMessage,
 	}, nil)
@@ -335,10 +335,11 @@ func (fc *fcMock) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
 	storageProviderID string,
 	propCid cid.Cid,
-	rw *store.RemoteWallet) (*storagemarket.ProviderDealState, error) {
+	dealUUID string,
+	rw *store.RemoteWallet) (*cid.Cid, storagemarket.StorageDealStatus, error) {
 	args := fc.Called(ctx, storageProviderID, propCid)
 
-	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)
+	return args.Get(0).(*cid.Cid), args.Get(1).(storagemarket.StorageDealStatus), args.Error(2)
 }
 
 func makeRemoteWalletAuds(baseAuds dealeri.AuctionDeals) dealeri.AuctionDeals {
