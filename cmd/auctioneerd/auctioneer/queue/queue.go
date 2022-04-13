@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -667,14 +668,15 @@ func bidFromDb(bid db.Bid) (*auctioneer.Bid, error) {
 		b.WonAt = bid.WonAt.Time
 	}
 	if bid.ProposalCid.Valid {
-		proposalCid, err := cid.Parse(bid.ProposalCid.String)
-		if err != nil {
-			return nil, fmt.Errorf("parsing proposal cid: %v", err)
+		if _, err := uuid.Parse(bid.ProposalCid.String); err == nil {
+			b.DealUID = bid.ProposalCid.String
+		} else {
+			proposalCid, err := cid.Parse(bid.ProposalCid.String)
+			if err != nil {
+				return nil, fmt.Errorf("parsing proposal cid: %v", err)
+			}
+			b.ProposalCid = proposalCid
 		}
-		b.ProposalCid = proposalCid
-	}
-	if bid.DealUid.Valid {
-		b.DealUID = bid.DealUid.String
 	}
 	if bid.ProposalCidDeliveryError.Valid {
 		b.ProposalCidDeliveryError = bid.ProposalCidDeliveryError.String

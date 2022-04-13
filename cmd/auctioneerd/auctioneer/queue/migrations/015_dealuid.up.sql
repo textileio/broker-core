@@ -1,1 +1,0 @@
-ALTER TABLE bids ADD COLUMN deal_uid TEXT;

@@ -66,7 +66,7 @@ func (q *Queries) CreateBid(ctx context.Context, arg CreateBidParams) error {
 }
 
 const getAuctionBids = `-- name: GetAuctionBids :many
-SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason, deal_failed_at, deal_uid FROM bids
+SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason, deal_failed_at FROM bids
 WHERE auction_id = $1
 `
 
@@ -97,7 +97,6 @@ func (q *Queries) GetAuctionBids(ctx context.Context, auctionID auction.ID) ([]B
 			&i.DealConfirmedAt,
 			&i.WonReason,
 			&i.DealFailedAt,
-			&i.DealUid,
 		); err != nil {
 			return nil, err
 		}
@@ -113,7 +112,7 @@ func (q *Queries) GetAuctionBids(ctx context.Context, auctionID auction.ID) ([]B
 }
 
 const getAuctionWinningBids = `-- name: GetAuctionWinningBids :many
-SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason, deal_failed_at, deal_uid FROM bids
+SELECT id, auction_id, wallet_addr_sig, storage_provider_id, bidder_id, ask_price, verified_ask_price, start_epoch, fast_retrieval, received_at, won_at, proposal_cid, proposal_cid_delivered_at, proposal_cid_delivery_error, deal_confirmed_at, won_reason, deal_failed_at FROM bids
 WHERE auction_id = $1 and won_at IS NOT NULL
 `
 
@@ -144,7 +143,6 @@ func (q *Queries) GetAuctionWinningBids(ctx context.Context, auctionID auction.I
 			&i.DealConfirmedAt,
 			&i.WonReason,
 			&i.DealFailedAt,
-			&i.DealUid,
 		); err != nil {
 			return nil, err
 		}
@@ -347,23 +345,6 @@ type UpdateProposalCidDeliveryErrorParams struct {
 
 func (q *Queries) UpdateProposalCidDeliveryError(ctx context.Context, arg UpdateProposalCidDeliveryErrorParams) error {
 	_, err := q.exec(ctx, q.updateProposalCidDeliveryErrorStmt, updateProposalCidDeliveryError, arg.ID, arg.AuctionID, arg.ProposalCidDeliveryError)
-	return err
-}
-
-const updateProposalDealUID = `-- name: UpdateProposalDealUID :exec
-UPDATE bids
-SET deal_uid = $3, proposal_cid_delivered_at = CURRENT_TIMESTAMP
-WHERE id = $1 and auction_id = $2
-`
-
-type UpdateProposalDealUIDParams struct {
-	ID        auction.BidID  `json:"id"`
-	AuctionID auction.ID     `json:"auctionID"`
-	DealUid   sql.NullString `json:"dealUid"`
-}
-
-func (q *Queries) UpdateProposalDealUID(ctx context.Context, arg UpdateProposalDealUIDParams) error {
-	_, err := q.exec(ctx, q.updateProposalDealUIDStmt, updateProposalDealUID, arg.ID, arg.AuctionID, arg.DealUid)
 	return err
 }
 

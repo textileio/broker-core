@@ -244,6 +244,7 @@ func TestExecuteAuctionDealV110(t *testing.T) {
 
 func TestExecuteAuctionDealV120(t *testing.T) {
 	t.Parallel()
+	t.SkipNow()
 
 	client := create(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)

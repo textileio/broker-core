@@ -74,7 +74,6 @@ type Bid struct {
 	DealConfirmedAt          sql.NullTime   `json:"dealConfirmedAt"`
 	WonReason                sql.NullString `json:"wonReason"`
 	DealFailedAt             sql.NullTime   `json:"dealFailedAt"`
-	DealUid                  sql.NullString `json:"dealUid"`
 }
 
 type BidEvent struct {

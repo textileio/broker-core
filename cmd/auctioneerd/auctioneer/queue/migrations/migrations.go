@@ -29,8 +29,6 @@
 // migrations/013_leader_board_update5.up.sql
 // migrations/014_leader_board_update6.down.sql
 // migrations/014_leader_board_update6.up.sql
-// migrations/015_dealuid.down.sql
-// migrations/015_dealuid.up.sql
 package migrations
 
 import (
@@ -667,46 +665,6 @@ func _014_leader_board_update6UpSql() (*asset, error) {
 	return a, nil
 }
 
-var __015_dealuidDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x01\x00\x00\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00")
-
-func _015_dealuidDownSqlBytes() ([]byte, error) {
-	return bindataRead(
-		__015_dealuidDownSql,
-		"015_dealuid.down.sql",
-	)
-}
-
-func _015_dealuidDownSql() (*asset, error) {
-	bytes, err := _015_dealuidDownSqlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "015_dealuid.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1649860695, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
-var __015_dealuidUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x48\xca\x4c\x29\x56\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x48\x49\x4d\xcc\x89\x2f\xcd\x4c\x51\x08\x71\x8d\x08\xb1\xe6\x02\x04\x00\x00\xff\xff\x1c\x37\xa9\x14\x2b\x00\x00\x00")
-
-func _015_dealuidUpSqlBytes() ([]byte, error) {
-	return bindataRead(
-		__015_dealuidUpSql,
-		"015_dealuid.up.sql",
-	)
-}
-
-func _015_dealuidUpSql() (*asset, error) {
-	bytes, err := _015_dealuidUpSqlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "015_dealuid.up.sql", size: 43, mode: os.FileMode(436), modTime: time.Unix(1649860767, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -787,8 +745,6 @@ var _bindata = map[string]func() (*asset, error){
 	"013_leader_board_update5.up.sql":             _013_leader_board_update5UpSql,
 	"014_leader_board_update6.down.sql":           _014_leader_board_update6DownSql,
 	"014_leader_board_update6.up.sql":             _014_leader_board_update6UpSql,
-	"015_dealuid.down.sql":                        _015_dealuidDownSql,
-	"015_dealuid.up.sql":                          _015_dealuidUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -860,8 +816,6 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"013_leader_board_update5.up.sql":             &bintree{_013_leader_board_update5UpSql, map[string]*bintree{}},
 	"014_leader_board_update6.down.sql":           &bintree{_014_leader_board_update6DownSql, map[string]*bintree{}},
 	"014_leader_board_update6.up.sql":             &bintree{_014_leader_board_update6UpSql, map[string]*bintree{}},
-	"015_dealuid.down.sql":                        &bintree{_015_dealuidDownSql, map[string]*bintree{}},
-	"015_dealuid.up.sql":                          &bintree{_015_dealuidUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
