@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
 
 	"github.com/dustin/go-humanize"
 	smtypes "github.com/filecoin-project/boost/storagemarket/types"
@@ -84,11 +86,12 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		log.Debugf("sent proposal v1.1.0 %s: %s", proposalCid, logger.MustJSONIndent(p))
 	case dealProtocolv120:
 		duuid := uuid.New()
-		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, p, duuid, carURL)
+		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, *p.DealProposal, p.Piece.Root, duuid, "") // TODO(jsign): carURL
 		if err != nil {
 			return cid.Undef, "", true, fmt.Errorf("sending proposal v1.2.0: %s", err)
 		}
 		dealUID = duuid.String()
+		log.Debugf("sent proposal v1.2.0 %s: %s", duuid, logger.MustJSONIndent(p))
 
 	default:
 		return cid.Undef, "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
@@ -114,32 +117,44 @@ func (fc *FilClient) ExecuteAuctionDeal(
 
 func (fc *FilClient) sendProposalV120(
 	ctx context.Context,
-	netprop *network.Proposal,
+	dealProposal market.ClientDealProposal,
+	payloadCid cid.Cid,
 	dealUUID uuid.UUID,
 	carURL string) (storagemarket.StorageDealStatus, string, error) {
-	s, err := fc.streamToStorageProvider(ctx, netprop.DealProposal.Proposal.Provider, dealProtocolv120)
+	s, err := fc.streamToStorageProvider(ctx, dealProposal.Proposal.Provider, dealProtocolv120)
 	if err != nil {
-		return 0, "", fmt.Errorf("opening stream to storage provider %s: %s", netprop.DealProposal.Proposal.Provider, err)
+		return 0, "", fmt.Errorf("opening stream to storage provider %s: %s", dealProposal.Proposal.Provider, err)
 	}
 
 	defer s.Close()
 
-	// Add the data URL and authorization token to the transfer parameters
 	transferParams, err := json.Marshal(boosttypes.HttpRequest{URL: carURL})
 	if err != nil {
 		return 0, "", fmt.Errorf("marshalling deal transfer params: %w", err)
 	}
 
+	carHttpHeader, err := http.Get(carURL)
+	if err != nil {
+		return 0, "", fmt.Errorf("get http header of %s: %s", carURL, err)
+	}
+	clHeader, ok := carHttpHeader.Header["Content-Length"]
+	if !ok {
+		return 0, "", fmt.Errorf("http header of %s doesn't have Content-Length attr", carURL)
+	}
+	carTotalBytes, err := strconv.ParseUint(clHeader[0], 10, 64)
+	if err != nil {
+		return 0, "", fmt.Errorf("parsing Content-Length header %s: %s", clHeader[0], err)
+	}
 	// Send proposal to storage provider using deal protocol v1.2.0 format
 	params := smtypes.DealParams{
 		DealUUID:           dealUUID,
-		ClientDealProposal: *netprop.DealProposal,
-		DealDataRoot:       netprop.Piece.Root,
+		ClientDealProposal: dealProposal,
+		DealDataRoot:       payloadCid,
 		Transfer: smtypes.Transfer{
-			Type:     "http", // TODO(jsign): is this value right?
-			ClientID: "",     // TODO(jsign): how this differs from dealUUID?
+			Type:     "http",
+			ClientID: "",
 			Params:   transferParams,
-			Size:     netprop.Piece.RawBlockSize, // TODO(jsign): ask if RawBlockSize is the nominal size of the real CAR file.
+			Size:     carTotalBytes,
 		},
 	}
 
@@ -250,7 +265,7 @@ func (fc *FilClient) createDealProposal_v110(
 	return &network.Proposal{
 		DealProposal: sigprop,
 		Piece: &storagemarket.DataRef{
-			TransferType: storagemarket.TTManual, // TODO(jsign): should I tune this?
+			TransferType: storagemarket.TTManual,
 			Root:         ad.PayloadCid,
 			PieceCid:     &ad.PieceCid,
 		},

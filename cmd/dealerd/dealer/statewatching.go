@@ -201,7 +201,7 @@ func (d *Dealer) tryResolvingDealID(
 		return 0, 0
 	}
 
-	publishCid, status, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid, dealUUID, rw)
+	publishCid, status, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid, aud.DealUid, rw)
 	if err != nil {
 		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0

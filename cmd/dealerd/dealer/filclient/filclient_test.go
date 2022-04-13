@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-address"
+	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
@@ -140,14 +141,13 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 	propCid, err := cid.Decode("bafyreifydfjfbkcszmeyz72zu66an2lc4glykhrjlq7r7ir75mplwpqoxu")
 	require.NoError(t, err)
 
-	sig, err := client.signDealStatusRequest(ctx, propCid, uuid.UUID{}, rw)
+	sig, err := client.signDealStatusRequest(ctx, propCid, uuid.Nil, rw)
 	require.NoError(t, err)
 
 	// Validate signature.
-	payload, err := propCid.MarshalBinary()
+	payload, err := cborutil.Dump(propCid)
 	require.NoError(t, err)
 	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), payload, sig)
-
 	require.NoError(t, err)
 }
 

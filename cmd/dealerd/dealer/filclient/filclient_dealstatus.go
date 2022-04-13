@@ -30,7 +30,7 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
 	storageProviderID string,
 	propCid cid.Cid,
-	strDealUUID string,
+	strDealUID string,
 	rw *store.RemoteWallet,
 ) (pcid *cid.Cid, ds storagemarket.StorageDealStatus, err error) {
 	log.Debugf("checking status of proposal %s with storage-provider %s", propCid, storageProviderID)
@@ -42,20 +42,20 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("invalid storage-provider address %s: %s", storageProviderID, err)
 	}
 
-	if strDealUUID == "" {
+	if strDealUID == "" {
 		state, err := fc.checkDealStatusV110(ctx, sp, propCid, rw)
 		if err != nil {
 			return nil, storagemarket.StorageDealUnknown, fmt.Errorf("check deal status v1.1.0 for %s: %s", propCid, err)
 		}
 		return state.PublishCid, state.State, nil
 	}
-	dealUUID, err := uuid.Parse(strDealUUID)
+	dealUID, err := uuid.Parse(strDealUID)
 	if err != nil {
-		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("parsing deal uuid %s: %s", dealUUID, err)
+		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("parsing deal uuid %s: %s", dealUID, err)
 	}
-	publishCid, state, err := fc.checkDealStatusV120(ctx, sp, dealUUID, rw)
+	publishCid, state, err := fc.checkDealStatusV120(ctx, sp, dealUID, rw)
 	if err != nil {
-		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("check deal status v1.2.0 for %s: %s", dealUUID, err)
+		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("check deal status v1.2.0 for %s: %s", dealUID, err)
 	}
 	return publishCid, state, nil
 }
@@ -63,15 +63,15 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 func (fc *FilClient) checkDealStatusV120(
 	ctx context.Context,
 	sp address.Address,
-	dealUUID uuid.UUID,
+	dealUID uuid.UUID,
 	rw *store.RemoteWallet) (*cid.Cid, storagemarket.StorageDealStatus, error) {
-	sig, err := fc.signDealStatusRequest(ctx, cid.Undef, dealUUID, rw)
+	sig, err := fc.signDealStatusRequest(ctx, cid.Undef, dealUID, rw)
 	if err != nil {
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("creating deal status request: %s", err)
 	}
 
 	req := &smtypes.DealStatusRequest{
-		DealUUID:  dealUUID,
+		DealUUID:  dealUID,
 		Signature: *sig,
 	}
 
@@ -87,10 +87,10 @@ func (fc *FilClient) checkDealStatusV120(
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("reading response: %w", err)
 	}
 	log.Debugf("storage-provider %s replied dealuuid %s status check: %s (full: %#v)",
-		sp, dealUUID, resp.DealStatus.Status, resp)
+		sp, dealUID, resp.DealStatus.Status, resp)
 
 	if resp.Error != "" {
-		log.Warnf("deal %s status error from %s: %s", dealUUID, sp, resp.Error)
+		log.Warnf("deal %s status error from %s: %s", dealUID, sp, resp.Error)
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("deal status v1.2.0 error: %s", resp.Error)
 	}
 	if resp.DealStatus == nil {
@@ -130,7 +130,7 @@ func (fc *FilClient) checkDealStatusV110(
 	sp address.Address,
 	propCid cid.Cid,
 	rw *store.RemoteWallet) (*storagemarket.ProviderDealState, error) {
-	sig, err := fc.signDealStatusRequest(ctx, propCid, uuid.UUID{}, rw)
+	sig, err := fc.signDealStatusRequest(ctx, propCid, uuid.Nil, rw)
 	if err != nil {
 		return nil, fmt.Errorf("creating deal status request: %s", err)
 	}
@@ -185,7 +185,7 @@ func (fc *FilClient) signDealStatusRequest(
 
 		log.Debugf("requesting proposal cid (%s/%s) remote signature to %s", propCid, dealUUID, peerID)
 		var signaturePayload []byte
-		if len(dealUUID) == 0 {
+		if dealUUID == uuid.Nil {
 			signaturePayload, err = propCid.MarshalBinary()
 			if err != nil {
 				return nil, fmt.Errorf("binary marshaling proposal cid %s: %s", propCid, err)
