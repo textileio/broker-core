@@ -47,12 +47,14 @@ type Bid struct {
 	ProposalCid              cid.Cid
 	ProposalCidDeliveredAt   time.Time
 	ProposalCidDeliveryError string
+	DealUID                  string
 }
 
 // WinningBid contains details about a winning bid.
 type WinningBid struct {
 	BidderID      peer.ID
 	ProposalCid   cid.Cid
+	DealUID       string
 	WinningReason string
 	ErrorCause    string // an error that may have occurred when delivering the proposal cid
 }

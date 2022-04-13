@@ -39,6 +39,7 @@ type AuctionDatum struct {
 	PieceSize  uint64         `json:"pieceSize"`
 	Duration   uint64         `json:"duration"`
 	CreatedAt  time.Time      `json:"createdAt"`
+	CarUrl     string         `json:"carUrl"`
 }
 
 type AuctionDeal struct {

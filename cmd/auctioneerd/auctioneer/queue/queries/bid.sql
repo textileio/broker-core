@@ -77,6 +77,11 @@ UPDATE bids
 SET proposal_cid = $3, proposal_cid_delivered_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND auction_id = $2;
 
+-- name: UpdateProposalDealUID :exec
+UPDATE bids
+SET deal_uid = $3, proposal_cid_delivered_at = CURRENT_TIMESTAMP
+WHERE id = $1 and auction_id = $2;
+
 -- name: UpdateProposalCidDeliveryError :exec
 UPDATE bids
 SET proposal_cid_delivery_error = $3

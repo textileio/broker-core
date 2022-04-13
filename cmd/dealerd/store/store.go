@@ -54,6 +54,7 @@ type AuctionData struct {
 	PieceSize  uint64
 	Duration   uint64
 	CreatedAt  time.Time
+	CARURL     string
 }
 
 // AuctionDeal contains information to make a deal with a particular
@@ -107,6 +108,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 			PieceCid:   ad.PieceCid.String(),
 			PieceSize:  ad.PieceSize,
 			Duration:   ad.Duration,
+			CarUrl:     ad.CARURL,
 		}); err != nil {
 			if err, ok := err.(*pgconn.PgError); ok {
 				if err.Code == "23505" {
@@ -254,6 +256,7 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 				PieceSize:  datum.PieceSize,
 				Duration:   datum.Duration,
 				CreatedAt:  datum.CreatedAt,
+				CARURL:     datum.CarUrl,
 			}
 		}
 		return err

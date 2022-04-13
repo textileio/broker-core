@@ -23,6 +23,7 @@ type AuctionDeals struct {
 	Duration     uint64
 	Proposals    []Proposal
 	RemoteWallet *broker.RemoteWallet
+	CARURL       string
 }
 
 // Proposal describes information for deal making with a storage-provider.

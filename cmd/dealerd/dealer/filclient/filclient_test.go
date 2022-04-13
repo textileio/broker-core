@@ -27,7 +27,7 @@ import (
 	"github.com/textileio/go-auctions-client/propsigner"
 )
 
-func TestRemoteDealProposalSigning(t *testing.T) {
+func TestRemoteDealProposalSigningV110(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -65,6 +65,7 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 		PieceCid:   pieceCid,
 		PieceSize:  34359738368,
 		Duration:   525600,
+		CARURL:     "https://my.car.url",
 	}
 	aud := store.AuctionDeal{
 		StorageProviderID:   "f01278",
@@ -95,7 +96,7 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestRemoteDealStatusSigning(t *testing.T) {
+func TestRemoteDealStatusSigningV110(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -151,7 +152,63 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestExecuteAuctionDeal(t *testing.T) {
+func TestRemoteDealStatusSigningV120(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Libp2p hosts wiring.
+	h1, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // dealer
+	require.NoError(t, err)
+	h2, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // remote wallet
+	require.NoError(t, err)
+	err = h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
+	require.NoError(t, err)
+
+	// Remote wallet config.
+	walletKeys := []string{
+		// Secp256k1 exported private key in Lotus format.
+		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
+	}
+	authToken := "veryhardtokentoguess"
+	lwallet, err := localwallet.New(walletKeys)
+	require.NoError(t, err)
+
+	err = propsigner.NewDealSignerService(h2, authToken, lwallet)
+	require.NoError(t, err)
+
+	// Dealer filclient.
+	client, err := New(createFilClient(t), h1, WithMaxPriceLimits(10, 10))
+	require.NoError(t, err)
+
+	// Remote wallet.
+	maddrs := make([]string, len(h2.Addrs()))
+	for i, maddr := range h2.Addrs() {
+		maddrs[i] = maddr.String()
+	}
+	waddrPubKey, err := wallet.PublicKey(walletKeys[0])
+	require.NoError(t, err)
+	rw := &store.RemoteWallet{
+		PeerID:     h2.ID().String(),
+		AuthToken:  authToken,
+		WalletAddr: waddrPubKey.String(),
+		Multiaddrs: maddrs,
+	}
+
+	// Create proposal targeting remote wallet.
+	dealUID, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	sig, err := client.signDealStatusRequest(ctx, cid.Undef, dealUID, rw)
+	require.NoError(t, err)
+
+	// Validate signature.
+	payload, err := dealUID.MarshalBinary()
+	require.NoError(t, err)
+	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), payload, sig)
+	require.NoError(t, err)
+}
+
+func TestExecuteAuctionDealV110(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 
@@ -168,12 +225,46 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		PieceCid:   pieceCid,
 		PieceSize:  34359738368,
 		Duration:   525600,
+		CARURL:     "https://fill.me.url",
 	}
 	aud := store.AuctionDeal{
 		StorageProviderID:   "f01278",
 		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            false,
+		FastRetrieval:       true,
+		AuctionID:           "auction-1",
+		BidID:               "bid-1",
+	}
+	propCid, _, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
+	require.NoError(t, err)
+	require.False(t, retry)
+	fmt.Printf("propCid: %s", propCid)
+}
+
+func TestExecuteAuctionDealV120(t *testing.T) {
+	t.Parallel()
+
+	client := create(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	pieceCid, err := cid.Decode("baga6ea4seaqmj45fgnl36bep72gnf4ib5degrslzuq6zyk2hjbhakt6cas464pi")
+	require.NoError(t, err)
+	payloadCid, err := cid.Decode("uAXASIFxC4XOlV43b01pJO6ptOSxf8E_JjXhQXdgW-oMQxkUF")
+	require.NoError(t, err)
+	ad := store.AuctionData{
+		PayloadCid: payloadCid,
+		PieceCid:   pieceCid,
+		PieceSize:  34359738368,
+		Duration:   525600,
+		CARURL:     "https://cargo.web3.storage/deal-cars/bafybeid5lurqs2na2deipmqv2zfbj7gudnaq7vd6qh5y34hcijf5igsw7m_baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa.car", //nolint
+	}
+	aud := store.AuctionDeal{
+		StorageProviderID:   "f0127896",
+		PricePerGibPerEpoch: 0,
+		StartEpoch:          754395,
+		Verified:            true,
 		FastRetrieval:       true,
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
@@ -277,7 +368,11 @@ func create(t *testing.T) *FilClient {
 	require.NoError(t, err)
 	h, err := libp2p.New(libp2p.ConnectionManager(cm))
 	require.NoError(t, err)
-	client, err := New(api, h, WithExportedKey(exportedKey))
+	opts := []Option{
+		WithExportedKey(exportedKey),
+		WithMaxPriceLimits(1<<31, 1<<31),
+	}
+	client, err := New(api, h, opts...)
 	require.NoError(t, err)
 
 	return client

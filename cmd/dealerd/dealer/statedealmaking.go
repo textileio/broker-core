@@ -125,7 +125,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 
 	log.Debugf("accepted deal proposal %s/%s from payloadcid %s", proposalCid, dealUID, ad.PayloadCid)
 
-	if proposalCid.Defined() {
+	if dealUID == "" {
 		log.Debugf("notifying about proposalcid %s", proposalCid)
 		if err := mbroker.PublishMsgDealProposalAccepted(
 			ctx,
@@ -138,7 +138,17 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 			return fmt.Errorf("publish deal-proposal-accepted msg of proposal %s to msgbroker: %s", proposalCid, err)
 		}
 	} else {
-		log.Debugf("skipping proposalCid notification since proposed %s using protocolv1.2.0", dealUID)
+		log.Debugf("notifying about dealuuid %s", dealUID)
+		if err := mbroker.PublishMsgBoostDealProposalAccepted(
+			ctx,
+			d.mb,
+			ad.BatchID,
+			aud.AuctionID,
+			aud.BidID,
+			aud.StorageProviderID,
+			dealUID); err != nil {
+			return fmt.Errorf("publish boost-deal-proposal-accepted msg for %s to msgbroker: %s", dealUID, err)
+		}
 	}
 
 	return nil

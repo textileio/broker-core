@@ -42,6 +42,7 @@ var (
 		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
 		Duration:   123,
 		PieceSize:  456,
+		CARURL:     "https://my.car.url",
 		Proposals: []dealeri.Proposal{
 			{
 				StorageProviderID:   "f0001",
@@ -121,6 +122,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 			require.Equal(t, auds.PieceCid, ad.PieceCid)
 			require.Equal(t, auds.PieceSize, ad.PieceSize)
 			require.Equal(t, auds.Duration, ad.Duration)
+			require.Equal(t, auds.CARURL, ad.CARURL)
 		})
 	}
 }
@@ -271,9 +273,7 @@ func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, "", false, nil)
 
 	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	cdswmCall.Return(&storagemarket.ProviderDealState{
-		PublishCid: &fakePublishDealMessage,
-	}, nil)
+	cdswmCall.Return(&fakePublishDealMessage, storagemarket.StorageDealUnknown, nil)
 
 	rdfmCall := fc.On("ResolveDealIDFromMessage", mock.Anything, fakeProposalCid, fakePublishDealMessage)
 	rdfmCall.Return(fakeDealID, nil)

@@ -314,6 +314,7 @@ func cmpAuctionData(t *testing.T, ad1, ad2 AuctionData) {
 	require.Equal(t, ad1.PieceCid, ad2.PieceCid)
 	require.Equal(t, ad1.Duration, ad2.Duration)
 	require.Equal(t, ad1.PieceSize, ad2.PieceSize)
+	require.Equal(t, ad1.CARURL, ad2.CARURL)
 }
 
 func deepCheckAuctionDeals(t *testing.T, s *Store, auds ...AuctionDeal) {
@@ -354,6 +355,7 @@ var (
 		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jPA"),
 		Duration:   10,
 		PieceSize:  100,
+		CARURL:     "https://my.url",
 	}
 
 	gaud1 = AuctionDeal{

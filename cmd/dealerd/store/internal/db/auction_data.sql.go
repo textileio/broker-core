@@ -17,14 +17,16 @@ INSERT INTO auction_data(
     payload_cid,
     piece_cid,
     piece_size,
-    duration
+    duration,
+    car_url
     ) VALUES (
       $1,
       $2,
       $3,
       $4,
       $5,
-      $6
+      $6,
+      $7
       )
 `
 
@@ -35,6 +37,7 @@ type CreateAuctionDataParams struct {
 	PieceCid   string         `json:"pieceCid"`
 	PieceSize  uint64         `json:"pieceSize"`
 	Duration   uint64         `json:"duration"`
+	CarUrl     string         `json:"carUrl"`
 }
 
 func (q *Queries) CreateAuctionData(ctx context.Context, arg CreateAuctionDataParams) error {
@@ -45,6 +48,7 @@ func (q *Queries) CreateAuctionData(ctx context.Context, arg CreateAuctionDataPa
 		arg.PieceCid,
 		arg.PieceSize,
 		arg.Duration,
+		arg.CarUrl,
 	)
 	return err
 }
@@ -84,7 +88,7 @@ func (q *Queries) CreateRemoteWallet(ctx context.Context, arg CreateRemoteWallet
 }
 
 const getAuctionData = `-- name: GetAuctionData :one
-SELECT id, batch_id, payload_cid, piece_cid, piece_size, duration, created_at FROM auction_data
+SELECT id, batch_id, payload_cid, piece_cid, piece_size, duration, created_at, car_url FROM auction_data
 WHERE id = $1
 `
 
@@ -99,6 +103,7 @@ func (q *Queries) GetAuctionData(ctx context.Context, id string) (AuctionDatum, 
 		&i.PieceSize,
 		&i.Duration,
 		&i.CreatedAt,
+		&i.CarUrl,
 	)
 	return i, err
 }

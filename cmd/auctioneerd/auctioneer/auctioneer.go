@@ -211,7 +211,7 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 	}
 
 	var errCause string
-	publishErr := a.commChannel.PublishProposal(ctx, auctionID, bidID, bid.BidderID, pcid)
+	publishErr := a.commChannel.PublishProposal(ctx, auctionID, bidID, bid.BidderID, pcid.String())
 	if publishErr != nil {
 		errCause = publishErr.Error()
 		if err := a.queue.SetProposalCidDeliveryError(ctx, auctionID, bidID, errCause); err != nil {
@@ -220,7 +220,7 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 		publishErr = fmt.Errorf("publishing proposal to %s in auction %s: %v", bid.StorageProviderID, auctionID, publishErr)
 	} else {
 		log.Infof("delivered proposal %s for bid %s in auction %s to %s", pcid, bidID, auctionID, bid.StorageProviderID)
-		if err := a.queue.SetProposalCidDelivered(ctx, auctionID, bidID, pcid); err != nil {
+		if err := a.queue.SetProposalCidDelivered(ctx, auctionID, bidID, pcid.String()); err != nil {
 			log.Errorf("saving proposal cid: %v", err)
 		}
 	}
@@ -229,6 +229,39 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 		log.Warn(err) // error is annotated
 	}
 	return publishErr
+}
+
+// DeliverBoostProposal delivers the dealUID for an accepted deal to the winning bidder.
+// This may be called multiple times by the broker in the event delivery fails.
+func (a *Auctioneer) DeliverBoostProposal(ctx context.Context, auctionID core.ID, bidID core.BidID, dealUID string) error {
+	if dealUID == "" {
+		return errors.New("dealUID is empty")
+	}
+
+	bid, err := a.queue.GetFinalizedAuctionBid(ctx, auctionID, bidID)
+	if err != nil {
+		return fmt.Errorf("getting bid %s for auction %s: %v", bidID, auctionID, err)
+	}
+	if bid.DealUID != "" {
+		log.Warnf("dealUID %s is already published, duplicated message?", dealUID)
+		return nil
+	}
+
+	var errCause string
+	publishErr := a.commChannel.PublishProposal(ctx, auctionID, bidID, bid.BidderID, bid.DealUID)
+	if publishErr != nil {
+		errCause = publishErr.Error()
+		if err := a.queue.SetProposalCidDeliveryError(ctx, auctionID, bidID, errCause); err != nil {
+			log.Errorf("setting boost proposal cid delivery error: %v", err)
+		}
+		publishErr = fmt.Errorf("publishing proposal to %s in auction %s: %v", bid.StorageProviderID, auctionID, publishErr)
+	} else {
+		log.Infof("delivered boost proposal %s for bid %s in auction %s to %s", dealUID, bidID, auctionID, bid.StorageProviderID)
+		if err := a.queue.SetProposalCidDelivered(ctx, auctionID, bidID, dealUID); err != nil {
+			log.Errorf("saving dealuid: %v", err)
+		}
+	}
+	return nil
 }
 
 // MarkFinalizedDeal marks the deal as confirmed if it has no error.

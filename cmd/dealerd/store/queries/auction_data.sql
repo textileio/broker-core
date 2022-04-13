@@ -5,14 +5,16 @@ INSERT INTO auction_data(
     payload_cid,
     piece_cid,
     piece_size,
-    duration
+    duration,
+    car_url
     ) VALUES (
       $1,
       $2,
       $3,
       $4,
       $5,
-      $6
+      $6,
+      $7
       );
 
 -- name: GetAuctionData :one

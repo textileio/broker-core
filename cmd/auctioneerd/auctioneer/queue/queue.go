@@ -254,6 +254,7 @@ func (q *Queue) GetAuction(ctx context.Context, id auction.ID) (a *auctioneer.Au
 				a.WinningBids[b.ID] = auctioneer.WinningBid{
 					BidderID:    bid.BidderID,
 					ProposalCid: bid.ProposalCid,
+					DealUID:     bid.DealUID,
 					ErrorCause:  bid.ProposalCidDeliveryError,
 				}
 			}
@@ -342,11 +343,11 @@ func (q *Queue) SetProposalCidDelivered(
 	ctx context.Context,
 	auctionID auction.ID,
 	bidID auction.BidID,
-	pcid cid.Cid) error {
+	identifier string) error {
 	return q.db.UpdateProposalCid(ctx, db.UpdateProposalCidParams{
 		ID:          bidID,
 		AuctionID:   auctionID,
-		ProposalCid: sql.NullString{String: pcid.String(), Valid: true},
+		ProposalCid: sql.NullString{String: identifier, Valid: true},
 	})
 }
 
@@ -671,6 +672,9 @@ func bidFromDb(bid db.Bid) (*auctioneer.Bid, error) {
 			return nil, fmt.Errorf("parsing proposal cid: %v", err)
 		}
 		b.ProposalCid = proposalCid
+	}
+	if bid.DealUid.Valid {
+		b.DealUID = bid.DealUid.String
 	}
 	if bid.ProposalCidDeliveryError.Valid {
 		b.ProposalCidDeliveryError = bid.ProposalCidDeliveryError.String

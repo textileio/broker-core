@@ -35,6 +35,7 @@ type Service struct {
 
 var _ mbroker.ReadyToAuctionListener = (*Service)(nil)
 var _ mbroker.DealProposalAcceptedListener = (*Service)(nil)
+var _ mbroker.BoostDealProposalAcceptedListener = (*Service)(nil)
 var _ mbroker.FinalizedDealListener = (*Service)(nil)
 
 // New returns a new Service.
@@ -54,7 +55,6 @@ func New(conf Config, mb mbroker.MsgBroker, fc filclient.FilClient) (*Service, e
 		finalizer: fin,
 	}
 
-	// OnDealProposalAccepted needs to notify bidbot about the proposal which requires NotifyTimeout. 2x to be safe.
 	if err := mbroker.RegisterHandlers(mb, s, mbroker.WithACKDeadline(auctioneer.NotifyTimeout*2)); err != nil {
 		return nil, fmt.Errorf("registering msgbroker handlers: %s", err)
 	}
@@ -139,6 +139,19 @@ func (s *Service) OnDealProposalAccepted(
 ) error {
 	if err := s.lib.DeliverProposal(ctx, auctionID, bidID, proposalCid); err != nil {
 		return fmt.Errorf("procesing deal-proposal-accepted msg: %v", err)
+	}
+	return nil
+}
+
+// OnBoostDealProposalAccepted receives an accepted boost deal proposal from a storage-provider.
+func (s *Service) OnBoostDealProposalAccepted(
+	ctx context.Context,
+	auctionID auction.ID,
+	bidID auction.BidID,
+	dealUID string,
+) error {
+	if err := s.lib.DeliverBoostProposal(ctx, auctionID, bidID, dealUID); err != nil {
+		return fmt.Errorf("procesing boost-deal-proposal-accepted msg: %v", err)
 	}
 	return nil
 }

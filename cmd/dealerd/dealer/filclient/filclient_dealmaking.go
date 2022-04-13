@@ -86,7 +86,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		log.Debugf("sent proposal v1.1.0 %s: %s", proposalCid, logger.MustJSONIndent(p))
 	case dealProtocolv120:
 		duuid := uuid.New()
-		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, *p.DealProposal, p.Piece.Root, duuid, "") // TODO(jsign): carURL
+		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, *p.DealProposal, p.Piece.Root, duuid, ad.CARURL)
 		if err != nil {
 			return cid.Undef, "", true, fmt.Errorf("sending proposal v1.2.0: %s", err)
 		}
