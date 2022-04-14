@@ -219,7 +219,6 @@ func (s *Store) SaveAndMoveAuctionDeal(ctx context.Context, aud AuctionDeal, new
 			Retries:    aud.Retries,
 
 			ProposalCid:      aud.ProposalCid,
-			DealUid:          aud.DealUid,
 			DealID:           aud.DealID,
 			DealExpiration:   aud.DealExpiration,
 			MarketDealStatus: aud.MarketDealStatus,
@@ -366,12 +365,10 @@ func areAllExpectedFieldsSet(ad AuctionDeal) error {
 	case db.StatusDealMaking:
 		// Nothing to validate.
 	case db.StatusConfirmation:
-		proposalCid, err := cid.Parse(ad.ProposalCid)
-		if err != nil {
-			return fmt.Errorf("parse proposal cid: %s", err)
-		}
-		if !proposalCid.Defined() && ad.DealUid == "" {
-			return errors.New("proposal cid or dealUID should be set to transition to WaitingConfirmation")
+		_, errProposalCid := cid.Parse(ad.ProposalCid)
+		_, errDealUID := uuid.Parse(ad.ProposalCid)
+		if errProposalCid != nil && errDealUID != nil {
+			return fmt.Errorf("proposalcid or dealUID (%s) should be set to transition to WaitingConfirmation", ad.ProposalCid)
 		}
 	case db.StatusReportFinalized:
 		if ad.Executing {

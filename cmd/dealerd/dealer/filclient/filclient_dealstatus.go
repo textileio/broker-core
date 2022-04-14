@@ -29,11 +29,10 @@ const dealStatusProtocolV120 = "/fil/storage/status/1.2.0"
 func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
 	storageProviderID string,
-	propCid cid.Cid,
-	strDealUID string,
+	dealIdentifier string,
 	rw *store.RemoteWallet,
 ) (pcid *cid.Cid, ds storagemarket.StorageDealStatus, err error) {
-	log.Debugf("checking status of proposal %s with storage-provider %s", propCid, storageProviderID)
+	log.Debugf("checking status of proposal %s with storage-provider %s", dealIdentifier, storageProviderID)
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricCheckDealStatusWithStorageProvider)
 	}()
@@ -42,14 +41,14 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("invalid storage-provider address %s: %s", storageProviderID, err)
 	}
 
-	if strDealUID == "" {
+	if propCid, err := cid.Decode(dealIdentifier); err == nil {
 		state, err := fc.checkDealStatusV110(ctx, sp, propCid, rw)
 		if err != nil {
 			return nil, storagemarket.StorageDealUnknown, fmt.Errorf("check deal status v1.1.0 for %s: %s", propCid, err)
 		}
 		return state.PublishCid, state.State, nil
 	}
-	dealUID, err := uuid.Parse(strDealUID)
+	dealUID, err := uuid.Parse(dealIdentifier)
 	if err != nil {
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("parsing deal uuid %s: %s", dealUID, err)
 	}

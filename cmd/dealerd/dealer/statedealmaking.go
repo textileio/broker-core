@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	mbroker "github.com/textileio/broker-core/msgbroker"
 	"github.com/textileio/broker-core/ratelim"
@@ -84,7 +86,7 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 
 	log.Debugf("%s executing deal from SD %s for %s with storage-provider %s",
 		aud.ID, ad.BatchID, ad.PayloadCid, aud.StorageProviderID)
-	proposalCid, dealUID, retry, err := d.filclient.ExecuteAuctionDeal(ctx, ad, aud, rw)
+	dealIdentifier, retry, err := d.filclient.ExecuteAuctionDeal(ctx, ad, aud, rw)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
 	}
@@ -116,16 +118,21 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 
 	log.Infof("deal with payloadcid %s with %s successfully executed", ad.PayloadCid, aud.StorageProviderID)
 	aud.Retries = 0
-	aud.ProposalCid = proposalCid.String()
-	aud.DealUid = dealUID
+	aud.ProposalCid = dealIdentifier
 	aud.ReadyAt = time.Unix(0, 0)
 	if err := d.store.SaveAndMoveAuctionDeal(ctx, aud, store.StatusConfirmation); err != nil {
 		return fmt.Errorf("changing status to WaitingConfirmation: %s", err)
 	}
 
-	log.Debugf("accepted deal proposal %s/%s from payloadcid %s", proposalCid, dealUID, ad.PayloadCid)
+	log.Debugf("accepted deal proposal %s from payloadcid %s", dealIdentifier, ad.PayloadCid)
 
-	if dealUID == "" {
+	// If the dealIdentifier isn't a UUID, then it's a PropsalCid. (Legacy case)
+	if _, err := uuid.Parse(dealIdentifier); err != nil {
+		proposalCid, err := cid.Decode(dealIdentifier)
+		if err != nil {
+			return fmt.Errorf("invalid proposal cid %s: %s", dealIdentifier, err)
+		}
+
 		log.Debugf("notifying about proposalcid %s", proposalCid)
 		if err := mbroker.PublishMsgDealProposalAccepted(
 			ctx,
@@ -138,7 +145,8 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 			return fmt.Errorf("publish deal-proposal-accepted msg of proposal %s to msgbroker: %s", proposalCid, err)
 		}
 	} else {
-		log.Debugf("notifying about dealuuid %s", dealUID)
+		// It's a UUID, thus a Boost UUID identifier.
+		log.Debugf("notifying about dealuuid %s", dealIdentifier)
 		if err := mbroker.PublishMsgBoostDealProposalAccepted(
 			ctx,
 			d.mb,
@@ -146,8 +154,8 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 			aud.AuctionID,
 			aud.BidID,
 			aud.StorageProviderID,
-			dealUID); err != nil {
-			return fmt.Errorf("publish boost-deal-proposal-accepted msg for %s to msgbroker: %s", dealUID, err)
+			dealIdentifier); err != nil {
+			return fmt.Errorf("publish boost-deal-proposal-accepted msg for %s to msgbroker: %s", dealIdentifier, err)
 		}
 	}
 

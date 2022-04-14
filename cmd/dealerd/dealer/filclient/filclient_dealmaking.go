@@ -39,7 +39,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (proposalCid cid.Cid, dealUID string, retriable bool, err error) {
+	rw *store.RemoteWallet) (didentifier string, retriable bool, err error) {
 	log.Debugf(
 		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
 		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
@@ -55,64 +55,64 @@ func (fc *FilClient) ExecuteAuctionDeal(
 
 	sp, err := address.NewFromString(aud.StorageProviderID)
 	if err != nil {
-		return cid.Undef, "", false, fmt.Errorf("parsing storage-provider address: %s", err)
+		return "", false, fmt.Errorf("parsing storage-provider address: %s", err)
 	}
 	spDealProtocol, err := fc.dealProtocolForStorageProvider(ctx, sp)
 	if err != nil {
-		return cid.Undef, "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
+		return "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
 	}
 
 	p, err := fc.createDealProposal_v110(ctx, ad, aud, rw)
 	if err != nil {
 		// Any error here deserves retries.
 		log.Errorf("creating deal proposal: %s", err)
-		return cid.Undef, "", true, nil
+		return "", true, nil
 	}
 	log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
 
 	var dealStatus storagemarket.StorageDealStatus
-	var proposalMsg string
+	var proposalMsg, dealIdentifier string
 	switch spDealProtocol {
 	case dealProtocolv110:
 		pr, err := fc.sendProposal_v110(ctx, p)
 		if err != nil {
 			log.Errorf("sending proposal to storage-provider: %s", err)
 			// Any error here deserves retries.
-			return cid.Undef, "", true, nil
+			return "", true, nil
 		}
-		proposalCid = pr.Response.Proposal
+		dealIdentifier = pr.Response.Proposal.String()
 		dealStatus = pr.Response.State
 		proposalMsg = pr.Response.Message
-		log.Debugf("sent proposal v1.1.0 %s: %s", proposalCid, logger.MustJSONIndent(p))
+		log.Debugf("sent proposal v1.1.0 %s: %s", dealIdentifier, logger.MustJSONIndent(p))
 	case dealProtocolv120:
-		duuid := uuid.New()
-		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, *p.DealProposal, p.Piece.Root, duuid, ad.CARURL)
+		dealIdentifier, err := uuid.Parse(p.DealProposal.Proposal.Label) // The deal proposal label is always a UUID.
 		if err != nil {
-			return cid.Undef, "", true, fmt.Errorf("sending proposal v1.2.0: %s", err)
+			return "", false, fmt.Errorf("the deal proposal label should be a uuid: %s", err)
 		}
-		dealUID = duuid.String()
-		log.Debugf("sent proposal v1.2.0 %s: %s", duuid, logger.MustJSONIndent(p))
+		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, *p.DealProposal, p.Piece.Root, dealIdentifier, ad.CARURL)
+		if err != nil {
+			return "", true, fmt.Errorf("sending proposal v1.2.0: %s", err)
+		}
+		log.Debugf("sent proposal v1.2.0 %s: %s", dealIdentifier, logger.MustJSONIndent(p))
 
 	default:
-		return cid.Undef, "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
+		return "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
 	}
 
 	switch dealStatus {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal %s/%s accepted: %s", proposalCid, dealUID, proposalMsg)
+		log.Debugf("proposal %s accepted: %s", dealIdentifier, proposalMsg)
 	default:
-		log.Warnf("proposal %s/%s failed: %s", proposalCid, dealUID, proposalMsg)
-		return cid.Undef,
-			"",
+		log.Warnf("proposal %s/%s failed: %s", dealIdentifier, proposalMsg)
+		return "",
 			false,
-			fmt.Errorf("failed proposal %s/%s (%s): %s",
-				proposalCid,
-				dealUID,
+			fmt.Errorf("failed proposal %s (%s): %s",
+				dealIdentifier,
 				storagemarket.DealStates[dealStatus],
 				proposalMsg)
 	}
 
-	return proposalCid, dealUID, false, nil
+	return dealIdentifier, false, nil
 }
 
 func (fc *FilClient) sendProposalV120(
@@ -190,9 +190,9 @@ func (fc *FilClient) createDealProposal_v110(
 		big.NewInt(1<<30),
 	)
 
-	label, err := labelField(ad.PayloadCid)
+	dealIdentifier, err := uuid.NewRandom()
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct label field: %w", err)
+		return nil, fmt.Errorf("generating random uuid: %s", err)
 	}
 
 	sp, err := address.NewFromString(aud.StorageProviderID)
@@ -218,7 +218,7 @@ func (fc *FilClient) createDealProposal_v110(
 		Client:       clientAddr,
 		Provider:     sp,
 
-		Label: label,
+		Label: dealIdentifier.String(),
 
 		StartEpoch: abi.ChainEpoch(aud.StartEpoch),
 		EndEpoch:   abi.ChainEpoch(aud.StartEpoch + ad.Duration),

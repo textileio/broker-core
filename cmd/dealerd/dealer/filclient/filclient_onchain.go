@@ -33,7 +33,7 @@ func (fc *FilClient) GetChainHeight(ctx context.Context) (height uint64, err err
 // This method is mostly what Estuary does with some tweaks, kudos to them!
 func (fc *FilClient) ResolveDealIDFromMessage(
 	ctx context.Context,
-	proposalCid cid.Cid,
+	dealIdentifier string,
 	publishDealMessage cid.Cid) (dealID int64, err error) {
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricResolveDealIDFromMessage)
@@ -64,9 +64,7 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 			return 0, fmt.Errorf("failed to compute deal proposal ipld node: %w", err)
 		}
 
-		// If we find a proposal in the message that matches our AuctionDeal proposal cid, we can be sure
-		// that this deal-id is the one we're looking for. The proposal cid summarizes the deal information.
-		if nd.Cid() == proposalCid {
+		if nd.Cid().String() == dealIdentifier || pd.Proposal.Label == dealIdentifier {
 			dealix = i
 			break
 		}

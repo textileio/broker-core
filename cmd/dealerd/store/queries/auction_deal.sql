@@ -73,7 +73,6 @@ SET
     error_cause = @error_cause,
     retries = @retries,
     proposal_cid = @proposal_cid,
-    deal_uid = @deal_uid,
     deal_id = @deal_id,
     deal_expiration = @deal_expiration,
     market_deal_status = @market_deal_status,

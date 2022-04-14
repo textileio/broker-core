@@ -68,7 +68,7 @@ func TestRemoteDealProposalSigningV110(t *testing.T) {
 		CARURL:     "https://my.car.url",
 	}
 	aud := store.AuctionDeal{
-		StorageProviderID:   "f01278",
+		StorageProviderID:   "f0127896",
 		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            true,
@@ -236,10 +236,10 @@ func TestExecuteAuctionDealV110(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	propCid, _, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
 	require.NoError(t, err)
 	require.False(t, retry)
-	fmt.Printf("propCid: %s", propCid)
+	fmt.Printf("dealIdentifier: %s", dealIdentifier)
 }
 
 func TestExecuteAuctionDealV120(t *testing.T) {
@@ -270,10 +270,10 @@ func TestExecuteAuctionDealV120(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	propCid, _, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
 	require.NoError(t, err)
 	require.False(t, retry)
-	fmt.Printf("propCid: %s", propCid)
+	fmt.Printf("dealIdentifier: %s", dealIdentifier)
 }
 
 func TestConnectWithStorageProvider(t *testing.T) {
@@ -307,7 +307,7 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 	proposalCid, err := cid.Decode("bafyreibru2chqj7wanixo6m5qnmamovvgby7672ws3yojzyttimu7fl72q")
 	require.NoError(t, err)
 
-	dealID, err := client.ResolveDealIDFromMessage(ctx, proposalCid, publishedMessage)
+	dealID, err := client.ResolveDealIDFromMessage(ctx, proposalCid.String(), publishedMessage)
 	require.NoError(t, err)
 	require.Equal(t, int64(1919949), dealID)
 
@@ -327,7 +327,7 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 
 	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
 	require.NoError(t, err)
-	pcid, status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid, "", nil)
+	pcid, status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid.String(), nil)
 	require.NoError(t, err)
 	fmt.Printf("pcid: %s\n", pcid)
 	fmt.Printf("status: %s\n", storagemarket.DealStatesDescriptions[status])

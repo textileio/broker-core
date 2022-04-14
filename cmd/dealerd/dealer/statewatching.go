@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
-	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/ratelim"
 )
@@ -195,13 +194,7 @@ func (d *Dealer) tryResolvingDealID(
 	rw *store.RemoteWallet) (int64, storagemarket.StorageDealStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
-	proposalCid, err := cid.Parse(aud.ProposalCid)
-	if err != nil {
-		log.Errorf("parsing proposal cid: %s", err)
-		return 0, 0
-	}
-
-	publishCid, status, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid, aud.DealUid, rw)
+	publishCid, status, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, aud.ProposalCid, rw)
 	if err != nil {
 		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0
@@ -213,7 +206,7 @@ func (d *Dealer) tryResolvingDealID(
 			aud.ID, publishCid)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
-		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, proposalCid, *publishCid)
+		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, aud.ProposalCid, *publishCid)
 		if err != nil {
 			log.Errorf("trying to resolve deal-id from message %s: %s", publishCid, err)
 			return 0, status
