@@ -168,13 +168,24 @@ func (fc *FilClient) signDealStatusRequest(
 	propCid cid.Cid,
 	dealUUID uuid.UUID,
 	rw *store.RemoteWallet) (*crypto.Signature, error) {
+	var err error
 	var sig *crypto.Signature
 	if rw == nil {
-		cidb, err := cborutil.Dump(propCid)
-		if err != nil {
-			return nil, fmt.Errorf("encoding proposal in cbor: %s", err)
+		var payload []byte
+		if dealUUID == uuid.Nil {
+			payload, err = cborutil.Dump(propCid)
+			if err != nil {
+				return nil, fmt.Errorf("encoding proposalcid in cbor: %s", err)
+			}
+
+		} else {
+			payload, err = dealUUID.MarshalBinary()
+			if err != nil {
+				return nil, fmt.Errorf("binary marshaling dealuuid %s: %s", propCid, err)
+			}
 		}
-		sig, err = wallet.WalletSign(fc.conf.exportedHexKey, cidb)
+
+		sig, err = wallet.WalletSign(fc.conf.exportedHexKey, payload)
 		if err != nil {
 			return nil, fmt.Errorf("signing status request failed: %w", err)
 		}

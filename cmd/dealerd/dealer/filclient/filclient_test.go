@@ -261,7 +261,7 @@ func TestExecuteAuctionDealV120(t *testing.T) {
 		CARURL:     "https://cargo.web3.storage/deal-cars/bafybeid5lurqs2na2deipmqv2zfbj7gudnaq7vd6qh5y34hcijf5igsw7m_baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa.car", //nolint
 	}
 	aud := store.AuctionDeal{
-		StorageProviderID:   "f0127896",
+		StorageProviderID:   "f047419",
 		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            true,

@@ -74,7 +74,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	var proposalMsg, dealIdentifier string
 	switch spDealProtocol {
 	case dealProtocolv110:
-		pr, err := fc.sendProposalv110(ctx, p)
+		pr, err := fc.sendProposalV110(ctx, p)
 		if err != nil {
 			log.Errorf("sending proposal to storage-provider: %s", err)
 			// Any error here deserves retries.
@@ -85,11 +85,13 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		proposalMsg = pr.Response.Message
 		log.Debugf("sent proposal v1.1.0 %s: %s", dealIdentifier, logger.MustJSONIndent(p))
 	case dealProtocolv120:
-		dealIdentifier, err := uuid.Parse(p.DealProposal.Proposal.Label) // The deal proposal label is always a UUID.
+		dealIdentifier = p.DealProposal.Proposal.Label
+		dealUUID, err := uuid.Parse(dealIdentifier) // The deal proposal label is always a UUID.
 		if err != nil {
 			return "", false, fmt.Errorf("the deal proposal label should be a uuid: %s", err)
 		}
-		dealStatus, proposalMsg, err = fc.sendProposalV120(ctx, *p.DealProposal, p.Piece.Root, dealIdentifier, ad.CARURL)
+		dealStatus, proposalMsg, err =
+			fc.createAndSendProposalV120(ctx, *p.DealProposal, p.Piece.Root, dealUUID, ad.CARURL)
 		if err != nil {
 			return "", true, fmt.Errorf("sending proposal v1.2.0: %s", err)
 		}
@@ -115,23 +117,12 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	return dealIdentifier, false, nil
 }
 
-func (fc *FilClient) sendProposalV120(
+func (fc *FilClient) createAndSendProposalV120(
 	ctx context.Context,
 	dealProposal market.ClientDealProposal,
 	payloadCid cid.Cid,
 	dealUUID uuid.UUID,
 	carURL string) (storagemarket.StorageDealStatus, string, error) {
-	s, err := fc.streamToStorageProvider(ctx, dealProposal.Proposal.Provider, dealProtocolv120)
-	if err != nil {
-		return 0, "", fmt.Errorf("opening stream to storage provider %s: %s", dealProposal.Proposal.Provider, err)
-	}
-
-	defer func() {
-		if err := s.Close(); err != nil {
-			log.Errorf("closing stream to provider %s (%s)", dealProposal.Proposal.Provider, dealUUID)
-		}
-	}()
-
 	transferParams, err := json.Marshal(boosttypes.HttpRequest{URL: carURL})
 	if err != nil {
 		return 0, "", fmt.Errorf("marshaling deal transfer params: %w", err)
@@ -163,7 +154,7 @@ func (fc *FilClient) sendProposalV120(
 		},
 	}
 
-	resp, err := fc.sendProposalv120(ctx, &params)
+	resp, err := fc.sendProposalV120(ctx, &params)
 	if err != nil {
 		return 0, "", fmt.Errorf("send proposal v1.2.0 rpc: %s", err)
 	}
@@ -278,10 +269,10 @@ func (fc *FilClient) createDealProposalV110(
 	}, nil
 }
 
-func (fc *FilClient) sendProposalv120(
+func (fc *FilClient) sendProposalV120(
 	ctx context.Context,
 	proposal *smtypes.DealParams) (res *smtypes.DealResponse, err error) {
-	s, err := fc.streamToStorageProvider(ctx, proposal.ClientDealProposal.Proposal.Provider, dealProtocolv110)
+	s, err := fc.streamToStorageProvider(ctx, proposal.ClientDealProposal.Proposal.Provider, dealProtocolv120)
 	if err != nil {
 		return nil, fmt.Errorf("opening stream to storage-provider: %w", err)
 	}
@@ -304,7 +295,7 @@ func (fc *FilClient) sendProposalv120(
 	return &resp, nil
 }
 
-func (fc *FilClient) sendProposalv110(
+func (fc *FilClient) sendProposalV110(
 	ctx context.Context,
 	proposal *network.Proposal) (res *network.SignedResponse, err error) {
 	s, err := fc.streamToStorageProvider(ctx, proposal.DealProposal.Proposal.Provider, dealProtocolv110)

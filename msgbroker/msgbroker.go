@@ -323,6 +323,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if len(r.Proposals) == 0 {
 				return fmt.Errorf("batch %s: list of proposals is empty", r.BatchId)
 			}
+			if r.CarUrl == "" {
+				return errors.New("car url can't be empty")
+			}
 			ads := dealer.AuctionDeals{
 				ID:         r.Id,
 				BatchID:    broker.BatchID(r.BatchId),
