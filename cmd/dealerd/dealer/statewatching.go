@@ -194,7 +194,8 @@ func (d *Dealer) tryResolvingDealID(
 	rw *store.RemoteWallet) (int64, storagemarket.StorageDealStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
-	publishCid, status, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, aud.ProposalCid, rw)
+	publishCid, status, err :=
+		d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, aud.ProposalCid, rw)
 	if err != nil {
 		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0

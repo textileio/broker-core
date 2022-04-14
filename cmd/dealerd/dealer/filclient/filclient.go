@@ -9,7 +9,6 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/host"
 	inet "github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -18,7 +17,6 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	routed "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/multiformats/go-multibase"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filapi"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	logger "github.com/textileio/go-log/v2"
@@ -211,11 +209,4 @@ func (fc *FilClient) connectToRemoteWallet(ctx context.Context, rw *store.Remote
 	}
 
 	return peerID, nil
-}
-
-func labelField(c cid.Cid) (string, error) {
-	if c.Version() == 0 {
-		return c.StringOfBase(multibase.Base58BTC)
-	}
-	return c.StringOfBase(multibase.Base64)
 }

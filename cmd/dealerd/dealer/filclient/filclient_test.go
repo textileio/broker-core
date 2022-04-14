@@ -27,6 +27,8 @@ import (
 	"github.com/textileio/go-auctions-client/propsigner"
 )
 
+const authToken = "veryhardtokentoguess"
+
 func TestRemoteDealProposalSigningV110(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -44,7 +46,6 @@ func TestRemoteDealProposalSigningV110(t *testing.T) {
 		// Secp256k1 exported private key in Lotus format.
 		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
 	}
-	authToken := "veryhardtokentoguess"
 	lwallet, err := localwallet.New(walletKeys)
 	require.NoError(t, err)
 
@@ -88,7 +89,7 @@ func TestRemoteDealProposalSigningV110(t *testing.T) {
 		WalletAddr: waddrPubKey.String(),
 		Multiaddrs: maddrs,
 	}
-	sp, err := client.createDealProposal_v110(ctx, ad, aud, rw)
+	sp, err := client.createDealProposalV110(ctx, ad, aud, rw)
 	require.NoError(t, err)
 
 	// Validate signature.
@@ -113,7 +114,6 @@ func TestRemoteDealStatusSigningV110(t *testing.T) {
 		// Secp256k1 exported private key in Lotus format.
 		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
 	}
-	authToken := "veryhardtokentoguess"
 	lwallet, err := localwallet.New(walletKeys)
 	require.NoError(t, err)
 
@@ -169,7 +169,6 @@ func TestRemoteDealStatusSigningV120(t *testing.T) {
 		// Secp256k1 exported private key in Lotus format.
 		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
 	}
-	authToken := "veryhardtokentoguess"
 	lwallet, err := localwallet.New(walletKeys)
 	require.NoError(t, err)
 

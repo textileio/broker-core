@@ -233,7 +233,11 @@ func (a *Auctioneer) DeliverProposal(ctx context.Context, auctionID core.ID, bid
 
 // DeliverBoostProposal delivers the dealUID for an accepted deal to the winning bidder.
 // This may be called multiple times by the broker in the event delivery fails.
-func (a *Auctioneer) DeliverBoostProposal(ctx context.Context, auctionID core.ID, bidID core.BidID, dealUID string) error {
+func (a *Auctioneer) DeliverBoostProposal(
+	ctx context.Context,
+	auctionID core.ID,
+	bidID core.BidID,
+	dealUID string) error {
 	if dealUID == "" {
 		return errors.New("dealUID is empty")
 	}
@@ -256,12 +260,12 @@ func (a *Auctioneer) DeliverBoostProposal(ctx context.Context, auctionID core.ID
 		}
 		publishErr = fmt.Errorf("publishing proposal to %s in auction %s: %v", bid.StorageProviderID, auctionID, publishErr)
 	} else {
-		log.Infof("delivered boost proposal %s for bid %s in auction %s to %s", dealUID, bidID, auctionID, bid.StorageProviderID)
+		log.Infof("delivered boost proposal %s for bid %s auction %s to %s", dealUID, bidID, auctionID, bid.StorageProviderID)
 		if err := a.queue.SetProposalCidDelivered(ctx, auctionID, bidID, dealUID); err != nil {
 			log.Errorf("saving dealuid: %v", err)
 		}
 	}
-	return nil
+	return publishErr
 }
 
 // MarkFinalizedDeal marks the deal as confirmed if it has no error.

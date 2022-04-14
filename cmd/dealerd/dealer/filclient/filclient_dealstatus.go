@@ -38,7 +38,9 @@ func (fc *FilClient) CheckDealStatusWithStorageProvider(
 	}()
 	sp, err := address.NewFromString(storageProviderID)
 	if err != nil {
-		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("invalid storage-provider address %s: %s", storageProviderID, err)
+		return nil,
+			storagemarket.StorageDealUnknown,
+			fmt.Errorf("invalid storage-provider address %s: %s", storageProviderID, err)
 	}
 
 	if propCid, err := cid.Decode(dealIdentifier); err == nil {
@@ -189,14 +191,14 @@ func (fc *FilClient) signDealStatusRequest(
 			if err != nil {
 				return nil, fmt.Errorf("binary marshaling proposal cid %s: %s", propCid, err)
 			}
-
 		} else {
 			signaturePayload, err = dealUUID.MarshalBinary()
 			if err != nil {
 				return nil, fmt.Errorf("getting uuid bytes: %w", err)
 			}
 		}
-		sig, err = propsigner.RequestDealStatusSignatureV1(ctx, fc.host, rw.AuthToken, rw.WalletAddr, signaturePayload, peerID)
+		sig, err = propsigner.RequestDealStatusSignatureV1(
+			ctx, fc.host, rw.AuthToken, rw.WalletAddr, signaturePayload, peerID)
 		if err != nil {
 			return nil, fmt.Errorf("remote signing proposal: %s", err)
 		}
