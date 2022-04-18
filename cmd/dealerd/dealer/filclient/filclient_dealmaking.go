@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
+	"github.com/multiformats/go-multibase"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/metrics"
 	"github.com/textileio/go-auctions-client/propsigner"
@@ -85,11 +86,11 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		proposalMsg = pr.Response.Message
 		log.Debugf("sent proposal v1.1.0 %s: %s", dealIdentifier, logger.MustJSONIndent(p))
 	case dealProtocolv120:
-		dealIdentifier = p.DealProposal.Proposal.Label
-		dealUUID, err := uuid.Parse(dealIdentifier) // The deal proposal label is always a UUID.
+		dealUUID, err := uuid.NewRandom()
 		if err != nil {
-			return "", false, fmt.Errorf("the deal proposal label should be a uuid: %s", err)
+			return "", true, fmt.Errorf("generating random uuid: %s", err)
 		}
+		dealIdentifier = dealUUID.String()
 		dealStatus, proposalMsg, err =
 			fc.createAndSendProposalV120(ctx, *p.DealProposal, p.Piece.Root, dealUUID, ad.CARURL)
 		if err != nil {
@@ -186,11 +187,6 @@ func (fc *FilClient) createDealProposalV110(
 		big.NewInt(1<<30),
 	)
 
-	dealIdentifier, err := uuid.NewRandom()
-	if err != nil {
-		return nil, fmt.Errorf("generating random uuid: %s", err)
-	}
-
 	sp, err := address.NewFromString(aud.StorageProviderID)
 	if err != nil {
 		return nil, fmt.Errorf("parsing storage-provider address: %s", err)
@@ -205,6 +201,10 @@ func (fc *FilClient) createDealProposalV110(
 		clientAddr = waddr
 	}
 
+	label, err := labelField(ad.PayloadCid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct label field: %w", err)
+	}
 	// set provider collateral 10% above minimum to avoid fluctuations causing deal failure
 	provCol := big.Div(big.Mul(collBounds.Min, big.NewInt(11)), big.NewInt(10))
 	proposal := &market.DealProposal{
@@ -214,7 +214,7 @@ func (fc *FilClient) createDealProposalV110(
 		Client:       clientAddr,
 		Provider:     sp,
 
-		Label: dealIdentifier.String(),
+		Label: label,
 
 		StartEpoch: abi.ChainEpoch(aud.StartEpoch),
 		EndEpoch:   abi.ChainEpoch(aud.StartEpoch + ad.Duration),
@@ -363,4 +363,11 @@ func (fc *FilClient) dealProtocolForStorageProvider(
 	}
 
 	return proto, nil
+}
+
+func labelField(c cid.Cid) (string, error) {
+	if c.Version() == 0 {
+		return c.StringOfBase(multibase.Base58BTC)
+	}
+	return c.StringOfBase(multibase.Base64)
 }

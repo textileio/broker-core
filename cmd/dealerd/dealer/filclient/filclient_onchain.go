@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
@@ -33,8 +32,10 @@ func (fc *FilClient) GetChainHeight(ctx context.Context) (height uint64, err err
 // This method is mostly what Estuary does with some tweaks, kudos to them!
 func (fc *FilClient) ResolveDealIDFromMessage(
 	ctx context.Context,
-	dealIdentifier string,
-	publishDealMessage cid.Cid) (dealID int64, err error) {
+	publishDealMessage cid.Cid,
+	spID string,
+	pieceCid cid.Cid,
+	startEpoch uint64) (dealID int64, err error) {
 	defer func() {
 		metrics.MetricIncrCounter(ctx, err, fc.metricResolveDealIDFromMessage)
 	}()
@@ -59,12 +60,9 @@ func (fc *FilClient) ResolveDealIDFromMessage(
 
 	dealix := -1
 	for i, pd := range params.Deals {
-		nd, err := cborutil.AsIpld(&pd)
-		if err != nil {
-			return 0, fmt.Errorf("failed to compute deal proposal ipld node: %w", err)
-		}
-
-		if nd.Cid().String() == dealIdentifier || pd.Proposal.Label == dealIdentifier {
+		if pd.Proposal.Provider.String() == spID &&
+			pd.Proposal.PieceCID == pieceCid &&
+			pd.Proposal.StartEpoch == abi.ChainEpoch(startEpoch) {
 			dealix = i
 			break
 		}

@@ -16,7 +16,12 @@ type FilClient interface {
 		aud store.AuctionDeal,
 		rw *store.RemoteWallet) (string, bool, error)
 	GetChainHeight(ctx context.Context) (uint64, error)
-	ResolveDealIDFromMessage(ctx context.Context, dealIdentifier string, publishDealMessage cid.Cid) (int64, error)
+	ResolveDealIDFromMessage(
+		ctx context.Context,
+		publishDealMessage cid.Cid,
+		spID string,
+		pieceCid cid.Cid,
+		startEpoch uint64) (int64, error)
 	CheckChainDeal(ctx context.Context, dealID int64) (bool, uint64, bool, error)
 	CheckDealStatusWithStorageProvider(
 		ctx context.Context,

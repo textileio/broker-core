@@ -2,6 +2,7 @@ package filclient
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	smtypes "github.com/filecoin-project/boost/storagemarket/types"
@@ -89,6 +90,9 @@ func (fc *FilClient) checkDealStatusV120(
 	}
 	log.Debugf("storage-provider %s replied dealuuid %s status check: %s (full: %#v)",
 		sp, dealUID, resp.DealStatus.Status, resp)
+
+	b, _ := json.MarshalIndent(resp, "", " ")
+	fmt.Printf("%s\n", b)
 
 	if resp.Error != "" {
 		log.Warnf("deal %s status error from %s: %s", dealUID, sp, resp.Error)

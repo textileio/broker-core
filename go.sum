@@ -2776,10 +2776,15 @@ github.com/textileio/cli v1.0.2/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6N
 github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a h1:ECSeaC+8iE/EmAqsX3JltDebB5q2IsDWy4KQqkl5c+8=
 github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a/go.mod h1:p2BwrUs69ZtGA27KXYYOiToLs1PyPV5etdUFMko3d9c=
 <<<<<<< HEAD
+<<<<<<< HEAD
 github.com/textileio/go-auctions-client v0.1.2-0.20220407020708-4dd677e60609 h1:Bquhr67A9dKLNvrSxvL1ZAr+mhugKo637/1fsmQKXY4=
 github.com/textileio/go-auctions-client v0.1.2-0.20220407020708-4dd677e60609/go.mod h1:uSJBcmkE5Dyu1H/Nhs6DnvFoD98JXthJp8Y9gGtDQfg=
 =======
 >>>>>>> c94c052f... dealerd: deal status for v1.2.0
+=======
+github.com/textileio/go-auctions-client v0.1.2-0.20220418143833-ff799533432c h1:TlRxxpSo0y7i3OxobsvjAUxq2DSyWQfdn3HEdx2EnRE=
+github.com/textileio/go-auctions-client v0.1.2-0.20220418143833-ff799533432c/go.mod h1:ODMGg9BkNs0xplzwPmb8/urs1E7ICUwO9uie7ovPTu0=
+>>>>>>> 730897be... dealer: use Label again for PayloadCid since Lotus retrievals wont work otherwise; its a bug in Lotus
 github.com/textileio/go-datastore-extensions v1.0.1 h1:qIJGqJaigQ1wD4TdwS/hf73u0HChhXvvUSJuxBEKS+c=
 github.com/textileio/go-datastore-extensions v1.0.1/go.mod h1:Pzj9FDRkb55910dr/FX8M7WywvnS26gBgEDez1ZBuLE=
 github.com/textileio/go-ds-badger3 v0.1.0 h1:q0kBuBmAcRUR3ClMSYlyw0224XeuzjjGinU53Qz1uXI=

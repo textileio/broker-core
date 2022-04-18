@@ -58,7 +58,7 @@ require (
 	github.com/textileio/bidbot v0.1.10
 	github.com/textileio/cli v1.0.2
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
-	github.com/textileio/go-auctions-client v0.1.2-0.20220407020708-4dd677e60609
+	github.com/textileio/go-auctions-client v0.1.2-0.20220418143833-ff799533432c
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.9-0.20220316200557-ef8f4e0b97e2
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
@@ -371,9 +371,6 @@ replace github.com/ethereum/go-ethereum => github.com/textileio/go-ethereum v1.1
 
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
 replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20211103030059-3552081365d7
-
-// TODO(jsign): temp replace while developing feature
-replace github.com/textileio/go-auctions-client => ../go-auctions-client
 
 // ristretto v0.1.0 is forced by Lotus v1.15 but isn't compatible with textileio/go-badger3.
 // ristretto isn't used in any place in broker-core, so we force the usable version here.

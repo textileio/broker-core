@@ -194,6 +194,7 @@ func (d *Dealer) tryResolvingDealID(
 	rw *store.RemoteWallet) (int64, storagemarket.StorageDealStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
+
 	publishCid, status, err :=
 		d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, aud.ProposalCid, rw)
 	if err != nil {
@@ -207,7 +208,13 @@ func (d *Dealer) tryResolvingDealID(
 			aud.ID, publishCid)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
-		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, aud.ProposalCid, *publishCid)
+
+		ad, err := d.store.GetAuctionData(ctx, aud.AuctionDataID)
+		if err != nil {
+			log.Infof("get auction data: %s", err)
+			return 0, 0
+		}
+		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, *publishCid, aud.StorageProviderID, ad.PieceCid, aud.StartEpoch)
 		if err != nil {
 			log.Errorf("trying to resolve deal-id from message %s: %s", publishCid, err)
 			return 0, status
