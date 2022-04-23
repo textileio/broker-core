@@ -269,13 +269,14 @@ func TestStateMachineExecReporting(t *testing.T) {
 func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
-	fc.On("ExecuteAuctionDeal",
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid.String(), false, nil)
+	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(fakeProposalCid.String(), false, nil)
 
 	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	cdswmCall.Return(&fakePublishDealMessage, storagemarket.StorageDealUnknown, nil)
 
-	rdfmCall := fc.On("ResolveDealIDFromMessage", mock.Anything, fakeProposalCid.String(), fakePublishDealMessage)
+	rdfmCall := fc.On("ResolveDealIDFromMessage",
+		mock.Anything, fakePublishDealMessage, mock.Anything, mock.Anything, mock.Anything)
 	rdfmCall.Return(fakeDealID, nil)
 
 	fc.On("CheckChainDeal", mock.Anything, fakeDealID).Return(true, fakeExpiration, false, nil)
@@ -310,7 +311,8 @@ func (fc *fcMock) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (string, bool, error) {
+	rw *store.RemoteWallet,
+	allowBoost bool) (string, bool, error) {
 	args := fc.Called(ctx, ad, aud)
 	return args.String(0), args.Bool(1), args.Error(2)
 }
@@ -321,9 +323,11 @@ func (fc *fcMock) GetChainHeight(ctx context.Context) (uint64, error) {
 }
 func (fc *fcMock) ResolveDealIDFromMessage(
 	ctx context.Context,
-	dealIdentifier string,
-	publishDealMessage cid.Cid) (int64, error) {
-	args := fc.Called(ctx, dealIdentifier, publishDealMessage)
+	publishDealMessage cid.Cid,
+	spID string,
+	pieceCid cid.Cid,
+	startEpoch uint64) (int64, error) {
+	args := fc.Called(ctx, publishDealMessage, spID, pieceCid, startEpoch)
 	return args.Get(0).(int64), args.Error(1)
 }
 

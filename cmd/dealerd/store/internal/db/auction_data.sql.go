@@ -127,3 +127,15 @@ func (q *Queries) GetRemoteWallet(ctx context.Context, auctionDataID string) (Re
 	)
 	return i, err
 }
+
+const isBoostAllowed = `-- name: IsBoostAllowed :one
+SELECT storage_provider_id FROM boost_whitelist
+WHERE storage_provider_id=$1
+`
+
+func (q *Queries) IsBoostAllowed(ctx context.Context, storageProviderID string) (string, error) {
+	row := q.queryRow(ctx, q.isBoostAllowedStmt, isBoostAllowed, storageProviderID)
+	var storage_provider_id string
+	err := row.Scan(&storage_provider_id)
+	return storage_provider_id, err
+}

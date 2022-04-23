@@ -66,6 +66,10 @@ type AuctionDeal struct {
 	MarketDealStatus    string         `json:"marketDealStatus"`
 }
 
+type BoostWhitelist struct {
+	StorageProviderID string `json:"storageProviderID"`
+}
+
 // @enum
 type MarketDealStatus struct {
 	ID          int64  `json:"id"`

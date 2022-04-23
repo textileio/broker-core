@@ -263,6 +263,22 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 	return
 }
 
+// IsBoostAllowed returns true if Boost proposals are allowed for the storaeg provider.
+func (s *Store) IsBoostAllowed(ctx context.Context, spID string) (ok bool, err error) {
+	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		_, err := q.IsBoostAllowed(ctx, spID)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get boost whitelist row: %s", err)
+		}
+		ok = true
+		return nil
+	})
+	return
+}
+
 // GetRemoteWallet returns the remote wallet configuration for an auction if exists.
 // If the auction deal wasn't configured with a remote wallet, *it will return nil without an error*.
 func (s *Store) GetRemoteWallet(ctx context.Context, auctionDataID string) (rw *RemoteWallet, err error) {

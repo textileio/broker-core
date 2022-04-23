@@ -181,7 +181,6 @@ func (fc *FilClient) signDealStatusRequest(
 			if err != nil {
 				return nil, fmt.Errorf("encoding proposalcid in cbor: %s", err)
 			}
-
 		} else {
 			payload, err = dealUUID.MarshalBinary()
 			if err != nil {

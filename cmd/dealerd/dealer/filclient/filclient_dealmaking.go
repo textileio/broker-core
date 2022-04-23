@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/dustin/go-humanize"
 	smtypes "github.com/filecoin-project/boost/storagemarket/types"
 	boosttypes "github.com/filecoin-project/boost/transport/types"
 	"github.com/filecoin-project/go-address"
@@ -40,10 +39,10 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (didentifier string, retriable bool, err error) {
-	log.Debugf(
-		"executing auction deal for data-cid %s, piece-cid %s and size %s...",
-		ad.PayloadCid, ad.PieceCid, humanize.IBytes(ad.PieceSize))
+	rw *store.RemoteWallet,
+	allowBoost bool) (didentifier string, retriable bool, err error) {
+	log.Debugf("executing auction deal for data-cid %s, piece-cid %s and sp %s...",
+		ad.PayloadCid, ad.PieceCid, aud.StorageProviderID)
 	defer func() {
 		var attrs []attribute.KeyValue
 		if rw != nil {
@@ -54,6 +53,13 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		metrics.MetricIncrCounter(ctx, err, fc.metricExecAuctionDeal, attrs...)
 	}()
 
+	p, err := fc.createDealProposalV110(ctx, ad, aud, rw)
+	if err != nil {
+		// Any error here deserves retries.
+		log.Errorf("creating deal proposal: %s", err)
+		return "", true, nil
+	}
+
 	sp, err := address.NewFromString(aud.StorageProviderID)
 	if err != nil {
 		return "", false, fmt.Errorf("parsing storage-provider address: %s", err)
@@ -62,14 +68,10 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	if err != nil {
 		return "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
 	}
-
-	p, err := fc.createDealProposalV110(ctx, ad, aud, rw)
-	if err != nil {
-		// Any error here deserves retries.
-		log.Errorf("creating deal proposal: %s", err)
-		return "", true, nil
+	if spDealProtocol == dealProtocolv120 && !allowBoost {
+		log.Info("downgrading %s from boost to legacy deal proposal protocol", sp)
+		spDealProtocol = dealProtocolv110
 	}
-	log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
 
 	var dealStatus storagemarket.StorageDealStatus
 	var proposalMsg, dealIdentifier string
@@ -84,7 +86,6 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		dealIdentifier = pr.Response.Proposal.String()
 		dealStatus = pr.Response.State
 		proposalMsg = pr.Response.Message
-		log.Debugf("sent proposal v1.1.0 %s: %s", dealIdentifier, logger.MustJSONIndent(p))
 	case dealProtocolv120:
 		dealUUID, err := uuid.NewRandom()
 		if err != nil {
@@ -96,22 +97,21 @@ func (fc *FilClient) ExecuteAuctionDeal(
 		if err != nil {
 			return "", true, fmt.Errorf("sending proposal v1.2.0: %s", err)
 		}
-		log.Debugf("sent proposal v1.2.0 %s: %s", dealIdentifier, logger.MustJSONIndent(p))
-
 	default:
 		return "", false, fmt.Errorf("unsupported deal protocol %s", spDealProtocol)
 	}
 
 	switch dealStatus {
 	case storagemarket.StorageDealWaitingForData, storagemarket.StorageDealProposalAccepted:
-		log.Debugf("proposal %s accepted: %s", dealIdentifier, proposalMsg)
+		log.Debugf("proposal %s for %s accepted: %s", dealIdentifier, aud.StorageProviderID, proposalMsg)
 	default:
-		log.Warnf("proposal %s failed: %s", dealIdentifier, proposalMsg)
+		log.Warnf("proposal %s for %s failed: %s", dealIdentifier, aud.StorageProviderID, proposalMsg)
 		return "",
 			false,
-			fmt.Errorf("failed proposal %s (%s): %s",
+			fmt.Errorf("failed proposal %s (%s) for %s: %s",
 				dealIdentifier,
 				storagemarket.DealStates[dealStatus],
+				aud.StorageProviderID,
 				proposalMsg)
 	}
 
@@ -258,7 +258,7 @@ func (fc *FilClient) createDealProposalV110(
 		ClientSignature: *sig,
 	}
 
-	return &network.Proposal{
+	p := &network.Proposal{
 		DealProposal: sigprop,
 		Piece: &storagemarket.DataRef{
 			TransferType: storagemarket.TTManual,
@@ -266,12 +266,16 @@ func (fc *FilClient) createDealProposalV110(
 			PieceCid:     &ad.PieceCid,
 		},
 		FastRetrieval: aud.FastRetrieval,
-	}, nil
+	}
+	log.Debugf("created proposal (remote-wallet: %t): %s", rw != nil, logger.MustJSONIndent(p))
+
+	return p, nil
 }
 
 func (fc *FilClient) sendProposalV120(
 	ctx context.Context,
 	proposal *smtypes.DealParams) (res *smtypes.DealResponse, err error) {
+	log.Debugf("sending proposal v1.2.0: %s", logger.MustJSONIndent(proposal))
 	s, err := fc.streamToStorageProvider(ctx, proposal.ClientDealProposal.Proposal.Provider, dealProtocolv120)
 	if err != nil {
 		return nil, fmt.Errorf("opening stream to storage-provider: %w", err)
@@ -291,6 +295,7 @@ func (fc *FilClient) sendProposalV120(
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
 		return nil, fmt.Errorf("failed to read response from storage-provider: %w", err)
 	}
+	log.Debugf("sent proposal v1.2.0: %s", logger.MustJSONIndent(proposal))
 
 	return &resp, nil
 }
@@ -298,6 +303,7 @@ func (fc *FilClient) sendProposalV120(
 func (fc *FilClient) sendProposalV110(
 	ctx context.Context,
 	proposal *network.Proposal) (res *network.SignedResponse, err error) {
+	log.Debugf("sending proposal v1.1.0 to %s", proposal.DealProposal.Proposal.Provider)
 	s, err := fc.streamToStorageProvider(ctx, proposal.DealProposal.Proposal.Provider, dealProtocolv110)
 	if err != nil {
 		return nil, fmt.Errorf("opening stream to storage-provider: %w", err)
@@ -317,6 +323,8 @@ func (fc *FilClient) sendProposalV110(
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
 		return nil, fmt.Errorf("failed to read response from storage-provider: %w", err)
 	}
+	log.Debugf("sent proposal v1.1.0 to %s: %s",
+		proposal.DealProposal.Proposal.Provider, logger.MustJSONIndent(proposal))
 
 	return &resp, nil
 }
@@ -349,6 +357,7 @@ func (fc *FilClient) validateProposal(p *market.DealProposal) error {
 func (fc *FilClient) dealProtocolForStorageProvider(
 	ctx context.Context,
 	storageProvider address.Address) (string, error) {
+	log.Debugf("detecting preferred protocol for %s", storageProvider)
 	mpid, err := fc.connectToStorageProvider(ctx, storageProvider)
 	if err != nil {
 		return "", fmt.Errorf("connecting to storage-provider %s: %s", storageProvider, err)
@@ -361,6 +370,7 @@ func (fc *FilClient) dealProtocolForStorageProvider(
 	if proto == "" {
 		return "", fmt.Errorf("%s does not support any deal making protocol", storageProvider)
 	}
+	log.Debugf("preferred protocol for %s is %s", storageProvider, storageProvider)
 
 	return proto, nil
 }

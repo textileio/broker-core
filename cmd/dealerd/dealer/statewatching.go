@@ -214,7 +214,8 @@ func (d *Dealer) tryResolvingDealID(
 			log.Infof("get auction data: %s", err)
 			return 0, 0
 		}
-		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, *publishCid, aud.StorageProviderID, ad.PieceCid, aud.StartEpoch)
+		dealID, err := d.filclient.ResolveDealIDFromMessage(
+			ctx, *publishCid, aud.StorageProviderID, ad.PieceCid, aud.StartEpoch)
 		if err != nil {
 			log.Errorf("trying to resolve deal-id from message %s: %s", publishCid, err)
 			return 0, status
