@@ -235,7 +235,7 @@ func TestExecuteAuctionDealV110(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil, false)
 	require.NoError(t, err)
 	require.False(t, retry)
 	fmt.Printf("dealIdentifier: %s", dealIdentifier)
@@ -249,9 +249,9 @@ func TestExecuteAuctionDealV120(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	pieceCid, err := cid.Decode("baga6ea4seaqmj45fgnl36bep72gnf4ib5degrslzuq6zyk2hjbhakt6cas464pi")
+	pieceCid, err := cid.Decode("baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa")
 	require.NoError(t, err)
-	payloadCid, err := cid.Decode("uAXASIFxC4XOlV43b01pJO6ptOSxf8E_JjXhQXdgW-oMQxkUF")
+	payloadCid, err := cid.Decode("bafybeid5lurqs2na2deipmqv2zfbj7gudnaq7vd6qh5y34hcijf5igsw7m")
 	require.NoError(t, err)
 	ad := store.AuctionData{
 		PayloadCid: payloadCid,
@@ -261,15 +261,15 @@ func TestExecuteAuctionDealV120(t *testing.T) {
 		CARURL:     "https://cargo.web3.storage/deal-cars/bafybeid5lurqs2na2deipmqv2zfbj7gudnaq7vd6qh5y34hcijf5igsw7m_baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa.car", //nolint
 	}
 	aud := store.AuctionDeal{
-		StorageProviderID:   "f047419",
+		StorageProviderID:   "f0127896",
 		PricePerGibPerEpoch: 0,
-		StartEpoch:          754395,
+		StartEpoch:          1740007,
 		Verified:            true,
 		FastRetrieval:       true,
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil, true)
 	require.NoError(t, err)
 	require.False(t, retry)
 	fmt.Printf("dealIdentifier: %s", dealIdentifier)
@@ -301,12 +301,15 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	publishedMessage, err := cid.Decode("bafy2bzacec6yztd2zzhgef77tqtx6qv5nldzziylq7iizpmgx4577boclftig")
+	//publishedMessage, err := cid.Decode("bafy2bzacedmlxyv6oorlt4pavtv23jup4aqcfjfjh7zoymwznwvgyfkqqe4tk")
+	publishedMessage, err := cid.Decode("bafy2bzaceblvjje4ggkwkg3v6ujwtvslo7r4zg6w63p6npbv5g7aciz4glm36")
 	require.NoError(t, err)
-	proposalCid, err := cid.Decode("bafyreibru2chqj7wanixo6m5qnmamovvgby7672ws3yojzyttimu7fl72q")
+	pieceCid, err := cid.Decode("baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa")
 	require.NoError(t, err)
+	spID := "f0127896"
+	startEpoch := uint64(1740007)
 
-	dealID, err := client.ResolveDealIDFromMessage(ctx, proposalCid.String(), publishedMessage)
+	dealID, err := client.ResolveDealIDFromMessage(ctx, publishedMessage, spID, pieceCid, startEpoch)
 	require.NoError(t, err)
 	require.Equal(t, int64(1919949), dealID)
 
@@ -324,9 +327,9 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
-	require.NoError(t, err)
-	pcid, status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid.String(), nil)
+	//dealIdentifier := "60027e95-ecee-4c5e-8813-a86b1bb1b272"
+	dealIdentifier := "3d257cbb-276d-425d-b879-c84727f7b71f"
+	pcid, status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0127896", dealIdentifier, nil)
 	require.NoError(t, err)
 	fmt.Printf("pcid: %s\n", pcid)
 	fmt.Printf("status: %s\n", storagemarket.DealStatesDescriptions[status])
