@@ -370,7 +370,7 @@ func (fc *FilClient) dealProtocolForStorageProvider(
 	if proto == "" {
 		return "", fmt.Errorf("%s does not support any deal making protocol", storageProvider)
 	}
-	log.Debugf("preferred protocol for %s is %s", storageProvider, storageProvider)
+	log.Debugf("preferred protocol for %s is %s", storageProvider, proto)
 
 	return proto, nil
 }
