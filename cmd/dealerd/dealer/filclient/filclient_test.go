@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-address"
+	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/jsign/go-filsigner/wallet"
 	"github.com/libp2p/go-libp2p"
@@ -23,10 +25,11 @@ import (
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/go-auctions-client/localwallet"
 	"github.com/textileio/go-auctions-client/propsigner"
-	logger "github.com/textileio/go-log/v2"
 )
 
-func TestRemoteDealProposalSigning(t *testing.T) {
+const authToken = "veryhardtokentoguess"
+
+func TestRemoteDealProposalSigningV110(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -43,7 +46,6 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 		// Secp256k1 exported private key in Lotus format.
 		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
 	}
-	authToken := "veryhardtokentoguess"
 	lwallet, err := localwallet.New(walletKeys)
 	require.NoError(t, err)
 
@@ -64,9 +66,10 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 		PieceCid:   pieceCid,
 		PieceSize:  34359738368,
 		Duration:   525600,
+		CARURL:     "https://my.car.url",
 	}
 	aud := store.AuctionDeal{
-		StorageProviderID:   "f01278",
+		StorageProviderID:   "f0127896",
 		PricePerGibPerEpoch: 0,
 		StartEpoch:          754395,
 		Verified:            true,
@@ -86,7 +89,7 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 		WalletAddr: waddrPubKey.String(),
 		Multiaddrs: maddrs,
 	}
-	sp, err := client.createDealProposal(ctx, ad, aud, rw)
+	sp, err := client.createDealProposalV110(ctx, ad, aud, rw)
 	require.NoError(t, err)
 
 	// Validate signature.
@@ -94,7 +97,7 @@ func TestRemoteDealProposalSigning(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestRemoteDealStatusSigning(t *testing.T) {
+func TestRemoteDealStatusSigningV110(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -111,7 +114,6 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 		// Secp256k1 exported private key in Lotus format.
 		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
 	}
-	authToken := "veryhardtokentoguess"
 	lwallet, err := localwallet.New(walletKeys)
 	require.NoError(t, err)
 
@@ -140,15 +142,72 @@ func TestRemoteDealStatusSigning(t *testing.T) {
 	propCid, err := cid.Decode("bafyreifydfjfbkcszmeyz72zu66an2lc4glykhrjlq7r7ir75mplwpqoxu")
 	require.NoError(t, err)
 
-	dsr, err := client.createDealStatusRequest(ctx, propCid, rw)
+	sig, err := client.signDealStatusRequest(ctx, propCid, uuid.Nil, rw)
 	require.NoError(t, err)
 
 	// Validate signature.
-	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), propCid, &dsr.Signature)
+	payload, err := cborutil.Dump(propCid)
+	require.NoError(t, err)
+	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), payload, sig)
 	require.NoError(t, err)
 }
 
-func TestExecuteAuctionDeal(t *testing.T) {
+func TestRemoteDealStatusSigningV120(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Libp2p hosts wiring.
+	h1, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // dealer
+	require.NoError(t, err)
+	h2, err := bhost.NewHost(swarmt.GenSwarm(t), nil) // remote wallet
+	require.NoError(t, err)
+	err = h2.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
+	require.NoError(t, err)
+
+	// Remote wallet config.
+	walletKeys := []string{
+		// Secp256k1 exported private key in Lotus format.
+		"7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226b35507976337148327349586343595a58594f5775453149326e32554539436861556b6c4e36695a5763453d227d", // nolint:lll
+	}
+	lwallet, err := localwallet.New(walletKeys)
+	require.NoError(t, err)
+
+	err = propsigner.NewDealSignerService(h2, authToken, lwallet)
+	require.NoError(t, err)
+
+	// Dealer filclient.
+	client, err := New(createFilClient(t), h1, WithMaxPriceLimits(10, 10))
+	require.NoError(t, err)
+
+	// Remote wallet.
+	maddrs := make([]string, len(h2.Addrs()))
+	for i, maddr := range h2.Addrs() {
+		maddrs[i] = maddr.String()
+	}
+	waddrPubKey, err := wallet.PublicKey(walletKeys[0])
+	require.NoError(t, err)
+	rw := &store.RemoteWallet{
+		PeerID:     h2.ID().String(),
+		AuthToken:  authToken,
+		WalletAddr: waddrPubKey.String(),
+		Multiaddrs: maddrs,
+	}
+
+	// Create proposal targeting remote wallet.
+	dealUID, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	sig, err := client.signDealStatusRequest(ctx, cid.Undef, dealUID, rw)
+	require.NoError(t, err)
+
+	// Validate signature.
+	payload, err := dealUID.MarshalBinary()
+	require.NoError(t, err)
+	err = propsigner.ValidateDealStatusSignature(waddrPubKey.String(), payload, sig)
+	require.NoError(t, err)
+}
+
+func TestExecuteAuctionDealV110(t *testing.T) {
 	t.Parallel()
 	t.SkipNow()
 
@@ -165,6 +224,7 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		PieceCid:   pieceCid,
 		PieceSize:  34359738368,
 		Duration:   525600,
+		CARURL:     "https://fill.me.url",
 	}
 	aud := store.AuctionDeal{
 		StorageProviderID:   "f01278",
@@ -175,10 +235,44 @@ func TestExecuteAuctionDeal(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	propCid, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil, false)
 	require.NoError(t, err)
 	require.False(t, retry)
-	fmt.Printf("propCid: %s", propCid)
+	fmt.Printf("dealIdentifier: %s", dealIdentifier)
+}
+
+func TestExecuteAuctionDealV120(t *testing.T) {
+	t.Parallel()
+	t.SkipNow()
+
+	client := create(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	pieceCid, err := cid.Decode("baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa")
+	require.NoError(t, err)
+	payloadCid, err := cid.Decode("bafybeid5lurqs2na2deipmqv2zfbj7gudnaq7vd6qh5y34hcijf5igsw7m")
+	require.NoError(t, err)
+	ad := store.AuctionData{
+		PayloadCid: payloadCid,
+		PieceCid:   pieceCid,
+		PieceSize:  34359738368,
+		Duration:   525600,
+		CARURL:     "https://cargo.web3.storage/deal-cars/bafybeid5lurqs2na2deipmqv2zfbj7gudnaq7vd6qh5y34hcijf5igsw7m_baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa.car", //nolint
+	}
+	aud := store.AuctionDeal{
+		StorageProviderID:   "f0127896",
+		PricePerGibPerEpoch: 0,
+		StartEpoch:          1740007,
+		Verified:            true,
+		FastRetrieval:       true,
+		AuctionID:           "auction-1",
+		BidID:               "bid-1",
+	}
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil, true)
+	require.NoError(t, err)
+	require.False(t, retry)
+	fmt.Printf("dealIdentifier: %s", dealIdentifier)
 }
 
 func TestConnectWithStorageProvider(t *testing.T) {
@@ -207,12 +301,15 @@ func TestPublishedMessageAndDealOnChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	publishedMessage, err := cid.Decode("bafy2bzacec6yztd2zzhgef77tqtx6qv5nldzziylq7iizpmgx4577boclftig")
+	//publishedMessage, err := cid.Decode("bafy2bzacedmlxyv6oorlt4pavtv23jup4aqcfjfjh7zoymwznwvgyfkqqe4tk")
+	publishedMessage, err := cid.Decode("bafy2bzaceblvjje4ggkwkg3v6ujwtvslo7r4zg6w63p6npbv5g7aciz4glm36")
 	require.NoError(t, err)
-	proposalCid, err := cid.Decode("bafyreibru2chqj7wanixo6m5qnmamovvgby7672ws3yojzyttimu7fl72q")
+	pieceCid, err := cid.Decode("baga6ea4seaqfo2mmbs42pwthsku4emzc4advqfpydw43pzt4p3xg22q52grucpa")
 	require.NoError(t, err)
+	spID := "f0127896"
+	startEpoch := uint64(1740007)
 
-	dealID, err := client.ResolveDealIDFromMessage(ctx, proposalCid, publishedMessage)
+	dealID, err := client.ResolveDealIDFromMessage(ctx, publishedMessage, spID, pieceCid, startEpoch)
 	require.NoError(t, err)
 	require.Equal(t, int64(1919949), dealID)
 
@@ -230,12 +327,12 @@ func TestCheckStatusWithStorageProvider(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	proposalCid, err := cid.Decode("bafyreieakjjn6kv36zfo23e67mvn2mrjgjz34w2awjaivskfhf4okjhdva")
+	//dealIdentifier := "60027e95-ecee-4c5e-8813-a86b1bb1b272"
+	dealIdentifier := "3d257cbb-276d-425d-b879-c84727f7b71f"
+	pcid, status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0127896", dealIdentifier, nil)
 	require.NoError(t, err)
-	status, err := client.CheckDealStatusWithStorageProvider(ctx, "f0840770", proposalCid, nil)
-	require.NoError(t, err)
-	fmt.Printf("%s\n", logger.MustJSONIndent(status))
-	fmt.Printf("%s\n", storagemarket.DealStatesDescriptions[status.State])
+	fmt.Printf("pcid: %s\n", pcid)
+	fmt.Printf("status: %s\n", storagemarket.DealStatesDescriptions[status])
 }
 
 func TestGetChainHeight(t *testing.T) {
@@ -274,7 +371,11 @@ func create(t *testing.T) *FilClient {
 	require.NoError(t, err)
 	h, err := libp2p.New(libp2p.ConnectionManager(cm))
 	require.NoError(t, err)
-	client, err := New(api, h, WithExportedKey(exportedKey))
+	opts := []Option{
+		WithExportedKey(exportedKey),
+		WithMaxPriceLimits(1<<31, 1<<31),
+	}
+	client, err := New(api, h, opts...)
 	require.NoError(t, err)
 
 	return client

@@ -54,6 +54,7 @@ type AuctionData struct {
 	PieceSize  uint64
 	Duration   uint64
 	CreatedAt  time.Time
+	CARURL     string
 }
 
 // AuctionDeal contains information to make a deal with a particular
@@ -107,6 +108,7 @@ func (s *Store) Create(ctx context.Context, ad *AuctionData, ads []*AuctionDeal,
 			PieceCid:   ad.PieceCid.String(),
 			PieceSize:  ad.PieceSize,
 			Duration:   ad.Duration,
+			CarUrl:     ad.CARURL,
 		}); err != nil {
 			if err, ok := err.(*pgconn.PgError); ok {
 				if err.Code == "23505" {
@@ -253,9 +255,26 @@ func (s *Store) GetAuctionData(ctx context.Context, auctionDataID string) (ad Au
 				PieceSize:  datum.PieceSize,
 				Duration:   datum.Duration,
 				CreatedAt:  datum.CreatedAt,
+				CARURL:     datum.CarUrl,
 			}
 		}
 		return err
+	})
+	return
+}
+
+// IsBoostAllowed returns true if Boost proposals are allowed for the storaeg provider.
+func (s *Store) IsBoostAllowed(ctx context.Context, spID string) (ok bool, err error) {
+	err = s.useTxFromCtx(ctx, func(q *db.Queries) error {
+		_, err := q.IsBoostAllowed(ctx, spID)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get boost whitelist row: %s", err)
+		}
+		ok = true
+		return nil
 	})
 	return
 }
@@ -362,12 +381,10 @@ func areAllExpectedFieldsSet(ad AuctionDeal) error {
 	case db.StatusDealMaking:
 		// Nothing to validate.
 	case db.StatusConfirmation:
-		proposalCid, err := cid.Parse(ad.ProposalCid)
-		if err != nil {
-			return fmt.Errorf("parse proposal cid: %s", err)
-		}
-		if !proposalCid.Defined() {
-			return errors.New("proposal cid should be set to transition to WaitingConfirmation")
+		_, errProposalCid := cid.Parse(ad.ProposalCid)
+		_, errDealUID := uuid.Parse(ad.ProposalCid)
+		if errProposalCid != nil && errDealUID != nil {
+			return fmt.Errorf("proposalcid or dealUID (%s) should be set to transition to WaitingConfirmation", ad.ProposalCid)
 		}
 	case db.StatusReportFinalized:
 		if ad.Executing {

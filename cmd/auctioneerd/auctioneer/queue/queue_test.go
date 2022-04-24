@@ -121,7 +121,7 @@ func TestQueue_GetFinalizedAuctionBid(t *testing.T) {
 		require.False(t, bid.ProposalCid.Defined())
 
 		// make sure proposal cid is set to the bid.
-		err = q.SetProposalCidDelivered(ctx, got.ID, id, pcid)
+		err = q.SetProposalCidDelivered(ctx, got.ID, id, pcid.String())
 		require.NoError(t, err)
 		bid, err = q.GetFinalizedAuctionBid(ctx, got.ID, id)
 		require.NoError(t, err)

@@ -42,6 +42,7 @@ var (
 		PieceCid:   castCid("QmdKDf5nepPLXErXd1pYY8hA82yjMaW3fdkU8D8kiz3jH2"),
 		Duration:   123,
 		PieceSize:  456,
+		CARURL:     "https://my.car.url",
 		Proposals: []dealeri.Proposal{
 			{
 				StorageProviderID:   "f0001",
@@ -121,6 +122,7 @@ func TestReadyToCreateDeals(t *testing.T) {
 			require.Equal(t, auds.PieceCid, ad.PieceCid)
 			require.Equal(t, auds.PieceSize, ad.PieceSize)
 			require.Equal(t, auds.Duration, ad.Duration)
+			require.Equal(t, auds.CARURL, ad.CARURL)
 		})
 	}
 }
@@ -267,15 +269,14 @@ func TestStateMachineExecReporting(t *testing.T) {
 func newDealer(t *testing.T) (*Dealer, *fakemsgbroker.FakeMsgBroker) {
 	// Mock a happy-path filclient.
 	fc := &fcMock{}
-	fc.On("ExecuteAuctionDeal",
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fakeProposalCid, false, nil)
+	fc.On("ExecuteAuctionDeal", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(fakeProposalCid.String(), false, nil)
 
-	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything)
-	cdswmCall.Return(&storagemarket.ProviderDealState{
-		PublishCid: &fakePublishDealMessage,
-	}, nil)
+	cdswmCall := fc.On("CheckDealStatusWithStorageProvider", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	cdswmCall.Return(&fakePublishDealMessage, storagemarket.StorageDealUnknown, nil)
 
-	rdfmCall := fc.On("ResolveDealIDFromMessage", mock.Anything, fakeProposalCid, fakePublishDealMessage)
+	rdfmCall := fc.On("ResolveDealIDFromMessage",
+		mock.Anything, fakePublishDealMessage, mock.Anything, mock.Anything, mock.Anything)
 	rdfmCall.Return(fakeDealID, nil)
 
 	fc.On("CheckChainDeal", mock.Anything, fakeDealID).Return(true, fakeExpiration, false, nil)
@@ -310,9 +311,10 @@ func (fc *fcMock) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet) (cid.Cid, bool, error) {
+	rw *store.RemoteWallet,
+	allowBoost bool) (string, bool, error) {
 	args := fc.Called(ctx, ad, aud)
-	return args.Get(0).(cid.Cid), args.Bool(1), args.Error(2)
+	return args.String(0), args.Bool(1), args.Error(2)
 }
 
 func (fc *fcMock) GetChainHeight(ctx context.Context) (uint64, error) {
@@ -321,9 +323,11 @@ func (fc *fcMock) GetChainHeight(ctx context.Context) (uint64, error) {
 }
 func (fc *fcMock) ResolveDealIDFromMessage(
 	ctx context.Context,
-	proposalCid cid.Cid,
-	publishDealMessage cid.Cid) (int64, error) {
-	args := fc.Called(ctx, proposalCid, publishDealMessage)
+	publishDealMessage cid.Cid,
+	spID string,
+	pieceCid cid.Cid,
+	startEpoch uint64) (int64, error) {
+	args := fc.Called(ctx, publishDealMessage, spID, pieceCid, startEpoch)
 	return args.Get(0).(int64), args.Error(1)
 }
 
@@ -334,11 +338,11 @@ func (fc *fcMock) CheckChainDeal(ctx context.Context, dealID int64) (bool, uint6
 func (fc *fcMock) CheckDealStatusWithStorageProvider(
 	ctx context.Context,
 	storageProviderID string,
-	propCid cid.Cid,
-	rw *store.RemoteWallet) (*storagemarket.ProviderDealState, error) {
-	args := fc.Called(ctx, storageProviderID, propCid)
+	dealIdentifier string,
+	rw *store.RemoteWallet) (*cid.Cid, storagemarket.StorageDealStatus, error) {
+	args := fc.Called(ctx, storageProviderID, dealIdentifier)
 
-	return args.Get(0).(*storagemarket.ProviderDealState), args.Error(1)
+	return args.Get(0).(*cid.Cid), args.Get(1).(storagemarket.StorageDealStatus), args.Error(2)
 }
 
 func makeRemoteWalletAuds(baseAuds dealeri.AuctionDeals) dealeri.AuctionDeals {

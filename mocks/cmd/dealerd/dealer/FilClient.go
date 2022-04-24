@@ -7,9 +7,9 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 
-	mock "github.com/stretchr/testify/mock"
+	db "github.com/textileio/broker-core/cmd/dealerd/store"
 
-	storagemarket "github.com/filecoin-project/go-fil-markets/storagemarket"
+	mock "github.com/stretchr/testify/mock"
 
 	store "github.com/textileio/broker-core/cmd/dealerd/store"
 )
@@ -54,50 +54,57 @@ func (_m *FilClient) CheckChainDeal(ctx context.Context, dealID int64) (bool, ui
 	return r0, r1, r2, r3
 }
 
-// CheckDealStatusWithStorageProvider provides a mock function with given fields: ctx, storageProviderID, propCid
-func (_m *FilClient) CheckDealStatusWithStorageProvider(ctx context.Context, storageProviderID string, propCid cid.Cid) (*storagemarket.ProviderDealState, error) {
-	ret := _m.Called(ctx, storageProviderID, propCid)
+// CheckDealStatusWithStorageProvider provides a mock function with given fields: ctx, storageProviderID, dealIdentifier, rw
+func (_m *FilClient) CheckDealStatusWithStorageProvider(ctx context.Context, storageProviderID string, dealIdentifier string, rw *db.RemoteWallet) (*cid.Cid, uint64, error) {
+	ret := _m.Called(ctx, storageProviderID, dealIdentifier, rw)
 
-	var r0 *storagemarket.ProviderDealState
-	if rf, ok := ret.Get(0).(func(context.Context, string, cid.Cid) *storagemarket.ProviderDealState); ok {
-		r0 = rf(ctx, storageProviderID, propCid)
+	var r0 *cid.Cid
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *db.RemoteWallet) *cid.Cid); ok {
+		r0 = rf(ctx, storageProviderID, dealIdentifier, rw)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*storagemarket.ProviderDealState)
+			r0 = ret.Get(0).(*cid.Cid)
 		}
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, cid.Cid) error); ok {
-		r1 = rf(ctx, storageProviderID, propCid)
+	var r1 uint64
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *db.RemoteWallet) uint64); ok {
+		r1 = rf(ctx, storageProviderID, dealIdentifier, rw)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(uint64)
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, *db.RemoteWallet) error); ok {
+		r2 = rf(ctx, storageProviderID, dealIdentifier, rw)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
-// ExecuteAuctionDeal provides a mock function with given fields: ctx, ad, aud
-func (_m *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal) (cid.Cid, bool, error) {
-	ret := _m.Called(ctx, ad, aud)
+// ExecuteAuctionDeal provides a mock function with given fields: ctx, ad, aud, rw
+func (_m *FilClient) ExecuteAuctionDeal(ctx context.Context, ad store.AuctionData, aud store.AuctionDeal, rw *db.RemoteWallet) (string, bool, error) {
+	ret := _m.Called(ctx, ad, aud, rw)
 
-	var r0 cid.Cid
-	if rf, ok := ret.Get(0).(func(context.Context, store.AuctionData, store.AuctionDeal) cid.Cid); ok {
-		r0 = rf(ctx, ad, aud)
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context, store.AuctionData, store.AuctionDeal, *db.RemoteWallet) string); ok {
+		r0 = rf(ctx, ad, aud, rw)
 	} else {
-		r0 = ret.Get(0).(cid.Cid)
+		r0 = ret.Get(0).(string)
 	}
 
 	var r1 bool
-	if rf, ok := ret.Get(1).(func(context.Context, store.AuctionData, store.AuctionDeal) bool); ok {
-		r1 = rf(ctx, ad, aud)
+	if rf, ok := ret.Get(1).(func(context.Context, store.AuctionData, store.AuctionDeal, *db.RemoteWallet) bool); ok {
+		r1 = rf(ctx, ad, aud, rw)
 	} else {
 		r1 = ret.Get(1).(bool)
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, store.AuctionData, store.AuctionDeal) error); ok {
-		r2 = rf(ctx, ad, aud)
+	if rf, ok := ret.Get(2).(func(context.Context, store.AuctionData, store.AuctionDeal, *db.RemoteWallet) error); ok {
+		r2 = rf(ctx, ad, aud, rw)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -126,20 +133,20 @@ func (_m *FilClient) GetChainHeight(ctx context.Context) (uint64, error) {
 	return r0, r1
 }
 
-// ResolveDealIDFromMessage provides a mock function with given fields: ctx, proposalCid, publishDealMessage
-func (_m *FilClient) ResolveDealIDFromMessage(ctx context.Context, proposalCid cid.Cid, publishDealMessage cid.Cid) (int64, error) {
-	ret := _m.Called(ctx, proposalCid, publishDealMessage)
+// ResolveDealIDFromMessage provides a mock function with given fields: ctx, dealIdentifier, publishDealMessage
+func (_m *FilClient) ResolveDealIDFromMessage(ctx context.Context, dealIdentifier string, publishDealMessage cid.Cid) (int64, error) {
+	ret := _m.Called(ctx, dealIdentifier, publishDealMessage)
 
 	var r0 int64
-	if rf, ok := ret.Get(0).(func(context.Context, cid.Cid, cid.Cid) int64); ok {
-		r0 = rf(ctx, proposalCid, publishDealMessage)
+	if rf, ok := ret.Get(0).(func(context.Context, string, cid.Cid) int64); ok {
+		r0 = rf(ctx, dealIdentifier, publishDealMessage)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, cid.Cid, cid.Cid) error); ok {
-		r1 = rf(ctx, proposalCid, publishDealMessage)
+	if rf, ok := ret.Get(1).(func(context.Context, string, cid.Cid) error); ok {
+		r1 = rf(ctx, dealIdentifier, publishDealMessage)
 	} else {
 		r1 = ret.Error(1)
 	}

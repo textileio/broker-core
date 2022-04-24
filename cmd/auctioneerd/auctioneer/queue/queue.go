@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -254,6 +255,7 @@ func (q *Queue) GetAuction(ctx context.Context, id auction.ID) (a *auctioneer.Au
 				a.WinningBids[b.ID] = auctioneer.WinningBid{
 					BidderID:    bid.BidderID,
 					ProposalCid: bid.ProposalCid,
+					DealUID:     bid.DealUID,
 					ErrorCause:  bid.ProposalCidDeliveryError,
 				}
 			}
@@ -342,11 +344,11 @@ func (q *Queue) SetProposalCidDelivered(
 	ctx context.Context,
 	auctionID auction.ID,
 	bidID auction.BidID,
-	pcid cid.Cid) error {
+	identifier string) error {
 	return q.db.UpdateProposalCid(ctx, db.UpdateProposalCidParams{
 		ID:          bidID,
 		AuctionID:   auctionID,
-		ProposalCid: sql.NullString{String: pcid.String(), Valid: true},
+		ProposalCid: sql.NullString{String: identifier, Valid: true},
 	})
 }
 
@@ -666,11 +668,15 @@ func bidFromDb(bid db.Bid) (*auctioneer.Bid, error) {
 		b.WonAt = bid.WonAt.Time
 	}
 	if bid.ProposalCid.Valid {
-		proposalCid, err := cid.Parse(bid.ProposalCid.String)
-		if err != nil {
-			return nil, fmt.Errorf("parsing proposal cid: %v", err)
+		if _, err := uuid.Parse(bid.ProposalCid.String); err == nil {
+			b.DealUID = bid.ProposalCid.String
+		} else {
+			proposalCid, err := cid.Parse(bid.ProposalCid.String)
+			if err != nil {
+				return nil, fmt.Errorf("parsing proposal cid: %v", err)
+			}
+			b.ProposalCid = proposalCid
 		}
-		b.ProposalCid = proposalCid
 	}
 	if bid.ProposalCidDeliveryError.Valid {
 		b.ProposalCidDeliveryError = bid.ProposalCidDeliveryError.String

@@ -103,6 +103,7 @@ message ReadyToCreateDeals {
   uint64 duration = 6;
   repeated Proposal proposals = 7;
   RemoteWallet remote_wallet = 8;
+  string car_url = 9;
 
   message Proposal {
     string storage_provider_id = 1;
@@ -151,6 +152,15 @@ message DealProposalAccepted {
   string auction_id = 4;
   string bid_id = 5;
 }
+
+message BoostDealProposalAccepted {
+  string batch_id = 1;
+  string storage_provider_id = 2;
+  string deal_uid = 3;
+  string auction_id = 4;
+  string bid_id = 5;
+}
+
 
 message AuctionClosed {
     string operation_id = 1;

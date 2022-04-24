@@ -73,6 +73,7 @@ func (d *Dealer) ReadyToCreateDeals(ctx context.Context, ad dealeri.AuctionDeals
 		PieceCid:   ad.PieceCid,
 		PieceSize:  ad.PieceSize,
 		Duration:   ad.Duration,
+		CARURL:     ad.CARURL,
 	}
 	log.Debugf("ready to create deals auction data: %s", logger.MustJSONIndent(auctionData))
 	auctionDeals := make([]*store.AuctionDeal, len(ad.Proposals))

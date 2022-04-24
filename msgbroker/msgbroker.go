@@ -51,6 +51,9 @@ const (
 	FinalizedDealTopic = "finalized-deal"
 	// DealProposalAcceptedTopic is the topic name for deal-proposal-accepted messages.
 	DealProposalAcceptedTopic = "deal-proposal-accepted"
+	// BoostDealProposalAcceptedTopic is the topic name for boost-deal-proposal-accepted messages.
+	BoostDealProposalAcceptedTopic = "boost-deal-proposal-accepted"
+
 	// ReadyToAuctionTopic is the topic name for ready-to-auction messages.
 	ReadyToAuctionTopic = "ready-to-auction"
 
@@ -114,6 +117,11 @@ type FinalizedDealListener interface {
 // DealProposalAcceptedListener is a handler for deal-proposal-accepted topic.
 type DealProposalAcceptedListener interface {
 	OnDealProposalAccepted(context.Context, auction.ID, auction.BidID, cid.Cid) error
+}
+
+// BoostDealProposalAcceptedListener is a handler for boost-deal-proposal-accepted topic.
+type BoostDealProposalAcceptedListener interface {
+	OnBoostDealProposalAccepted(context.Context, auction.ID, auction.BidID, string) error
 }
 
 // ReadyToAuctionListener is a handler for finalized-deal topic.
@@ -315,6 +323,9 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 			if len(r.Proposals) == 0 {
 				return fmt.Errorf("batch %s: list of proposals is empty", r.BatchId)
 			}
+			if r.CarUrl == "" {
+				return errors.New("car url can't be empty")
+			}
 			ads := dealer.AuctionDeals{
 				ID:         r.Id,
 				BatchID:    broker.BatchID(r.BatchId),
@@ -322,6 +333,7 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 				PieceCid:   pieceCid,
 				PieceSize:  r.PieceSize,
 				Duration:   r.Duration,
+				CARURL:     r.CarUrl,
 				Proposals:  make([]dealer.Proposal, len(r.Proposals)),
 			}
 			for i, t := range r.Proposals {
@@ -485,6 +497,43 @@ func RegisterHandlers(mb MsgBroker, s interface{}, opts ...Option) error {
 		}, opts...)
 		if err != nil {
 			return fmt.Errorf("registering handler for deal-proposal-accepted topic: %s", err)
+		}
+	}
+
+	if l, ok := s.(BoostDealProposalAcceptedListener); ok {
+		countRegistered++
+		err := mb.RegisterTopicHandler(BoostDealProposalAcceptedTopic, func(ctx context.Context, data []byte) error {
+			r := &pb.BoostDealProposalAccepted{}
+			if err := proto.Unmarshal(data, r); err != nil {
+				return fmt.Errorf("unmarshal boost-deal-proposal-accepted msg: %s", err)
+			}
+			if r.BatchId == "" {
+				return errors.New("batch id is empty")
+			}
+			if r.StorageProviderId == "" {
+				return errors.New("storage-provider-id is empty")
+			}
+			if _, err := uuid.Parse(r.DealUid); err != nil {
+				return fmt.Errorf("dealuid %s parsing: %s", r.DealUid, err)
+			}
+			if r.AuctionId == "" {
+				return errors.New("auction id is required")
+			}
+			if r.BidId == "" {
+				return errors.New("bid id is required")
+			}
+
+			if err := l.OnBoostDealProposalAccepted(
+				ctx,
+				auction.ID(r.AuctionId),
+				auction.BidID(r.BidId),
+				r.DealUid); err != nil {
+				return fmt.Errorf("calling boost-deal-proposal-accepted handler: %s", err)
+			}
+			return nil
+		}, opts...)
+		if err != nil {
+			return fmt.Errorf("registering handler for boost-deal-proposal-accepted topic: %s", err)
 		}
 	}
 
@@ -679,6 +728,7 @@ func PublishMsgReadyToCreateDeals(
 		PieceCid:   ads.PieceCid.Bytes(),
 		PieceSize:  ads.PieceSize,
 		Duration:   ads.Duration,
+		CarUrl:     ads.CARURL,
 		Proposals:  make([]*pb.ReadyToCreateDeals_Proposal, len(ads.Proposals)),
 	}
 	for i, t := range ads.Proposals {
@@ -762,6 +812,25 @@ func PublishMsgDealProposalAccepted(
 		BidId:             string(bidID),
 	}
 	return marshalAndPublish(ctx, mb, DealProposalAcceptedTopic, msg)
+}
+
+// PublishMsgBoostDealProposalAccepted publishes a message to the deal-proposal-accepted topic.
+func PublishMsgBoostDealProposalAccepted(
+	ctx context.Context,
+	mb MsgBroker,
+	sdID broker.BatchID,
+	auctionID auction.ID,
+	bidID auction.BidID,
+	storageProviderID string,
+	dealUID string) error {
+	msg := &pb.BoostDealProposalAccepted{
+		BatchId:           string(sdID),
+		StorageProviderId: storageProviderID,
+		DealUid:           dealUID,
+		AuctionId:         string(auctionID),
+		BidId:             string(bidID),
+	}
+	return marshalAndPublish(ctx, mb, BoostDealProposalAcceptedTopic, msg)
 }
 
 // PublishMsgReadyToAuction publishes a message to the ready-to-auction topic.

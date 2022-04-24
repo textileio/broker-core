@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
-	"github.com/ipfs/go-cid"
 	"github.com/textileio/broker-core/cmd/dealerd/store"
 	"github.com/textileio/broker-core/ratelim"
 )
@@ -195,35 +194,38 @@ func (d *Dealer) tryResolvingDealID(
 	rw *store.RemoteWallet) (int64, storagemarket.StorageDealStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
-	proposalCid, err := cid.Parse(aud.ProposalCid)
-	if err != nil {
-		log.Errorf("parsing proposal cid: %s", err)
-		return 0, 0
-	}
 
-	pds, err := d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, proposalCid, rw)
+	publishCid, status, err :=
+		d.filclient.CheckDealStatusWithStorageProvider(ctx, aud.StorageProviderID, aud.ProposalCid, rw)
 	if err != nil {
 		log.Infof("checking deal status with storage-provider: %s", err)
 		return 0, 0
 	}
-	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[pds.State])
+	log.Debugf("%s check-deal-status: %s", aud.ID, storagemarket.DealStates[status])
 
-	if pds.PublishCid != nil {
+	if publishCid != nil {
 		log.Debugf("%s storage-provider published the deal in message %s, trying to resolve on-chain...",
-			aud.ID, pds.PublishCid)
+			aud.ID, publishCid)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*20)
 		defer cancel()
-		dealID, err := d.filclient.ResolveDealIDFromMessage(ctx, proposalCid, *pds.PublishCid)
+
+		ad, err := d.store.GetAuctionData(ctx, aud.AuctionDataID)
 		if err != nil {
-			log.Errorf("trying to resolve deal-id from message %s: %s", pds.PublishCid, err)
-			return 0, pds.State
+			log.Infof("get auction data: %s", err)
+			return 0, 0
+		}
+		dealID, err := d.filclient.ResolveDealIDFromMessage(
+			ctx, *publishCid, aud.StorageProviderID, ad.PieceCid, aud.StartEpoch)
+		if err != nil {
+			log.Errorf("trying to resolve deal-id from message %s: %s", publishCid, err)
+			return 0, status
 		}
 		// Could we resolve by looking to the chain?, if yes, save it.
 		// If no, no problem... we'll try again later when it might get confirmed.
 		if dealID > 0 {
-			return dealID, pds.State
+			return dealID, status
 		}
 	}
 
-	return 0, pds.State
+	return 0, status
 }

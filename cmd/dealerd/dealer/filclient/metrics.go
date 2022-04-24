@@ -1,7 +1,11 @@
 package filclient
 
 import (
+	"context"
+	"time"
+
 	"github.com/textileio/broker-core/cmd/dealerd/metrics"
+	gmetrics "github.com/textileio/broker-core/metrics"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -22,4 +26,18 @@ func (fc *FilClient) initMetrics() {
 
 	fc.metricFilAPIRequests = metrics.Meter.NewInt64Counter("dealer.filclient.filapi.requests")
 	fc.metricFilAPIDurationMillis = metrics.Meter.NewInt64Histogram("dealer.filclient.filapi.duration.millis")
+}
+
+func (fc *FilClient) collectAPIMetrics(ctx context.Context, methodName string, err error, duration time.Duration) {
+	labels := []attribute.KeyValue{
+		attribute.String("method", methodName),
+	}
+	if err != nil {
+		labels = append(labels, gmetrics.AttrError)
+	} else {
+		labels = append(labels, gmetrics.AttrOK)
+	}
+
+	fc.metricFilAPIRequests.Add(ctx, 1, labels...)
+	fc.metricFilAPIDurationMillis.Record(ctx, duration.Milliseconds(), labels...)
 }

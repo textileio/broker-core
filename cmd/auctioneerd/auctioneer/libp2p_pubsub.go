@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pb "github.com/textileio/bidbot/gen/v1"
 	"github.com/textileio/bidbot/lib/auction"
@@ -24,7 +23,7 @@ import (
 type CommChannel interface {
 	PublishAuction(ctx context.Context, id auction.ID, auctionPb *pb.Auction, bidsHandler BidsHandler) error
 	PublishWin(ctx context.Context, id auction.ID, bid auction.BidID, bidder peer.ID, sources auction.Sources) error
-	PublishProposal(ctx context.Context, id auction.ID, bid auction.BidID, bidder peer.ID, pcid cid.Cid) error
+	PublishProposal(ctx context.Context, id auction.ID, bid auction.BidID, bidder peer.ID, identifier string) error
 	Start(bootstrap bool) error
 	Info() (*rpcpeer.Info, error)
 	ListPeers() []peer.ID
@@ -220,7 +219,7 @@ func (ps *Libp2pPubsub) PublishWin(ctx context.Context, id core.ID, bid core.Bid
 
 // PublishProposal publishs the proposal to the specific bidder.
 func (ps *Libp2pPubsub) PublishProposal(ctx context.Context, id core.ID, bid core.BidID,
-	bidder peer.ID, pcid cid.Cid) error {
+	bidder peer.ID, identifier string) error {
 	topic, err := ps.proposalTopicFor(ctx, bidder)
 	if err != nil {
 		return fmt.Errorf("creating proposals topic: %v", err)
@@ -228,7 +227,7 @@ func (ps *Libp2pPubsub) PublishProposal(ctx context.Context, id core.ID, bid cor
 	msg, err := proto.Marshal(&pb.WinningBidProposal{
 		AuctionId:   string(id),
 		BidId:       string(bid),
-		ProposalCid: pcid.String(),
+		ProposalCid: identifier,
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)

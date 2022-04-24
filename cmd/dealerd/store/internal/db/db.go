@@ -55,6 +55,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getRemoteWalletStmt, err = db.PrepareContext(ctx, getRemoteWallet); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRemoteWallet: %w", err)
 	}
+	if q.isBoostAllowedStmt, err = db.PrepareContext(ctx, isBoostAllowed); err != nil {
+		return nil, fmt.Errorf("error preparing query IsBoostAllowed: %w", err)
+	}
 	if q.nextPendingAuctionDealStmt, err = db.PrepareContext(ctx, nextPendingAuctionDeal); err != nil {
 		return nil, fmt.Errorf("error preparing query NextPendingAuctionDeal: %w", err)
 	}
@@ -121,6 +124,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getRemoteWalletStmt: %w", cerr)
 		}
 	}
+	if q.isBoostAllowedStmt != nil {
+		if cerr := q.isBoostAllowedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing isBoostAllowedStmt: %w", cerr)
+		}
+	}
 	if q.nextPendingAuctionDealStmt != nil {
 		if cerr := q.nextPendingAuctionDealStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing nextPendingAuctionDealStmt: %w", cerr)
@@ -181,6 +189,7 @@ type Queries struct {
 	getMarketDealStatusForIDStmt   *sql.Stmt
 	getMarketDealStatusForTypeStmt *sql.Stmt
 	getRemoteWalletStmt            *sql.Stmt
+	isBoostAllowedStmt             *sql.Stmt
 	nextPendingAuctionDealStmt     *sql.Stmt
 	updateAuctionDealStmt          *sql.Stmt
 }
@@ -200,6 +209,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getMarketDealStatusForIDStmt:   q.getMarketDealStatusForIDStmt,
 		getMarketDealStatusForTypeStmt: q.getMarketDealStatusForTypeStmt,
 		getRemoteWalletStmt:            q.getRemoteWalletStmt,
+		isBoostAllowedStmt:             q.isBoostAllowedStmt,
 		nextPendingAuctionDealStmt:     q.nextPendingAuctionDealStmt,
 		updateAuctionDealStmt:          q.updateAuctionDealStmt,
 	}

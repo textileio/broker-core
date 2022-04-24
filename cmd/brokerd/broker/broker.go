@@ -583,6 +583,7 @@ func (b *Broker) BatchAuctioned(ctx context.Context, opID msgbroker.OperationID,
 		Duration:     au.DealDuration,
 		Proposals:    make([]dealer.Proposal, len(acceptedWinners)),
 		RemoteWallet: rw,
+		CARURL:       ba.Sources.CARURL.URL.String(),
 	}
 
 	for i := range acceptedWinners {

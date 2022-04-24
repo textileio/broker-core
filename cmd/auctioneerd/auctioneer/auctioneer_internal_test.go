@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -205,7 +204,7 @@ func (nc nullChannel) PublishWin(ctx context.Context, id auction.ID, bid auction
 	return nil
 }
 func (nc nullChannel) PublishProposal(ctx context.Context, id auction.ID, bid auction.BidID, bidder peer.ID,
-	pcid cid.Cid) error {
+	identifier string) error {
 	return nil
 }
 func (nc nullChannel) Start(bootstrap bool) error   { return nil }
