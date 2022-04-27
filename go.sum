@@ -2785,8 +2785,9 @@ github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a h1:ECSeaC+8iE/EmA
 github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a/go.mod h1:p2BwrUs69ZtGA27KXYYOiToLs1PyPV5etdUFMko3d9c=
 github.com/textileio/go-auctions-client v0.1.2-0.20220424150545-a4fbb91e3c49 h1:I7O3FPx48C89S+/MZnMsfzmyZWuOAUrLKLLzrPXJ26A=
 github.com/textileio/go-auctions-client v0.1.2-0.20220424150545-a4fbb91e3c49/go.mod h1:ODMGg9BkNs0xplzwPmb8/urs1E7ICUwO9uie7ovPTu0=
-github.com/textileio/go-datastore-extensions v1.0.1 h1:qIJGqJaigQ1wD4TdwS/hf73u0HChhXvvUSJuxBEKS+c=
 github.com/textileio/go-datastore-extensions v1.0.1/go.mod h1:Pzj9FDRkb55910dr/FX8M7WywvnS26gBgEDez1ZBuLE=
+github.com/textileio/go-datastore-extensions v1.1.0 h1:rU2oz3iZ50eukiWztXsG3FmSAKwUvIGH1sRv//QXoDs=
+github.com/textileio/go-datastore-extensions v1.1.0/go.mod h1:+LryCa08vOxyo7RwPIshXCqE7TnyV1QyrJ1fQtCipVo=
 github.com/textileio/go-ds-badger3 v0.1.0 h1:q0kBuBmAcRUR3ClMSYlyw0224XeuzjjGinU53Qz1uXI=
 github.com/textileio/go-ds-badger3 v0.1.0/go.mod h1:z8LuXcihtZ91spEaqhEiNGIWx3E59iFq1HZj4gwwGrU=
 github.com/textileio/go-ethereum v1.10.3-0.20210413172519-62e8b38d82b1 h1:GBOrYYZVlMlX3OAbl9Yu2+a3VN0U4jEVvOmEPKh3zaU=
