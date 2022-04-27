@@ -228,6 +228,7 @@ func (ps *Libp2pPubsub) PublishProposal(ctx context.Context, id core.ID, bid cor
 		AuctionId:   string(id),
 		BidId:       string(bid),
 		ProposalCid: identifier,
+		DealUid:     identifier,
 	})
 	if err != nil {
 		return fmt.Errorf("marshaling message: %v", err)

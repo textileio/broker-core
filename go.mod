@@ -16,7 +16,7 @@ require (
 	github.com/filecoin-project/go-fil-markets v1.20.2-0.20220325122707-b18483a0834b
 	github.com/filecoin-project/go-jsonrpc v0.1.5
 	github.com/filecoin-project/go-state-types v0.1.3
-	github.com/filecoin-project/lotus v1.15.1-0.20220321111228-3c1edca90295
+	github.com/filecoin-project/lotus v1.15.1
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/filecoin-project/specs-actors/v7 v7.0.0
 	github.com/go-stack/stack v1.8.1 // indirect
@@ -55,12 +55,12 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
 	github.com/stretchr/testify v1.7.0
-	github.com/textileio/bidbot v0.1.10
+	github.com/textileio/bidbot v0.1.14-0.20220425135543-d04f188a0d61
 	github.com/textileio/cli v1.0.2
 	github.com/textileio/crypto v0.0.0-20210929130053-08edebc3361a
 	github.com/textileio/go-auctions-client v0.1.2-0.20220424150545-a4fbb91e3c49
 	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.9-0.20220316200557-ef8f4e0b97e2
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.9
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	github.com/textileio/near-api-go v0.2.0
 	github.com/tklauser/go-sysconf v0.3.8 // indirect
@@ -127,7 +127,7 @@ require (
 	github.com/filecoin-project/go-amt-ipld/v3 v3.1.0 // indirect
 	github.com/filecoin-project/go-amt-ipld/v4 v4.0.0 // indirect
 	github.com/filecoin-project/go-bitfield v0.2.4 // indirect
-	github.com/filecoin-project/go-data-transfer v1.15.0 // indirect
+	github.com/filecoin-project/go-data-transfer v1.15.1 // indirect
 	github.com/filecoin-project/go-ds-versioning v0.1.1 // indirect
 	github.com/filecoin-project/go-hamt-ipld v0.1.5 // indirect
 	github.com/filecoin-project/go-hamt-ipld/v2 v2.0.0 // indirect
@@ -184,7 +184,7 @@ require (
 	github.com/ipfs/go-blockservice v0.2.1 // indirect
 	github.com/ipfs/go-cidutil v0.0.2 // indirect
 	github.com/ipfs/go-fetcher v1.6.1 // indirect
-	github.com/ipfs/go-graphsync v0.13.0 // indirect
+	github.com/ipfs/go-graphsync v0.13.1 // indirect
 	github.com/ipfs/go-ipfs-blockstore v1.1.2 // indirect
 	github.com/ipfs/go-ipfs-chunker v0.0.5 // indirect
 	github.com/ipfs/go-ipfs-config v0.18.0 // indirect
@@ -204,7 +204,7 @@ require (
 	github.com/ipfs/go-path v0.2.1 // indirect
 	github.com/ipfs/go-peertaskqueue v0.7.1 // indirect
 	github.com/ipfs/go-verifcid v0.0.1 // indirect
-	github.com/ipld/go-codec-dagpb v1.3.0 // indirect
+	github.com/ipld/go-codec-dagpb v1.3.2 // indirect
 	github.com/ipld/go-ipld-prime v0.16.0 // indirect
 	github.com/ipld/go-ipld-selector-text-lite v0.0.1 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
