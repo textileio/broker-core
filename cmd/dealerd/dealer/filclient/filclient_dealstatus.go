@@ -88,11 +88,10 @@ func (fc *FilClient) checkDealStatusV120(
 	if err := cborutil.ReadCborRPC(s, &resp); err != nil {
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("reading response: %w", err)
 	}
-	log.Debugf("storage-provider %s replied dealuuid %s status check: %s (full: %#v)",
-		sp, dealUID, resp.DealStatus.Status, resp)
 
-	b, _ := json.MarshalIndent(resp, "", " ")
-	fmt.Printf("%s\n", b)
+	respJSON, _ := json.MarshalIndent(resp, "", " ")
+	log.Debugf("storage-provider %s replied dealuuid %s status check: %s (full: %s)",
+		sp, dealUID, resp.DealStatus.Status, respJSON)
 
 	if resp.Error != "" {
 		log.Warnf("deal %s status error from %s: %s", dealUID, sp, resp.Error)
