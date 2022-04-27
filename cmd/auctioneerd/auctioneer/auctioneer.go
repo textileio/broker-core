@@ -252,7 +252,7 @@ func (a *Auctioneer) DeliverBoostProposal(
 	}
 
 	var errCause string
-	publishErr := a.commChannel.PublishProposal(ctx, auctionID, bidID, bid.BidderID, bid.DealUID)
+	publishErr := a.commChannel.PublishProposal(ctx, auctionID, bidID, bid.BidderID, dealUID)
 	if publishErr != nil {
 		errCause = publishErr.Error()
 		if err := a.queue.SetProposalCidDeliveryError(ctx, auctionID, bidID, errCause); err != nil {
