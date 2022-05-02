@@ -89,10 +89,6 @@ func (fc *FilClient) checkDealStatusV120(
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("reading response: %w", err)
 	}
 
-	respJSON, _ := json.MarshalIndent(resp, "", " ")
-	log.Debugf("storage-provider %s replied dealuuid %s status check: %s (full: %s)",
-		sp, dealUID, resp.DealStatus.Status, respJSON)
-
 	if resp.Error != "" {
 		log.Warnf("deal %s status error from %s: %s", dealUID, sp, resp.Error)
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("deal status v1.2.0 error: %s", resp.Error)
@@ -100,6 +96,9 @@ func (fc *FilClient) checkDealStatusV120(
 	if resp.DealStatus == nil {
 		return nil, storagemarket.StorageDealUnknown, fmt.Errorf("deal status is nil")
 	}
+	respJSON, _ := json.MarshalIndent(resp, "", " ")
+	log.Debugf("storage-provider %s replied dealuuid %s status check: %s (full: %s)",
+		sp, dealUID, resp.DealStatus.Status, respJSON)
 
 	return resp.DealStatus.PublishCid, toLegacyDealStatus(resp.DealStatus), nil
 }
