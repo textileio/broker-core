@@ -11,6 +11,7 @@ import (
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer"
 	"github.com/textileio/broker-core/cmd/dealerd/dealer/filclient"
@@ -51,11 +52,11 @@ var _ mbroker.ReadyToCreateDealsListener = (*Service)(nil)
 func New(mb mbroker.MsgBroker, conf Config) (*Service, error) {
 	fin := finalizer.NewFinalizer()
 
-	cm, err := connmgr.NewConnManager(500, 800)
+	cm, err := connmgr.NewConnManager(1000, 2000)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection manager: %s", err)
 	}
-	h, err := libp2p.New(libp2p.ConnectionManager(cm))
+	h, err := libp2p.New(libp2p.ConnectionManager(cm), libp2p.ResourceManager(network.NullResourceManager))
 	if err != nil {
 		return nil, fmt.Errorf("creating host: %s", err)
 	}
