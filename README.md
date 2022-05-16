@@ -13,7 +13,7 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 - [Background](#background)
 - [Install](#install)
 - [Getting Started](#getting-started)
-  - [Storage providers: Run a `bidbot`](#storage providers-run-a-bidbot)
+  - [Storage providers: Run a `bidbot`](#storage-providers-run-a-bidbot)
   - [Running locally with some test data](#running-locally-with-some-test-data)
   - [Step to deploy a daemon](#steps-to-deploy-a-daemon)
 - [Contributing](#contributing)
