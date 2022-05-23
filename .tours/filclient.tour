@@ -1,0 +1,246 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "filclient",
+  "steps": [
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient.go",
+      "description": "A `filclient` is an abstraction that allows to create deals with storage providers, check the deal status by asking them how things are going, check the chain for final deal activation, and more things.\n\nThis `filclient` library is pretty generic and decoupled from `dealerd`. It only uses `AuctionDeal` and `AuctionData` structs, which are simply structs named in `dealerd` that contain general information about the deals. \n\n\n`filclient` can automatically detect which deal proposal protocol a targeted storage-provider is compatible, and propose the deal with the newest one. There's a high chance that in some months (~EOY 2022) most storage providers will be accepting v1.2.0 (Boost), so this can be further simplified since Boost means the storage provider will automatically download CAR URLs and don't need further assistance of a `bidbot` on their side.\n\nNote that we receive two things:\n- `api v0api.FullNode` which is a client to a Lotus node, which usually is a public GLIF node so we can make calls to some APIs.\n- `h host.Host` which is a _pristine_ libp2p host.\nThis is very simply to construct, you can check `dealerd` `main.go` file.",
+      "line": 83
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient.go",
+      "description": "The first thing we do is to connect our `libp2p.Host` to the Filecoin DHT. Being connected to the DHT allow us to connect to storage providers libp2p automatically resolveing their `libp2p.ID` to a real IPv4 address. ",
+      "line": 91
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient.go",
+      "description": "After some wiring, we return a `filclient` instance that can be used by clients.\n\nThe other methods in this file are helping functions that are used by other parts of the `filclient` library files (`filclient_*.go` files).",
+      "line": 129
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient.go",
+      "description": "Every time we need to connect with a storage provider for proposing a deal or ask for status of proposals, we'll use this helper function that does everything needed to have a `inet.Stream` with them. An `inet.Stream` is simply a `libp2p` stream were we can send bytes to the storage providers. e.g: for deal proposals, we'll write here cbor encoded structs with the proposal information, and deserialize the response into cbor decoded structs.",
+      "line": 132
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient.go",
+      "description": "`filclient` allows calling a remote wallet for every signing required (e.g: proposing deals, or similar).\n_Probably_ this doesn't make sense outside of auctions, so everytime you see a \"remote wallet\" `if` or similar, you can ignore it if that complicates your understanding. In a nutshell, is calling a remote libp2p host to ask for the signature for a stream of bytes. The remote wallet is in another repo `github.com/textileio/go-auctions-client` if you're curious.",
+      "line": 181
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "This method is the one that connects to a storage provider to make a deal proposal. Let's go step by step.",
+      "line": 38
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "First, we create the deal proposal using all the infromation provided by the caller.\nNote that `v110` names refer to \"structs\" of the deal proposal protocol v1.1.0. Similarly, `v120` names refer to structs relevant for protocol `v1.2.0`. \n\nSome of the work done in this method is a bit longer since we support both protocols. If in some months we support only v1.2.0 since most storage providers are running it, a lot here can be much shorter.\n\nLets dive into this method call.",
+      "line": 56
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "Most of this code is pretty immutable since it's tied to how the deal proposal protocol v1.1.0 works, and that won't change.\nIn any case, I'll shed some light of details here.",
+      "line": 171
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "`collBounds` is an attribute we need for the deal proposal asking how much collateral we ask the storage provider to lock up for this deal. This depends on the _piece size_ (i.e: \"deal size\"). We use a Lotus GLIF node API to get reasoanble estimation for this.",
+      "line": 176
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "This is another calculation we need for the deal proposal, taking the price we want to pay per GiB, the piece size, and some simple math calculation.",
+      "line": 185
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We build `market.DealProposal` which is the official struct for v1.1.0 protocol to propose a deal to a storage provider.\nNote how here we use most of the data we have for proposing the deal.",
+      "line": 210
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "Note: I'll always not consider the remote wallet case in the tour. That case is pretty similar to the local wallet anyway.",
+      "line": 232
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We serialize the `market.DealProposal` into CBOR encoding.",
+      "line": 233
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We sign the deal proposal for our wallet key.\nFor signing we use a pure Go library that Ignacio created for the community: https://github.com/jsign/go-filsigner\nYou don't have to understand this, but just think of: \"I'll give the bytes and the private key, and it returns a signature\".",
+      "line": 237
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "The final `market.ClientDealProposal` is the original proposal we built plus the signature.",
+      "line": 256
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "This is the struct that we'll send to the storage provider in a libp2p stream; mostly wrapping with some extra stuff what we built before.\n\nLet's jump back to the calling site.",
+      "line": 261
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "Now we detect the latest deal proposal supported by the storage provider. Depending on this, we'll branch out to propose the deal with the two supported protocols. \nI'll continue the tour for the v1.2.0 (Boost) protocol since it's the one that probably will be the only one supported in some months.",
+      "line": 67
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "This is only for some whitelisting that we have in Auctions reg Boost support since it's quite early and we only want to propose v1.2.0 deals to storage providers that have opted-in. ",
+      "line": 71
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "In Boost (v1.2.0) the deal proposal that we'll send the storage provider needs to have a UUID, we generate one here.",
+      "line": 90
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We send the proposal to the storage provider. Let's dive in here now.",
+      "line": 96
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We build the `transferParams` which is a JSON that contains the source of the deal's data; in our case an URL that contains the CAR file with the data.",
+      "line": 127
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "For the deal proposal we need the **exact** amount of bytes of the CAR file. \nFor this, we do a GET into the URL and only inspect the header response (not the real file). \nWe get the file size by reading the `Content-Length` field.",
+      "line": 137
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "This is a struct that the Boost deal proposal version expects to receive.\nIn a nutshell, the deal UUID, the `dealProposal` that we built before in the caller, and the transfer parameters.",
+      "line": 146
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We send it to the storage provider, let's jump here.",
+      "line": 158
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We connect with the storage provider.",
+      "line": 279
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "Marshal to CBOR and send it to the storage provider.",
+      "line": 290
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "Read the response!",
+      "line": 295
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "Return it, let's jump back.",
+      "line": 300
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "If wasn't accepted, report back!",
+      "line": 164
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "All good. We return the new status which will always be `StorageDealWaitingForData` since the storage provider will immediately start downloading the data.\n\nLet's jump back again to the caller.",
+      "line": 168
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealmaking.go",
+      "description": "We return the `dealIdentifier`. This identifier will be useful to later connect to the storage provider and ask for the current status of this proposal. (i.e: is still downloading the data? in which posterior stage is in the deal making process? etc)\n\nWe're done. The deal is proposed.\n\nNow in the tour we'll jump to connection to the storage provider to ask how a **proposed** deal is unfolding on their side.",
+      "line": 118
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "Here we do that work.",
+      "line": 30
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "Most of this method is boilerplate for both protocol support, let's jump in here to see what happens in Boost case.",
+      "line": 58
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "We call `signDealStatusRequest(...)` which is a method that will give us the signature for a \"deal status ask\", similar to signing a deal proposal. Let's jump to this method.",
+      "line": 70
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "In the Boost and local-wallet case, the payload we have to sign is the deal UUID marshaled to binary.",
+      "line": 183
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "We sign it.",
+      "line": 189
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "And return it. Let's jump back to the caller.\n",
+      "line": 220
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "We create the `smtypes.DealStatusRequest` which is the struct that contains the deal UUID and the signature.\n",
+      "line": 75
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "Send it to the storage provider, read the response and return the result!\n\nLet's jump back to the caller to understand what we received in the response.",
+      "line": 84
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_dealstatus.go",
+      "description": "The storage provider send us two things:\n- `state` (mandatory): this is the current state of the deal from his/her point of view. This state shouldn't be 100% percent trusted.\n- `publishCid` (optional temporarly, and mandatory after some point): this is the Cid of a message that the storage provider sent to the chain to _commit_ to this deal proposal.\n\nThe `publishCid` is something that for some time (some minutes or ~hour) it will be `cid.Undef`. Storage providers wait a bit to aggregate multiple deal proposals and commit to them all at once in a single published message in the chain.\n\nThis `publishCid` allow us to stop relying on the storage provider to know about the deal proposal status, and start asking the chain. The chain is the ultimate source of truth. Until we get a final \"activation\" of our proposal from the chain, we can't be 100% sure we finished.\n\nIn summary, for some minutes or ~hour, we ask the storage provider the deal status until it give us the `publishCid` of the message. After that, we stop relying on it and only ask the chain.\n\nAsking the chain to know for the full deal activation is the next thing we'll do in the tour now.",
+      "line": 58
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "This method is the one we use to transform the received `publishCid` sent by the storage provider, to the corresponding _DealID_ of our deal in the chain. This _DealID_ is the ultimate identifier of our deal in the Filecoin network.\n\nWith this _DealID_, we can ask the chain on the final status of the deal.",
+      "line": 33
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "We get the message from the chain. (The previous code was necessary before since this method can't easily explain that doesn't exist compared with other type of error)",
+      "line": 51
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "We unmarshal some blob data in the message",
+      "line": 57
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "This is a safety check we do here. It's pretty intricate, but the high-level explanation is the following.\n\nFirst, there's a fact and is that we can't even trust that the storage provider gave us a correct `publishCid` of the message.\nThat message should contain a deal proposal that matches the one that **we** proposed, and not potentially other of the same data that maybe other person did.",
+      "line": 63
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "We check that the message execution on-chain didn't fail, meaning that did the expected state change in the on-chain data.",
+      "line": 75
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "We return the corresponding detected _DealID_!",
+      "line": 88
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "We the _DealID_ that we discovered from the previous method we can now use this method to know about the full-activation of our proposal deal.",
+      "line": 93
+    },
+    {
+      "file": "cmd/dealerd/dealer/filclient/filclient_onchain.go",
+      "description": "In this case, we can be 100% sure that the deal is fully active on-chain. \nWe get also the `EndEpoch` which is when this deal finishes. This can't be known before this point because the deal end depends on exactly the time becomes fully active on-chain (so, `EndEpoch ~= DealActivation + DealDuration`).\n\nWe're done with the deal making, status checking with the storage provider, and status checking with on-chain!",
+      "line": 117
+    }
+  ]
+}
