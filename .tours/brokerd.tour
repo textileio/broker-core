@@ -1,0 +1,96 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "brokerd",
+  "steps": [
+    {
+      "file": "cmd/brokerd/main.go",
+      "description": "The `main` is here. We do the usual flag parsing, and create a new `service` which runs all the logic of the deamon.",
+      "line": 91
+    },
+    {
+      "file": "cmd/brokerd/service/service.go",
+      "description": "This `Service` object has all the APIs of `brokerd`:\n- The APIs of the gRPC methods that `storaged` will be calling.\n- The handlers of the message-broker messages that `brokerd` subscribes to to react to other microservices signalings.\n\nLet's see how this works in the next steps.",
+      "line": 55
+    },
+    {
+      "file": "cmd/brokerd/service/service.go",
+      "description": "Here we register in the message-broker our object `s` which has handlers for topics.\nThe `RegisterHandlers` method will automatically detect which handlers correspond to known topics, and it will automatically call them whenever it detects a new message in those topics.\n\nWe'll see an example soon.",
+      "line": 116
+    },
+    {
+      "file": "cmd/brokerd/service/service.go",
+      "description": "Here we use `s` again to register the gRPC handlers for the gRPC service that `brokerd` calls.\n\nWith this, all the wiring is finished, we have both:\n- Registered handlers for the topics of interests in the message broker.\n- Registered handlers for the gRPC APIs that `brokerd` provides to `storaged`.",
+      "line": 120
+    },
+    {
+      "file": "cmd/brokerd/service/service.go",
+      "description": "Here's one method of `*Service` that is registered as a gRPC handler for the gRPC API that `brokerd` has for `storaged`.\nIf you've seen the `storaged` walkthrough, the last step gRPC call will end up being handeled in this method.\n\nNotice how we receive the request (protobuf), do some validation and execute the business-logic execution to `s.broker.CreatePrepared(...)`.",
+      "line": 133
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "We create a `Batch` which is a central concept in the system. A _Batch_ contains all the information about some data to be stored, usually provided by the user.\nSome main fields are:\n- Replication factor\n- Sources of the data (i.e: car URL)\n- PayloadCid, PieceCid, PieceSize which are necessary information for deal making.\n",
+      "line": 210
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "Persisting the new `Batch` in the database.",
+      "line": 243
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "Now we start an auction! Let's jump into this method.",
+      "line": 255
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "In a nutshell, we call `msgbroker.publishMsgReadyToAuction(...)` which will send a message to a particular topic in the message broker.\nThe `auctioneerd` is subscribed to that topic and it will handle the message. Let's abstract away how message sending happen, this will be an optional tour you can read after `brokerd` tour.",
+      "line": 462
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "Coming back here, we simply return the `auctionID` to the caller and it finishes.\nNotice this is the end of our user API call, which in short:\n1- Created the `Batch` and saved it into the database.\n2- Triggered the creation of an Auction so the flow can continue in the background\n3- Returned to the client\n\nNow the rest of the flow will happen in the background. At some point, the `auctioneerd` will send a message telling the result of the auction for this `auctionID`.\nLet's jump now our handler for this message.",
+      "line": 483
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "Note that we don't wait for any reply or similar. The `msgbroker.PublishMsgReadyToAuction(...)` sent the message to the topic and returned.\nWe'll wait for `auctioneerd` to do it's thing (create the auction, receive the bids, select the winners), and report us back in another topic with the result!",
+      "line": 483
+    },
+    {
+      "file": "cmd/brokerd/service/service.go",
+      "description": "Here's method that will be used as the handler to process messages of `AuctionClosed` shown in the architecture diagram with a blue arrow.\nThis method is _magically_ called because we registered `*Service` as an object that can handle message-broker messages, which automatically wired the method with the corresponding topic in the message broker (Step 3. in the tour).\n\nLet's go now to the business-logic in `s.broker.BatchAuctioned(...)`.",
+      "line": 271
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "After doing some validations, we create a struct `dealer.AuctionDeals` that will contain all the information needed for deal-making.\nNotice that it contains some information we have saved previously in the `Batch`, which was information we received from the user.\n\nAlso, it contains a `Proposals` field which have information about the storage providers that won the auction. As in, we'll make the deals with the auction winners that `auctioneerd` told us in this `OnAuctionClosed` message we received.",
+      "line": 577
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "Now we send a message `ReadyToCreateDeals` (see again the diagram in the document).\nThis message is targeted to the `dealerd` daemon telling exactly what you'd imagine: \"Hey, for this data make a deal with each of the storage providers and report back whenever that's done\".\n\nAs with `auctioneerd`, we'll now wait for a message from `dealerd` telling us the result. Let's jump to the handler of that message now.",
+      "line": 608
+    },
+    {
+      "file": "cmd/brokerd/service/service.go",
+      "description": "Every time `dealerd` finishes with one of the deals (for each storage provider) it reports back the result and we handle that here.\nLet's jump into the business-logic.",
+      "line": 296
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "The information that `dealerd` reports back is a _DealID_ and _DealExpiration_.\nThe _DealID_ is a unique identifier of the storage deal in the Filecoin network. Each data storage in Filecoin has this number.\nThe _DealExpiration_ represents when this deal finishes, which means the storage provider doesn't need to store the data anymore.\n\nWe save this information in the database, so the client can know that his original storage ask now is stored in Filecoin, and know the _DealID_ which can double-check by its own means with other Filecoin ecosystem tooling/websites (e.g: www.filfox.com)",
+      "line": 637
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "Here we handle a special case were `dealerd` told us that wasn't possible to make the deal with the storage provider.\nThis can happenf for many reasons:\n- The storage provider was suddendly offline and we could make the deal.\n- The storage provider never completed the deal making process.\n- etc\n\nSince the client told use it wanted to store the data with replication factor N, we need to create a new auction with replication factor 1 to \"fill in the gap\" that this faulty storage provider has created. So we basically fire a new auction, and add the faulty (and previous winners) storage provider as \"excluded\" since we don't want to `auctioneerd` to select it again.",
+      "line": 652
+    },
+    {
+      "file": "cmd/brokerd/broker/broker.go",
+      "description": "If this is the last deal we were waiting for, we call this `Batch` a success and we finished!\nThere won't be any background work remaining; we're done.",
+      "line": 704
+    }
+  ]
+}

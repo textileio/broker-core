@@ -1,0 +1,106 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "auctioneerd",
+  "steps": [
+    {
+      "file": "cmd/auctioneerd/service/service.go",
+      "description": "As shown in `brokerd`, we register the `*Service` as usual to wire our methods with handling the message-broker messages.",
+      "line": 58
+    },
+    {
+      "file": "cmd/auctioneerd/service/service.go",
+      "description": "This `OnReadyToAuction` is the handler that will receive the message of `brokerd` asking us to create and run an Auction.",
+      "line": 91
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/auctioneer.go",
+      "description": "The new auction is put in a queue, so a background process in `auctioneerd` can start executing it.\nThis is all the work that we do while handling this message.\n\nLet's jump now to this background process that takes pending auctions to be run and run them.",
+      "line": 169
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "The `*Queue` is our background process to handle auctions.",
+      "line": 92
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "We spin up `MaxConcurrency` workers to inspect pending auctions to be run.",
+      "line": 117
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "This is the method that we called some steps ago when we received a new auction to be run.",
+      "line": 134
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "We store it in the database in pending state.",
+      "line": 170
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "This is the \"main loop\" of background workers, which will execute `q.processNext()` to run pending work. Let's see that now.",
+      "line": 544
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "We get an auction that is ready to execute. \nNote that it will call `q.enqueue(...)` with this auction, let's jump there to know what it does.",
+      "line": 562
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "Here we try sending `a` (the auction we want to execute) to `q.jobCh`.\n`j.jobCh` is a channel that the workers are listening to execute the auctions.\n\nIf we can't push to `j.jobCh` that means the workers are too busy, so if that's the case in `default:` we save the auction again in the database so it can be tried later again whenever the workers might have more capacity.\n\nLet's jump now to the code that's listening to `q.jobCh`.\n",
+      "line": 429
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "Here's the code that processes the auctions sent to `q.jobCh`.\nIt calls the `q.handler(...)` which will run the auction, and call that `func(bid auctioneer.Bid) error` provided function every time a new bid is received.\n\n`q.handler(...)` returns when the auction has finished with `wbs` which are the winning bids of the auction.\nLet's jump to `q.handler(...)`.",
+      "line": 448
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/auctioneer.go",
+      "description": "Here's the main logic for running an Auction, let's go step by step.",
+      "line": 288
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/auctioneer.go",
+      "description": "This message in the broker is only done for informational purposes of `apid`, feel free to ignore it.",
+      "line": 293
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/auctioneer.go",
+      "description": "We define the function that will run on each bid received for the auction.\nA summary is just validating that the bid satisfies the constraints that the Auction has.\nFor example, if the maximum price that the Auction asked for is 0 (free), then we reject any bids that tell us about a price greater than zero.\n\nThis handler will save in the database all the received bids.\n\nRemember: this `bidHandler := func ...` is just a definition inside the `processAuction` for now.",
+      "line": 304
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/auctioneer.go",
+      "description": "We create a protobuf `Auction` message that we'll send in the auction feed so all bidbots will receive it.",
+      "line": 364
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/auctioneer.go",
+      "description": "We send the auction to the auction feed. Under the hood, this is a libp2p pubsub (https://docs.libp2p.io/concepts/publish-subscribe/). \nAll bidbots are connected to the PubSub topoic and we publish into the topic.\nBids are received by bidbots publishing into the topic too.\n\nNotice how the `bidsHandler` function that we described before is passed as an argument. Every time a bid is received, it will call that function.",
+      "line": 382
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/auctioneer.go",
+      "description": "After the auction runs, we select the winners. The algorithm for selecting winners is somewhat intricate, but is just trying to select the best N out of M bids where N is the desired replication factor of the auction.\n\nWe return the `winners`.",
+      "line": 392
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "And we're back! Here we receive the winners.",
+      "line": 451
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "We add some extra info to the winning bids. Remember all bids were already saved in `q.handler(...)` as mentioneed in the previous step.",
+      "line": 463
+    },
+    {
+      "file": "cmd/auctioneerd/auctioneer/queue/queue.go",
+      "description": "We update the auction status, and report back to the `brokerd`.\nThis will send a message that will be handeled by the `OnAuctionClosed` method that we saw before in the `brokerd` tour!\n\nWe're done here!",
+      "line": 479
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "msgbroker",
+  "steps": [
+    {
+      "file": "msgbroker/msgbroker.go",
+      "description": "The `msgbroker` package is used by most daemons to:\n- Send new messages to particular topics.\n- Register handlers to process messages sent to topics.\n\nThe `msgbroker` package is an abstract interface that gives a very simply API for the _users_.\nIf you had followed the tours in order, you'll remember that the users do three main things:\n- Call `RegisterTopicHandler(...)` with a struct that has some `On****` methods.\n- Simply call `msgbroker.Send****(...)` which sends a particular message in a topic.\n\nLet's jump into the `RegisterTopicHandler(...)` magic.",
+      "line": 1
+    },
+    {
+      "file": "msgbroker/msgbroker.go",
+      "description": "First, here're all the definitions of the existing topics in the message broker.",
+      "line": 42
+    },
+    {
+      "file": "msgbroker/msgbroker.go",
+      "description": "The logic here might seem long but it's quite simple.\nWe inspect via reflection if `s` satisfies a list of interfaces. Each interface corresponds to a _handler_ of a specific message in the topic. Let's look at an example that we saw before in `brokerd` tour.",
+      "line": 154
+    },
+    {
+      "file": "msgbroker/msgbroker.go",
+      "description": "Let's take the case of the \"ready to auction\" topic. \nAs you might recall from the `brokerd` tour, this is a topic where `brokerd` sends a message so a new auction can be created and run.\n\nAs also shown in the `auctioneerd` tour, `auctioneerd` `*Service` satisfies the `ReadyToAuctionListener` interface, which is basically having an `OnReadyToAuction(...)` method. \n\n",
+      "line": 540
+    },
+    {
+      "file": "msgbroker/msgbroker.go",
+      "description": "If that's the case, we wire this handler for the `ReadyToAuctionTopic` messages!\nWhen a message is received in this topic, this `func(...)` sent in the second argument will be called.",
+      "line": 542
+    },
+    {
+      "file": "msgbroker/msgbroker.go",
+      "description": "Which basically does some sanity validations above, and call the underlying `OnReadyToAuction(...)` logic, which in this case example is the `auctioneerd.(*Service).OnReadyToAuction(...)` code!\n\nThat's it.\n\nNow let's jump to how \"sending messages\" work, for this same example.",
+      "line": 570
+    },
+    {
+      "file": "msgbroker/msgbroker.go",
+      "description": "Here we've the method we touched before in the `brokerd` tour. \nIn a nutshell, it packs all the information in a protobuf message, and that is sent to the `ReadyToAuctionTopic`.",
+      "line": 837
+    }
+  ]
+}

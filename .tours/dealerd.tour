@@ -1,0 +1,66 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "dealerd",
+  "steps": [
+    {
+      "file": "cmd/dealerd/service/service.go",
+      "description": "As usual, we start the tour here were we register `*Service` handlers for message-broker messages.",
+      "line": 123
+    },
+    {
+      "file": "cmd/dealerd/service/service.go",
+      "description": "Here's the handler of the messages sent by `brokerd` whenever it received the winning bids for an auction. Remember that after that it sent a message (for us) to execute the deals for the auction winners.",
+      "line": 131
+    },
+    {
+      "file": "cmd/dealerd/dealer/dealer.go",
+      "description": "Processing this message is basically creating two structures that are central in `dealerd` logic:\n- `AuctionData` which contains information about the data to be stored, see below which are these fields.\n- `AuctionDeal` which contains information for each deal with have to do for that `AuctionData`. See below for the fields.",
+      "line": 68
+    },
+    {
+      "file": "cmd/dealerd/dealer/dealer.go",
+      "description": "We persist both structs in the database. A background process will take every pending `AuctionDeal` that needs to be executed, and execute it.",
+      "line": 93
+    },
+    {
+      "file": "cmd/dealerd/store/store.go",
+      "description": "Note that every deal it has 4 possible statuses that are described here.\nWhen we receive the message from `brokerd`, we create all pending deals in `StatusDealMaking` since the work that needs to be done is \"making the deal\".\n\nThen we move to `StatusConfirmation`. After the deal is proposed, we need to wait for the deal to \"become active on-chain\". For `dealerd` is basically \"waiting\" until the storage provider do some stuff. We got to know that this happened by looking at the Filecoin chain signaling that all is done.\n\nAfter that we move to `StatusReportFinalized` that simply says we now need to report back to `brokerd` the result of the deal! This is exactly the message that you say in the last phase of the `brokerd` tour.\n\nFinally, all deals are moved to `StatusFinalized` signaling all is done.",
+      "line": 23
+    },
+    {
+      "file": "cmd/dealerd/dealer/dealer.go",
+      "description": "Note that we create one goroutine per status. Each go routine is listening if there's any deal in a particular status that's ready to be run, and runs it.\n\nYou can think of this design as a state machine. You take something in some state, do the work, and save the result moving to the next state. Then, something else will take that and do something else.\n\nLet's jump into the logic that handlers each stage of the deal making, starting with what we do in the status `StatusDealMaking`. (This is work done in the `go d.daemonDealMaker()` goroutine)",
+      "line": 110
+    },
+    {
+      "file": "cmd/dealerd/dealer/statewatching.go",
+      "description": "Here's the logic for the `StatusConfirmation` stage.\nYou can read the logic, but in a nutshell we're trying to figure out if the proposed deal that we did in the previous status is \"active on-chain\", which means that the data was successfully stored in Filecoin.\n\nWe do this in two stages:\n- In the first stage, we ask the storage provider \"how are you doing\" for a while it's preparing for doing the storage.\n- After some time, the storage provider tells us a _DealID_ which means that now we can keep tracking the state of this deal in the Filecoin chain. From now on, we keep looking in the Filecoin chain if the deal becomes active.\n\nNote that we end up trusting only the Filecoin chain. We never consider things \"done\" by any message we were told by the storage provider (since we shouldn't trust them).\n\nNow we move the deal to `StatusReportFinalized`, so we can tell back `brokerd` about the result!",
+      "line": 76
+    },
+    {
+      "file": "cmd/dealerd/dealer/statereporting.go",
+      "description": "Reporting back is just sending a message through the message-broker to a specified topic.\nThis is exactly the message that will be handeled by `brokerd` which we explained in the last part of the `brokerd` tour.\n\nWe're done here!",
+      "line": 54
+    },
+    {
+      "file": "cmd/dealerd/dealer/statedealmaking.go",
+      "description": "Here's is the logic for `StatusDealMaking` status. This is one of the central parts of `dealerd` (and whole system) logic: proposing the deal to the storage provider.\n\n",
+      "line": 76
+    },
+    {
+      "file": "cmd/dealerd/dealer/statedealmaking.go",
+      "description": "The heavy lifting is done by `d.filclient.ExecuteAuctionDeal`. The `filclient` library is somewhat abstract, and we'll soon create a dedicate tour for that. For now, just assume this method proposes the deal to the storage provider.",
+      "line": 94
+    },
+    {
+      "file": "cmd/dealerd/dealer/statedealmaking.go",
+      "description": "We save the progress, and move this deal to `StatusConfirmation`. We'll jump to the logic of that in a minute.",
+      "line": 128
+    },
+    {
+      "file": "cmd/dealerd/dealer/statedealmaking.go",
+      "description": "After the deal is proposed, we need to \"send a message\" to the storage provider bidbot that this happened. This is done just for \"good UX\" purposes on \"their side\".\nHere we have an \"if\" with two cases since today there're two ways of proposing deals to storage providers. In some months (~EOY 2022) it will be only one so this will be somewhat simpler. In any case, boths if are doing the same thing but just reporting a different type of identifier.\n\nWe're done with the `StatusDealMaking` logic. Now we'll jump to the logic of the next status which is `StatusConfirmation`.",
+      "line": 134
+    }
+  ]
+}

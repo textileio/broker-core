@@ -1,0 +1,57 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "storaged",
+  "steps": [
+    {
+      "file": "cmd/storaged/main.go",
+      "description": "This is the `main` function of the daemon.",
+      "line": 51
+    },
+    {
+      "file": "cmd/storaged/main.go",
+      "description": "After some flag parsing, instrumentation wiring, and boilerplate stuff, we spin up a new `service` which will run the public REST endpoints that users can call.",
+      "line": 77
+    },
+    {
+      "file": "cmd/storaged/httpapi/httpapi.go",
+      "description": "Here we configure the routes of the REST API with their corresponding handlers.\nThe main one to understand is `/auction-data` which is the one that receives the JSON body described in the _Walkthrough_ document.\n\nLet's jump there.",
+      "line": 43
+    },
+    {
+      "file": "cmd/storaged/httpapi/httpapi.go",
+      "description": "Here we do the usual REST API checks and unmarshalings of the body.",
+      "line": 196
+    },
+    {
+      "file": "cmd/storaged/httpapi/httpapi.go",
+      "description": "If all looks good, we execute the main logic of this handler which is done by `CreateFromExternalSource`.",
+      "line": 219
+    },
+    {
+      "file": "cmd/storaged/storage/brokerstorage/brokerstorage.go",
+      "description": "Here we do more structured validations to know that all inputs are valid and makes sense.\nThese validation include advanced features such as using remote-wallets that you can ignore for now.\n",
+      "line": 228
+    },
+    {
+      "file": "cmd/storaged/storage/brokerstorage/brokerstorage.go",
+      "description": "All is good, so we make the gRPC call which is abstracted in this `broker` client.\nLet's jump to the implementation.",
+      "line": 348
+    },
+    {
+      "file": "cmd/brokerd/client/client.go",
+      "description": "Here's the client implementation, which basically populates the protobuf request, and make the gRPC call to `brokerd`.",
+      "line": 66,
+      "selection": {
+        "start": {
+          "line": 60,
+          "character": 18
+        },
+        "end": {
+          "line": 60,
+          "character": 33
+        }
+      }
+    }
+  ],
+  "isPrimary": true
+}
