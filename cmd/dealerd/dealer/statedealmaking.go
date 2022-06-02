@@ -84,14 +84,10 @@ func (d *Dealer) executePendingDealMaking(ctx context.Context, aud store.Auction
 		return fmt.Errorf("get remote wallet info: %s", err)
 	}
 
-	allowBoost, err := d.store.IsBoostAllowed(ctx, aud.StorageProviderID)
-	if err != nil {
-		return fmt.Errorf("is boost allowed for %s: %s", aud.StorageProviderID, err)
-	}
-	log.Debugf("%s executing deal from SD %s for %s with storage-provider %s, boost: %v",
-		aud.ID, ad.BatchID, ad.PayloadCid, aud.StorageProviderID, allowBoost)
+	log.Debugf("%s executing deal from SD %s for %s with storage-provider %s",
+		aud.ID, ad.BatchID, ad.PayloadCid, aud.StorageProviderID)
 
-	dealIdentifier, retry, err := d.filclient.ExecuteAuctionDeal(ctx, ad, aud, rw, allowBoost)
+	dealIdentifier, retry, err := d.filclient.ExecuteAuctionDeal(ctx, ad, aud, rw)
 	if err != nil {
 		return fmt.Errorf("executing auction deal: %s", err)
 	}

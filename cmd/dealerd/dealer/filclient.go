@@ -14,8 +14,7 @@ type FilClient interface {
 		ctx context.Context,
 		ad store.AuctionData,
 		aud store.AuctionDeal,
-		rw *store.RemoteWallet,
-		allowBoost bool) (string, bool, error)
+		rw *store.RemoteWallet) (string, bool, error)
 	GetChainHeight(ctx context.Context) (uint64, error)
 	ResolveDealIDFromMessage(
 		ctx context.Context,

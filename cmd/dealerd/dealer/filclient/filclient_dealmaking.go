@@ -39,8 +39,7 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet,
-	allowBoost bool) (didentifier string, retriable bool, err error) {
+	rw *store.RemoteWallet) (didentifier string, retriable bool, err error) {
 	log.Debugf("executing auction deal for data-cid %s, piece-cid %s and sp %s...",
 		ad.PayloadCid, ad.PieceCid, aud.StorageProviderID)
 	defer func() {
@@ -67,10 +66,6 @@ func (fc *FilClient) ExecuteAuctionDeal(
 	spDealProtocol, err := fc.dealProtocolForStorageProvider(ctx, sp)
 	if err != nil {
 		return "", true, fmt.Errorf("detecting supporting deal protocol: %s", err)
-	}
-	if spDealProtocol == dealProtocolv120 && !allowBoost {
-		log.Info("downgrading %s from boost to legacy deal proposal protocol", sp)
-		spDealProtocol = dealProtocolv110
 	}
 
 	var dealStatus storagemarket.StorageDealStatus
