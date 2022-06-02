@@ -235,7 +235,7 @@ func TestExecuteAuctionDealV110(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil, false)
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
 	require.NoError(t, err)
 	require.False(t, retry)
 	fmt.Printf("dealIdentifier: %s", dealIdentifier)
@@ -269,7 +269,7 @@ func TestExecuteAuctionDealV120(t *testing.T) {
 		AuctionID:           "auction-1",
 		BidID:               "bid-1",
 	}
-	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil, true)
+	dealIdentifier, retry, err := client.ExecuteAuctionDeal(ctx, ad, aud, nil)
 	require.NoError(t, err)
 	require.False(t, retry)
 	fmt.Printf("dealIdentifier: %s", dealIdentifier)

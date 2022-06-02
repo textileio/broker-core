@@ -311,8 +311,7 @@ func (fc *fcMock) ExecuteAuctionDeal(
 	ctx context.Context,
 	ad store.AuctionData,
 	aud store.AuctionDeal,
-	rw *store.RemoteWallet,
-	allowBoost bool) (string, bool, error) {
+	rw *store.RemoteWallet) (string, bool, error) {
 	args := fc.Called(ctx, ad, aud)
 	return args.String(0), args.Bool(1), args.Error(2)
 }

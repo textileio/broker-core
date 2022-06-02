@@ -1,0 +1,1 @@
+CREATE TABLE boost_whitelist (storage_provider_id TEXT NOT NULL);
