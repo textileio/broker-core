@@ -21,10 +21,6 @@ INSERT INTO auction_data(
 SELECT * FROM auction_data
 WHERE id = $1;
 
--- name: IsBoostAllowed :one
-SELECT * FROM boost_whitelist
-WHERE storage_provider_id=$1;
-
 -- name: CreateRemoteWallet :exec
 INSERT INTO remote_wallet(
    auction_data_id,
