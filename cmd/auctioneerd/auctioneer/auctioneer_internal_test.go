@@ -153,6 +153,15 @@ func TestSelectWinners(t *testing.T) {
 			}{{[]core.BidID{"bid1", "bid3", "bid5", "bid7"}, 1.0}},
 		},
 		{
+			"targeted auctions with deadline passed, should still select given providers",
+			auctioneer.Auction{DealReplication: 4, Providers: []string{"sp1", "sp3", "sp5", "sp7"},
+				FilEpochDeadline: currentFilEpoch() - 86400},
+			[]struct {
+				ids    []core.BidID
+				chance float64
+			}{{[]core.BidID{"bid1", "bid3", "bid5", "bid7"}, 1.0}},
+		},
+		{
 			"targeted auctions with more bids, still follow the replica rules",
 			auctioneer.Auction{DealReplication: 1, Providers: []string{"sp1", "sp2", "sp3", "sp4", "sp5", "sp7"},
 				FilEpochDeadline: currentFilEpoch() + 10},

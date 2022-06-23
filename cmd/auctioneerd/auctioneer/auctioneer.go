@@ -513,7 +513,7 @@ func (a *Auctioneer) selectWinners(
 		// consider only bids with zero price for now.
 		return !auction.DealVerified && b.AskPrice == 0 || auction.DealVerified && b.VerifiedAskPrice == 0
 	})
-	if auction.FilEpochDeadline > 0 {
+	if auction.FilEpochDeadline > 0 && len(auction.Providers) <= 0 {
 		// select providers historically (the recent week) confirmed deals sooner than the auction requires.
 		current := currentFilEpoch()
 		if auction.FilEpochDeadline <= current {
