@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,7 +46,7 @@ func createMux(s storage.Requester, maxUploadSize uint, skipAuth bool) *http.Ser
 	}
 	mux := http.NewServeMux()
 
-	forbiddenUploadHandler := wrapMiddlewares(forbiddenUploadHandler(reqAuth, s, maxUploadSize), "upload")
+	forbiddenUploadHandler := wrapMiddlewares(uploadHandler(reqAuth, s, maxUploadSize), "upload")
 	mux.Handle("/upload", forbiddenUploadHandler)
 
 	storageRequestStatusHandler := wrapMiddlewares(storageRequestHandler(s), "storagerequest")
@@ -100,7 +99,7 @@ func corsHandler(h http.Handler) http.Handler {
 // This function is used to short circuit
 // the /upload endpoint due to regulatory issues with
 // uploading copyrighted content
-func forbiddenUploadHandler(
+func uploadHandler(
 	reqAuth requestAuthorizer,
 	s storage.Requester,
 	maxUploadSize uint) func(w http.ResponseWriter, r *http.Request) {
@@ -134,37 +133,6 @@ func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *h
 			return
 		}
 	}
-}
-
-func parseMultipart(r *http.Request) (io.Reader, error) {
-	mr, err := r.MultipartReader()
-	if err != nil {
-		return nil, fmt.Errorf("opening multipart reader: %s", err)
-	}
-
-	var file io.Reader
-Loop:
-	for {
-		part, err := mr.NextPart()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("getting next part: %s", err)
-		}
-		switch part.FormName() {
-		case "file":
-			file = part
-			break Loop
-		default:
-			return nil, errors.New("malformed request")
-		}
-	}
-	if file == nil {
-		return nil, fmt.Errorf("missing file part: %s", err)
-	}
-
-	return file, nil
 }
 
 func auctionDataHandler(reqAuth requestAuthorizer, s storage.Requester) func(w http.ResponseWriter, r *http.Request) {
