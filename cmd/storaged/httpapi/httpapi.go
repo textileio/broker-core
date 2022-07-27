@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,8 +46,8 @@ func createMux(s storage.Requester, maxUploadSize uint, skipAuth bool) *http.Ser
 	}
 	mux := http.NewServeMux()
 
-	uploadHandler := wrapMiddlewares(uploadHandler(reqAuth, s, maxUploadSize), "upload")
-	mux.Handle("/upload", uploadHandler)
+	forbiddenUploadHandler := wrapMiddlewares(uploadHandler(reqAuth, s, maxUploadSize), "upload")
+	mux.Handle("/upload", forbiddenUploadHandler)
 
 	storageRequestStatusHandler := wrapMiddlewares(storageRequestHandler(s), "storagerequest")
 	mux.Handle("/storagerequest/", storageRequestStatusHandler)
@@ -97,41 +96,15 @@ func corsHandler(h http.Handler) http.Handler {
 	})
 }
 
+// This function is used to short circuit
+// the /upload endpoint due to regulatory issues with
+// uploading copyrighted content
 func uploadHandler(
 	reqAuth requestAuthorizer,
 	s storage.Requester,
 	maxUploadSize uint) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			httpError(w, "only POST method is allowed", http.StatusBadRequest)
-			return
-		}
-
-		ae, status, err := reqAuth(r, s)
-		if err != nil {
-			httpError(w, err.Error(), status)
-			return
-		}
-
-		r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadSize))
-
-		file, err := parseMultipart(r)
-		if err != nil {
-			httpError(w, fmt.Sprintf("parsing multipart: %s", err), http.StatusBadRequest)
-			return
-		}
-
-		sr, err := s.CreateFromReader(r.Context(), file, ae.Origin)
-		if err != nil {
-			httpError(w, fmt.Sprintf("upload data and create storage request: %s", err), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(sr); err != nil {
-			httpError(w, fmt.Sprintf("marshaling response: %s", err), http.StatusInternalServerError)
-			return
-		}
+		httpError(w, "POST /upload is not available anymore", http.StatusNotImplemented)
 	}
 }
 
@@ -160,37 +133,6 @@ func storageRequestHandler(s storage.Requester) func(w http.ResponseWriter, r *h
 			return
 		}
 	}
-}
-
-func parseMultipart(r *http.Request) (io.Reader, error) {
-	mr, err := r.MultipartReader()
-	if err != nil {
-		return nil, fmt.Errorf("opening multipart reader: %s", err)
-	}
-
-	var file io.Reader
-Loop:
-	for {
-		part, err := mr.NextPart()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("getting next part: %s", err)
-		}
-		switch part.FormName() {
-		case "file":
-			file = part
-			break Loop
-		default:
-			return nil, errors.New("malformed request")
-		}
-	}
-	if file == nil {
-		return nil, fmt.Errorf("missing file part: %s", err)
-	}
-
-	return file, nil
 }
 
 func auctionDataHandler(reqAuth requestAuthorizer, s storage.Requester) func(w http.ResponseWriter, r *http.Request) {

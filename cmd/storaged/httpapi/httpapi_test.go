@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -18,40 +17,12 @@ import (
 	"github.com/textileio/broker-core/cmd/storaged/storage"
 )
 
-func TestCreateSuccess(t *testing.T) {
+func TestCreateShortCircuit(t *testing.T) {
 	t.Parallel()
-
 	req, res := makeRequestWithFile(t)
-
-	c, _ := cid.Decode("bafybeifsc7cb4abye3cmv4s7icreryyteym6wqa4ee5bcgih36lgbmrqkq")
-	expectedSR := storage.Request{ID: "ID1", Cid: c, StatusCode: storage.StatusBatching}
-	expectedSRI := storage.RequestInfo{Request: expectedSR}
-	usm := &uploaderMock{}
-	usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).Return(expectedSR, nil)
-	usm.On("GetRequestInfo", mock.Anything, mock.Anything).Return(expectedSRI, nil)
-
-	mux := createMux(usm, 1<<20, true)
+	mux := createMux(&uploaderMock{}, 1<<20, true)
 	mux.ServeHTTP(res, req)
-	require.Equal(t, http.StatusOK, res.Code)
-
-	var responseSR storage.Request
-	err := json.Unmarshal(res.Body.Bytes(), &responseSR)
-	require.NoError(t, err)
-
-	require.Equal(t, expectedSR, responseSR)
-
-	// Call Get(..)
-	req = httptest.NewRequest("GET", "/storagerequest/"+responseSR.ID, nil)
-	req.Header.Add("Authorization", "Bearer foo")
-	res = httptest.NewRecorder()
-	mux.ServeHTTP(res, req)
-	require.Equal(t, http.StatusOK, res.Code)
-	var responseSRI storage.RequestInfo
-	err = json.Unmarshal(res.Body.Bytes(), &responseSRI)
-	require.NoError(t, err)
-	require.Equal(t, expectedSRI, responseSRI)
-
-	usm.AssertExpectations(t)
+	require.Equal(t, http.StatusNotImplemented, res.Code)
 }
 
 func TestCreatePreparedSuccess(t *testing.T) {
@@ -144,7 +115,7 @@ func TestFail(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(tc.method, "/upload", nil)
+			req := httptest.NewRequest(tc.method, "/auction-data", nil)
 			req.Header["Authorization"] = tc.authHeader
 			res := httptest.NewRecorder()
 
@@ -166,20 +137,6 @@ func TestFail(t *testing.T) {
 		})
 	}
 
-	t.Run("uploader-failed", func(t *testing.T) {
-		t.Parallel()
-
-		req, res := makeRequestWithFile(t)
-
-		usm := &uploaderMock{}
-		usm.On("CreateFromReader", mock.Anything, mock.Anything, mock.Anything).
-			Return(storage.Request{}, fmt.Errorf("oops"))
-
-		mux := createMux(usm, 1<<20, true)
-		mux.ServeHTTP(res, req)
-		require.Equal(t, http.StatusInternalServerError, res.Code)
-		usm.AssertExpectations(t)
-	})
 }
 
 func makeRequestWithFile(t *testing.T) (*http.Request, *httptest.ResponseRecorder) {
