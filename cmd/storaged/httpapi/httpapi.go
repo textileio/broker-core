@@ -47,8 +47,8 @@ func createMux(s storage.Requester, maxUploadSize uint, skipAuth bool) *http.Ser
 	}
 	mux := http.NewServeMux()
 
-	uploadHandler := wrapMiddlewares(uploadHandler(reqAuth, s, maxUploadSize), "upload")
-	mux.Handle("/upload", uploadHandler)
+	forbiddenUploadHandler := wrapMiddlewares(forbiddenUploadHandler(reqAuth, s, maxUploadSize), "upload")
+	mux.Handle("/upload", forbiddenUploadHandler)
 
 	storageRequestStatusHandler := wrapMiddlewares(storageRequestHandler(s), "storagerequest")
 	mux.Handle("/storagerequest/", storageRequestStatusHandler)
@@ -97,41 +97,15 @@ func corsHandler(h http.Handler) http.Handler {
 	})
 }
 
-func uploadHandler(
+// This function is used to short circuit
+// the /upload endpoint due to regulatory issues with
+// uploading copyrighted content
+func forbiddenUploadHandler(
 	reqAuth requestAuthorizer,
 	s storage.Requester,
 	maxUploadSize uint) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			httpError(w, "only POST method is allowed", http.StatusBadRequest)
-			return
-		}
-
-		ae, status, err := reqAuth(r, s)
-		if err != nil {
-			httpError(w, err.Error(), status)
-			return
-		}
-
-		r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadSize))
-
-		file, err := parseMultipart(r)
-		if err != nil {
-			httpError(w, fmt.Sprintf("parsing multipart: %s", err), http.StatusBadRequest)
-			return
-		}
-
-		sr, err := s.CreateFromReader(r.Context(), file, ae.Origin)
-		if err != nil {
-			httpError(w, fmt.Sprintf("upload data and create storage request: %s", err), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(sr); err != nil {
-			httpError(w, fmt.Sprintf("marshaling response: %s", err), http.StatusInternalServerError)
-			return
-		}
+		httpError(w, "POST /upload is not available anymore", http.StatusNotImplemented)
 	}
 }
 
